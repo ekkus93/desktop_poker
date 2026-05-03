@@ -32,6 +32,15 @@ pub struct EncryptionKeyMaterial {
     public_key: X25519PublicKey,
 }
 
+impl std::fmt::Debug for EncryptionKeyMaterial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EncryptionKeyMaterial")
+            .field("public_key_base64", &self.public_key_base64())
+            .field("key_id", &self.key_id())
+            .finish()
+    }
+}
+
 impl EncryptionKeyMaterial {
     #[must_use]
     pub fn public_key_base64(&self) -> String {
@@ -77,7 +86,7 @@ pub trait ProtocolCryptoProvider {
     ) -> Result<Vec<u8>, ProtocolError>;
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct DefaultCryptoProvider;
 
 impl ProtocolCryptoProvider for DefaultCryptoProvider {

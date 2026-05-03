@@ -11,6 +11,7 @@ The repository now contains:
 - Tauri command/event bridge for frontend bootstrap state
 - M1 domain/state foundation with immutable poker/tournament models, validators, participant capacity semantics, and state projection logic
 - M2 protocol/crypto foundation with Android-shaped envelopes, canonical JSON signing bytes, replay protection, compact `pkr1_` join payload codec, and Ed25519/X25519/ChaCha utilities
+- M3 real TCP runtime foundation with length-prefixed JSON framing, host/client join flow, encrypted private delivery, LAN IP validation, and transport tests
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices

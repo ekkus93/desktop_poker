@@ -28,6 +28,7 @@ chacha20poly1305 = "0.10"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 flate2 = "1"
 hex = "0.4"
+local-ip-address = "0.6"
 rand_core = { version = "0.6", features = ["getrandom"] }
 sha2 = "0.10"
 x25519-dalek = { version = "2", features = ["static_secrets"] }

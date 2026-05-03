@@ -258,64 +258,64 @@ Before coding, treat these as fixed:
 ## 6. M3 — Real TCP LAN host/client runtime
 
 ### 6.1 Host TCP server
-- [ ] Implement real TCP listener
-- [ ] Bind to configured host port
-- [ ] Fail loudly if port unavailable
-- [ ] Accept multiple clients concurrently
-- [ ] Add graceful connection cleanup
-- [ ] Add framed message send/receive loop
-- [ ] Add host-side backpressure/error handling
+- [x] Implement real TCP listener
+- [x] Bind to configured host port
+- [x] Fail loudly if port unavailable
+- [x] Accept multiple clients concurrently
+- [x] Add graceful connection cleanup
+- [x] Add framed message send/receive loop
+- [x] Add host-side backpressure/error handling
 
 ### 6.2 Client TCP runtime
-- [ ] Implement real TCP client connect
-- [ ] Validate join payload before connect
-- [ ] Open connection to host
-- [ ] Perform signed join request flow
-- [ ] Handle accept/reject responses
-- [ ] Maintain live read loop for public events and private deliveries
+- [x] Implement real TCP client connect
+- [x] Validate join payload before connect
+- [x] Open connection to host
+- [x] Perform signed join request flow
+- [x] Handle accept/reject responses
+- [x] Maintain live read loop for public events and private deliveries
 
 ### 6.3 LAN host IP resolution
-- [ ] Implement valid connectable LAN IP resolution
-- [ ] Reject loopback-only / wildcard / `0.0.0.0` for production host flow
-- [ ] Block production hosting if no valid LAN IP exists
-- [ ] Show explicit error to user
-- [ ] Do not generate join payload if host address is unusable
+- [x] Implement valid connectable LAN IP resolution
+- [x] Reject loopback-only / wildcard / `0.0.0.0` for production host flow
+- [x] Block production hosting if no valid LAN IP exists
+- [x] Show explicit error to user
+- [x] Do not generate join payload if host address is unusable
 
 ### 6.4 Host join payload generation
-- [ ] Generate canonical join payload on host startup
-- [ ] Allow copy-to-clipboard
-- [ ] Allow save/share as text
-- [ ] Optionally render QR code from same payload
-- [ ] Regenerate payload if host port changes
+- [x] Generate canonical join payload on host startup
+- [x] Allow copy-to-clipboard
+- [x] Allow save/share as text
+- [x] Optionally render QR code from same payload
+- [x] Regenerate payload if host port changes
 
 ### 6.5 Room-code discovery stance
-- [ ] Do not expose unfinished room-code discovery in production UI
-- [ ] If discovery code exists, keep it debug-only/internal-only
-- [ ] Add explicit TODO comments if discovery is deferred
+- [x] Do not expose unfinished room-code discovery in production UI
+- [x] If discovery code exists, keep it debug-only/internal-only
+- [x] Add explicit TODO comments if discovery is deferred
 
 ### 6.6 Public-event driven client update path
-- [ ] Process live gameplay from signed public events
-- [ ] Do not rely on snapshots as steady-state live-play updates
-- [ ] Handle event types for:
-  - [ ] action-window opened
-  - [ ] player action committed
-  - [ ] street revealed
-  - [ ] player eliminated
-  - [ ] tournament completed
-  - [ ] hand completed
-  - [ ] tournament starting
-- [ ] Reserve snapshots for:
-  - [ ] join
-  - [ ] reconnect
-  - [ ] explicit resync
+- [x] Process live gameplay from signed public events
+- [x] Do not rely on snapshots as steady-state live-play updates
+- [x] Handle event types for:
+  - [x] action-window opened
+  - [x] player action committed
+  - [x] street revealed
+  - [x] player eliminated
+  - [x] tournament completed
+  - [x] hand completed
+  - [x] tournament starting
+- [x] Reserve snapshots for:
+  - [x] join
+  - [x] reconnect
+  - [x] explicit resync
 
 ### 6.7 Required tests
-- [ ] host can open listener
-- [ ] client can connect and join using canonical payload
-- [ ] public events flow from host to client over real TCP
-- [ ] private encrypted payload can be delivered and decrypted
-- [ ] invalid host IP blocks host startup
-- [ ] invalid payload blocks join before connect
+- [x] host can open listener
+- [x] client can connect and join using canonical payload
+- [x] public events flow from host to client over real TCP
+- [x] private encrypted payload can be delivered and decrypted
+- [x] invalid host IP blocks host startup
+- [x] invalid payload blocks join before connect
 
 ---
 
