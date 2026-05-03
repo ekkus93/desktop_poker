@@ -1,0 +1,736 @@
+# DESKTOP_TODO.md
+
+This file is the implementation plan for the desktop poker app defined by `DESKTOP_SPECS.md`.
+
+It is intentionally written as a direct build plan for GitHub Copilot or another coding agent.
+Do **not** reopen product decisions already fixed in `DESKTOP_SPECS.md`.
+Implement the desktop app as a real Tauri + Rust LAN poker client/host, not as a mock UI shell.
+
+## 1. Non-negotiable decisions
+
+Before coding, treat these as fixed:
+
+- The desktop app is a **real playable client/host**, not only a simulator.
+- The desktop app uses **Tauri + Rust**.
+- Rust owns networking, protocol, crypto, reconnect/resync, tournament/session logic, persistence, and authoritative state projection.
+- The desktop app is **single-table Sit 'n Go No-Limit Texas Hold'em** only for MVP.
+- Player count is **2 to 10**.
+- The authority model is **host-authoritative** in v1.
+- Transport is **raw TCP over local LAN**.
+- Desktop production v1 join path is **direct join payload**.
+- Room-code discovery is **not required** for production v1 and must not be exposed unless actually implemented.
+- Eliminated players remain as **read-only observers**.
+- Messages are **signed**.
+- Private hole-card delivery is **encrypted to the recipient**.
+- Reconnect/resync must work over real TCP.
+- The desktop app must support **multiple instances on one machine**.
+- Both debug and release desktop builds must default to the **real LAN runtime path**.
+- Debug/internal simulator tools may exist, but must not be the default path.
+- Desktop MVP must target **Android/Desktop protocol compatibility**.
+- Desktop MVP manual QA must include:
+  - desktop host + desktop client
+  - desktop host + Android client
+  - Android host + desktop client where possible
+
+## 2. Milestone plan
+
+### M0. Project skeleton and desktop architecture decisions
+### M1. Core Rust domain and shared state model
+### M2. Protocol and crypto compatibility layer
+### M3. Real TCP LAN host/client runtime
+### M4. Tournament coordinator and hand loop
+### M5. Reconnect, resync, and sequence handling
+### M6. Tauri frontend shell and screen flow
+### M7. Main table UX and gameplay controls
+### M8. Multi-instance local testing support
+### M9. Interop testing with Android
+### M10. Persistence, polish, and release readiness
+
+---
+
+## 3. M0 — Project skeleton and desktop architecture decisions
+
+### 3.1 Create the Tauri workspace
+- [ ] Create a new Tauri application repository structure or desktop subproject structure
+- [ ] Create Rust backend crates/modules for:
+  - [ ] `domain`
+  - [ ] `engine`
+  - [ ] `tournament`
+  - [ ] `protocol`
+  - [ ] `networking`
+  - [ ] `crypto`
+  - [ ] `storage`
+  - [ ] `interop`
+  - [ ] `app_state`
+- [ ] Create frontend app structure for:
+  - [ ] screens
+  - [ ] shared components
+  - [ ] table rendering
+  - [ ] host/join flows
+  - [ ] debug/internal tools
+- [ ] Wire Tauri command/event bridge between frontend and Rust backend
+
+### 3.2 Freeze implementation choices
+- [ ] Freeze frontend stack
+  - [ ] Use React + TypeScript unless there is a compelling reason not to
+- [ ] Freeze Rust serialization strategy
+  - [ ] `serde` for JSON models
+  - [ ] one canonical serializer path for signing bytes
+- [ ] Freeze Rust crypto stack
+  - [ ] `ed25519-dalek`
+  - [ ] `x25519-dalek`
+  - [ ] `chacha20poly1305`
+- [ ] Freeze TCP framing approach
+  - [ ] length-prefixed JSON envelopes
+  - [ ] or newline-delimited canonical envelope if and only if safe and fully specified
+- [ ] Freeze host default port
+  - [ ] match Android default if practical
+- [ ] Freeze per-instance storage strategy
+  - [ ] profile directory or instance namespace required
+
+### 3.3 Document architecture boundaries
+- [ ] Create desktop architecture note summarizing:
+  - [ ] Rust-owned logic boundary
+  - [ ] frontend-owned rendering boundary
+  - [ ] protocol compatibility goals with Android
+  - [ ] multi-instance requirements
+- [ ] Explicitly document that frontend must not become source of truth for game state
+
+### 3.4 Local development setup
+- [ ] Add README instructions for:
+  - [ ] Rust toolchain
+  - [ ] Node/package manager
+  - [ ] Tauri prerequisites on Linux
+  - [ ] running multiple instances locally
+  - [ ] passing join payload via CLI or env var
+- [ ] Add formatting/lint/test commands
+  - [ ] `cargo fmt`
+  - [ ] `cargo clippy`
+  - [ ] Rust tests
+  - [ ] frontend lint/test where applicable
+
+---
+
+## 4. M1 — Core Rust domain and shared state model
+
+### 4.1 Port or recreate domain enums and value types
+- [ ] Tournament phase enums
+- [ ] Hand-cycle phase enums
+- [ ] Street phase enums
+- [ ] Seat occupancy state
+- [ ] Tournament seat state
+- [ ] Connection state
+- [ ] Hand participation state
+- [ ] Action type
+- [ ] Blind level model
+- [ ] Marker types (D/SB/BB)
+- [ ] Card / rank / suit model
+
+### 4.2 Create immutable domain models
+- [ ] `TournamentConfig`
+- [ ] `BlindSchedule`
+- [ ] `TournamentState`
+- [ ] `HandState`
+- [ ] `BettingRoundState`
+- [ ] `SeatState`
+- [ ] `ParticipantRegistryEntry`
+- [ ] `PlayerIdentity`
+- [ ] `ActionWindow`
+- [ ] `HandResult`
+- [ ] `PotSummary`
+- [ ] `PlacementEntry`
+- [ ] `JoinPayload`
+- [ ] `SnapshotState`
+- [ ] `PublicState`
+- [ ] `PrivateState`
+- [ ] `ObserverProjection`
+
+### 4.3 Add invariants and validators
+- [ ] Validate player count 2–10
+- [ ] Validate starting stack > 0
+- [ ] Validate blind schedule ordering
+- [ ] Validate no duplicate occupied seats
+- [ ] Validate no duplicate participant IDs
+- [ ] Validate no duplicate signing key bindings
+- [ ] Validate no illegal public/private state leakage
+
+### 4.4 Seat and participant semantics
+- [ ] Create participant registry separate from seat map
+- [ ] Define participant states:
+  - [ ] admitted
+  - [ ] seated
+  - [ ] active
+  - [ ] reconnecting
+  - [ ] eliminated observer
+  - [ ] fully removed
+- [ ] Ensure seat occupancy and participant registry are distinct but linked
+- [ ] Implement one canonical capacity-counting function
+- [ ] Ensure eliminated observers do not count toward join capacity
+- [ ] Ensure admitted but unseated participants do count
+
+### 4.5 Projection model
+- [ ] Create one projector that converts authoritative state into:
+  - [ ] public projection
+  - [ ] per-player private projection
+  - [ ] observer projection
+- [ ] Ensure hidden data never appears in public projection
+- [ ] Ensure eliminated observers never get private cards or action windows
+
+---
+
+## 5. M2 — Protocol and crypto compatibility layer
+
+### 5.1 Implement canonical envelope models
+- [ ] `SignedEnvelope`
+- [ ] `EncryptedPrivateEnvelope`
+- [ ] message type enums matching the Android protocol where practical
+- [ ] body payload structs for:
+  - [ ] join
+  - [ ] reconnect
+  - [ ] seat claim
+  - [ ] ready state changes
+  - [ ] tournament start
+  - [ ] hand lifecycle events
+  - [ ] action submission
+  - [ ] action rejection
+  - [ ] elimination
+  - [ ] tournament completion
+  - [ ] snapshot
+  - [ ] resync
+  - [ ] protocol errors
+
+### 5.2 Implement canonical JSON serialization for signature bytes
+- [ ] Sort object keys lexicographically at every nesting level
+- [ ] Use UTF-8 encoding
+- [ ] Emit no insignificant whitespace
+- [ ] Exclude `signature` field from signed bytes
+- [ ] Create test vectors for canonical serialization
+- [ ] Compare canonical bytes against expected fixtures
+
+### 5.3 Implement Rust crypto provider
+- [ ] Generate Ed25519 keypair
+- [ ] Generate X25519 keypair
+- [ ] Sign signed envelopes
+- [ ] Verify signed envelopes
+- [ ] Encrypt private payloads
+- [ ] Decrypt private payloads
+- [ ] Expose key fingerprints / IDs
+- [ ] Keep provider behind internal trait/abstraction
+
+### 5.4 Replay protection
+- [ ] Add message counters per sender
+- [ ] Add message IDs for dedupe
+- [ ] Reject stale counters
+- [ ] Reject duplicate message IDs
+- [ ] Reject stale session epoch
+- [ ] Reject mismatched table/session identifiers
+
+### 5.5 Compatibility fixtures
+- [ ] Build protocol fixtures that match Android semantics
+- [ ] Add static tests for:
+  - [ ] envelope field ordering
+  - [ ] signature verification
+  - [ ] encrypted private payload round-trip
+  - [ ] sequence handling
+- [ ] Add comments noting any temporary intentional incompatibility
+
+### 5.6 Join payload contract
+- [ ] Implement one canonical versioned join payload schema with fields:
+  - [ ] `payloadVersion`
+  - [ ] `hostAddress`
+  - [ ] `hostPort`
+  - [ ] `tableId`
+  - [ ] `sessionEpoch`
+  - [ ] `hostSigningPublicKey`
+  - [ ] `joinToken`
+  - [ ] `generatedAtMs`
+  - [ ] optional `tableName`
+- [ ] Implement strict validation for this payload
+- [ ] Use this exact schema everywhere:
+  - [ ] host generation
+  - [ ] UI display/copy
+  - [ ] join parsing
+  - [ ] CLI/deep link parsing
+  - [ ] Android interoperability testing
+
+---
+
+## 6. M3 — Real TCP LAN host/client runtime
+
+### 6.1 Host TCP server
+- [ ] Implement real TCP listener
+- [ ] Bind to configured host port
+- [ ] Fail loudly if port unavailable
+- [ ] Accept multiple clients concurrently
+- [ ] Add graceful connection cleanup
+- [ ] Add framed message send/receive loop
+- [ ] Add host-side backpressure/error handling
+
+### 6.2 Client TCP runtime
+- [ ] Implement real TCP client connect
+- [ ] Validate join payload before connect
+- [ ] Open connection to host
+- [ ] Perform signed join request flow
+- [ ] Handle accept/reject responses
+- [ ] Maintain live read loop for public events and private deliveries
+
+### 6.3 LAN host IP resolution
+- [ ] Implement valid connectable LAN IP resolution
+- [ ] Reject loopback-only / wildcard / `0.0.0.0` for production host flow
+- [ ] Block production hosting if no valid LAN IP exists
+- [ ] Show explicit error to user
+- [ ] Do not generate join payload if host address is unusable
+
+### 6.4 Host join payload generation
+- [ ] Generate canonical join payload on host startup
+- [ ] Allow copy-to-clipboard
+- [ ] Allow save/share as text
+- [ ] Optionally render QR code from same payload
+- [ ] Regenerate payload if host port changes
+
+### 6.5 Room-code discovery stance
+- [ ] Do not expose unfinished room-code discovery in production UI
+- [ ] If discovery code exists, keep it debug-only/internal-only
+- [ ] Add explicit TODO comments if discovery is deferred
+
+### 6.6 Public-event driven client update path
+- [ ] Process live gameplay from signed public events
+- [ ] Do not rely on snapshots as steady-state live-play updates
+- [ ] Handle event types for:
+  - [ ] action-window opened
+  - [ ] player action committed
+  - [ ] street revealed
+  - [ ] player eliminated
+  - [ ] tournament completed
+  - [ ] hand completed
+  - [ ] tournament starting
+- [ ] Reserve snapshots for:
+  - [ ] join
+  - [ ] reconnect
+  - [ ] explicit resync
+
+### 6.7 Required tests
+- [ ] host can open listener
+- [ ] client can connect and join using canonical payload
+- [ ] public events flow from host to client over real TCP
+- [ ] private encrypted payload can be delivered and decrypted
+- [ ] invalid host IP blocks host startup
+- [ ] invalid payload blocks join before connect
+
+---
+
+## 7. M4 — Tournament coordinator and hand loop
+
+### 7.1 Poker engine foundation
+- [ ] Implement standard 52-card deck
+- [ ] Implement shuffle
+- [ ] Implement dealing
+- [ ] Implement street reveals
+- [ ] Implement hand evaluation
+- [ ] Implement main pot and side-pot settlement
+- [ ] Implement odd-chip rule
+- [ ] Implement showdown tie handling
+
+### 7.2 Tournament hand loop
+- [ ] Start tournament
+- [ ] Freeze roster
+- [ ] Assign equal starting stacks
+- [ ] Initialize blind schedule
+- [ ] Start first hand
+- [ ] Advance through full hand lifecycle
+- [ ] Settle hand
+- [ ] Process eliminations
+- [ ] Enter between-hands state
+- [ ] Advance blind level between hands only
+- [ ] Start next hand automatically after intermission
+- [ ] End tournament when one player remains
+
+### 7.3 Action windows and turn ownership
+- [ ] Open exactly one action window at a time
+- [ ] Bind action window to acting participant
+- [ ] Compute legal actions from engine truth
+- [ ] Ensure UI can only act through authoritative action window
+- [ ] Ensure observer and non-acting players cannot act
+
+### 7.4 Legal action generation
+- [ ] Make `legalActions()` match validator truth
+- [ ] Do not advertise `RAISE` if no legal full raise exists
+- [ ] Provide explicit `ALL_IN` path when only all-in is legal
+- [ ] Ensure short all-in is not mislabeled as a normal raise
+
+### 7.5 Short all-in / reopen-action correctness
+- [ ] Short all-in must not reopen action unless it is a full raise
+- [ ] Preserve minimum full raise increment correctly
+- [ ] Reset acted-player tracking only after full raise
+- [ ] Add tests for edge cases
+
+### 7.6 Timeout handling
+- [ ] Host clock is authoritative
+- [ ] Schedule timeout jobs for active action windows
+- [ ] Commit timeout actions through the same authoritative action path
+- [ ] `check if legal, else fold`
+- [ ] Late actions rejected as stale if timeout already fired
+
+### 7.7 Required tests
+- [ ] hand progresses from start to completion
+- [ ] between-hands auto progression works
+- [ ] blind levels increase only between hands
+- [ ] short all-in does not reopen action
+- [ ] timeout commits work
+- [ ] tournament ends correctly
+
+---
+
+## 8. M5 — Reconnect, resync, and sequence handling
+
+### 8.1 Reconnect identity rules
+- [ ] Reconnect requires:
+  - [ ] same `playerId`
+  - [ ] valid reconnect token
+  - [ ] valid signature from same original bound signing keypair
+- [ ] Regenerated keys after app restart do not qualify as reconnect in v1
+- [ ] Fail clearly if original ephemeral keypair is unavailable
+
+### 8.2 Host-side disconnect handling
+- [ ] On unexpected client disconnect:
+  - [ ] mark participant reconnect-eligible
+  - [ ] preserve participant registry entry
+  - [ ] preserve seat ownership as appropriate
+  - [ ] do not silently drop session identity
+- [ ] Distinguish active reconnect-eligible participant from fully removed participant
+
+### 8.3 Client-side reconnect flow
+- [ ] Detect transport loss
+- [ ] Enter reconnecting UI state
+- [ ] Reopen TCP connection to host
+- [ ] Send signed reconnect request
+- [ ] Handle accept/reject
+- [ ] On accept, replace local state with authoritative snapshot
+- [ ] On reject, exit to safe UI with explicit error
+
+### 8.4 Explicit resync path
+- [ ] Implement real `RESYNC_REQUEST`
+- [ ] Trigger on sequence mismatch or state gap
+- [ ] Host responds with full snapshot
+- [ ] Client replaces local state with that snapshot
+
+### 8.5 Sequence handling
+- [ ] Maintain authoritative host event sequence
+- [ ] Include sequence on signed public events
+- [ ] Advance sequence on authoritative event emission
+- [ ] Use one clear rule for snapshots vs events
+- [ ] Add sequence mismatch detection on client
+
+### 8.6 Required tests
+- [ ] reconnect succeeds only with original keypair + valid token
+- [ ] reconnect fails with regenerated keypair
+- [ ] host marks disconnect as reconnect-eligible
+- [ ] resync replaces local state from authoritative snapshot
+- [ ] event sequence mismatch triggers resync
+
+---
+
+## 9. M6 — Tauri frontend shell and screen flow
+
+### 9.1 Create screens
+- [ ] Home
+- [ ] Host Tournament Setup
+- [ ] Join Tournament
+- [ ] Tournament Lobby
+- [ ] Ready Room
+- [ ] Main Table
+- [ ] Hand History
+- [ ] Tournament Complete
+- [ ] Rules / Help
+- [ ] Reconnect / Error dialogs
+- [ ] optional debug/internal panel
+
+### 9.2 Home screen
+- [ ] Host Tournament
+- [ ] Join Tournament
+- [ ] Rules
+- [ ] Settings
+- [ ] Debug/internal tools entry in debug builds only
+- [ ] Do not expose simulator mode in production UI
+
+### 9.3 Host screen
+- [ ] Tournament name input
+- [ ] max players selection
+- [ ] starting stack selection
+- [ ] blind preset selection
+- [ ] turn timer selection
+- [ ] host port input or advanced settings
+- [ ] join payload display
+- [ ] copy payload button
+- [ ] optional show QR button
+
+### 9.4 Join screen
+- [ ] paste payload text area/input
+- [ ] validate payload
+- [ ] connect button
+- [ ] error display
+- [ ] optional recent join payloads
+- [ ] support launch from CLI/deep-link payload
+
+### 9.5 Lobby and ready room
+- [ ] seat map
+- [ ] participant list
+- [ ] ready state toggles
+- [ ] start tournament button for host
+- [ ] roster freeze explanation
+- [ ] leave table flow
+
+### 9.6 Error and reconnect UI
+- [ ] explicit reconnecting state
+- [ ] reconnect success/failure banner/dialog
+- [ ] host-lost/table-closed dialog
+- [ ] invalid payload / invalid LAN IP / join failure messaging
+
+---
+
+## 10. M7 — Main table UX and gameplay controls
+
+### 10.1 Main table rendering
+- [ ] community cards centered
+- [ ] pot totals visible
+- [ ] action/turn ownership emphasized
+- [ ] local player cards readable
+- [ ] compact but clear opponent seats
+- [ ] eliminated observer presentation
+- [ ] standings access
+- [ ] hand history access
+
+### 10.2 Action tray
+- [ ] Fold
+- [ ] Check / Call
+- [ ] Bet / Raise
+- [ ] All-in
+- [ ] raise slider
+- [ ] quick buttons:
+  - [ ] Min
+  - [ ] 1/2 Pot
+  - [ ] Pot
+  - [ ] Max
+- [ ] confirmation flow for Raise
+- [ ] confirmation flow for All-in
+
+### 10.3 Desktop-specific UX improvements
+- [ ] optional side panel for history/event feed
+- [ ] better use of wide desktop layouts
+- [ ] resizable window support
+- [ ] seat detail popovers
+- [ ] more visible standings/elimination info
+
+### 10.4 Observer mode
+- [ ] no action tray
+- [ ] public-only table
+- [ ] standings visible
+- [ ] hand history visible
+
+### 10.5 Debug-only tools
+- [ ] protocol log viewer
+- [ ] current snapshot inspector
+- [ ] sequence display
+- [ ] action-window inspector
+- [ ] launch additional client instance helper
+- [ ] keep all of this out of production UI
+
+### 10.6 Required tests / checks
+- [ ] action tray only enabled for acting player
+- [ ] observer mode cannot act
+- [ ] table reflects public events correctly
+- [ ] hand history and standings update after settlement
+
+---
+
+## 11. M8 — Multi-instance local testing support
+
+### 11.1 Per-instance state isolation
+- [ ] separate storage namespace per instance
+- [ ] separate session identity per instance
+- [ ] separate reconnect data per instance
+- [ ] no cross-instance stomping of settings/state
+
+### 11.2 Launching multiple instances
+- [ ] allow multiple desktop app instances in debug and production where feasible
+- [ ] no single-instance lock for development/testing builds
+- [ ] document how to launch multiple clients locally
+
+### 11.3 Local multi-instance join flow
+- [ ] host on one instance
+- [ ] copy payload
+- [ ] join from another instance via paste or CLI arg
+- [ ] ensure loopback/local LAN flows actually work
+
+### 11.4 Optional tooling
+- [ ] add a debug command/menu action to launch another instance with copied payload
+- [ ] add a debug action to copy payload directly to clipboard
+- [ ] add an “instance label” or profile ID in debug UI to avoid confusion
+
+### 11.5 Required tests / checks
+- [ ] two desktop instances can coexist
+- [ ] they do not share identity/storage incorrectly
+- [ ] they can host/join/play on one machine
+
+---
+
+## 12. M9 — Interop testing with Android
+
+### 12.1 Protocol compatibility audit
+- [ ] compare desktop envelope models to Android current protocol
+- [ ] compare join payload semantics
+- [ ] compare signature/canonical serialization semantics
+- [ ] compare encrypted private envelope semantics
+- [ ] compare reconnect/resync semantics
+
+### 12.2 Interop runtime tests
+- [ ] desktop host + Android client
+- [ ] Android host + desktop client
+- [ ] verify:
+  - [ ] join
+  - [ ] seat claim
+  - [ ] ready/start
+  - [ ] live public event handling
+  - [ ] private hole-card handling
+  - [ ] timeout behavior
+  - [ ] reconnect/resync where possible
+  - [ ] elimination / tournament complete
+
+### 12.3 Compatibility documentation
+- [ ] document any known temporary incompatibilities
+- [ ] document required matching protocol version
+- [ ] do not imply interop is complete if tests have not proven it
+
+---
+
+## 13. M10 — Persistence, polish, and release readiness
+
+### 13.1 Persistence
+- [ ] save local display name
+- [ ] save last-used host settings
+- [ ] save recent join payloads
+- [ ] save window settings
+- [ ] save hand-history summaries
+- [ ] do not fake reconnect from local cache alone
+
+### 13.2 Assets and visuals
+- [ ] implement simple card rendering or generated treatments
+- [ ] implement felt/background styling
+- [ ] implement markers and status badges
+- [ ] keep MVP asset pipeline simple and license-safe
+
+### 13.3 Sound
+- [ ] optional only
+- [ ] if added, keep off by default unless intentionally chosen otherwise
+
+### 13.4 Packaging
+- [ ] build Linux desktop package
+- [ ] ensure production build uses real LAN runtime by default
+- [ ] ensure simulator/debug tools are hidden in production
+
+### 13.5 Release notes / limitations
+- [ ] clearly state whether Android/Desktop interop is proven
+- [ ] clearly state whether room-code discovery is absent/deferred
+- [ ] clearly state trusted-host model and LAN-only scope
+
+---
+
+## 14. Required automated test matrix
+
+### 14.1 Domain/engine tests
+- [ ] button/blind rotation
+- [ ] heads-up rule
+- [ ] betting legality
+- [ ] short all-in / reopen-action
+- [ ] pot settlement
+- [ ] side pots
+- [ ] odd chip
+- [ ] elimination ordering
+- [ ] tournament completion
+
+### 14.2 Protocol/crypto tests
+- [ ] canonical JSON bytes
+- [ ] signature verification
+- [ ] encrypted private payload round-trip
+- [ ] replay rejection
+- [ ] sequence handling
+- [ ] reconnect validation
+- [ ] payload parsing/validation
+
+### 14.3 Networking tests
+- [ ] host/client TCP connect
+- [ ] framed envelope exchange
+- [ ] disconnect handling
+- [ ] reconnect flow
+- [ ] resync flow
+
+### 14.4 UI/frontend tests
+- [ ] screen routing
+- [ ] host flow
+- [ ] join flow
+- [ ] action tray enablement
+- [ ] observer mode
+- [ ] standings/history updates
+
+---
+
+## 15. Manual QA gates
+
+Desktop MVP is **not done** until all of these succeed.
+
+### 15.1 Desktop-only QA
+- [ ] host from one desktop instance
+- [ ] join from second desktop instance
+- [ ] play a full hand
+- [ ] play across multiple hands
+- [ ] timeout commits work
+- [ ] reconnect works
+- [ ] elimination works
+- [ ] tournament completes
+- [ ] instance state isolation holds
+
+### 15.2 Mixed desktop/Android QA
+- [ ] desktop host + Android client
+- [ ] Android host + desktop client
+- [ ] real join via direct payload
+- [ ] real live play across both platforms
+- [ ] real timeout behavior across both platforms
+- [ ] elimination/tournament completion visible on both
+
+### 15.3 LAN truthfulness gate
+- [ ] production build uses real LAN runtime by default
+- [ ] no simulator default
+- [ ] no fake/same-process-only path masquerading as production LAN
+- [ ] no room-code discovery claims unless actually implemented
+
+---
+
+## 16. Suggested build order
+
+Implement in this order:
+1. project skeleton and module boundaries
+2. domain/state model
+3. protocol + crypto layer
+4. real TCP host/client runtime
+5. tournament hand loop
+6. reconnect/resync
+7. Tauri host/join flow
+8. main table UI
+9. multi-instance support
+10. Android interoperability
+11. persistence and polish
+12. manual QA
+
+---
+
+## 17. Explicit future notes (not MVP blockers)
+
+These are valid future tasks but not required to call desktop MVP done:
+- [ ] room-code discovery / NSD equivalent
+- [ ] camera QR scanning
+- [ ] richer spectator tools
+- [ ] detachable advanced debug views
+- [ ] host migration
+- [ ] between-hands host recovery
+- [ ] internet connectivity
+- [ ] trust-minimized dealing
