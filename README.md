@@ -17,6 +17,8 @@ The repository now contains:
 - M6 frontend shell flow with host/join/lobby/ready-room/table/history/complete/help/error surfaces, debug-gated internal tools, and launch-payload validation wiring
 - M7 main-table UX polish with Rust-backed table projection rendering, observer mode, action tray confirmation flows, side-panel history/standings, and expanded frontend/runtime tests
 - M8 multi-instance local testing support with isolated profile/session namespaces, debug-only launch helpers, and one-machine host/join/play coverage
+- M9 Android interop audit against the current Android repo with documented findings and Android-aligned private-envelope key derivation
+- M10 persistence, cached hand-history summaries, Tauri window-state restore, and Linux bundle output for release-readiness
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices
@@ -90,6 +92,8 @@ Production binaries can also be launched multiple times with distinct ids:
 ./src-tauri/target/release/desktop-poker --instance-id client-b
 ```
 
+The desktop shell also persists per-instance display name, host draft, recent direct-join payloads, saved hand-history summaries, and Tauri window state so repeated local sessions do not stomp one another.
+
 ## Passing a join payload at launch
 
 M0 wires the launch contract into the bootstrap layer so later milestones can consume it from either environment or CLI input:
@@ -121,3 +125,30 @@ Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local
 ## Architecture notes
 
 See [docs/DESKTOP_ARCHITECTURE.md](docs/DESKTOP_ARCHITECTURE.md) for the Rust/frontend ownership boundary, protocol compatibility stance, and multi-instance rules.
+
+## Android interop status
+
+See [docs/ANDROID_INTEROP_AUDIT.md](docs/ANDROID_INTEROP_AUDIT.md) for the current Android/Desktop audit.
+
+Current status:
+
+- protocol version and core envelope/join semantics were compared against the Android repo source
+- Android-side crypto/networking/tournament tests were run during the audit
+- mixed-runtime Android/Desktop host-client sessions are **not yet proven** in this repository
+
+## Current limitations and release notes
+
+- **Interop:** Android/Desktop interoperability is audited, but not fully proven until live mixed-runtime host/client sessions succeed.
+- **Discovery:** room-code discovery is still absent/deferred for desktop MVP. Direct `pkr1_...` payload join is the supported path.
+- **Network scope:** the app is LAN-only and assumes a trusted host-authoritative table on the local network.
+- **Production behavior:** release builds default to the real TCP LAN runtime, and the debug launch helpers remain hidden outside debug builds.
+- **Assets:** the table uses generated card/felt treatments and simple status badges so the MVP stays license-safe.
+- **Sound:** MVP currently ships without sound. Any future sound support should remain optional and off by default.
+
+## Linux bundles
+
+`npm run tauri build` now produces:
+
+- `src-tauri/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
+- `src-tauri/target/release/bundle/rpm/Desktop Poker-0.1.0-1.x86_64.rpm`
+- `src-tauri/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`

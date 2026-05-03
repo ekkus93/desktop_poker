@@ -5,7 +5,8 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function HomeScreen({ bootstrap }: ScreenProps) {
-  const { displayName, hostDraft, recentJoinPayloads } = useDesktopShell();
+  const { displayName, hostDraft, recentJoinPayloads, persistedHandHistoryCount } =
+    useDesktopShell();
 
   return (
     <ScreenShell
@@ -50,6 +51,9 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
             </li>
             <li>
               <strong>Remembered join payloads:</strong> {recentJoinPayloads.length}
+            </li>
+            <li>
+              <strong>Saved hand-history summaries:</strong> {persistedHandHistoryCount}
             </li>
             <li>
               <strong>Profile namespace:</strong>{" "}

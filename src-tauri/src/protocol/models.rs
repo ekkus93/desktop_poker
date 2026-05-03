@@ -189,7 +189,8 @@ pub struct JoinTournamentRequest {
 pub struct ReconnectTournamentRequest {
     pub player_id: String,
     pub reconnect_token: String,
-    pub last_known_server_seq: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_known_server_seq: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -313,7 +314,8 @@ pub struct TournamentCompleteEvent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ResyncRequest {
-    pub last_seen_server_sequence: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_seen_server_sequence: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

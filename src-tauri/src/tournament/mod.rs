@@ -1818,6 +1818,68 @@ mod tests {
     }
 
     #[test]
+    fn heads_up_uses_button_as_small_blind_and_rotates_next_hand() {
+        let mut controller = TournamentController::new(
+            "table-heads-up",
+            1,
+            sample_config(1_000),
+            vec![player("p1", 0), player("p2", 1)],
+        )
+        .expect("controller should build");
+        controller
+            .start_tournament(0)
+            .expect("tournament should start");
+
+        let first_hand = controller
+            .state()
+            .current_hand
+            .clone()
+            .expect("first hand should be active");
+        assert_eq!(
+            first_hand.dealer_seat_index,
+            first_hand.small_blind_seat_index
+        );
+        assert_ne!(
+            first_hand.dealer_seat_index,
+            first_hand.big_blind_seat_index
+        );
+
+        let first_window = action_window(&controller);
+        assert_eq!(first_window.player_id, "p1");
+        controller
+            .submit_action(
+                ActionRequest {
+                    player_id: first_window.player_id,
+                    action_window_id: first_window.action_window_id,
+                    action_type: ActionType::Fold,
+                    raise_to_amount: None,
+                },
+                1,
+            )
+            .expect("heads-up fold should settle the hand");
+
+        controller
+            .advance_time(BETWEEN_HANDS_DELAY_MS + 2)
+            .expect("next hand should start after intermission");
+
+        let second_hand = controller
+            .state()
+            .current_hand
+            .clone()
+            .expect("second hand should be active");
+        assert_eq!(second_hand.hand_number, 2);
+        assert_eq!(
+            second_hand.dealer_seat_index,
+            second_hand.small_blind_seat_index
+        );
+        assert_ne!(second_hand.dealer_seat_index, first_hand.dealer_seat_index);
+        assert_ne!(
+            second_hand.big_blind_seat_index,
+            second_hand.small_blind_seat_index
+        );
+    }
+
+    #[test]
     fn timeout_commits_and_stale_actions_are_rejected() {
         let mut controller = TournamentController::new(
             "table-5",
@@ -1850,6 +1912,43 @@ mod tests {
             .expect_err("stale action should be rejected")
             .to_string()
             .contains("stale"));
+    }
+
+    #[test]
+    fn simultaneous_eliminations_follow_seat_order_for_placements() {
+        let mut controller = TournamentController::new(
+            "table-placement",
+            1,
+            sample_config(1_000),
+            vec![player("p1", 0), player("p2", 1), player("p3", 2)],
+        )
+        .expect("controller should build");
+        controller
+            .start_tournament(0)
+            .expect("tournament should start");
+        controller
+            .set_player_stack("p1", 0)
+            .expect("stack override should apply");
+        controller
+            .set_player_stack("p2", 0)
+            .expect("stack override should apply");
+        controller
+            .set_player_stack("p3", 1_000)
+            .expect("stack override should apply");
+
+        let eliminated = controller.process_eliminations(7);
+        controller.sort_placements();
+
+        assert_eq!(eliminated, vec!["p1".to_string(), "p2".to_string()]);
+        assert_eq!(controller.state().placements.len(), 2);
+        let places_by_player = controller
+            .state()
+            .placements
+            .iter()
+            .map(|entry| (entry.player_id.as_str(), entry.place))
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(places_by_player.get("p1"), Some(&3));
+        assert_eq!(places_by_player.get("p2"), Some(&2));
     }
 
     #[test]

@@ -577,11 +577,11 @@ Before coding, treat these as fixed:
 ## 12. M9 — Interop testing with Android
 
 ### 12.1 Protocol compatibility audit
-- [ ] compare desktop envelope models to Android current protocol
-- [ ] compare join payload semantics
-- [ ] compare signature/canonical serialization semantics
-- [ ] compare encrypted private envelope semantics
-- [ ] compare reconnect/resync semantics
+- [x] compare desktop envelope models to Android current protocol
+- [x] compare join payload semantics
+- [x] compare signature/canonical serialization semantics
+- [x] compare encrypted private envelope semantics
+- [x] compare reconnect/resync semantics
 
 ### 12.2 Interop runtime tests
 - [ ] desktop host + Android client
@@ -597,80 +597,80 @@ Before coding, treat these as fixed:
   - [ ] elimination / tournament complete
 
 ### 12.3 Compatibility documentation
-- [ ] document any known temporary incompatibilities
-- [ ] document required matching protocol version
-- [ ] do not imply interop is complete if tests have not proven it
+- [x] document any known temporary incompatibilities
+- [x] document required matching protocol version
+- [x] do not imply interop is complete if tests have not proven it
 
 ---
 
 ## 13. M10 — Persistence, polish, and release readiness
 
 ### 13.1 Persistence
-- [ ] save local display name
-- [ ] save last-used host settings
-- [ ] save recent join payloads
-- [ ] save window settings
-- [ ] save hand-history summaries
-- [ ] do not fake reconnect from local cache alone
+- [x] save local display name
+- [x] save last-used host settings
+- [x] save recent join payloads
+- [x] save window settings
+- [x] save hand-history summaries
+- [x] do not fake reconnect from local cache alone
 
 ### 13.2 Assets and visuals
-- [ ] implement simple card rendering or generated treatments
-- [ ] implement felt/background styling
-- [ ] implement markers and status badges
-- [ ] keep MVP asset pipeline simple and license-safe
+- [x] implement simple card rendering or generated treatments
+- [x] implement felt/background styling
+- [x] implement markers and status badges
+- [x] keep MVP asset pipeline simple and license-safe
 
 ### 13.3 Sound
-- [ ] optional only
-- [ ] if added, keep off by default unless intentionally chosen otherwise
+- [x] optional only
+- [x] if added, keep off by default unless intentionally chosen otherwise
 
 ### 13.4 Packaging
-- [ ] build Linux desktop package
-- [ ] ensure production build uses real LAN runtime by default
-- [ ] ensure simulator/debug tools are hidden in production
+- [x] build Linux desktop package
+- [x] ensure production build uses real LAN runtime by default
+- [x] ensure simulator/debug tools are hidden in production
 
 ### 13.5 Release notes / limitations
-- [ ] clearly state whether Android/Desktop interop is proven
-- [ ] clearly state whether room-code discovery is absent/deferred
-- [ ] clearly state trusted-host model and LAN-only scope
+- [x] clearly state whether Android/Desktop interop is proven
+- [x] clearly state whether room-code discovery is absent/deferred
+- [x] clearly state trusted-host model and LAN-only scope
 
 ---
 
 ## 14. Required automated test matrix
 
 ### 14.1 Domain/engine tests
-- [ ] button/blind rotation
-- [ ] heads-up rule
-- [ ] betting legality
-- [ ] short all-in / reopen-action
-- [ ] pot settlement
-- [ ] side pots
-- [ ] odd chip
-- [ ] elimination ordering
-- [ ] tournament completion
+- [x] button/blind rotation
+- [x] heads-up rule
+- [x] betting legality
+- [x] short all-in / reopen-action
+- [x] pot settlement
+- [x] side pots
+- [x] odd chip
+- [x] elimination ordering
+- [x] tournament completion
 
 ### 14.2 Protocol/crypto tests
-- [ ] canonical JSON bytes
-- [ ] signature verification
-- [ ] encrypted private payload round-trip
-- [ ] replay rejection
-- [ ] sequence handling
-- [ ] reconnect validation
-- [ ] payload parsing/validation
+- [x] canonical JSON bytes
+- [x] signature verification
+- [x] encrypted private payload round-trip
+- [x] replay rejection
+- [x] sequence handling
+- [x] reconnect validation
+- [x] payload parsing/validation
 
 ### 14.3 Networking tests
-- [ ] host/client TCP connect
-- [ ] framed envelope exchange
-- [ ] disconnect handling
-- [ ] reconnect flow
-- [ ] resync flow
+- [x] host/client TCP connect
+- [x] framed envelope exchange
+- [x] disconnect handling
+- [x] reconnect flow
+- [x] resync flow
 
 ### 14.4 UI/frontend tests
-- [ ] screen routing
-- [ ] host flow
-- [ ] join flow
-- [ ] action tray enablement
-- [ ] observer mode
-- [ ] standings/history updates
+- [x] screen routing
+- [x] host flow
+- [x] join flow
+- [x] action tray enablement
+- [x] observer mode
+- [x] standings/history updates
 
 ---
 
@@ -698,10 +698,10 @@ Desktop MVP is **not done** until all of these succeed.
 - [ ] elimination/tournament completion visible on both
 
 ### 15.3 LAN truthfulness gate
-- [ ] production build uses real LAN runtime by default
-- [ ] no simulator default
-- [ ] no fake/same-process-only path masquerading as production LAN
-- [ ] no room-code discovery claims unless actually implemented
+- [x] production build uses real LAN runtime by default
+- [x] no simulator default
+- [x] no fake/same-process-only path masquerading as production LAN
+- [x] no room-code discovery claims unless actually implemented
 
 ---
 

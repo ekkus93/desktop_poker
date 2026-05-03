@@ -17,7 +17,7 @@ import type { ScreenProps } from "./types";
 const BOARD_SLOT_COUNT = 5;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
-  const { displayName } = useDesktopShell();
+  const { displayName, persistHandHistory } = useDesktopShell();
   const [viewerMode, setViewerMode] = useState<TableViewerMode>("local");
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,6 +76,14 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
       return defaultRaiseAmount(actionTray);
     });
   }, [tableView]);
+
+  useEffect(() => {
+    if (!tableView?.handHistory.length) {
+      return;
+    }
+
+    persistHandHistory(tableView.handHistory);
+  }, [persistHandHistory, tableView]);
 
   const boardCards = useMemo(() => {
     const visibleCards = tableView?.boardCards ?? [];

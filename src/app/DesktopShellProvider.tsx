@@ -13,6 +13,11 @@ import {
   readStoredValue,
   storageKey,
 } from "./shell";
+import {
+  initializeWindowStatePersistence,
+  persistHandHistory,
+  readPersistedHandHistory,
+} from "./persistence";
 
 type DesktopShellContextValue = {
   displayName: string;
@@ -20,6 +25,7 @@ type DesktopShellContextValue = {
   joinPayloadDraft: string;
   readySeats: number[];
   recentJoinPayloads: string[];
+  persistedHandHistoryCount: number;
   setDisplayName: (value: string) => void;
   updateHostDraft: (patch: Partial<HostDraft>) => void;
   resetHostDraft: () => void;
@@ -27,6 +33,9 @@ type DesktopShellContextValue = {
   rememberJoinPayload: (value: string) => void;
   clearRecentJoinPayloads: () => void;
   toggleSeatReady: (seatIndex: number) => void;
+  persistHandHistory: (
+    entries: import("../api/desktop").TableHistoryEntryView[],
+  ) => void;
 };
 
 const DesktopShellContext = createContext<DesktopShellContextValue | undefined>(
@@ -75,12 +84,17 @@ export function DesktopShellProvider({
   );
   const [recentJoinPayloads, setRecentJoinPayloads] = useState(() =>
     readStoredValue<string[]>(
-      localStorage.getItem(
-        storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
-      ),
+      localStorage.getItem(storageKey(bootstrap.storageNamespace, "recent-join-payloads")),
       [],
     ),
   );
+  const [persistedHandHistoryCount, setPersistedHandHistoryCount] = useState(() =>
+    readPersistedHandHistory(bootstrap.storageNamespace)?.entries.length ?? 0,
+  );
+
+  useEffect(() => initializeWindowStatePersistence(bootstrap.storageNamespace), [
+    bootstrap.storageNamespace,
+  ]);
 
   useEffect(() => {
       localStorage.setItem(
@@ -124,6 +138,7 @@ export function DesktopShellProvider({
       joinPayloadDraft,
       readySeats,
       recentJoinPayloads,
+      persistedHandHistoryCount,
       setDisplayName,
       updateHostDraft: (patch) => {
         setHostDraft((currentDraft) => ({
@@ -152,12 +167,18 @@ export function DesktopShellProvider({
             : [...currentSeats, seatIndex].sort((left, right) => left - right),
         );
       },
+      persistHandHistory: (entries) => {
+        persistHandHistory(bootstrap.storageNamespace, entries);
+        setPersistedHandHistoryCount(entries.length);
+      },
     }),
     [
+      bootstrap.storageNamespace,
       defaultHostDraft,
       displayName,
       hostDraft,
       joinPayloadDraft,
+      persistedHandHistoryCount,
       readySeats,
       recentJoinPayloads,
     ],

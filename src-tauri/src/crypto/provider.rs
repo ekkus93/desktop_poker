@@ -4,6 +4,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Key, Nonce,
 };
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use hkdf::Hkdf;
 use rand_core::{OsRng, RngCore};
 use sha2::{Digest, Sha256};
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
@@ -59,6 +60,9 @@ pub struct EncryptedPayload {
     pub ciphertext_base64: String,
     pub recipient_key_id: String,
 }
+
+const ANDROID_KDF_SALT: &[u8] = b"android_poker:v1";
+const ANDROID_KDF_INFO: &[u8] = b"x25519-chacha20poly1305";
 
 pub trait ProtocolCryptoProvider {
     fn generate_signing_keypair(&self) -> SigningKeyMaterial;
@@ -206,10 +210,11 @@ pub fn key_fingerprint(public_key_bytes: &[u8]) -> String {
 }
 
 fn derive_chacha_key(shared_secret_bytes: &[u8]) -> Key {
-    // TODO(interop): Confirm this SHA-256(shared secret) derivation against the
-    // Android runtime fixtures during M9 interop testing.
-    let digest = Sha256::digest(shared_secret_bytes);
-    *Key::from_slice(&digest[..32])
+    let hkdf = Hkdf::<Sha256>::new(Some(ANDROID_KDF_SALT), shared_secret_bytes);
+    let mut key_bytes = [0_u8; 32];
+    hkdf.expand(ANDROID_KDF_INFO, &mut key_bytes)
+        .expect("HKDF expand for a 32-byte ChaCha key should not fail");
+    *Key::from_slice(&key_bytes)
 }
 
 fn decode_exact<const N: usize>(encoded: &str, label: &str) -> Result<[u8; N], ProtocolError> {
@@ -224,7 +229,7 @@ fn decode_exact<const N: usize>(encoded: &str, label: &str) -> Result<[u8; N], P
 
 #[cfg(test)]
 mod tests {
-    use super::{DefaultCryptoProvider, ProtocolCryptoProvider};
+    use super::{derive_chacha_key, DefaultCryptoProvider, ProtocolCryptoProvider};
 
     #[test]
     fn fingerprints_are_16_hex_chars() {
@@ -232,5 +237,17 @@ mod tests {
         let signing_keys = provider.generate_signing_keypair();
 
         assert_eq!(signing_keys.key_id().len(), 16);
+    }
+
+    #[test]
+    fn chacha_key_derivation_matches_android_hkdf_contract() {
+        let shared_secret: Vec<u8> = (0_u8..32).collect();
+
+        let derived_key = derive_chacha_key(&shared_secret);
+
+        assert_eq!(
+            hex::encode(derived_key),
+            "10525480707918b34d47aacb80882368c9a76ff98040097de3aadd17687de844"
+        );
     }
 }

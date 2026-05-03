@@ -1074,7 +1074,10 @@ fn handle_reconnect_request(
         }
 
         let authoritative_sequence = server_sequence.load(Ordering::SeqCst);
-        if request.last_known_server_seq > authoritative_sequence {
+        if request
+            .last_known_server_seq
+            .is_some_and(|sequence| sequence > authoritative_sequence)
+        {
             return Err(NetworkingError::new(
                 "reconnect lastKnownServerSeq is ahead of the host sequence",
             ));
@@ -1223,7 +1226,10 @@ fn handle_resync_request(
             .map_err(|error| NetworkingError::new(error.to_string()))?;
     }
 
-    if request.last_seen_server_sequence > server_sequence.load(Ordering::SeqCst) {
+    if request
+        .last_seen_server_sequence
+        .is_some_and(|sequence| sequence > server_sequence.load(Ordering::SeqCst))
+    {
         return Err(NetworkingError::new(
             "resync lastSeenServerSequence is ahead of the host sequence",
         ));
@@ -1415,7 +1421,7 @@ fn reconnect_after_disconnect(
         payload: ReconnectTournamentRequest {
             player_id: player_id.to_string(),
             reconnect_token: reconnect_token.to_string(),
-            last_known_server_seq: last_known_server_sequence,
+            last_known_server_seq: Some(last_known_server_sequence),
         },
         signature: None,
     };
@@ -1458,7 +1464,7 @@ fn request_resync_snapshot(
         message_id: format!("resync-{}", now_epoch_ms()),
         server_sequence: None,
         payload: ResyncRequest {
-            last_seen_server_sequence,
+            last_seen_server_sequence: Some(last_seen_server_sequence),
         },
         signature: None,
     };

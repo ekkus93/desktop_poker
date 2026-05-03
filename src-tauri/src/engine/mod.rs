@@ -821,4 +821,33 @@ mod tests {
         assert_eq!(can_raise.min_raise_to, Some(80));
         assert_eq!(can_raise.max_raise_to, Some(170));
     }
+
+    #[test]
+    fn full_raise_requires_meeting_the_minimum_raise_to() {
+        let short_stack = legal_actions(&LegalActionContext {
+            player_stack: 120,
+            player_commit: 0,
+            current_bet: 100,
+            min_full_raise_to: 200,
+            may_raise: true,
+        });
+        assert_eq!(
+            short_stack.legal_actions,
+            vec![ActionType::Fold, ActionType::Call, ActionType::AllIn]
+        );
+        assert_eq!(short_stack.min_raise_to, None);
+        assert_eq!(short_stack.max_raise_to, None);
+
+        let full_stack = legal_actions(&LegalActionContext {
+            player_stack: 400,
+            player_commit: 0,
+            current_bet: 100,
+            min_full_raise_to: 200,
+            may_raise: true,
+        });
+        assert!(full_stack.legal_actions.contains(&ActionType::Call));
+        assert!(full_stack.legal_actions.contains(&ActionType::Raise));
+        assert_eq!(full_stack.min_raise_to, Some(200));
+        assert_eq!(full_stack.max_raise_to, Some(400));
+    }
 }

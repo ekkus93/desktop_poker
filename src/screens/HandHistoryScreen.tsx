@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
+import { readPersistedHandHistory } from "../app/persistence";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
@@ -8,6 +9,10 @@ import type { ScreenProps } from "./types";
 export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const persistedHistory = readPersistedHandHistory(bootstrap.storageNamespace);
+  const historyEntries = tableView?.handHistory.length
+    ? tableView.handHistory
+    : (persistedHistory?.entries ?? []);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,9 +42,15 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
       <div className="content-grid wide-grid">
         <SectionCard kicker="History" title="Settled hands">
           {error ? <p>{error}</p> : null}
+          {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
+            <p className="field-hint">
+              Showing locally saved hand-history summaries for this desktop
+              instance.
+            </p>
+          ) : null}
           <div className="stacked-list">
-            {tableView?.handHistory.length ? (
-              tableView.handHistory.map((entry) => (
+            {historyEntries.length ? (
+              historyEntries.map((entry) => (
                 <article key={entry.handNumber} className="list-panel history-row">
                   <div>
                     <strong>Hand {entry.handNumber}</strong>
