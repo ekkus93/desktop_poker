@@ -1,5 +1,7 @@
 # Desktop Poker
 
+[![CI](https://github.com/ekkus93/desktop_poker/actions/workflows/ci.yml/badge.svg)](https://github.com/ekkus93/desktop_poker/actions/workflows/ci.yml)
+
 Desktop Poker is a Linux-first Tauri 2 desktop client/host for single-table Sit 'n Go No-Limit Texas Hold'em over real LAN TCP. The Rust backend owns networking, protocol compatibility, crypto, tournament orchestration, reconnect/resync, persistence, and state projection; the React + TypeScript frontend is a rendering shell.
 
 ## Current milestone status
