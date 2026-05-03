@@ -5,6 +5,7 @@ import {
   validateJoinPayloadInput,
 } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
+import { createParsedJoinPayload } from "../test/appIntegrationFixtures";
 import { JoinTournamentScreen } from "./JoinTournamentScreen";
 
 vi.mock("../api/desktop", async () => {
@@ -21,17 +22,7 @@ vi.mock("../api/desktop", async () => {
 
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 
-const parsedPayload: JoinPayload = {
-  payloadVersion: 1,
-  hostAddress: "192.168.1.10",
-  hostPort: 43818,
-  tableId: "table-123",
-  sessionEpoch: 42,
-  hostSigningPublicKey: "pub-key",
-  joinToken: "join-token",
-  generatedAtMs: 99,
-  tableName: "Friday Night",
-};
+const parsedPayload: JoinPayload = createParsedJoinPayload();
 
 describe("JoinTournamentScreen", () => {
   beforeEach(() => {
@@ -87,5 +78,8 @@ describe("JoinTournamentScreen", () => {
 
     expect(await screen.findByText("Friday Night")).toBeTruthy();
     expect(screen.getByText(/next backend step is wiring this shell/i)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Continue to lobby shell" }),
+    ).toBeTruthy();
   });
 });

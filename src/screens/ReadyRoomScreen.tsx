@@ -55,9 +55,15 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
             <li>Reconnect paths are handled separately from new joins.</li>
           </ul>
           <div className="button-row">
-            <button className="primary-button" disabled={!allReady} type="button">
-              Start tournament
-            </button>
+            {allReady ? (
+              <Link className="primary-button" to="/table">
+                Start tournament
+              </Link>
+            ) : (
+              <button className="primary-button" disabled type="button">
+                Start tournament
+              </button>
+            )}
             <Link className="secondary-button" to="/lobby">
               Back to lobby
             </Link>

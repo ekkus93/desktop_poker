@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
   BLIND_PRESETS,
@@ -225,6 +226,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
             <button className="secondary-button" disabled type="button">
               Show QR
             </button>
+            <Link className="primary-button" to="/lobby">
+              Continue to lobby shell
+            </Link>
           </div>
           <p className="field-hint">
             Copy payload stays disabled until the live Rust host runtime emits an

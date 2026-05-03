@@ -72,9 +72,15 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             the Rust backend confirms the seated, ready roster.
           </p>
           <div className="button-row">
-            <button className="primary-button" disabled={!canStart} type="button">
-              Start tournament
-            </button>
+            {canStart ? (
+              <Link className="primary-button" to="/table">
+                Start tournament
+              </Link>
+            ) : (
+              <button className="primary-button" disabled type="button">
+                Start tournament
+              </button>
+            )}
             <Link className="secondary-button" to="/ready-room">
               Open ready room
             </Link>

@@ -1642,10 +1642,11 @@ mod tests {
     use crate::{
         crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider},
         domain::{
-            BlindLevel, BlindSchedule, Card, ConnectionState, JoinPayload,
-            ParticipantRegistryEntry, ParticipantState, PlayerIdentity, Rank, SeatOccupancyState,
-            SeatState, Suit, TournamentConfig, TournamentPhase, TournamentSeatState,
-            TournamentState,
+            ActionType, ActionWindow, BettingRoundState, BlindLevel, BlindSchedule, Card,
+            ConnectionState, HandCyclePhase, HandParticipationState, HandState, JoinPayload,
+            ParticipantRegistryEntry, ParticipantState, PlacementEntry, PlayerIdentity, Rank,
+            SeatOccupancyState, SeatState, StreetPhase, Suit, TournamentConfig, TournamentPhase,
+            TournamentSeatState, TournamentState,
         },
         networking::{
             resolve_connectable_host_ip, ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent,
@@ -1653,9 +1654,9 @@ mod tests {
         },
         protocol::{
             test_support::{sample_reconnect_request, sample_resync_request},
-            JsonSignedEnvelope, PrivateHoleCardsEvent, ProtocolMessageType,
-            ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, TournamentStartedEvent,
-            PROTOCOL_VERSION,
+            ActionWindowOpened, EliminationEvent, JsonSignedEnvelope, PrivateHoleCardsEvent,
+            ProtocolMessageType, ReconnectTournamentRequest, ResyncRequest, SignedEnvelope,
+            SnapshotEvent, TournamentCompleteEvent, TournamentStartedEvent, PROTOCOL_VERSION,
         },
     };
 
@@ -1700,18 +1701,97 @@ mod tests {
         }
     }
 
+    fn bind_test_host(
+        provider: &DefaultCryptoProvider,
+        table_id: &str,
+        session_epoch: u64,
+    ) -> HostServer {
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch,
+            table_id: table_id.to_string(),
+            table_name: Some(format!("Table {session_epoch}")),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state(table_id, session_epoch),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind")
+    }
+
+    fn connect_test_client(
+        provider: &DefaultCryptoProvider,
+        host: &HostServer,
+        player_id: &str,
+        display_name: &str,
+    ) -> ClientRuntime {
+        ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: player_id.to_string(),
+            display_name: display_name.to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("client should connect")
+    }
+
+    fn expect_snapshot_event(client: &ClientRuntime) -> SnapshotEvent {
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("snapshot event")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => *snapshot,
+            other => panic!("expected snapshot event, got {other:?}"),
+        }
+    }
+
+    fn assert_public_event(
+        client: &ClientRuntime,
+        expected_message_type: ProtocolMessageType,
+    ) -> serde_json::Value {
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("public event")
+        {
+            ClientRuntimeEvent::PublicEvent {
+                message_type,
+                payload,
+            } => {
+                assert_eq!(message_type, expected_message_type);
+                payload
+            }
+            other => panic!("expected public event, got {other:?}"),
+        }
+    }
+
     fn disconnect_client(host: &HostServer, player_id: &str) {
-        let stream = host
-            .clients
-            .lock()
-            .expect("client registry")
-            .get(player_id)
-            .expect("connected client")
-            .stream
-            .lock()
-            .expect("client stream")
-            .try_clone()
-            .expect("clone stream");
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let stream = loop {
+            if let Some(stream) = host
+                .clients
+                .lock()
+                .expect("client registry")
+                .get(player_id)
+                .map(|client| {
+                    client
+                        .stream
+                        .lock()
+                        .expect("client stream")
+                        .try_clone()
+                        .expect("clone stream")
+                })
+            {
+                break stream;
+            }
+
+            assert!(Instant::now() < deadline, "connected client");
+            thread::sleep(Duration::from_millis(20));
+        };
         stream
             .shutdown(Shutdown::Both)
             .expect("shutdown client stream");
@@ -2816,6 +2896,352 @@ mod tests {
             .expect_err("future resync should fail")
             .to_string()
             .contains("ahead of the host sequence"));
+    }
+
+    #[test]
+    fn public_and_private_events_stay_ordered_and_scoped_across_two_clients() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-public-private-ordered", 38);
+
+        let alice = connect_test_client(&provider, &host, "player-a", "Alice");
+        let bob = connect_test_client(&provider, &host, "player-b", "Bob");
+        let _ = expect_snapshot_event(&alice);
+        let _ = expect_snapshot_event(&bob);
+
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentStartedEvent,
+            &TournamentStartedEvent {
+                tournament_name: "Ordered Events".to_string(),
+                starting_stack: 1500,
+                blind_schedule_preset: "FAST".to_string(),
+                frozen_player_ids: vec!["player-a".to_string(), "player-b".to_string()],
+            },
+        )
+        .expect("tournament started event");
+        host.broadcast_public_event(
+            ProtocolMessageType::ActionWindowOpenedEvent,
+            &ActionWindowOpened {
+                hand_number: 1,
+                hand_phase: "AWAITING_ACTION".to_string(),
+                action_window_id: "window-1".to_string(),
+                player_id: "player-a".to_string(),
+                seat_index: 0,
+                legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
+                call_amount: 20,
+                min_raise_to: Some(40),
+                max_raise_to: Some(200),
+                deadline_epoch_ms: 123_456,
+            },
+        )
+        .expect("action window event");
+
+        for client in [&alice, &bob] {
+            let started_payload =
+                assert_public_event(client, ProtocolMessageType::TournamentStartedEvent);
+            assert_eq!(
+                started_payload.get("tournamentName"),
+                Some(&json!("Ordered Events"))
+            );
+
+            let action_window_payload =
+                assert_public_event(client, ProtocolMessageType::ActionWindowOpenedEvent);
+            assert_eq!(
+                action_window_payload.get("playerId"),
+                Some(&json!("player-a"))
+            );
+        }
+
+        host.send_private_hole_cards(
+            "player-a",
+            &PrivateHoleCardsEvent {
+                recipient_player_id: "player-a".to_string(),
+                hole_cards: vec![
+                    Card {
+                        rank: Rank::Ace,
+                        suit: Suit::Spades,
+                    },
+                    Card {
+                        rank: Rank::King,
+                        suit: Suit::Spades,
+                    },
+                ],
+            },
+        )
+        .expect("alice private cards");
+
+        match alice
+            .next_event(Duration::from_secs(2))
+            .expect("alice private event")
+        {
+            ClientRuntimeEvent::PrivateHoleCards(payload) => {
+                assert_eq!(payload.recipient_player_id, "player-a");
+                assert_eq!(payload.hole_cards.len(), 2);
+            }
+            other => panic!("expected alice private cards, got {other:?}"),
+        }
+        assert!(bob.next_event(Duration::from_millis(200)).is_err());
+
+        host.send_private_hole_cards(
+            "player-b",
+            &PrivateHoleCardsEvent {
+                recipient_player_id: "player-b".to_string(),
+                hole_cards: vec![
+                    Card {
+                        rank: Rank::Queen,
+                        suit: Suit::Hearts,
+                    },
+                    Card {
+                        rank: Rank::Jack,
+                        suit: Suit::Hearts,
+                    },
+                ],
+            },
+        )
+        .expect("bob private cards");
+
+        match bob
+            .next_event(Duration::from_secs(2))
+            .expect("bob private event")
+        {
+            ClientRuntimeEvent::PrivateHoleCards(payload) => {
+                assert_eq!(payload.recipient_player_id, "player-b");
+                assert_eq!(payload.hole_cards.len(), 2);
+            }
+            other => panic!("expected bob private cards, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn reconnect_restores_mid_hand_snapshot_with_the_original_action_owner() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-mid-hand-reconnect", 39);
+        let client = connect_test_client(&provider, &host, "player-midhand", "Midhand");
+        let _ = expect_snapshot_event(&client);
+        wait_for_host_participant_state(
+            &host,
+            "player-midhand",
+            ParticipantState::Admitted,
+            ConnectionState::Connected,
+        );
+
+        let mut updated_state = host.authoritative_state().expect("authoritative state");
+        updated_state.phase = TournamentPhase::Running;
+        updated_state.seats = vec![SeatState {
+            seat_index: 0,
+            occupancy: SeatOccupancyState::Occupied,
+            tournament_state: TournamentSeatState::Active,
+            participant_id: Some("player-midhand".to_string()),
+            display_name: Some("Midhand".to_string()),
+            chip_count: Some(1500),
+            is_ready: true,
+            marker: None,
+        }];
+        let participant = updated_state
+            .participants
+            .get_mut("player-midhand")
+            .expect("participant");
+        participant.state = ParticipantState::Active;
+        participant.connection_state = ConnectionState::Connected;
+        participant.seat_index = Some(0);
+        updated_state.current_hand = Some(HandState {
+            hand_number: 12,
+            cycle_phase: HandCyclePhase::AwaitingAction,
+            street: StreetPhase::Turn,
+            dealer_seat_index: 0,
+            small_blind_seat_index: 0,
+            big_blind_seat_index: 0,
+            board_cards: vec![Card {
+                rank: Rank::Ace,
+                suit: Suit::Clubs,
+            }],
+            hole_cards_by_player_id: [(
+                "player-midhand".to_string(),
+                vec![
+                    Card {
+                        rank: Rank::King,
+                        suit: Suit::Spades,
+                    },
+                    Card {
+                        rank: Rank::King,
+                        suit: Suit::Hearts,
+                    },
+                ],
+            )]
+            .into_iter()
+            .collect(),
+            participation_by_player_id: [(
+                "player-midhand".to_string(),
+                HandParticipationState::Active,
+            )]
+            .into_iter()
+            .collect(),
+            betting_round: BettingRoundState {
+                street: StreetPhase::Turn,
+                current_bet: 40,
+                min_raise_to: Some(80),
+                max_raise_to: Some(200),
+                pot_size: 120,
+                contributions_by_player_id: [("player-midhand".to_string(), 40)]
+                    .into_iter()
+                    .collect(),
+            },
+            action_window: Some(ActionWindow {
+                action_window_id: "window-midhand".to_string(),
+                player_id: "player-midhand".to_string(),
+                seat_index: 0,
+                legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
+                call_amount: 40,
+                min_raise_to: Some(80),
+                max_raise_to: Some(200),
+                deadline_epoch_ms: 456_789,
+            }),
+        });
+        host.replace_authoritative_state(updated_state)
+            .expect("replace authoritative state");
+
+        disconnect_client(&host, "player-midhand");
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("reconnecting event")
+        {
+            ClientRuntimeEvent::Reconnecting { player_id } => {
+                assert_eq!(player_id, "player-midhand");
+            }
+            other => panic!("expected reconnecting event, got {other:?}"),
+        }
+
+        let snapshot = expect_snapshot_event(&client);
+        assert_eq!(snapshot.local_player_id, "player-midhand");
+        assert_eq!(snapshot.state.state.phase, TournamentPhase::Running);
+        let action_window = snapshot
+            .state
+            .state
+            .current_hand
+            .as_ref()
+            .and_then(|hand| hand.action_window.as_ref())
+            .expect("action window after reconnect");
+        assert_eq!(action_window.player_id, "player-midhand");
+        assert_eq!(action_window.action_window_id, "window-midhand");
+    }
+
+    #[test]
+    fn resync_after_a_sequence_gap_allows_followup_public_events_to_continue() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-resync-continue", 40);
+        let client = connect_test_client(&provider, &host, "player-resync-continue", "Resync");
+        let _ = expect_snapshot_event(&client);
+
+        let mut updated_state = host.authoritative_state().expect("authoritative state");
+        updated_state.phase = TournamentPhase::ReadyCheck;
+        updated_state.config.tournament_name = "Resync Continue".to_string();
+        host.replace_authoritative_state(updated_state)
+            .expect("replace authoritative state");
+
+        host.server_sequence.store(0, Ordering::SeqCst);
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentStartedEvent,
+            &TournamentStartedEvent {
+                tournament_name: "stale".to_string(),
+                starting_stack: 1500,
+                blind_schedule_preset: "FAST".to_string(),
+                frozen_player_ids: vec!["player-resync-continue".to_string()],
+            },
+        )
+        .expect("broadcast stale event");
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("resync requested")
+        {
+            ClientRuntimeEvent::ResyncRequested {
+                player_id,
+                last_seen_server_sequence,
+            } => {
+                assert_eq!(player_id, "player-resync-continue");
+                assert_eq!(last_seen_server_sequence, 1);
+            }
+            other => panic!("expected resync requested event, got {other:?}"),
+        }
+
+        let snapshot = expect_snapshot_event(&client);
+        assert_eq!(
+            snapshot.state.state.config.tournament_name,
+            "Resync Continue"
+        );
+
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentCompleteEvent,
+            &TournamentCompleteEvent {
+                winner_player_id: "player-resync-continue".to_string(),
+                placements: vec![PlacementEntry {
+                    player_id: "player-resync-continue".to_string(),
+                    place: 1,
+                    busted_at_hand_number: None,
+                }],
+            },
+        )
+        .expect("broadcast tournament complete");
+
+        let completion_payload =
+            assert_public_event(&client, ProtocolMessageType::TournamentCompleteEvent);
+        assert_eq!(
+            completion_payload.get("winnerPlayerId"),
+            Some(&json!("player-resync-continue"))
+        );
+    }
+
+    #[test]
+    fn elimination_and_completion_events_stay_in_sync_across_clients() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-elimination-sync", 41);
+        let alice = connect_test_client(&provider, &host, "player-a", "Alice");
+        let bob = connect_test_client(&provider, &host, "player-b", "Bob");
+        let _ = expect_snapshot_event(&alice);
+        let _ = expect_snapshot_event(&bob);
+
+        host.broadcast_public_event(
+            ProtocolMessageType::EliminationEvent,
+            &EliminationEvent {
+                player_id: "player-b".to_string(),
+                place: 2,
+            },
+        )
+        .expect("elimination event");
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentCompleteEvent,
+            &TournamentCompleteEvent {
+                winner_player_id: "player-a".to_string(),
+                placements: vec![
+                    PlacementEntry {
+                        player_id: "player-a".to_string(),
+                        place: 1,
+                        busted_at_hand_number: None,
+                    },
+                    PlacementEntry {
+                        player_id: "player-b".to_string(),
+                        place: 2,
+                        busted_at_hand_number: Some(12),
+                    },
+                ],
+            },
+        )
+        .expect("completion event");
+
+        for client in [&alice, &bob] {
+            let elimination_payload =
+                assert_public_event(client, ProtocolMessageType::EliminationEvent);
+            assert_eq!(
+                elimination_payload.get("playerId"),
+                Some(&json!("player-b"))
+            );
+            let completion_payload =
+                assert_public_event(client, ProtocolMessageType::TournamentCompleteEvent);
+            assert_eq!(
+                completion_payload.get("winnerPlayerId"),
+                Some(&json!("player-a"))
+            );
+        }
     }
 
     #[test]

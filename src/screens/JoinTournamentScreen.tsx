@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
@@ -32,6 +33,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     status: "idle",
   });
   const [connectBanner, setConnectBanner] = useState<string | null>(null);
+  const [continueToLobby, setContinueToLobby] = useState(false);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -42,6 +44,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     if (deepLinkPayload && deepLinkPayload !== joinPayloadDraft) {
       setJoinPayloadDraft(deepLinkPayload);
       setConnectBanner("Join payload imported from a deep-link launch.");
+      setContinueToLobby(false);
     }
   }, [deepLinkPayload, joinPayloadDraft, setJoinPayloadDraft]);
 
@@ -126,10 +129,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               Paste payload
               <textarea
                 onChange={(event) => {
-                  setJoinPayloadDraft(event.target.value);
-                  setValidationState({ status: "idle" });
-                  setConnectBanner(null);
-                }}
+                   setJoinPayloadDraft(event.target.value);
+                   setValidationState({ status: "idle" });
+                   setConnectBanner(null);
+                   setContinueToLobby(false);
+                 }}
                 rows={8}
                 value={joinPayloadDraft}
               />
@@ -152,10 +156,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                       return;
                     }
 
-                    rememberJoinPayload(joinPayloadDraft);
-                    setConnectBanner(
-                      `Payload validated for ${payload.hostAddress}:${payload.hostPort}. The next backend step is wiring this shell into the live client runtime command path.`,
-                    );
+                     rememberJoinPayload(joinPayloadDraft);
+                     setContinueToLobby(true);
+                     setConnectBanner(
+                       `Payload validated for ${payload.hostAddress}:${payload.hostPort}. The next backend step is wiring this shell into the live client runtime command path.`,
+                     );
                   });
                 }}
                 type="button"
@@ -176,6 +181,13 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             <p className="inline-banner error">{validationState.message}</p>
           ) : null}
           {connectBanner ? <p className="inline-banner success">{connectBanner}</p> : null}
+          {continueToLobby ? (
+            <div className="button-row">
+              <Link className="primary-button" to="/lobby">
+                Continue to lobby shell
+              </Link>
+            </div>
+          ) : null}
         </SectionCard>
 
         <SectionCard title="Decoded payload">

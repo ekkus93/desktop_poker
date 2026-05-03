@@ -173,6 +173,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
             <Link className="secondary-button compact-button" to="/history">
               Hand history
             </Link>
+            {tableView?.phaseLabel.toLowerCase().includes("complete") ? (
+              <Link className="secondary-button compact-button" to="/complete">
+                Tournament complete
+              </Link>
+            ) : null}
             <a className="secondary-button compact-button" href="#standings-panel">
               Standings
             </a>
