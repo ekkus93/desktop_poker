@@ -163,6 +163,10 @@ pub fn validate_tournament_state(state: &TournamentState) -> Result<(), DomainEr
         }
 
         if let Some(action_window) = &hand.action_window {
+            if action_window.action_window_id.trim().is_empty() {
+                return Err(DomainError::new("action window id must not be empty"));
+            }
+
             let participant = state
                 .participants
                 .get(&action_window.player_id)
@@ -453,6 +457,7 @@ mod tests {
                     ]),
                 },
                 action_window: Some(ActionWindow {
+                    action_window_id: "aw-1".to_string(),
                     player_id: "host".to_string(),
                     seat_index: 0,
                     legal_actions: vec![

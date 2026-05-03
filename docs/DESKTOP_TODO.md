@@ -322,62 +322,62 @@ Before coding, treat these as fixed:
 ## 7. M4 — Tournament coordinator and hand loop
 
 ### 7.1 Poker engine foundation
-- [ ] Implement standard 52-card deck
-- [ ] Implement shuffle
-- [ ] Implement dealing
-- [ ] Implement street reveals
-- [ ] Implement hand evaluation
-- [ ] Implement main pot and side-pot settlement
-- [ ] Implement odd-chip rule
-- [ ] Implement showdown tie handling
+- [x] Implement standard 52-card deck
+- [x] Implement shuffle
+- [x] Implement dealing
+- [x] Implement street reveals
+- [x] Implement hand evaluation
+- [x] Implement main pot and side-pot settlement
+- [x] Implement odd-chip rule
+- [x] Implement showdown tie handling
 
 ### 7.2 Tournament hand loop
-- [ ] Start tournament
-- [ ] Freeze roster
-- [ ] Assign equal starting stacks
-- [ ] Initialize blind schedule
-- [ ] Start first hand
-- [ ] Advance through full hand lifecycle
-- [ ] Settle hand
-- [ ] Process eliminations
-- [ ] Enter between-hands state
-- [ ] Advance blind level between hands only
-- [ ] Start next hand automatically after intermission
-- [ ] End tournament when one player remains
+- [x] Start tournament
+- [x] Freeze roster
+- [x] Assign equal starting stacks
+- [x] Initialize blind schedule
+- [x] Start first hand
+- [x] Advance through full hand lifecycle
+- [x] Settle hand
+- [x] Process eliminations
+- [x] Enter between-hands state
+- [x] Advance blind level between hands only
+- [x] Start next hand automatically after intermission
+- [x] End tournament when one player remains
 
 ### 7.3 Action windows and turn ownership
-- [ ] Open exactly one action window at a time
-- [ ] Bind action window to acting participant
-- [ ] Compute legal actions from engine truth
-- [ ] Ensure UI can only act through authoritative action window
-- [ ] Ensure observer and non-acting players cannot act
+- [x] Open exactly one action window at a time
+- [x] Bind action window to acting participant
+- [x] Compute legal actions from engine truth
+- [x] Ensure UI can only act through authoritative action window
+- [x] Ensure observer and non-acting players cannot act
 
 ### 7.4 Legal action generation
-- [ ] Make `legalActions()` match validator truth
-- [ ] Do not advertise `RAISE` if no legal full raise exists
-- [ ] Provide explicit `ALL_IN` path when only all-in is legal
-- [ ] Ensure short all-in is not mislabeled as a normal raise
+- [x] Make `legalActions()` match validator truth
+- [x] Do not advertise `RAISE` if no legal full raise exists
+- [x] Provide explicit `ALL_IN` path when only all-in is legal
+- [x] Ensure short all-in is not mislabeled as a normal raise
 
 ### 7.5 Short all-in / reopen-action correctness
-- [ ] Short all-in must not reopen action unless it is a full raise
-- [ ] Preserve minimum full raise increment correctly
-- [ ] Reset acted-player tracking only after full raise
-- [ ] Add tests for edge cases
+- [x] Short all-in must not reopen action unless it is a full raise
+- [x] Preserve minimum full raise increment correctly
+- [x] Reset acted-player tracking only after full raise
+- [x] Add tests for edge cases
 
 ### 7.6 Timeout handling
-- [ ] Host clock is authoritative
-- [ ] Schedule timeout jobs for active action windows
-- [ ] Commit timeout actions through the same authoritative action path
-- [ ] `check if legal, else fold`
-- [ ] Late actions rejected as stale if timeout already fired
+- [x] Host clock is authoritative
+- [x] Schedule timeout jobs for active action windows
+- [x] Commit timeout actions through the same authoritative action path
+- [x] `check if legal, else fold`
+- [x] Late actions rejected as stale if timeout already fired
 
 ### 7.7 Required tests
-- [ ] hand progresses from start to completion
-- [ ] between-hands auto progression works
-- [ ] blind levels increase only between hands
-- [ ] short all-in does not reopen action
-- [ ] timeout commits work
-- [ ] tournament ends correctly
+- [x] hand progresses from start to completion
+- [x] between-hands auto progression works
+- [x] blind levels increase only between hands
+- [x] short all-in does not reopen action
+- [x] timeout commits work
+- [x] tournament ends correctly
 
 ---
 

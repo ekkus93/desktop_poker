@@ -229,6 +229,7 @@ pub struct HandStartingEvent {
 pub struct ActionWindowOpened {
     pub hand_number: u32,
     pub hand_phase: String,
+    pub action_window_id: String,
     pub player_id: String,
     pub seat_index: u8,
     pub legal_actions: Vec<ActionType>,
@@ -281,6 +282,7 @@ pub struct HandResultCommitted {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerActionSubmission {
+    pub action_window_id: String,
     pub seat_index: u8,
     pub action_type: ActionType,
     pub raise_to_amount: Option<u32>,

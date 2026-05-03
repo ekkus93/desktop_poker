@@ -213,6 +213,7 @@ pub struct BettingRoundState {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionWindow {
+    pub action_window_id: String,
     pub player_id: String,
     pub seat_index: u8,
     pub legal_actions: Vec<ActionType>,
@@ -229,6 +230,7 @@ pub struct PotSummary {
     pub amount: u32,
     pub eligible_player_ids: Vec<String>,
     pub winner_player_ids: Vec<String>,
+    pub odd_chip_count: u32,
     pub odd_chip_awarded_to: Option<String>,
 }
 
