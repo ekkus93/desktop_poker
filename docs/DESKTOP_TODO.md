@@ -114,67 +114,67 @@ Before coding, treat these as fixed:
 ## 4. M1 — Core Rust domain and shared state model
 
 ### 4.1 Port or recreate domain enums and value types
-- [ ] Tournament phase enums
-- [ ] Hand-cycle phase enums
-- [ ] Street phase enums
-- [ ] Seat occupancy state
-- [ ] Tournament seat state
-- [ ] Connection state
-- [ ] Hand participation state
-- [ ] Action type
-- [ ] Blind level model
-- [ ] Marker types (D/SB/BB)
-- [ ] Card / rank / suit model
+- [x] Tournament phase enums
+- [x] Hand-cycle phase enums
+- [x] Street phase enums
+- [x] Seat occupancy state
+- [x] Tournament seat state
+- [x] Connection state
+- [x] Hand participation state
+- [x] Action type
+- [x] Blind level model
+- [x] Marker types (D/SB/BB)
+- [x] Card / rank / suit model
 
 ### 4.2 Create immutable domain models
-- [ ] `TournamentConfig`
-- [ ] `BlindSchedule`
-- [ ] `TournamentState`
-- [ ] `HandState`
-- [ ] `BettingRoundState`
-- [ ] `SeatState`
-- [ ] `ParticipantRegistryEntry`
-- [ ] `PlayerIdentity`
-- [ ] `ActionWindow`
-- [ ] `HandResult`
-- [ ] `PotSummary`
-- [ ] `PlacementEntry`
-- [ ] `JoinPayload`
-- [ ] `SnapshotState`
-- [ ] `PublicState`
-- [ ] `PrivateState`
-- [ ] `ObserverProjection`
+- [x] `TournamentConfig`
+- [x] `BlindSchedule`
+- [x] `TournamentState`
+- [x] `HandState`
+- [x] `BettingRoundState`
+- [x] `SeatState`
+- [x] `ParticipantRegistryEntry`
+- [x] `PlayerIdentity`
+- [x] `ActionWindow`
+- [x] `HandResult`
+- [x] `PotSummary`
+- [x] `PlacementEntry`
+- [x] `JoinPayload`
+- [x] `SnapshotState`
+- [x] `PublicState`
+- [x] `PrivateState`
+- [x] `ObserverProjection`
 
 ### 4.3 Add invariants and validators
-- [ ] Validate player count 2–10
-- [ ] Validate starting stack > 0
-- [ ] Validate blind schedule ordering
-- [ ] Validate no duplicate occupied seats
-- [ ] Validate no duplicate participant IDs
-- [ ] Validate no duplicate signing key bindings
-- [ ] Validate no illegal public/private state leakage
+- [x] Validate player count 2–10
+- [x] Validate starting stack > 0
+- [x] Validate blind schedule ordering
+- [x] Validate no duplicate occupied seats
+- [x] Validate no duplicate participant IDs
+- [x] Validate no duplicate signing key bindings
+- [x] Validate no illegal public/private state leakage
 
 ### 4.4 Seat and participant semantics
-- [ ] Create participant registry separate from seat map
-- [ ] Define participant states:
-  - [ ] admitted
-  - [ ] seated
-  - [ ] active
-  - [ ] reconnecting
-  - [ ] eliminated observer
-  - [ ] fully removed
-- [ ] Ensure seat occupancy and participant registry are distinct but linked
-- [ ] Implement one canonical capacity-counting function
-- [ ] Ensure eliminated observers do not count toward join capacity
-- [ ] Ensure admitted but unseated participants do count
+- [x] Create participant registry separate from seat map
+- [x] Define participant states:
+  - [x] admitted
+  - [x] seated
+  - [x] active
+  - [x] reconnecting
+  - [x] eliminated observer
+  - [x] fully removed
+- [x] Ensure seat occupancy and participant registry are distinct but linked
+- [x] Implement one canonical capacity-counting function
+- [x] Ensure eliminated observers do not count toward join capacity
+- [x] Ensure admitted but unseated participants do count
 
 ### 4.5 Projection model
-- [ ] Create one projector that converts authoritative state into:
-  - [ ] public projection
-  - [ ] per-player private projection
-  - [ ] observer projection
-- [ ] Ensure hidden data never appears in public projection
-- [ ] Ensure eliminated observers never get private cards or action windows
+- [x] Create one projector that converts authoritative state into:
+  - [x] public projection
+  - [x] per-player private projection
+  - [x] observer projection
+- [x] Ensure hidden data never appears in public projection
+- [x] Ensure eliminated observers never get private cards or action windows
 
 ---
 

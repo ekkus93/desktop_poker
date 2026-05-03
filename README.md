@@ -4,12 +4,12 @@ Desktop Poker is a Linux-first Tauri 2 desktop client/host for single-table Sit 
 
 ## Current milestone status
 
-The repository now contains the M0 workspace scaffold:
+The repository now contains:
 
-- Tauri 2 + Rust backend
-- React + TypeScript frontend shell
+- M0 workspace scaffold for Tauri 2 + Rust + React/TypeScript
 - Rust module boundaries for `domain`, `engine`, `tournament`, `protocol`, `networking`, `crypto`, `storage`, `interop`, and `app_state`
 - Tauri command/event bridge for frontend bootstrap state
+- M1 domain/state foundation with immutable poker/tournament models, validators, participant capacity semantics, and state projection logic
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices
