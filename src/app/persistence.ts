@@ -1,4 +1,4 @@
-import type { TableHistoryEntryView } from "../api/desktop";
+import type { TableCardView, TableHistoryEntryView } from "../api/desktop";
 import { readStoredValue, storageKey } from "./shell";
 
 export type PersistedHandHistory = {
@@ -17,10 +17,104 @@ type PersistedWindowState = {
 const HAND_HISTORY_STORAGE_SUFFIX = "hand-history-summaries";
 const WINDOW_STATE_STORAGE_SUFFIX = "window-state";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isTableCardView(value: unknown): value is TableCardView {
+  return (
+    isRecord(value) &&
+    typeof value.label === "string" &&
+    typeof value.compactLabel === "string" &&
+    typeof value.suitSymbol === "string" &&
+    (value.tone === "red" || value.tone === "dark")
+  );
+}
+
+function isTableHistoryEntryView(value: unknown): value is TableHistoryEntryView {
+  return (
+    isRecord(value) &&
+    isFiniteNumber(value.handNumber) &&
+    typeof value.summary === "string" &&
+    isFiniteNumber(value.potTotal) &&
+    isStringArray(value.winningPlayers) &&
+    isStringArray(value.eliminatedPlayers) &&
+    Array.isArray(value.boardCards) &&
+    value.boardCards.every(isTableCardView)
+  );
+}
+
+function normalizeHandHistoryEntries(entries: unknown[]) {
+  const entriesByHandNumber = new Map<number, TableHistoryEntryView>();
+
+  for (const entry of entries) {
+    if (isTableHistoryEntryView(entry)) {
+      entriesByHandNumber.set(entry.handNumber, entry);
+    }
+  }
+
+  return [...entriesByHandNumber.values()].sort(
+    (left, right) => right.handNumber - left.handNumber,
+  );
+}
+
+function normalizePersistedHandHistory(
+  value: unknown,
+): PersistedHandHistory | null {
+  if (!isRecord(value) || !Array.isArray(value.entries)) {
+    return null;
+  }
+
+  return {
+    updatedAtMs:
+      isFiniteNumber(value.updatedAtMs) && value.updatedAtMs >= 0
+        ? value.updatedAtMs
+        : 0,
+    entries: normalizeHandHistoryEntries(value.entries),
+  };
+}
+
+function normalizePersistedWindowState(
+  value: unknown,
+): PersistedWindowState | null {
+  if (
+    !isRecord(value) ||
+    !isFiniteNumber(value.width) ||
+    value.width <= 0 ||
+    !isFiniteNumber(value.height) ||
+    value.height <= 0 ||
+    !isFiniteNumber(value.x) ||
+    !isFiniteNumber(value.y) ||
+    typeof value.maximized !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    width: value.width,
+    height: value.height,
+    x: value.x,
+    y: value.y,
+    maximized: value.maximized,
+  };
+}
+
 export function readPersistedHandHistory(storageNamespace: string) {
-  return readStoredValue<PersistedHandHistory | null>(
-    localStorage.getItem(storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX)),
-    null,
+  return normalizePersistedHandHistory(
+    readStoredValue<unknown>(
+      localStorage.getItem(
+        storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
+      ),
+      null,
+    ),
   );
 }
 
@@ -28,11 +122,13 @@ export function persistHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
 ) {
+  const normalizedEntries = normalizeHandHistoryEntries(entries);
+
   localStorage.setItem(
     storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
     JSON.stringify({
       updatedAtMs: Date.now(),
-      entries,
+      entries: normalizedEntries,
     } satisfies PersistedHandHistory),
   );
 }
@@ -44,9 +140,11 @@ export function initializeWindowStatePersistence(storageNamespace: string) {
 
   let cancelled = false;
   const cleanupCallbacks: Array<() => void> = [];
-  const storedState = readStoredValue<PersistedWindowState | null>(
-    localStorage.getItem(storageKey(storageNamespace, WINDOW_STATE_STORAGE_SUFFIX)),
-    null,
+  const storedState = normalizePersistedWindowState(
+    readStoredValue<unknown>(
+      localStorage.getItem(storageKey(storageNamespace, WINDOW_STATE_STORAGE_SUFFIX)),
+      null,
+    ),
   );
 
   const persistWindowState = (nextState: PersistedWindowState) => {

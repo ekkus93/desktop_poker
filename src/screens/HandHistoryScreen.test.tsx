@@ -2,6 +2,10 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
+import {
+  createHistoryEntry,
+  seedPersistedHandHistory,
+} from "../test/persistenceFixtures";
 import { HandHistoryScreen } from "./HandHistoryScreen";
 
 vi.mock("../api/desktop", async () => {
@@ -37,14 +41,12 @@ function createHistorySnapshot(
     seats: [],
     standings: [],
     handHistory: [
-      {
+      createHistoryEntry({
         handNumber: 9,
         summary: "Maya won 240 chip(s).",
         potTotal: 240,
         winningPlayers: ["Maya"],
-        eliminatedPlayers: [],
-        boardCards: [],
-      },
+      }),
     ],
     eventFeed: [],
     actionTray: null,
@@ -59,12 +61,9 @@ describe("HandHistoryScreen", () => {
 
   it("shows saved hand-history summaries when the live fetch fails", async () => {
     const bootstrap = createBootstrap();
-    localStorage.setItem(
-      `${bootstrap.storageNamespace}:hand-history-summaries`,
-      JSON.stringify({
-        updatedAtMs: 1234,
-        entries: createHistorySnapshot().handHistory,
-      }),
+    seedPersistedHandHistory(
+      bootstrap.storageNamespace,
+      createHistorySnapshot().handHistory,
     );
     mockedGetTableView.mockRejectedValue(new Error("offline"));
 
@@ -75,5 +74,66 @@ describe("HandHistoryScreen", () => {
       screen.getByText(/showing locally saved hand-history summaries/i),
     ).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
+  });
+
+  it("replaces cached hand history with live data when the fetch succeeds", async () => {
+    const bootstrap = createBootstrap();
+    seedPersistedHandHistory(bootstrap.storageNamespace, [
+      createHistoryEntry({ handNumber: 2, summary: "Cached summary" }),
+    ]);
+    mockedGetTableView.mockResolvedValue(
+      createHistorySnapshot({
+        handHistory: [
+          createHistoryEntry({ handNumber: 7, summary: "Live summary" }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(await screen.findByText(/live summary/i)).toBeTruthy();
+    expect(screen.queryByText(/cached summary/i)).toBeNull();
+    expect(
+      screen.queryByText(/showing locally saved hand-history summaries/i),
+    ).toBeNull();
+  });
+
+  it("shows the empty state when neither live nor cached history is available", async () => {
+    const bootstrap = createBootstrap();
+    mockedGetTableView.mockResolvedValue(
+      createHistorySnapshot({
+        handHistory: [],
+        standings: [],
+      }),
+    );
+
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(
+      await screen.findByText(
+        /no hands have settled yet\. use the main table to progress the current hand\./i,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("ignores malformed cached history and still renders safely on fetch failure", async () => {
+    const bootstrap = createBootstrap();
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:hand-history-summaries`,
+      JSON.stringify({
+        updatedAtMs: 1234,
+        entries: [{ handNumber: "bad-entry" }],
+      }),
+    );
+    mockedGetTableView.mockRejectedValue(new Error("offline"));
+
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(await screen.findByText("offline")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /no hands have settled yet\. use the main table to progress the current hand\./i,
+      ),
+    ).toBeTruthy();
   });
 });
