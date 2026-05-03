@@ -384,49 +384,49 @@ Before coding, treat these as fixed:
 ## 8. M5 — Reconnect, resync, and sequence handling
 
 ### 8.1 Reconnect identity rules
-- [ ] Reconnect requires:
-  - [ ] same `playerId`
-  - [ ] valid reconnect token
-  - [ ] valid signature from same original bound signing keypair
-- [ ] Regenerated keys after app restart do not qualify as reconnect in v1
-- [ ] Fail clearly if original ephemeral keypair is unavailable
+- [x] Reconnect requires:
+  - [x] same `playerId`
+  - [x] valid reconnect token
+  - [x] valid signature from same original bound signing keypair
+- [x] Regenerated keys after app restart do not qualify as reconnect in v1
+- [x] Fail clearly if original ephemeral keypair is unavailable
 
 ### 8.2 Host-side disconnect handling
-- [ ] On unexpected client disconnect:
-  - [ ] mark participant reconnect-eligible
-  - [ ] preserve participant registry entry
-  - [ ] preserve seat ownership as appropriate
-  - [ ] do not silently drop session identity
-- [ ] Distinguish active reconnect-eligible participant from fully removed participant
+- [x] On unexpected client disconnect:
+  - [x] mark participant reconnect-eligible
+  - [x] preserve participant registry entry
+  - [x] preserve seat ownership as appropriate
+  - [x] do not silently drop session identity
+- [x] Distinguish active reconnect-eligible participant from fully removed participant
 
 ### 8.3 Client-side reconnect flow
-- [ ] Detect transport loss
-- [ ] Enter reconnecting UI state
-- [ ] Reopen TCP connection to host
-- [ ] Send signed reconnect request
-- [ ] Handle accept/reject
-- [ ] On accept, replace local state with authoritative snapshot
-- [ ] On reject, exit to safe UI with explicit error
+- [x] Detect transport loss
+- [x] Enter reconnecting UI state
+- [x] Reopen TCP connection to host
+- [x] Send signed reconnect request
+- [x] Handle accept/reject
+- [x] On accept, replace local state with authoritative snapshot
+- [x] On reject, exit to safe UI with explicit error
 
 ### 8.4 Explicit resync path
-- [ ] Implement real `RESYNC_REQUEST`
-- [ ] Trigger on sequence mismatch or state gap
-- [ ] Host responds with full snapshot
-- [ ] Client replaces local state with that snapshot
+- [x] Implement real `RESYNC_REQUEST`
+- [x] Trigger on sequence mismatch or state gap
+- [x] Host responds with full snapshot
+- [x] Client replaces local state with that snapshot
 
 ### 8.5 Sequence handling
-- [ ] Maintain authoritative host event sequence
-- [ ] Include sequence on signed public events
-- [ ] Advance sequence on authoritative event emission
-- [ ] Use one clear rule for snapshots vs events
-- [ ] Add sequence mismatch detection on client
+- [x] Maintain authoritative host event sequence
+- [x] Include sequence on signed public events
+- [x] Advance sequence on authoritative event emission
+- [x] Use one clear rule for snapshots vs events
+- [x] Add sequence mismatch detection on client
 
 ### 8.6 Required tests
-- [ ] reconnect succeeds only with original keypair + valid token
-- [ ] reconnect fails with regenerated keypair
-- [ ] host marks disconnect as reconnect-eligible
-- [ ] resync replaces local state from authoritative snapshot
-- [ ] event sequence mismatch triggers resync
+- [x] reconnect succeeds only with original keypair + valid token
+- [x] reconnect fails with regenerated keypair
+- [x] host marks disconnect as reconnect-eligible
+- [x] resync replaces local state from authoritative snapshot
+- [x] event sequence mismatch triggers resync
 
 ---
 

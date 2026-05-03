@@ -12,19 +12,24 @@ use std::{
 
 use base64::Engine as _;
 use local_ip_address::list_afinet_netifas;
+use rand_core::{OsRng, RngCore};
 use serde_json::Value;
 
 use crate::{
     crypto::{
-        DefaultCryptoProvider, EncryptionKeyMaterial, ProtocolCryptoProvider, SigningKeyMaterial,
+        key_fingerprint, DefaultCryptoProvider, EncryptionKeyMaterial, ProtocolCryptoProvider,
+        SigningKeyMaterial,
     },
-    domain::{JoinPayload, SnapshotState, TournamentState},
+    domain::{
+        ConnectionState, JoinPayload, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
+        SnapshotState, TournamentPhase, TournamentState,
+    },
     networking::{read_json_frame, write_json_frame},
     protocol::{
         decode_join_payload, encode_join_payload, join_request_envelope, validate_join_payload,
         EncryptedPrivateEnvelope, JoinTournamentRequest, JsonSignedEnvelope,
         PrivateEnvelopeMetadata, PrivateHoleCardsEvent, ProtocolErrorMessage, ProtocolMessageType,
-        SignedEnvelope, SnapshotEvent, PROTOCOL_VERSION,
+        ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, SnapshotEvent, PROTOCOL_VERSION,
     },
 };
 
@@ -80,12 +85,20 @@ pub struct HostServer {
     listener_addr: SocketAddr,
     join_payload: JoinPayload,
     encoded_join_payload: String,
+    authoritative_state: Arc<Mutex<TournamentState>>,
     clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     server_sequence: Arc<AtomicU64>,
     stop_signal: Arc<AtomicBool>,
     accept_thread: Option<JoinHandle<()>>,
     host_signing_keys: Arc<SigningKeyMaterial>,
     host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
+}
+
+#[derive(Debug)]
+struct InitialRequestAcceptance {
+    player_id: String,
+    snapshot_envelope: SignedEnvelope<SnapshotEvent>,
+    encryption_public_key: String,
 }
 
 impl HostServer {
@@ -125,17 +138,19 @@ impl HostServer {
         let encoded_join_payload = encode_join_payload(&join_payload)
             .map_err(|error| NetworkingError::new(error.to_string()))?;
 
+        let authoritative_state = Arc::new(Mutex::new(config.snapshot_state.clone()));
         let clients = Arc::new(Mutex::new(HashMap::new()));
         let stop_signal = Arc::new(AtomicBool::new(false));
         let server_sequence = Arc::new(AtomicU64::new(0));
 
         let accept_thread = {
+            let authoritative_state = Arc::clone(&authoritative_state);
             let clients = Arc::clone(&clients);
             let stop_signal = Arc::clone(&stop_signal);
+            let server_sequence = Arc::clone(&server_sequence);
             let host_signing_keys = Arc::clone(&config.host_signing_keys);
             let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
             let join_payload = join_payload.clone();
-            let snapshot_state = config.snapshot_state.clone();
 
             thread::Builder::new()
                 .name("desktop-poker-host".to_string())
@@ -150,10 +165,11 @@ impl HostServer {
                         };
 
                         let clients = Arc::clone(&clients);
+                        let authoritative_state = Arc::clone(&authoritative_state);
+                        let server_sequence = Arc::clone(&server_sequence);
                         let host_signing_keys = Arc::clone(&host_signing_keys);
                         let host_encryption_keys = Arc::clone(&host_encryption_keys);
                         let join_payload = join_payload.clone();
-                        let snapshot_state = snapshot_state.clone();
 
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
                         let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
@@ -164,11 +180,12 @@ impl HostServer {
                                 read_json_frame::<JsonSignedEnvelope>(&mut stream);
 
                             let response = match initial_request {
-                                Ok(request_envelope) => handle_join_request(
+                                Ok(request_envelope) => handle_initial_client_request(
                                     &crypto_provider,
                                     request_envelope,
                                     &join_payload,
-                                    &snapshot_state,
+                                    &authoritative_state,
+                                    &server_sequence,
                                     &host_signing_keys,
                                     &host_encryption_keys,
                                 ),
@@ -176,45 +193,52 @@ impl HostServer {
                             };
 
                             match response {
-                                Ok((player_id, acceptance_envelope, encryption_public_key)) => {
-                                    if write_json_frame(&mut stream, &acceptance_envelope).is_ok() {
-                                        let stream_handle = match stream.try_clone() {
-                                            Ok(cloned_stream) => {
+                                Ok(InitialRequestAcceptance {
+                                    player_id,
+                                    snapshot_envelope,
+                                    encryption_public_key,
+                                }) => {
+                                    if write_json_frame(&mut stream, &snapshot_envelope).is_ok() {
+                                        let stream_handle =
+                                            match stream.try_clone().map(|cloned_stream| {
                                                 Arc::new(Mutex::new(cloned_stream))
-                                            }
-                                            Err(_) => return,
-                                        };
+                                            }) {
+                                                Ok(handle) => handle,
+                                                Err(_) => return,
+                                            };
 
                                         if let Ok(mut connected_clients) = clients.lock() {
                                             connected_clients.insert(
-                                                player_id,
+                                                player_id.clone(),
                                                 ConnectedClient {
-                                                    stream: stream_handle,
+                                                    stream: Arc::clone(&stream_handle),
                                                     encryption_public_key,
                                                 },
                                             );
                                         }
+
+                                        spawn_host_client_session(
+                                            player_id,
+                                            stream,
+                                            authoritative_state,
+                                            clients,
+                                            join_payload,
+                                            server_sequence,
+                                            host_signing_keys,
+                                            host_encryption_keys,
+                                        );
                                     }
                                 }
                                 Err(error) => {
-                                    let mut envelope = SignedEnvelope {
-                                        protocol_version: PROTOCOL_VERSION,
-                                        message_type: ProtocolMessageType::ProtocolError,
-                                        table_id: join_payload.table_id.clone(),
-                                        session_epoch: join_payload.session_epoch,
-                                        sender_id: "host".to_string(),
-                                        counter: 0,
-                                        message_id: format!("error-{}", now_epoch_ms()),
-                                        server_sequence: None,
-                                        payload: ProtocolErrorMessage {
-                                            code: "JOIN_REJECTED".to_string(),
-                                            message: error.to_string(),
-                                            rejected_message_id: None,
-                                        },
-                                        signature: None,
-                                    };
-
-                                    if envelope.sign(&crypto_provider, &host_signing_keys).is_ok() {
+                                    if let Ok(envelope) = build_protocol_error_envelope(
+                                        &crypto_provider,
+                                        &join_payload,
+                                        &server_sequence,
+                                        &host_signing_keys,
+                                        "JOIN_REJECTED",
+                                        error.to_string(),
+                                        None,
+                                    ) {
                                         let _ = write_json_frame(&mut stream, &envelope);
                                     }
                                 }
@@ -231,6 +255,7 @@ impl HostServer {
             listener_addr,
             join_payload,
             encoded_join_payload,
+            authoritative_state,
             clients,
             server_sequence,
             stop_signal,
@@ -263,6 +288,38 @@ impl HostServer {
     #[must_use]
     pub fn join_payload_qr_text(&self) -> String {
         self.encoded_join_payload.clone()
+    }
+
+    pub fn authoritative_state(&self) -> Result<TournamentState, NetworkingError> {
+        self.authoritative_state
+            .lock()
+            .map(|state| state.clone())
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
+    }
+
+    pub fn replace_authoritative_state(
+        &self,
+        next_state: TournamentState,
+    ) -> Result<(), NetworkingError> {
+        if next_state.table_id != self.join_payload.table_id
+            || next_state.session_epoch != self.join_payload.session_epoch
+        {
+            return Err(NetworkingError::new(
+                "replacement state must match the active table/session",
+            ));
+        }
+
+        self.authoritative_state
+            .lock()
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
+            .map(|mut state| {
+                *state = next_state;
+            })
+    }
+
+    #[must_use]
+    pub fn current_server_sequence(&self) -> u64 {
+        self.server_sequence.load(Ordering::SeqCst)
     }
 
     pub fn broadcast_public_event<TPayload: serde::Serialize>(
@@ -325,6 +382,7 @@ impl HostServer {
                 .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
             for player_id in failed_clients {
                 connected_clients.remove(&player_id);
+                mark_participant_reconnect_eligible(&self.authoritative_state, &player_id)?;
             }
         }
 
@@ -421,7 +479,17 @@ impl HostServer {
                 NetworkingError::new(format!("failed to clone client stream: {error}"))
             })?;
 
-        write_json_frame(&mut stream, &envelope)
+        match write_json_frame(&mut stream, &envelope) {
+            Ok(()) => Ok(()),
+            Err(error) => {
+                if let Ok(mut connected_clients) = self.clients.lock() {
+                    connected_clients.remove(recipient_id);
+                }
+                let _ =
+                    mark_participant_reconnect_eligible(&self.authoritative_state, recipient_id);
+                Err(error)
+            }
+        }
     }
 }
 
@@ -436,8 +504,15 @@ impl Drop for HostServer {
     }
 }
 
+#[derive(Debug)]
+struct ClientReconnectIdentity {
+    signing_keys: Option<SigningKeyMaterial>,
+    encryption_keys: Option<EncryptionKeyMaterial>,
+}
+
 pub struct ClientRuntime {
     incoming: Receiver<ClientRuntimeEvent>,
+    reconnect_identity: Arc<Mutex<ClientReconnectIdentity>>,
 }
 
 impl ClientRuntime {
@@ -447,81 +522,90 @@ impl ClientRuntime {
         validate_join_payload(&join_payload)
             .map_err(|error| NetworkingError::new(error.to_string()))?;
 
-        let mut stream =
-            TcpStream::connect((join_payload.host_address.as_str(), join_payload.host_port))
-                .map_err(|error| {
-                    NetworkingError::new(format!("failed to connect to host: {error}"))
-                })?;
-        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-        let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
-
         let crypto_provider = DefaultCryptoProvider;
-        let mut join_envelope = join_request_envelope(
-            join_payload.table_id.clone(),
-            join_payload.session_epoch,
-            config.player_id.clone(),
-            1,
-            format!("join-{}", now_epoch_ms()),
-            JoinTournamentRequest {
-                display_name: config.display_name.clone(),
-                join_token: join_payload.join_token.clone(),
-                signing_public_key: config.signing_keys.public_key_base64(),
-                encryption_public_key: config.encryption_keys.public_key_base64(),
-            },
-        );
-        join_envelope
-            .sign(&crypto_provider, &config.signing_keys)
-            .map_err(|error| NetworkingError::new(error.to_string()))?;
-        write_json_frame(&mut stream, &join_envelope)?;
+        let player_id = config.player_id.clone();
+        let display_name = config.display_name.clone();
+        let reconnect_identity = Arc::new(Mutex::new(ClientReconnectIdentity {
+            signing_keys: Some(config.signing_keys),
+            encryption_keys: Some(config.encryption_keys),
+        }));
 
-        let response_value: Value = read_json_frame(&mut stream)?;
-        let message_type = response_value
-            .get("messageType")
-            .and_then(Value::as_str)
-            .ok_or_else(|| NetworkingError::new("host response missing messageType"))?;
-
-        let host_signing_public_key = join_payload.host_signing_public_key.clone();
-
-        let (snapshot_event, host_encryption_public_key) = if message_type == "SNAPSHOT_EVENT" {
-            let envelope: SignedEnvelope<SnapshotEvent> = serde_json::from_value(response_value)
-                .map_err(|error| {
-                    NetworkingError::new(format!("invalid snapshot envelope: {error}"))
-                })?;
-            envelope
-                .verify(&crypto_provider, &host_signing_public_key)
-                .map_err(|error| NetworkingError::new(error.to_string()))?;
-            let snapshot_event = envelope.payload;
-            let host_encryption_public_key = snapshot_event
-                .host_encryption_public_key
-                .clone()
-                .ok_or_else(|| NetworkingError::new("snapshot missing hostEncryptionPublicKey"))?;
-            (snapshot_event, host_encryption_public_key)
-        } else {
-            let envelope: SignedEnvelope<ProtocolErrorMessage> =
-                serde_json::from_value(response_value).map_err(|error| {
-                    NetworkingError::new(format!("invalid rejection envelope: {error}"))
-                })?;
-            envelope
-                .verify(&crypto_provider, &host_signing_public_key)
-                .map_err(|error| NetworkingError::new(error.to_string()))?;
-            return Err(NetworkingError::new(envelope.payload.message));
-        };
+        let (mut stream, snapshot_envelope) = connect_and_join(
+            &crypto_provider,
+            &join_payload,
+            &player_id,
+            &display_name,
+            &reconnect_identity,
+        )?;
+        let snapshot_event = snapshot_envelope.payload.clone();
+        let snapshot_sequence = snapshot_envelope.server_sequence;
 
         let (sender, receiver) = mpsc::channel();
         sender
             .send(ClientRuntimeEvent::Snapshot(Box::new(snapshot_event)))
             .map_err(|error| NetworkingError::new(format!("failed to queue snapshot: {error}")))?;
 
-        let mut read_stream = stream
-            .try_clone()
-            .map_err(|error| NetworkingError::new(format!("failed to clone stream: {error}")))?;
-        let encryption_keys = config.encryption_keys;
-        let player_id = config.player_id;
+        let host_signing_public_key = join_payload.host_signing_public_key.clone();
+        let mut reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
+        let mut host_encryption_public_key = snapshot_envelope
+            .payload
+            .host_encryption_public_key
+            .clone()
+            .ok_or_else(|| NetworkingError::new("snapshot missing hostEncryptionPublicKey"))?;
+        let mut last_seen_server_sequence = snapshot_sequence;
+        let mut next_counter = 2;
+        let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
 
         thread::spawn(move || {
             loop {
-                let Ok(frame_value) = read_json_frame::<Value>(&mut read_stream) else {
-                    break;
+                let frame_value = match read_json_frame::<Value>(&mut stream) {
+                    Ok(frame_value) => frame_value,
+                    Err(_) => {
+                        let _ = sender.send(ClientRuntimeEvent::Reconnecting {
+                            player_id: player_id.clone(),
+                        });
+
+                        match reconnect_after_disconnect(
+                            &crypto_provider,
+                            &join_payload,
+                            &player_id,
+                            &reconnect_identity_for_thread,
+                            reconnect_token.as_deref(),
+                            last_seen_server_sequence.unwrap_or(0),
+                            &mut next_counter,
+                        ) {
+                            Ok((reconnected_stream, snapshot_envelope)) => {
+                                stream = reconnected_stream;
+                                reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
+                                last_seen_server_sequence = snapshot_envelope.server_sequence;
+
+                                let Some(next_host_encryption_public_key) =
+                                    snapshot_envelope.payload.host_encryption_public_key.clone()
+                                else {
+                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        player_id: player_id.clone(),
+                                        message:
+                                            "reconnect snapshot missing hostEncryptionPublicKey"
+                                                .to_string(),
+                                    });
+                                    break;
+                                };
+                                host_encryption_public_key = next_host_encryption_public_key;
+
+                                let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
+                                    snapshot_envelope.payload,
+                                )));
+                                continue;
+                            }
+                            Err(error) => {
+                                let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    player_id: player_id.clone(),
+                                    message: error.to_string(),
+                                });
+                                break;
+                            }
+                        }
+                    }
                 };
 
                 let Some(message_type) = frame_value.get("messageType").and_then(Value::as_str)
@@ -544,14 +628,67 @@ impl ClientRuntime {
                             continue;
                         }
 
+                        if is_stale_server_sequence(
+                            last_seen_server_sequence,
+                            Some(envelope.server_sequence),
+                        ) {
+                            match request_resync_snapshot(
+                                &crypto_provider,
+                                &mut stream,
+                                &join_payload,
+                                &player_id,
+                                &reconnect_identity_for_thread,
+                                last_seen_server_sequence.unwrap_or(0),
+                                &mut next_counter,
+                            ) {
+                                Ok(snapshot_envelope) => {
+                                    reconnect_token =
+                                        snapshot_envelope.payload.reconnect_token.clone();
+                                    last_seen_server_sequence = snapshot_envelope.server_sequence;
+                                    if let Some(next_host_encryption_public_key) =
+                                        snapshot_envelope.payload.host_encryption_public_key.clone()
+                                    {
+                                        host_encryption_public_key =
+                                            next_host_encryption_public_key;
+                                    }
+                                    let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
+                                        snapshot_envelope.payload,
+                                    )));
+                                }
+                                Err(error) => {
+                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        player_id: player_id.clone(),
+                                        message: error.to_string(),
+                                    });
+                                    break;
+                                }
+                            }
+                            continue;
+                        }
+                        last_seen_server_sequence = Some(envelope.server_sequence);
+
                         let encrypted_payload = crate::crypto::EncryptedPayload {
                             nonce_base64: envelope.nonce.clone(),
                             ciphertext_base64: envelope.ciphertext.clone(),
                             recipient_key_id: envelope.recipient_key_id.clone(),
                         };
 
+                        let Ok(identity) = reconnect_identity_for_thread.lock() else {
+                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                player_id: player_id.clone(),
+                                message: "client reconnect identity lock poisoned".to_string(),
+                            });
+                            break;
+                        };
+                        let Some(encryption_keys) = identity.encryption_keys.as_ref() else {
+                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                player_id: player_id.clone(),
+                                message: missing_reconnect_identity_message(),
+                            });
+                            break;
+                        };
                         let Ok(plaintext) = crypto_provider.decrypt(
-                            &encryption_keys,
+                            encryption_keys,
                             &host_encryption_public_key,
                             &encrypted_payload,
                             envelope
@@ -570,7 +707,31 @@ impl ClientRuntime {
 
                         let _ = sender.send(ClientRuntimeEvent::PrivateHoleCards(private_payload));
                     }
-                    "SNAPSHOT_EVENT" => {}
+                    "SNAPSHOT_EVENT" => {
+                        let Ok(envelope) =
+                            serde_json::from_value::<SignedEnvelope<SnapshotEvent>>(frame_value)
+                        else {
+                            continue;
+                        };
+
+                        if envelope
+                            .verify(&crypto_provider, &host_signing_public_key)
+                            .is_err()
+                        {
+                            continue;
+                        }
+
+                        last_seen_server_sequence = envelope.server_sequence;
+                        reconnect_token = envelope.payload.reconnect_token.clone();
+                        if let Some(next_host_encryption_public_key) =
+                            envelope.payload.host_encryption_public_key.clone()
+                        {
+                            host_encryption_public_key = next_host_encryption_public_key;
+                        }
+
+                        let _ =
+                            sender.send(ClientRuntimeEvent::Snapshot(Box::new(envelope.payload)));
+                    }
                     _ => {
                         let Ok(envelope) =
                             serde_json::from_value::<JsonSignedEnvelope>(frame_value.clone())
@@ -584,6 +745,50 @@ impl ClientRuntime {
                         {
                             continue;
                         }
+
+                        if is_stale_server_sequence(
+                            last_seen_server_sequence,
+                            envelope.server_sequence,
+                        ) {
+                            let _ = sender.send(ClientRuntimeEvent::ResyncRequested {
+                                player_id: player_id.clone(),
+                                last_seen_server_sequence: last_seen_server_sequence.unwrap_or(0),
+                            });
+
+                            match request_resync_snapshot(
+                                &crypto_provider,
+                                &mut stream,
+                                &join_payload,
+                                &player_id,
+                                &reconnect_identity_for_thread,
+                                last_seen_server_sequence.unwrap_or(0),
+                                &mut next_counter,
+                            ) {
+                                Ok(snapshot_envelope) => {
+                                    reconnect_token =
+                                        snapshot_envelope.payload.reconnect_token.clone();
+                                    last_seen_server_sequence = snapshot_envelope.server_sequence;
+                                    if let Some(next_host_encryption_public_key) =
+                                        snapshot_envelope.payload.host_encryption_public_key.clone()
+                                    {
+                                        host_encryption_public_key =
+                                            next_host_encryption_public_key;
+                                    }
+                                    let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
+                                        snapshot_envelope.payload,
+                                    )));
+                                }
+                                Err(error) => {
+                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        player_id: player_id.clone(),
+                                        message: error.to_string(),
+                                    });
+                                    break;
+                                }
+                            }
+                            continue;
+                        }
+                        last_seen_server_sequence = envelope.server_sequence;
 
                         if !matches!(
                             envelope.message_type,
@@ -609,13 +814,40 @@ impl ClientRuntime {
             let _ = sender.send(ClientRuntimeEvent::Disconnected { player_id });
         });
 
-        Ok(Self { incoming: receiver })
+        Ok(Self {
+            incoming: receiver,
+            reconnect_identity,
+        })
     }
 
     pub fn next_event(&self, timeout: Duration) -> Result<ClientRuntimeEvent, NetworkingError> {
         self.incoming.recv_timeout(timeout).map_err(|error| {
             NetworkingError::new(format!("timed out waiting for client event: {error}"))
         })
+    }
+
+    pub fn clear_reconnect_identity(&self) -> Result<(), NetworkingError> {
+        self.reconnect_identity
+            .lock()
+            .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))
+            .map(|mut identity| {
+                identity.signing_keys = None;
+                identity.encryption_keys = None;
+            })
+    }
+
+    pub fn replace_reconnect_identity(
+        &self,
+        signing_keys: SigningKeyMaterial,
+        encryption_keys: EncryptionKeyMaterial,
+    ) -> Result<(), NetworkingError> {
+        self.reconnect_identity
+            .lock()
+            .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))
+            .map(|mut identity| {
+                identity.signing_keys = Some(signing_keys);
+                identity.encryption_keys = Some(encryption_keys);
+            })
     }
 }
 
@@ -635,6 +867,17 @@ pub enum ClientRuntimeEvent {
         payload: Value,
     },
     PrivateHoleCards(PrivateHoleCardsEvent),
+    Reconnecting {
+        player_id: String,
+    },
+    ResyncRequested {
+        player_id: String,
+        last_seen_server_sequence: u64,
+    },
+    SafeError {
+        player_id: String,
+        message: String,
+    },
     Disconnected {
         player_id: String,
     },
@@ -661,20 +904,49 @@ fn validate_production_host_ip(ip_addr: IpAddr) -> Result<(), NetworkingError> {
     Ok(())
 }
 
+fn handle_initial_client_request(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    request_envelope: JsonSignedEnvelope,
+    join_payload: &JoinPayload,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+) -> Result<InitialRequestAcceptance, NetworkingError> {
+    match request_envelope.message_type {
+        ProtocolMessageType::JoinTournamentRequest => handle_join_request(
+            crypto_provider,
+            request_envelope,
+            join_payload,
+            authoritative_state,
+            server_sequence,
+            host_signing_keys,
+            host_encryption_keys,
+        ),
+        ProtocolMessageType::ReconnectTournamentRequest => handle_reconnect_request(
+            crypto_provider,
+            request_envelope,
+            join_payload,
+            authoritative_state,
+            server_sequence,
+            host_signing_keys,
+            host_encryption_keys,
+        ),
+        _ => Err(NetworkingError::new(
+            "first client message must be JOIN_TOURNAMENT_REQUEST or RECONNECT_TOURNAMENT_REQUEST",
+        )),
+    }
+}
+
 fn handle_join_request(
     crypto_provider: &impl ProtocolCryptoProvider,
     request_envelope: JsonSignedEnvelope,
     join_payload: &JoinPayload,
-    snapshot_state: &TournamentState,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    server_sequence: &Arc<AtomicU64>,
     host_signing_keys: &SigningKeyMaterial,
     host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
-) -> Result<(String, SignedEnvelope<SnapshotEvent>, String), NetworkingError> {
-    if request_envelope.message_type != ProtocolMessageType::JoinTournamentRequest {
-        return Err(NetworkingError::new(
-            "first client message must be JOIN_TOURNAMENT_REQUEST",
-        ));
-    }
-
+) -> Result<InitialRequestAcceptance, NetworkingError> {
     let request: JoinTournamentRequest = serde_json::from_value(request_envelope.payload.clone())
         .map_err(|error| {
         NetworkingError::new(format!("invalid join request payload: {error}"))
@@ -688,10 +960,309 @@ fn handle_join_request(
         return Err(NetworkingError::new("join token mismatch"));
     }
 
+    let player_id = request_envelope.sender_id.clone();
+    let reconnect_token = issue_reconnect_token();
+    {
+        let mut state = authoritative_state
+            .lock()
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+
+        if state
+            .participants
+            .get(&player_id)
+            .is_some_and(|participant| participant.state != ParticipantState::Removed)
+        {
+            return Err(NetworkingError::new(
+                "playerId already exists; use reconnect with the original identity",
+            ));
+        }
+
+        state.participants.insert(
+            player_id.clone(),
+            ParticipantRegistryEntry {
+                identity: PlayerIdentity {
+                    player_id: player_id.clone(),
+                    display_name: request.display_name.clone(),
+                    signing_public_key: request.signing_public_key.clone(),
+                    encryption_public_key: request.encryption_public_key.clone(),
+                    signing_key_fingerprint: key_fingerprint(
+                        &base64::engine::general_purpose::URL_SAFE_NO_PAD
+                            .decode(request.signing_public_key.as_bytes())
+                            .map_err(|error| {
+                                NetworkingError::new(format!("invalid signing public key: {error}"))
+                            })?,
+                    ),
+                },
+                state: ParticipantState::Admitted,
+                connection_state: ConnectionState::Connected,
+                seat_index: None,
+                admitted_at_ms: now_epoch_ms(),
+                reconnect_token: Some(reconnect_token),
+                reconnect_expiry_ms: None,
+                is_host: false,
+            },
+        );
+    }
+
+    let snapshot_envelope = build_snapshot_envelope(
+        crypto_provider,
+        join_payload,
+        authoritative_state,
+        server_sequence,
+        host_signing_keys,
+        host_encryption_keys,
+        &player_id,
+    )?;
+
+    Ok(InitialRequestAcceptance {
+        player_id,
+        snapshot_envelope,
+        encryption_public_key: request.encryption_public_key,
+    })
+}
+
+fn handle_reconnect_request(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    request_envelope: JsonSignedEnvelope,
+    join_payload: &JoinPayload,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+) -> Result<InitialRequestAcceptance, NetworkingError> {
+    let request: ReconnectTournamentRequest =
+        serde_json::from_value(request_envelope.payload.clone()).map_err(|error| {
+            NetworkingError::new(format!("invalid reconnect request payload: {error}"))
+        })?;
+
+    if request.player_id != request_envelope.sender_id {
+        return Err(NetworkingError::new(
+            "reconnect requires the same playerId in senderId and payload",
+        ));
+    }
+
+    let player_id = request.player_id.clone();
+    {
+        let mut state = authoritative_state
+            .lock()
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+        let tournament_phase = state.phase;
+        let participant = state
+            .participants
+            .get_mut(&player_id)
+            .ok_or_else(|| NetworkingError::new("unknown reconnect playerId"))?;
+
+        request_envelope
+            .verify(crypto_provider, &participant.identity.signing_public_key)
+            .map_err(|error| NetworkingError::new(error.to_string()))?;
+
+        if participant.reconnect_token.as_deref() != Some(request.reconnect_token.as_str()) {
+            return Err(NetworkingError::new("reconnect token mismatch"));
+        }
+
+        if !is_reconnectable_participant(participant) {
+            return Err(NetworkingError::new(
+                "participant is not reconnect-eligible",
+            ));
+        }
+
+        if participant
+            .reconnect_expiry_ms
+            .is_some_and(|expiry_ms| expiry_ms < now_epoch_ms())
+        {
+            return Err(NetworkingError::new("reconnect token expired"));
+        }
+
+        let authoritative_sequence = server_sequence.load(Ordering::SeqCst);
+        if request.last_known_server_seq > authoritative_sequence {
+            return Err(NetworkingError::new(
+                "reconnect lastKnownServerSeq is ahead of the host sequence",
+            ));
+        }
+
+        participant.connection_state = ConnectionState::Connected;
+        restore_participant_after_reconnect(participant, tournament_phase);
+    }
+
+    let encryption_public_key = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?
+        .participants
+        .get(&player_id)
+        .map(|participant| participant.identity.encryption_public_key.clone())
+        .ok_or_else(|| NetworkingError::new("participant registry missing after reconnect"))?;
+
+    let snapshot_envelope = build_snapshot_envelope(
+        crypto_provider,
+        join_payload,
+        authoritative_state,
+        server_sequence,
+        host_signing_keys,
+        host_encryption_keys,
+        &player_id,
+    )?;
+
+    Ok(InitialRequestAcceptance {
+        player_id,
+        snapshot_envelope,
+        encryption_public_key,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn spawn_host_client_session(
+    player_id: String,
+    mut stream: TcpStream,
+    authoritative_state: Arc<Mutex<TournamentState>>,
+    clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
+    join_payload: JoinPayload,
+    server_sequence: Arc<AtomicU64>,
+    host_signing_keys: Arc<SigningKeyMaterial>,
+    host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
+) {
+    thread::spawn(move || {
+        let crypto_provider = DefaultCryptoProvider;
+
+        loop {
+            let next_request = read_json_frame::<JsonSignedEnvelope>(&mut stream);
+            let request_envelope = match next_request {
+                Ok(request_envelope) => request_envelope,
+                Err(_) => {
+                    let _ = clients.lock().map(|mut connected_clients| {
+                        connected_clients.remove(&player_id);
+                    });
+                    let _ = mark_participant_reconnect_eligible(&authoritative_state, &player_id);
+                    break;
+                }
+            };
+
+            match request_envelope.message_type {
+                ProtocolMessageType::ResyncRequest => {
+                    let rejected_message_id = request_envelope.message_id.clone();
+                    let response = handle_resync_request(
+                        &crypto_provider,
+                        request_envelope,
+                        &join_payload,
+                        &authoritative_state,
+                        &server_sequence,
+                        &host_signing_keys,
+                        &host_encryption_keys,
+                    );
+
+                    match response {
+                        Ok(snapshot_envelope) => {
+                            if write_json_frame(&mut stream, &snapshot_envelope).is_err() {
+                                let _ = clients.lock().map(|mut connected_clients| {
+                                    connected_clients.remove(&player_id);
+                                });
+                                let _ = mark_participant_reconnect_eligible(
+                                    &authoritative_state,
+                                    &player_id,
+                                );
+                                break;
+                            }
+                        }
+                        Err(error) => {
+                            if let Ok(envelope) = build_protocol_error_envelope(
+                                &crypto_provider,
+                                &join_payload,
+                                &server_sequence,
+                                &host_signing_keys,
+                                "RESYNC_REJECTED",
+                                error.to_string(),
+                                Some(rejected_message_id),
+                            ) {
+                                let _ = write_json_frame(&mut stream, &envelope);
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    if let Ok(envelope) = build_protocol_error_envelope(
+                        &crypto_provider,
+                        &join_payload,
+                        &server_sequence,
+                        &host_signing_keys,
+                        "UNSUPPORTED_REQUEST",
+                        "host runtime only supports RESYNC_REQUEST after connect".to_string(),
+                        Some(request_envelope.message_id),
+                    ) {
+                        let _ = write_json_frame(&mut stream, &envelope);
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn handle_resync_request(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    request_envelope: JsonSignedEnvelope,
+    join_payload: &JoinPayload,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+) -> Result<SignedEnvelope<SnapshotEvent>, NetworkingError> {
+    let request: ResyncRequest =
+        serde_json::from_value(request_envelope.payload.clone()).map_err(|error| {
+            NetworkingError::new(format!("invalid resync request payload: {error}"))
+        })?;
+
+    {
+        let state = authoritative_state
+            .lock()
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+        let participant = state
+            .participants
+            .get(&request_envelope.sender_id)
+            .ok_or_else(|| NetworkingError::new("resync requester is not registered"))?;
+
+        request_envelope
+            .verify(crypto_provider, &participant.identity.signing_public_key)
+            .map_err(|error| NetworkingError::new(error.to_string()))?;
+    }
+
+    if request.last_seen_server_sequence > server_sequence.load(Ordering::SeqCst) {
+        return Err(NetworkingError::new(
+            "resync lastSeenServerSequence is ahead of the host sequence",
+        ));
+    }
+
+    build_snapshot_envelope(
+        crypto_provider,
+        join_payload,
+        authoritative_state,
+        server_sequence,
+        host_signing_keys,
+        host_encryption_keys,
+        &request_envelope.sender_id,
+    )
+}
+
+fn build_snapshot_envelope(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    join_payload: &JoinPayload,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+    player_id: &str,
+) -> Result<SignedEnvelope<SnapshotEvent>, NetworkingError> {
+    let authoritative_snapshot = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?
+        .clone();
+    let reconnect_token = authoritative_snapshot
+        .participants
+        .get(player_id)
+        .map(|participant| participant.reconnect_token.clone())
+        .ok_or_else(|| NetworkingError::new("snapshot target is not registered"))?;
     let host_encryption_public_key = host_encryption_keys
         .lock()
         .map_err(|_| NetworkingError::new("host encryption key lock poisoned"))?
         .public_key_base64();
+    let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
 
     let mut snapshot_envelope = SignedEnvelope {
         protocol_version: PROTOCOL_VERSION,
@@ -699,19 +1270,19 @@ fn handle_join_request(
         table_id: join_payload.table_id.clone(),
         session_epoch: join_payload.session_epoch,
         sender_id: "host".to_string(),
-        counter: 1,
-        message_id: format!("snapshot-{}", now_epoch_ms()),
-        server_sequence: None,
+        counter: next_server_sequence,
+        message_id: format!("snapshot-{next_server_sequence}"),
+        server_sequence: Some(next_server_sequence),
         payload: SnapshotEvent {
             state: SnapshotState {
-                state: snapshot_state.clone(),
-                local_player_id: request_envelope.sender_id.clone(),
-                reconnect_token: Some(format!("reconnect-{}", request_envelope.sender_id)),
+                state: authoritative_snapshot,
+                local_player_id: player_id.to_string(),
+                reconnect_token: reconnect_token.clone(),
                 host_signing_public_key: Some(join_payload.host_signing_public_key.clone()),
                 host_encryption_public_key: Some(host_encryption_public_key.clone()),
             },
-            local_player_id: request_envelope.sender_id.clone(),
-            reconnect_token: Some(format!("reconnect-{}", request_envelope.sender_id)),
+            local_player_id: player_id.to_string(),
+            reconnect_token,
             host_signing_public_key: Some(join_payload.host_signing_public_key.clone()),
             host_encryption_public_key: Some(host_encryption_public_key),
         },
@@ -722,11 +1293,314 @@ fn handle_join_request(
         .sign(crypto_provider, host_signing_keys)
         .map_err(|error| NetworkingError::new(error.to_string()))?;
 
-    Ok((
-        request_envelope.sender_id,
-        snapshot_envelope,
-        request.encryption_public_key,
-    ))
+    Ok(snapshot_envelope)
+}
+
+fn build_protocol_error_envelope(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    join_payload: &JoinPayload,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    code: &str,
+    message: String,
+    rejected_message_id: Option<String>,
+) -> Result<SignedEnvelope<ProtocolErrorMessage>, NetworkingError> {
+    let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+    let mut envelope = SignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type: ProtocolMessageType::ProtocolError,
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        sender_id: "host".to_string(),
+        counter: next_server_sequence,
+        message_id: format!("error-{next_server_sequence}"),
+        server_sequence: Some(next_server_sequence),
+        payload: ProtocolErrorMessage {
+            code: code.to_string(),
+            message,
+            rejected_message_id,
+        },
+        signature: None,
+    };
+
+    envelope
+        .sign(crypto_provider, host_signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+
+    Ok(envelope)
+}
+
+fn connect_to_host(join_payload: &JoinPayload) -> Result<TcpStream, NetworkingError> {
+    let stream =
+        TcpStream::connect((join_payload.host_address.as_str(), join_payload.host_port))
+            .map_err(|error| NetworkingError::new(format!("failed to connect to host: {error}")))?;
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+    Ok(stream)
+}
+
+fn connect_and_join(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    join_payload: &JoinPayload,
+    player_id: &str,
+    display_name: &str,
+    reconnect_identity: &Arc<Mutex<ClientReconnectIdentity>>,
+) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {
+    let mut stream = connect_to_host(join_payload)?;
+    let identity = reconnect_identity
+        .lock()
+        .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))?;
+    let signing_keys = identity
+        .signing_keys
+        .as_ref()
+        .ok_or_else(|| NetworkingError::new(missing_reconnect_identity_message()))?;
+    let encryption_keys = identity
+        .encryption_keys
+        .as_ref()
+        .ok_or_else(|| NetworkingError::new(missing_reconnect_identity_message()))?;
+
+    let mut join_envelope = join_request_envelope(
+        join_payload.table_id.clone(),
+        join_payload.session_epoch,
+        player_id.to_string(),
+        1,
+        format!("join-{}", now_epoch_ms()),
+        JoinTournamentRequest {
+            display_name: display_name.to_string(),
+            join_token: join_payload.join_token.clone(),
+            signing_public_key: signing_keys.public_key_base64(),
+            encryption_public_key: encryption_keys.public_key_base64(),
+        },
+    );
+    join_envelope
+        .sign(crypto_provider, signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    drop(identity);
+
+    write_json_frame(&mut stream, &join_envelope)?;
+    let snapshot = read_snapshot_response(crypto_provider, &mut stream, join_payload)?;
+
+    Ok((stream, snapshot))
+}
+
+fn reconnect_after_disconnect(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    join_payload: &JoinPayload,
+    player_id: &str,
+    reconnect_identity: &Arc<Mutex<ClientReconnectIdentity>>,
+    reconnect_token: Option<&str>,
+    last_known_server_sequence: u64,
+    next_counter: &mut u64,
+) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {
+    let reconnect_token = reconnect_token
+        .ok_or_else(|| NetworkingError::new("reconnect token is unavailable for this session"))?;
+    let mut stream = connect_to_host(join_payload)?;
+    let identity = reconnect_identity
+        .lock()
+        .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))?;
+    let signing_keys = identity
+        .signing_keys
+        .as_ref()
+        .ok_or_else(|| NetworkingError::new(missing_reconnect_identity_message()))?;
+
+    let mut reconnect_envelope = SignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type: ProtocolMessageType::ReconnectTournamentRequest,
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        sender_id: player_id.to_string(),
+        counter: *next_counter,
+        message_id: format!("reconnect-{}", now_epoch_ms()),
+        server_sequence: None,
+        payload: ReconnectTournamentRequest {
+            player_id: player_id.to_string(),
+            reconnect_token: reconnect_token.to_string(),
+            last_known_server_seq: last_known_server_sequence,
+        },
+        signature: None,
+    };
+    reconnect_envelope
+        .sign(crypto_provider, signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    *next_counter += 1;
+    drop(identity);
+
+    write_json_frame(&mut stream, &reconnect_envelope)?;
+    let snapshot = read_snapshot_response(crypto_provider, &mut stream, join_payload)?;
+
+    Ok((stream, snapshot))
+}
+
+fn request_resync_snapshot(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    stream: &mut TcpStream,
+    join_payload: &JoinPayload,
+    player_id: &str,
+    reconnect_identity: &Arc<Mutex<ClientReconnectIdentity>>,
+    last_seen_server_sequence: u64,
+    next_counter: &mut u64,
+) -> Result<SignedEnvelope<SnapshotEvent>, NetworkingError> {
+    let identity = reconnect_identity
+        .lock()
+        .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))?;
+    let signing_keys = identity
+        .signing_keys
+        .as_ref()
+        .ok_or_else(|| NetworkingError::new(missing_reconnect_identity_message()))?;
+
+    let mut resync_envelope = SignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type: ProtocolMessageType::ResyncRequest,
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        sender_id: player_id.to_string(),
+        counter: *next_counter,
+        message_id: format!("resync-{}", now_epoch_ms()),
+        server_sequence: None,
+        payload: ResyncRequest {
+            last_seen_server_sequence,
+        },
+        signature: None,
+    };
+    resync_envelope
+        .sign(crypto_provider, signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    *next_counter += 1;
+    drop(identity);
+
+    write_json_frame(stream, &resync_envelope)?;
+    read_snapshot_response(crypto_provider, stream, join_payload)
+}
+
+fn read_snapshot_response(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    stream: &mut TcpStream,
+    join_payload: &JoinPayload,
+) -> Result<SignedEnvelope<SnapshotEvent>, NetworkingError> {
+    let response_value: Value = read_json_frame(stream)?;
+    let message_type = response_value
+        .get("messageType")
+        .and_then(Value::as_str)
+        .ok_or_else(|| NetworkingError::new("host response missing messageType"))?;
+
+    if message_type == "SNAPSHOT_EVENT" {
+        let envelope: SignedEnvelope<SnapshotEvent> = serde_json::from_value(response_value)
+            .map_err(|error| NetworkingError::new(format!("invalid snapshot envelope: {error}")))?;
+        envelope
+            .verify(crypto_provider, &join_payload.host_signing_public_key)
+            .map_err(|error| NetworkingError::new(error.to_string()))?;
+
+        if envelope.server_sequence.is_none() {
+            return Err(NetworkingError::new(
+                "snapshot missing authoritative serverSequence",
+            ));
+        }
+
+        return Ok(envelope);
+    }
+
+    let envelope: SignedEnvelope<ProtocolErrorMessage> = serde_json::from_value(response_value)
+        .map_err(|error| NetworkingError::new(format!("invalid rejection envelope: {error}")))?;
+    envelope
+        .verify(crypto_provider, &join_payload.host_signing_public_key)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    Err(NetworkingError::new(envelope.payload.message))
+}
+
+fn mark_participant_reconnect_eligible(
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    player_id: &str,
+) -> Result<(), NetworkingError> {
+    let mut state = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+    let tournament_phase = state.phase;
+    let hand_is_active = state.current_hand.is_some();
+    if let Some(participant) = state.participants.get_mut(player_id) {
+        if participant.state == ParticipantState::Removed {
+            return Ok(());
+        }
+
+        participant.connection_state = ConnectionState::Reconnecting;
+        if participant.state != ParticipantState::EliminatedObserver {
+            participant.state = ParticipantState::Reconnecting;
+        }
+        let reconnect_state = participant.state;
+        participant.reconnect_expiry_ms = Some(
+            now_epoch_ms() + reconnect_window_ms(tournament_phase, reconnect_state, hand_is_active),
+        );
+    }
+
+    Ok(())
+}
+
+fn reconnect_window_ms(
+    tournament_phase: TournamentPhase,
+    participant_state: ParticipantState,
+    hand_is_active: bool,
+) -> u64 {
+    if participant_state == ParticipantState::EliminatedObserver {
+        300_000
+    } else if tournament_phase != TournamentPhase::Running {
+        120_000
+    } else if hand_is_active {
+        30_000
+    } else {
+        120_000
+    }
+}
+
+fn restore_participant_after_reconnect(
+    participant: &mut ParticipantRegistryEntry,
+    tournament_phase: TournamentPhase,
+) {
+    participant.connection_state = ConnectionState::Connected;
+    participant.reconnect_expiry_ms = None;
+    if participant.state == ParticipantState::EliminatedObserver {
+        return;
+    }
+
+    participant.state = if participant.seat_index.is_some() {
+        if tournament_phase == TournamentPhase::Running {
+            ParticipantState::Active
+        } else {
+            ParticipantState::Seated
+        }
+    } else {
+        ParticipantState::Admitted
+    };
+}
+
+fn is_reconnectable_participant(participant: &ParticipantRegistryEntry) -> bool {
+    matches!(
+        participant.state,
+        ParticipantState::Seated
+            | ParticipantState::Active
+            | ParticipantState::EliminatedObserver
+            | ParticipantState::Reconnecting
+            | ParticipantState::Admitted
+    ) && participant.state != ParticipantState::Removed
+}
+
+fn issue_reconnect_token() -> String {
+    let mut bytes = [0_u8; 24];
+    OsRng.fill_bytes(&mut bytes);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+}
+
+fn missing_reconnect_identity_message() -> String {
+    "original reconnect identity is unavailable; v1 requires the original ephemeral signing/encryption keypair"
+        .to_string()
+}
+
+fn is_stale_server_sequence(
+    last_seen_server_sequence: Option<u64>,
+    next_server_sequence: Option<u64>,
+) -> bool {
+    matches!(
+        (last_seen_server_sequence, next_server_sequence),
+        (Some(last_seen), Some(next_sequence)) if next_sequence <= last_seen
+    )
 }
 
 fn now_epoch_ms() -> u64 {
@@ -740,8 +1614,10 @@ fn now_epoch_ms() -> u64 {
 mod tests {
     use std::{
         collections::BTreeMap,
-        sync::{Arc, Mutex},
-        time::Duration,
+        net::Shutdown,
+        sync::{atomic::Ordering, Arc, Mutex},
+        thread,
+        time::{Duration, Instant},
     };
 
     use serde_json::json;
@@ -750,8 +1626,9 @@ mod tests {
     use crate::{
         crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
         domain::{
-            BlindLevel, BlindSchedule, Card, Rank, Suit, TournamentConfig, TournamentPhase,
-            TournamentState,
+            BlindLevel, BlindSchedule, Card, ConnectionState, ParticipantState, Rank,
+            SeatOccupancyState, SeatState, Suit, TournamentConfig, TournamentPhase,
+            TournamentSeatState, TournamentState,
         },
         networking::{
             resolve_connectable_host_ip, ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent,
@@ -798,6 +1675,48 @@ mod tests {
             current_hand: None,
             hand_results: Vec::new(),
             placements: Vec::new(),
+        }
+    }
+
+    fn disconnect_client(host: &HostServer, player_id: &str) {
+        let stream = host
+            .clients
+            .lock()
+            .expect("client registry")
+            .get(player_id)
+            .expect("connected client")
+            .stream
+            .lock()
+            .expect("client stream")
+            .try_clone()
+            .expect("clone stream");
+        stream
+            .shutdown(Shutdown::Both)
+            .expect("shutdown client stream");
+    }
+
+    fn wait_for_host_participant_state(
+        host: &HostServer,
+        player_id: &str,
+        expected_state: ParticipantState,
+        expected_connection_state: ConnectionState,
+    ) {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let state = host.authoritative_state().expect("authoritative state");
+            if let Some(participant) = state.participants.get(player_id) {
+                if participant.state == expected_state
+                    && participant.connection_state == expected_connection_state
+                {
+                    return;
+                }
+            }
+
+            assert!(
+                Instant::now() < deadline,
+                "participant state did not converge"
+            );
+            thread::sleep(Duration::from_millis(20));
         }
     }
 
@@ -978,6 +1897,352 @@ mod tests {
                 assert_eq!(payload.hole_cards.len(), 2);
             }
             other => panic!("expected private payload, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn reconnect_succeeds_only_with_original_keypair_and_valid_token() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let original_signing_keys = provider.generate_signing_keypair();
+        let original_encryption_keys = provider.generate_encryption_keypair();
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 21,
+            table_id: "table-reconnect-success".to_string(),
+            table_name: Some("Reconnect Success".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-reconnect-success", 21),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let client = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-reconnect".to_string(),
+            display_name: "Reconnect".to_string(),
+            signing_keys: original_signing_keys,
+            encryption_keys: original_encryption_keys,
+        })
+        .expect("client should connect");
+
+        let initial_snapshot = client
+            .next_event(Duration::from_secs(2))
+            .expect("initial snapshot");
+        match initial_snapshot {
+            ClientRuntimeEvent::Snapshot(snapshot) => {
+                assert!(snapshot.reconnect_token.is_some());
+            }
+            other => panic!("expected snapshot event, got {other:?}"),
+        }
+
+        disconnect_client(&host, "player-reconnect");
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("reconnecting event")
+        {
+            ClientRuntimeEvent::Reconnecting { player_id } => {
+                assert_eq!(player_id, "player-reconnect");
+            }
+            other => panic!("expected reconnecting event, got {other:?}"),
+        }
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("reconnected snapshot")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => {
+                assert_eq!(snapshot.local_player_id, "player-reconnect");
+                assert!(snapshot.reconnect_token.is_some());
+            }
+            other => panic!("expected reconnected snapshot, got {other:?}"),
+        }
+
+        wait_for_host_participant_state(
+            &host,
+            "player-reconnect",
+            ParticipantState::Admitted,
+            ConnectionState::Connected,
+        );
+    }
+
+    #[test]
+    fn reconnect_fails_with_regenerated_keypair() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 22,
+            table_id: "table-reconnect-fail".to_string(),
+            table_name: Some("Reconnect Fail".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-reconnect-fail", 22),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let client = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-regenerated".to_string(),
+            display_name: "Regenerated".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("client should connect");
+        let _ = client.next_event(Duration::from_secs(2)).expect("snapshot");
+
+        client
+            .replace_reconnect_identity(
+                provider.generate_signing_keypair(),
+                provider.generate_encryption_keypair(),
+            )
+            .expect("replace reconnect identity");
+
+        disconnect_client(&host, "player-regenerated");
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("reconnecting event")
+        {
+            ClientRuntimeEvent::Reconnecting { player_id } => {
+                assert_eq!(player_id, "player-regenerated");
+            }
+            other => panic!("expected reconnecting event, got {other:?}"),
+        }
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("safe error event")
+        {
+            ClientRuntimeEvent::SafeError { player_id, message } => {
+                assert_eq!(player_id, "player-regenerated");
+                assert!(message.contains("signature verification failed"));
+            }
+            other => panic!("expected safe error event, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn host_marks_disconnect_as_reconnect_eligible() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 23,
+            table_id: "table-disconnect".to_string(),
+            table_name: Some("Disconnect".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-disconnect", 23),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let client = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-disconnect".to_string(),
+            display_name: "Disconnect".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("client should connect");
+        let _ = client.next_event(Duration::from_secs(2)).expect("snapshot");
+        client
+            .clear_reconnect_identity()
+            .expect("clear reconnect identity");
+
+        let mut updated_state = host.authoritative_state().expect("authoritative state");
+        updated_state.phase = TournamentPhase::Running;
+        updated_state.seats = vec![SeatState {
+            seat_index: 0,
+            occupancy: SeatOccupancyState::Occupied,
+            tournament_state: TournamentSeatState::Active,
+            participant_id: Some("player-disconnect".to_string()),
+            display_name: Some("Disconnect".to_string()),
+            chip_count: Some(1500),
+            is_ready: true,
+            marker: None,
+        }];
+        let participant = updated_state
+            .participants
+            .get_mut("player-disconnect")
+            .expect("participant");
+        participant.state = ParticipantState::Active;
+        participant.connection_state = ConnectionState::Connected;
+        participant.seat_index = Some(0);
+        host.replace_authoritative_state(updated_state)
+            .expect("replace authoritative state");
+
+        disconnect_client(&host, "player-disconnect");
+
+        wait_for_host_participant_state(
+            &host,
+            "player-disconnect",
+            ParticipantState::Reconnecting,
+            ConnectionState::Reconnecting,
+        );
+
+        let state = host.authoritative_state().expect("authoritative state");
+        let participant = state
+            .participants
+            .get("player-disconnect")
+            .expect("participant registry entry");
+        assert_eq!(participant.seat_index, Some(0));
+        assert!(participant.reconnect_expiry_ms.is_some());
+        assert_eq!(
+            state
+                .seats
+                .first()
+                .and_then(|seat| seat.participant_id.as_deref()),
+            Some("player-disconnect")
+        );
+    }
+
+    #[test]
+    fn resync_replaces_local_state_from_authoritative_snapshot() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 24,
+            table_id: "table-resync".to_string(),
+            table_name: Some("Resync".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-resync", 24),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let client = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-resync".to_string(),
+            display_name: "Resync".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("client should connect");
+        let _ = client.next_event(Duration::from_secs(2)).expect("snapshot");
+
+        let mut updated_state = host.authoritative_state().expect("authoritative state");
+        updated_state.phase = TournamentPhase::ReadyCheck;
+        updated_state.config.tournament_name = "Resynced Tournament".to_string();
+        host.replace_authoritative_state(updated_state)
+            .expect("replace authoritative state");
+
+        host.server_sequence.store(0, Ordering::SeqCst);
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentStartedEvent,
+            &TournamentStartedEvent {
+                tournament_name: "stale".to_string(),
+                starting_stack: 1500,
+                blind_schedule_preset: "FAST".to_string(),
+                frozen_player_ids: vec!["player-resync".to_string()],
+            },
+        )
+        .expect("broadcast stale event");
+
+        let _ = client
+            .next_event(Duration::from_secs(2))
+            .expect("resync requested");
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("resynced snapshot")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => {
+                assert_eq!(snapshot.state.state.phase, TournamentPhase::ReadyCheck);
+                assert_eq!(
+                    snapshot.state.state.config.tournament_name,
+                    "Resynced Tournament"
+                );
+            }
+            other => panic!("expected snapshot event, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn event_sequence_mismatch_triggers_resync() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 25,
+            table_id: "table-sequence".to_string(),
+            table_name: Some("Sequence".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-sequence", 25),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let client = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-sequence".to_string(),
+            display_name: "Sequence".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("client should connect");
+        let _ = client.next_event(Duration::from_secs(2)).expect("snapshot");
+
+        host.server_sequence.store(0, Ordering::SeqCst);
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentStartedEvent,
+            &TournamentStartedEvent {
+                tournament_name: "stale".to_string(),
+                starting_stack: 1500,
+                blind_schedule_preset: "FAST".to_string(),
+                frozen_player_ids: vec!["player-sequence".to_string()],
+            },
+        )
+        .expect("broadcast stale event");
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("resync requested")
+        {
+            ClientRuntimeEvent::ResyncRequested {
+                player_id,
+                last_seen_server_sequence,
+            } => {
+                assert_eq!(player_id, "player-sequence");
+                assert_eq!(last_seen_server_sequence, 1);
+            }
+            other => panic!("expected resync requested event, got {other:?}"),
+        }
+
+        match client
+            .next_event(Duration::from_secs(2))
+            .expect("resynced snapshot")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => {
+                assert_eq!(snapshot.local_player_id, "player-sequence");
+            }
+            other => panic!("expected snapshot event, got {other:?}"),
         }
     }
 
