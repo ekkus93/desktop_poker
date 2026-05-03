@@ -41,6 +41,8 @@ These still need live mixed-runtime verification before Android/Desktop interop 
 2. `ACTION_REJECTED_EVENT` payloads are not shape-identical yet. Android currently models a rejected message id plus reason, while desktop still uses a desktop-specific payload shape.
 3. The current desktop repo has not run a real Android client against the desktop host, or a real desktop client against the Android host, in this environment.
 
+The desktop repo now has fixture tests that pin the current desktop JSON contracts for the two mismatched payloads above so accidental drift is caught until the interop work intentionally changes them.
+
 ## What is **not** proven yet
 
 Interop is **not** fully proven.

@@ -2,6 +2,8 @@ mod canonical;
 mod join_payload;
 mod models;
 mod replay;
+#[cfg(test)]
+pub(crate) mod test_support;
 
 use crate::app_state::ModuleDescriptor;
 

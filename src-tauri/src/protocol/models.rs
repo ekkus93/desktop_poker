@@ -235,7 +235,9 @@ pub struct ActionWindowOpened {
     pub seat_index: u8,
     pub legal_actions: Vec<ActionType>,
     pub call_amount: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_raise_to: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_raise_to: Option<u32>,
     pub deadline_epoch_ms: u64,
 }

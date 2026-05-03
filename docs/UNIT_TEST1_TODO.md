@@ -22,51 +22,51 @@ The goal is to tighten correctness around compatibility boundaries, persistence 
 - [x] Document any helper overlap that should be reused instead of duplicated
 
 ### 1.2 Add shared test helpers where needed
-- [ ] Add protocol fixture helpers for canonical JSON serialization assertions
-- [ ] Add helper builders for reconnect/resync requests and snapshots
+- [x] Add protocol fixture helpers for canonical JSON serialization assertions
+- [x] Add helper builders for reconnect/resync requests and snapshots
 - [x] Add frontend storage helpers for seeding `localStorage`
 - [x] Add frontend Tauri-window mocks for persistence tests
 - [x] Add explicit invalid-data fixture helpers for corrupted persistence payloads
 
 ### 1.3 Define fixture conventions
-- [ ] Standardize fixture naming for protocol payloads
-- [ ] Standardize JSON fixture formatting for cross-platform comparisons
-- [ ] Keep fixtures small and purpose-specific
-- [ ] Document which fixtures are intended to mirror Android-compatible payload shapes
+- [x] Standardize fixture naming for protocol payloads
+- [x] Standardize JSON fixture formatting for cross-platform comparisons
+- [x] Keep fixtures small and purpose-specific
+- [x] Document which fixtures are intended to mirror Android-compatible payload shapes
 
 ---
 
 ## 2. Protocol interop payload-shape tests
 
 ### 2.1 Add exact event-shape fixture tests for known interop risk areas
-- [ ] Add tests for `ACTION_WINDOW_OPENED_EVENT` serialization shape
-  - [ ] Assert field presence and absence exactly
-  - [ ] Assert naming and casing of serialized keys
-  - [ ] Assert optional fields are omitted when unset
-  - [ ] Add a fixture showing the current desktop payload contract
-- [ ] Add tests for `ACTION_REJECTED_EVENT` serialization shape
-  - [ ] Assert reason/error fields serialize consistently
-  - [ ] Assert no unexpected desktop-only fields leak into the payload
-  - [ ] Add a fixture showing the current desktop payload contract
+- [x] Add tests for `ACTION_WINDOW_OPENED_EVENT` serialization shape
+  - [x] Assert field presence and absence exactly
+  - [x] Assert naming and casing of serialized keys
+  - [x] Assert optional fields are omitted when unset
+  - [x] Add a fixture showing the current desktop payload contract
+- [x] Add tests for `ACTION_REJECTED_EVENT` serialization shape
+  - [x] Assert reason/error fields serialize consistently
+  - [x] Assert no unexpected desktop-only fields leak into the payload
+  - [x] Add a fixture showing the current desktop payload contract
 
 ### 2.2 Add coverage for join/reconnect/resync request shapes
-- [ ] Add fixture-based tests for join request serialization
-- [ ] Add fixture-based tests for reconnect request serialization with sequence present
-- [ ] Add fixture-based tests for reconnect request serialization with sequence omitted
-- [ ] Add fixture-based tests for resync request serialization with sequence present
-- [ ] Add fixture-based tests for resync request serialization with sequence omitted
-- [ ] Assert canonical omission of `null` fields in each case
+- [x] Add fixture-based tests for join request serialization
+- [x] Add fixture-based tests for reconnect request serialization with sequence present
+- [x] Add fixture-based tests for reconnect request serialization with sequence omitted
+- [x] Add fixture-based tests for resync request serialization with sequence present
+- [x] Add fixture-based tests for resync request serialization with sequence omitted
+- [x] Assert canonical omission of `null` fields in each case
 
 ### 2.3 Add negative-shape regression tests
-- [ ] Add tests that fail if deprecated or legacy keys reappear
-- [ ] Add tests that fail if optional fields start serializing as `null`
-- [ ] Add tests that fail if event type strings drift unexpectedly
-- [ ] Add tests that fail if canonical key ordering changes for signed payloads
+- [x] Add tests that fail if deprecated or legacy keys reappear
+- [x] Add tests that fail if optional fields start serializing as `null`
+- [x] Add tests that fail if event type strings drift unexpectedly
+- [x] Add tests that fail if canonical key ordering changes for signed payloads
 
 ### 2.4 Cross-platform contract documentation tasks
-- [ ] Link each new fixture test to the interop audit assumptions in comments only where needed
-- [ ] Record any still-unresolved Android/Desktop shape mismatches in `docs/ANDROID_INTEROP_AUDIT.md`
-- [ ] Update this TODO file if new interop risk surfaces are discovered while implementing the tests
+- [x] Link each new fixture test to the interop audit assumptions in comments only where needed
+- [x] Record any still-unresolved Android/Desktop shape mismatches in `docs/ANDROID_INTEROP_AUDIT.md`
+- [x] Update this TODO file if new interop risk surfaces are discovered while implementing the tests
 
 ---
 
@@ -131,59 +131,59 @@ The goal is to tighten correctness around compatibility boundaries, persistence 
 ## 5. Reconnect and resync edge-case tests
 
 ### 5.1 Expand reconnect acceptance/rejection coverage
-- [ ] Add tests for reconnect requests using stale reconnect tokens
-- [ ] Add tests for reconnect requests after the player has already reconnected from another client
-- [ ] Add tests for reconnect requests after the seat/player is no longer eligible
-- [ ] Add tests for reconnect requests near tournament completion
-- [ ] Add tests for reconnect requests after tournament completion
+- [x] Add tests for reconnect requests using stale reconnect tokens
+- [x] Add tests for reconnect requests after the player has already reconnected from another client
+- [x] Add tests for reconnect requests after the seat/player is no longer eligible
+- [x] Add tests for reconnect requests near tournament completion
+- [x] Add tests for reconnect requests after tournament completion
 
 ### 5.2 Expand resync flow coverage
-- [ ] Add tests for repeated resync requests from the same client
-- [ ] Add tests for resync after multiple missed events
-- [ ] Add tests for resync when the client reports a future sequence
-- [ ] Add tests for resync when the client reports no sequence
-- [ ] Add tests that the authoritative snapshot fully replaces conflicting local state
+- [x] Add tests for repeated resync requests from the same client
+- [x] Add tests for resync after multiple missed events
+- [x] Add tests for resync when the client reports a future sequence
+- [x] Add tests for resync when the client reports no sequence
+- [x] Add tests that the authoritative snapshot fully replaces conflicting local state
 
 ### 5.3 Add ordering and race-style regression tests
-- [ ] Add tests for disconnect followed immediately by reconnect
-- [ ] Add tests for reconnect during an active action window
-- [ ] Add tests for reconnect between hands
-- [ ] Add tests for reconnect after elimination as observer-only
-- [ ] Add tests for stale reconnect attempts after a newer authoritative snapshot was issued
+- [x] Add tests for disconnect followed immediately by reconnect
+- [x] Add tests for reconnect during an active action window
+- [x] Add tests for reconnect between hands
+- [x] Add tests for reconnect after elimination as observer-only
+- [x] Add tests for stale reconnect attempts after a newer authoritative snapshot was issued
 
 ### 5.4 Add identity and key continuity tests
-- [ ] Add tests that original identity keys remain mandatory across reconnect attempts
-- [ ] Add tests that a valid token with the wrong keypair still fails
-- [ ] Add tests that sequence reconciliation does not bypass identity checks
-- [ ] Add tests for multi-client scenarios where one client’s recovery path cannot affect another client’s state
+- [x] Add tests that original identity keys remain mandatory across reconnect attempts
+- [x] Add tests that a valid token with the wrong keypair still fails
+- [x] Add tests that sequence reconciliation does not bypass identity checks
+- [x] Add tests for multi-client scenarios where one client’s recovery path cannot affect another client’s state
 
 ---
 
 ## 6. Controller-to-protocol serialization alignment tests
 
 ### 6.1 Map controller outputs to protocol contracts
-- [ ] Identify the controller/event outputs that are serialized into network payloads
-- [ ] Build focused fixtures for the most important table-state and action events
-- [ ] Reuse existing protocol model constructors where possible
+- [x] Identify the controller/event outputs that are serialized into network payloads
+- [x] Build focused fixtures for the most important table-state and action events
+- [x] Reuse existing protocol model constructors where possible
 
 ### 6.2 Add serialization alignment tests for public events
-- [ ] Add tests for table-state update events
-- [ ] Add tests for player-joined / player-left style events if present
-- [ ] Add tests for betting/action window events
-- [ ] Add tests for showdown/result events
-- [ ] Add tests that public payloads never include private hole-card fields
+- [x] Add tests for table-state update events
+- [x] Add tests for player-joined / player-left style events if present
+- [x] Add tests for betting/action window events
+- [x] Add tests for showdown/result events
+- [x] Add tests that public payloads never include private hole-card fields
 
 ### 6.3 Add serialization alignment tests for private events
-- [ ] Add tests for private player-view payload generation
-- [ ] Add tests for encrypted private payload wrapping after model serialization
-- [ ] Add tests that per-player private payloads differ where expected
-- [ ] Add tests that private payload fields stay structurally stable before encryption
+- [x] Add tests for private player-view payload generation
+- [x] Add tests for encrypted private payload wrapping after model serialization
+- [x] Add tests that per-player private payloads differ where expected
+- [x] Add tests that private payload fields stay structurally stable before encryption
 
 ### 6.4 Add regression guards for enum/string drift
-- [ ] Add tests that protocol event type strings remain stable
-- [ ] Add tests that action identifiers remain stable
-- [ ] Add tests that street/phase enum serialization stays unchanged
-- [ ] Add tests that observer/eliminated-player visibility rules remain intact
+- [x] Add tests that protocol event type strings remain stable
+- [x] Add tests that action identifiers remain stable
+- [x] Add tests that street/phase enum serialization stays unchanged
+- [x] Add tests that observer/eliminated-player visibility rules remain intact
 
 ---
 
@@ -217,30 +217,30 @@ The goal is to tighten correctness around compatibility boundaries, persistence 
 ## 8. Prioritization and rollout order
 
 ### 8.1 Implement highest-risk tests first
-- [ ] Phase 1: protocol interop payload-shape tests
-- [ ] Phase 2: reconnect/resync edge-case tests
+- [x] Phase 1: protocol interop payload-shape tests
+- [x] Phase 2: reconnect/resync edge-case tests
 - [x] Phase 3: window-state persistence tests
 - [x] Phase 4: hand-history persistence tests
-- [ ] Phase 5: controller/protocol serialization alignment tests
+- [x] Phase 5: controller/protocol serialization alignment tests
 - [x] Phase 6: workflow smoke coverage
 
 ### 8.2 Validate after each phase
-- [ ] Run Rust test suite after each Rust-test phase
+- [x] Run Rust test suite after each Rust-test phase
 - [x] Run frontend test suite after each frontend-test phase
 - [x] Run lint/build checks if helpers or shared code were updated
 - [x] Fix warnings or failures before moving to the next phase
 
 ### 8.3 Keep docs aligned
-- [ ] Update this file as tasks are completed
-- [ ] Update `docs/ANDROID_INTEROP_AUDIT.md` if protocol test findings reveal new interop constraints
-- [ ] Update `README.md` only if user-facing testing guidance materially changes
+- [x] Update this file as tasks are completed
+- [x] Update `docs/ANDROID_INTEROP_AUDIT.md` if protocol test findings reveal new interop constraints
+- [x] Update `README.md` only if user-facing testing guidance materially changes
 
 ---
 
 ## 9. Completion criteria
 
-- [ ] All new tests are added in the correct Rust or frontend test suites
-- [ ] New fixtures are minimal, stable, and easy to review
-- [ ] No production behavior changes are introduced solely to make tests pass
-- [ ] Lint, build, and all test suites pass with the new coverage
-- [ ] Remaining known gaps, if any, are documented explicitly instead of being silently deferred
+- [x] All new tests are added in the correct Rust or frontend test suites
+- [x] New fixtures are minimal, stable, and easy to review
+- [x] No production behavior changes are introduced solely to make tests pass
+- [x] Lint, build, and all test suites pass with the new coverage
+- [x] Remaining known gaps, if any, are documented explicitly instead of being silently deferred

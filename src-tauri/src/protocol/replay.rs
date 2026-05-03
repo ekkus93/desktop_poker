@@ -126,7 +126,16 @@ mod tests {
     };
     use crate::{
         crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
-        domain::JoinPayload,
+        domain::{ActionType, JoinPayload, StateProjector, StreetPhase, TournamentPhase},
+        protocol::{
+            test_support::{
+                assert_canonical_fixture, sample_action_rejected, sample_action_window_opened,
+                sample_hand_result_committed, sample_join_request, sample_private_hole_cards_event,
+                sample_reconnect_request, sample_resync_request, sample_showdown_started_event,
+                sample_snapshot_event, sample_tournament_started_event, sample_tournament_state,
+            },
+            CanonicalJsonFixture, PlayerPrivateProjection,
+        },
     };
 
     #[test]
@@ -306,5 +315,222 @@ mod tests {
         let mut tracker = ServerSequenceTracker::new();
         tracker.observe(1).expect("sequence 1");
         assert!(tracker.observe(3).is_err());
+    }
+
+    #[test]
+    fn action_window_opened_fixture_matches_current_desktop_contract() {
+        // The current desktop payload intentionally still includes actionWindowId; the
+        // interop audit tracks that mismatch against Android until live interop closes it.
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "action-window-opened",
+                expected_json: "{\"actionWindowId\":\"window-7\",\"callAmount\":40,\"deadlineEpochMs\":1700000000000,\"handNumber\":7,\"handPhase\":\"AWAITING_ACTION\",\"legalActions\":[\"FOLD\",\"CALL\",\"RAISE\"],\"playerId\":\"player-a\",\"seatIndex\":1}",
+            },
+            &sample_action_window_opened(None, None),
+        );
+    }
+
+    #[test]
+    fn action_rejected_fixture_matches_current_desktop_contract() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "action-rejected",
+                expected_json:
+                    "{\"actionType\":\"RAISE\",\"reason\":\"raise too small\",\"seatIndex\":1}",
+            },
+            &sample_action_rejected(),
+        );
+    }
+
+    #[test]
+    fn join_request_fixture_keeps_android_field_names() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "join-request",
+                expected_json: "{\"displayName\":\"Alice\",\"encryptionPublicKey\":\"enc-key\",\"joinToken\":\"join-token\",\"signingPublicKey\":\"sign-key\"}",
+            },
+            &sample_join_request(),
+        );
+    }
+
+    #[test]
+    fn reconnect_request_fixture_keeps_optional_sequence_when_present() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "reconnect-request-seq-present",
+                expected_json:
+                    "{\"lastKnownServerSeq\":12,\"playerId\":\"player-a\",\"reconnectToken\":\"reconnect-token\"}",
+            },
+            &sample_reconnect_request(Some(12)),
+        );
+    }
+
+    #[test]
+    fn reconnect_request_fixture_omits_null_sequence() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "reconnect-request-seq-omitted",
+                expected_json: "{\"playerId\":\"player-a\",\"reconnectToken\":\"reconnect-token\"}",
+            },
+            &sample_reconnect_request(None),
+        );
+    }
+
+    #[test]
+    fn resync_request_fixture_keeps_optional_sequence_when_present() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "resync-request-seq-present",
+                expected_json: "{\"lastSeenServerSequence\":9}",
+            },
+            &sample_resync_request(Some(9)),
+        );
+    }
+
+    #[test]
+    fn resync_request_fixture_omits_null_sequence() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "resync-request-seq-omitted",
+                expected_json: "{}",
+            },
+            &sample_resync_request(None),
+        );
+    }
+
+    #[test]
+    fn public_and_private_projection_payloads_preserve_visibility_boundaries() {
+        let projection =
+            StateProjector::project(&sample_tournament_state()).expect("projection should succeed");
+        let public_json =
+            String::from_utf8(canonical_json_bytes(&projection.public_state).expect("public json"))
+                .expect("utf8");
+
+        assert!(!public_json.contains("privateHoleCards"));
+        assert_eq!(
+            projection.public_state.action_window_player_id.as_deref(),
+            Some("player-a")
+        );
+
+        let alice_state = projection
+            .private_states
+            .get("player-a")
+            .expect("alice private state");
+        let bob_state = projection
+            .private_states
+            .get("player-b")
+            .expect("bob private state");
+
+        let alice_payload = PlayerPrivateProjection {
+            public_snapshot: alice_state.public_state.clone(),
+            local_player_id: alice_state.local_player_id.clone(),
+            private_hole_cards: alice_state.private_hole_cards.clone(),
+            can_act: alice_state.can_act,
+            is_observer: alice_state.is_observer,
+            action_window_player_id: alice_state.action_window_player_id.clone(),
+        };
+        let bob_payload = PlayerPrivateProjection {
+            public_snapshot: bob_state.public_state.clone(),
+            local_player_id: bob_state.local_player_id.clone(),
+            private_hole_cards: bob_state.private_hole_cards.clone(),
+            can_act: bob_state.can_act,
+            is_observer: bob_state.is_observer,
+            action_window_player_id: bob_state.action_window_player_id.clone(),
+        };
+
+        assert_ne!(
+            alice_payload.private_hole_cards,
+            bob_payload.private_hole_cards
+        );
+        assert!(alice_payload.can_act);
+        assert!(!bob_payload.can_act);
+
+        let observer_json: serde_json::Value = serde_json::from_slice(
+            &canonical_json_bytes(&projection.observer_projection).expect("observer json"),
+        )
+        .expect("observer json value");
+        assert_eq!(observer_json.get("privateHoleCards"), Some(&json!([])));
+        assert!(observer_json.get("actionWindowPlayerId").is_none());
+    }
+
+    #[test]
+    fn public_event_payloads_keep_stable_shapes() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "tournament-started",
+                expected_json: "{\"blindSchedulePreset\":\"FAST\",\"frozenPlayerIds\":[\"player-a\",\"player-b\"],\"startingStack\":1500,\"tournamentName\":\"Protocol Table\"}",
+            },
+            &sample_tournament_started_event(),
+        );
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "showdown-started",
+                expected_json:
+                    "{\"boardCards\":[{\"rank\":\"ACE\",\"suit\":\"CLUBS\"}],\"handNumber\":7}",
+            },
+            &sample_showdown_started_event(),
+        );
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "hand-result-committed",
+                expected_json:
+                    "{\"handNumber\":7,\"result\":{\"eliminatedPlayerIds\":[],\"handNumber\":7,\"potSummaries\":[],\"revealedHandsByPlayerId\":{},\"winningPlayerIds\":[\"player-a\"]}}",
+            },
+            &sample_hand_result_committed(),
+        );
+    }
+
+    #[test]
+    fn private_hole_cards_payload_stays_stable_before_encryption() {
+        assert_canonical_fixture(
+            CanonicalJsonFixture {
+                name: "private-hole-cards",
+                expected_json:
+                    "{\"holeCards\":[{\"rank\":\"ACE\",\"suit\":\"SPADES\"},{\"rank\":\"ACE\",\"suit\":\"HEARTS\"}],\"recipientPlayerId\":\"player-a\"}",
+            },
+            &sample_private_hole_cards_event(),
+        );
+    }
+
+    #[test]
+    fn snapshot_payload_keeps_authoritative_state_and_host_metadata() {
+        let snapshot = sample_snapshot_event("player-a");
+        let json = serde_json::to_value(&snapshot).expect("snapshot value");
+
+        assert_eq!(json.get("localPlayerId"), Some(&json!("player-a")));
+        assert_eq!(json.get("hostSigningPublicKey"), Some(&json!("host-sign")));
+        assert_eq!(
+            json.get("hostEncryptionPublicKey"),
+            Some(&json!("host-enc"))
+        );
+        assert_eq!(
+            json.pointer("/state/state/participants/player-a/identity/displayName"),
+            Some(&json!("Alice"))
+        );
+    }
+
+    #[test]
+    fn protocol_message_and_domain_enum_strings_stay_stable() {
+        assert_eq!(
+            serde_json::to_string(&ProtocolMessageType::ActionWindowOpenedEvent)
+                .expect("message type"),
+            "\"ACTION_WINDOW_OPENED_EVENT\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ProtocolMessageType::ActionRejectedEvent).expect("message type"),
+            "\"ACTION_REJECTED_EVENT\""
+        );
+        assert_eq!(
+            serde_json::to_string(&ActionType::Raise).expect("action type"),
+            "\"RAISE\""
+        );
+        assert_eq!(
+            serde_json::to_string(&StreetPhase::Turn).expect("street"),
+            "\"TURN\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TournamentPhase::Running).expect("phase"),
+            "\"RUNNING\""
+        );
     }
 }

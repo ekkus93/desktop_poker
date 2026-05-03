@@ -1060,6 +1060,10 @@ fn handle_reconnect_request(
             return Err(NetworkingError::new("reconnect token mismatch"));
         }
 
+        if participant.connection_state == ConnectionState::Connected {
+            return Err(NetworkingError::new("participant is already connected"));
+        }
+
         if !is_reconnectable_participant(participant) {
             return Err(NetworkingError::new(
                 "participant is not reconnect-eligible",
@@ -1621,26 +1625,38 @@ mod tests {
     use std::{
         collections::BTreeMap,
         net::Shutdown,
-        sync::{atomic::Ordering, Arc, Mutex},
+        sync::{
+            atomic::{AtomicU64, Ordering},
+            Arc, Mutex,
+        },
         thread,
         time::{Duration, Instant},
     };
 
+    use base64::Engine as _;
     use serde_json::json;
 
-    use super::validate_production_host_ip;
+    use super::{
+        handle_reconnect_request, handle_resync_request, now_epoch_ms, validate_production_host_ip,
+    };
     use crate::{
-        crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
+        crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider},
         domain::{
-            BlindLevel, BlindSchedule, Card, ConnectionState, ParticipantState, Rank,
-            SeatOccupancyState, SeatState, Suit, TournamentConfig, TournamentPhase,
-            TournamentSeatState, TournamentState,
+            BlindLevel, BlindSchedule, Card, ConnectionState, JoinPayload,
+            ParticipantRegistryEntry, ParticipantState, PlayerIdentity, Rank, SeatOccupancyState,
+            SeatState, Suit, TournamentConfig, TournamentPhase, TournamentSeatState,
+            TournamentState,
         },
         networking::{
             resolve_connectable_host_ip, ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent,
             HostRuntimeConfig, HostRuntimeMode, HostServer,
         },
-        protocol::{PrivateHoleCardsEvent, ProtocolMessageType, TournamentStartedEvent},
+        protocol::{
+            test_support::{sample_reconnect_request, sample_resync_request},
+            JsonSignedEnvelope, PrivateHoleCardsEvent, ProtocolMessageType,
+            ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, TournamentStartedEvent,
+            PROTOCOL_VERSION,
+        },
     };
 
     fn sample_tournament_state(table_id: &str, session_epoch: u64) -> TournamentState {
@@ -1724,6 +1740,112 @@ mod tests {
             );
             thread::sleep(Duration::from_millis(20));
         }
+    }
+
+    fn sample_join_payload_for_tests(
+        table_id: &str,
+        session_epoch: u64,
+        host_signing_public_key: String,
+    ) -> JoinPayload {
+        JoinPayload {
+            payload_version: PROTOCOL_VERSION,
+            host_address: "127.0.0.1".to_string(),
+            host_port: 43_818,
+            table_id: table_id.to_string(),
+            session_epoch,
+            host_signing_public_key,
+            join_token: "join-token".to_string(),
+            generated_at_ms: 1,
+            table_name: Some("Reconnect Test".to_string()),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn sample_participant_entry(
+        player_id: &str,
+        display_name: &str,
+        signing_public_key: String,
+        encryption_public_key: String,
+        state: ParticipantState,
+        connection_state: ConnectionState,
+        seat_index: Option<u8>,
+        reconnect_token: &str,
+    ) -> ParticipantRegistryEntry {
+        let signing_key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(signing_public_key.as_bytes())
+            .expect("valid signing key bytes");
+
+        ParticipantRegistryEntry {
+            identity: PlayerIdentity {
+                player_id: player_id.to_string(),
+                display_name: display_name.to_string(),
+                signing_public_key,
+                encryption_public_key,
+                signing_key_fingerprint: key_fingerprint(&signing_key_bytes),
+            },
+            state,
+            connection_state,
+            seat_index,
+            admitted_at_ms: 1,
+            reconnect_token: Some(reconnect_token.to_string()),
+            reconnect_expiry_ms: Some(now_epoch_ms() + 60_000),
+            is_host: false,
+        }
+    }
+
+    fn signed_reconnect_envelope(
+        provider: &DefaultCryptoProvider,
+        signing_keys: &crate::crypto::SigningKeyMaterial,
+        join_payload: &JoinPayload,
+        request: ReconnectTournamentRequest,
+        counter: u64,
+        message_id: &str,
+    ) -> JsonSignedEnvelope {
+        let mut envelope = SignedEnvelope {
+            protocol_version: PROTOCOL_VERSION,
+            message_type: ProtocolMessageType::ReconnectTournamentRequest,
+            table_id: join_payload.table_id.clone(),
+            session_epoch: join_payload.session_epoch,
+            sender_id: request.player_id.clone(),
+            counter,
+            message_id: message_id.to_string(),
+            server_sequence: None,
+            payload: serde_json::to_value(request).expect("reconnect request payload"),
+            signature: None,
+        };
+        envelope
+            .sign(provider, signing_keys)
+            .expect("reconnect request should sign");
+
+        envelope
+    }
+
+    fn signed_resync_envelope(
+        provider: &DefaultCryptoProvider,
+        signing_keys: &crate::crypto::SigningKeyMaterial,
+        join_payload: &JoinPayload,
+        sender_id: &str,
+        request: ResyncRequest,
+        counter: u64,
+        message_id: &str,
+    ) -> JsonSignedEnvelope {
+        let mut envelope = SignedEnvelope {
+            protocol_version: PROTOCOL_VERSION,
+            message_type: ProtocolMessageType::ResyncRequest,
+            table_id: join_payload.table_id.clone(),
+            session_epoch: join_payload.session_epoch,
+            sender_id: sender_id.to_string(),
+            counter,
+            message_id: message_id.to_string(),
+            server_sequence: None,
+            payload: serde_json::to_value(request).expect("resync request payload"),
+            signature: None,
+        };
+        envelope
+            .sign(provider, signing_keys)
+            .expect("resync request should sign");
+
+        envelope
     }
 
     #[test]
@@ -2261,6 +2383,439 @@ mod tests {
             }
             other => panic!("expected safe error event, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn reconnect_rejects_stale_tokens() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-stale-token",
+            31,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-reconnect-stale-token", 31);
+        state.participants.insert(
+            "player-stale-token".to_string(),
+            sample_participant_entry(
+                "player-stale-token",
+                "Stale Token",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Reconnecting,
+                ConnectionState::Reconnecting,
+                Some(0),
+                "expected-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let result = handle_reconnect_request(
+            &provider,
+            signed_reconnect_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                ReconnectTournamentRequest {
+                    player_id: "player-stale-token".to_string(),
+                    reconnect_token: "wrong-token".to_string(),
+                    ..sample_reconnect_request(Some(1))
+                },
+                1,
+                "reconnect-stale-token",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("reconnect should fail")
+            .to_string()
+            .contains("reconnect token mismatch"));
+    }
+
+    #[test]
+    fn reconnect_rejects_already_connected_participants() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-connected",
+            32,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(4));
+        let mut state = sample_tournament_state("table-reconnect-connected", 32);
+        state.phase = TournamentPhase::Running;
+        state.participants.insert(
+            "player-connected".to_string(),
+            sample_participant_entry(
+                "player-connected",
+                "Connected",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(0),
+                "connected-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let result = handle_reconnect_request(
+            &provider,
+            signed_reconnect_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                ReconnectTournamentRequest {
+                    player_id: "player-connected".to_string(),
+                    reconnect_token: "connected-token".to_string(),
+                    last_known_server_seq: Some(4),
+                },
+                1,
+                "reconnect-connected",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("reconnect should fail")
+            .to_string()
+            .contains("already connected"));
+    }
+
+    #[test]
+    fn reconnect_rejects_removed_participants() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-removed",
+            33,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(2));
+        let mut state = sample_tournament_state("table-reconnect-removed", 33);
+        state.participants.insert(
+            "player-removed".to_string(),
+            sample_participant_entry(
+                "player-removed",
+                "Removed",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Removed,
+                ConnectionState::Reconnecting,
+                Some(0),
+                "removed-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let result = handle_reconnect_request(
+            &provider,
+            signed_reconnect_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                ReconnectTournamentRequest {
+                    player_id: "player-removed".to_string(),
+                    reconnect_token: "removed-token".to_string(),
+                    last_known_server_seq: Some(2),
+                },
+                1,
+                "reconnect-removed",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("reconnect should fail")
+            .to_string()
+            .contains("not reconnect-eligible"));
+    }
+
+    #[test]
+    fn reconnect_after_tournament_complete_restores_seated_state() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-complete",
+            34,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(8));
+        let mut state = sample_tournament_state("table-reconnect-complete", 34);
+        state.phase = TournamentPhase::Complete;
+        state.participants.insert(
+            "player-complete".to_string(),
+            sample_participant_entry(
+                "player-complete",
+                "Complete",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Reconnecting,
+                ConnectionState::Reconnecting,
+                Some(0),
+                "complete-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let accepted = handle_reconnect_request(
+            &provider,
+            signed_reconnect_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                ReconnectTournamentRequest {
+                    player_id: "player-complete".to_string(),
+                    reconnect_token: "complete-token".to_string(),
+                    last_known_server_seq: Some(8),
+                },
+                1,
+                "reconnect-complete",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        )
+        .expect("reconnect should succeed");
+
+        assert_eq!(accepted.player_id, "player-complete");
+        let state = authoritative_state.lock().expect("authoritative state");
+        let participant = state
+            .participants
+            .get("player-complete")
+            .expect("participant after reconnect");
+        assert_eq!(participant.state, ParticipantState::Seated);
+        assert_eq!(participant.connection_state, ConnectionState::Connected);
+    }
+
+    #[test]
+    fn reconnect_preserves_eliminated_observer_state() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-observer",
+            35,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(3));
+        let mut state = sample_tournament_state("table-reconnect-observer", 35);
+        state.phase = TournamentPhase::Running;
+        state.participants.insert(
+            "player-observer".to_string(),
+            sample_participant_entry(
+                "player-observer",
+                "Observer",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::EliminatedObserver,
+                ConnectionState::Reconnecting,
+                Some(2),
+                "observer-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let accepted = handle_reconnect_request(
+            &provider,
+            signed_reconnect_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                ReconnectTournamentRequest {
+                    player_id: "player-observer".to_string(),
+                    reconnect_token: "observer-token".to_string(),
+                    last_known_server_seq: Some(3),
+                },
+                1,
+                "reconnect-observer",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        )
+        .expect("observer reconnect should succeed");
+
+        assert_eq!(accepted.player_id, "player-observer");
+        let state = authoritative_state.lock().expect("authoritative state");
+        let participant = state
+            .participants
+            .get("player-observer")
+            .expect("participant after reconnect");
+        assert_eq!(participant.state, ParticipantState::EliminatedObserver);
+        assert_eq!(participant.connection_state, ConnectionState::Connected);
+    }
+
+    #[test]
+    fn resync_accepts_missing_sequence_and_replays_latest_snapshot() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-resync-repeat",
+            36,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(5));
+        let mut state = sample_tournament_state("table-resync-repeat", 36);
+        state.participants.insert(
+            "player-resync-repeat".to_string(),
+            sample_participant_entry(
+                "player-resync-repeat",
+                "Resync Repeat",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Admitted,
+                ConnectionState::Connected,
+                None,
+                "resync-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let first_snapshot = handle_resync_request(
+            &provider,
+            signed_resync_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                "player-resync-repeat",
+                sample_resync_request(None),
+                1,
+                "resync-repeat-1",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        )
+        .expect("resync should succeed without a sequence");
+        assert_eq!(
+            first_snapshot.payload.local_player_id,
+            "player-resync-repeat"
+        );
+
+        authoritative_state
+            .lock()
+            .expect("authoritative state")
+            .config
+            .tournament_name = "Resync Repeat Updated".to_string();
+
+        let second_snapshot = handle_resync_request(
+            &provider,
+            signed_resync_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                "player-resync-repeat",
+                sample_resync_request(None),
+                2,
+                "resync-repeat-2",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        )
+        .expect("repeated resync should succeed");
+
+        assert_eq!(
+            second_snapshot.payload.state.state.config.tournament_name,
+            "Resync Repeat Updated"
+        );
+    }
+
+    #[test]
+    fn resync_rejects_future_sequences() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+        let join_payload = sample_join_payload_for_tests(
+            "table-resync-future",
+            37,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(2));
+        let mut state = sample_tournament_state("table-resync-future", 37);
+        state.participants.insert(
+            "player-resync-future".to_string(),
+            sample_participant_entry(
+                "player-resync-future",
+                "Resync Future",
+                player_signing_keys.public_key_base64(),
+                player_encryption_keys.public_key_base64(),
+                ParticipantState::Admitted,
+                ConnectionState::Connected,
+                None,
+                "resync-future-token",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let result = handle_resync_request(
+            &provider,
+            signed_resync_envelope(
+                &provider,
+                &player_signing_keys,
+                &join_payload,
+                "player-resync-future",
+                sample_resync_request(Some(99)),
+                1,
+                "resync-future",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("future resync should fail")
+            .to_string()
+            .contains("ahead of the host sequence"));
     }
 
     #[test]
