@@ -433,58 +433,58 @@ Before coding, treat these as fixed:
 ## 9. M6 — Tauri frontend shell and screen flow
 
 ### 9.1 Create screens
-- [ ] Home
-- [ ] Host Tournament Setup
-- [ ] Join Tournament
-- [ ] Tournament Lobby
-- [ ] Ready Room
-- [ ] Main Table
-- [ ] Hand History
-- [ ] Tournament Complete
-- [ ] Rules / Help
-- [ ] Reconnect / Error dialogs
-- [ ] optional debug/internal panel
+- [x] Home
+- [x] Host Tournament Setup
+- [x] Join Tournament
+- [x] Tournament Lobby
+- [x] Ready Room
+- [x] Main Table
+- [x] Hand History
+- [x] Tournament Complete
+- [x] Rules / Help
+- [x] Reconnect / Error dialogs
+- [x] optional debug/internal panel
 
 ### 9.2 Home screen
-- [ ] Host Tournament
-- [ ] Join Tournament
-- [ ] Rules
-- [ ] Settings
-- [ ] Debug/internal tools entry in debug builds only
-- [ ] Do not expose simulator mode in production UI
+- [x] Host Tournament
+- [x] Join Tournament
+- [x] Rules
+- [x] Settings
+- [x] Debug/internal tools entry in debug builds only
+- [x] Do not expose simulator mode in production UI
 
 ### 9.3 Host screen
-- [ ] Tournament name input
-- [ ] max players selection
-- [ ] starting stack selection
-- [ ] blind preset selection
-- [ ] turn timer selection
-- [ ] host port input or advanced settings
-- [ ] join payload display
-- [ ] copy payload button
-- [ ] optional show QR button
+- [x] Tournament name input
+- [x] max players selection
+- [x] starting stack selection
+- [x] blind preset selection
+- [x] turn timer selection
+- [x] host port input or advanced settings
+- [x] join payload display
+- [x] copy payload button
+- [x] optional show QR button
 
 ### 9.4 Join screen
-- [ ] paste payload text area/input
-- [ ] validate payload
-- [ ] connect button
-- [ ] error display
-- [ ] optional recent join payloads
-- [ ] support launch from CLI/deep-link payload
+- [x] paste payload text area/input
+- [x] validate payload
+- [x] connect button
+- [x] error display
+- [x] optional recent join payloads
+- [x] support launch from CLI/deep-link payload
 
 ### 9.5 Lobby and ready room
-- [ ] seat map
-- [ ] participant list
-- [ ] ready state toggles
-- [ ] start tournament button for host
-- [ ] roster freeze explanation
-- [ ] leave table flow
+- [x] seat map
+- [x] participant list
+- [x] ready state toggles
+- [x] start tournament button for host
+- [x] roster freeze explanation
+- [x] leave table flow
 
 ### 9.6 Error and reconnect UI
-- [ ] explicit reconnecting state
-- [ ] reconnect success/failure banner/dialog
-- [ ] host-lost/table-closed dialog
-- [ ] invalid payload / invalid LAN IP / join failure messaging
+- [x] explicit reconnecting state
+- [x] reconnect success/failure banner/dialog
+- [x] host-lost/table-closed dialog
+- [x] invalid payload / invalid LAN IP / join failure messaging
 
 ---
 

@@ -1,14 +1,21 @@
-export function TablePlaceholder() {
-  const seats = Array.from({ length: 9 }, (_, index) => index + 1);
+import type { ParticipantShell } from "../../app/shell";
 
+export function TablePlaceholder({
+  participants,
+  blindLabel,
+  turnTimerSeconds,
+}: {
+  participants: ParticipantShell[];
+  blindLabel: string;
+  turnTimerSeconds: number;
+}) {
   return (
     <section className="table-surface">
-      <p className="kicker">Table rendering scaffold</p>
+      <p className="kicker">Main table surface</p>
       <h3>Main table layout shell</h3>
       <p>
-        The frontend already has a dedicated table rendering surface, but the
-        gameplay state projection stays in Rust as later milestones fill in
-        engine and protocol data.
+        Public board state, seat markers, and action controls render here once
+        the Rust runtime publishes authoritative table projections.
       </p>
 
       <div className="community-cards">
@@ -19,14 +26,20 @@ export function TablePlaceholder() {
         ))}
       </div>
 
+      <div className="table-toolbar">
+        <span className="status-badge info">Blind level {blindLabel}</span>
+        <span className="status-badge warning">Turn timer {turnTimerSeconds}s</span>
+      </div>
+
       <div className="seat-grid">
-        {seats.map((seat) => (
+        {participants.map((seat) => (
           <article
-            key={seat}
-            className={`seat-card ${seat === 5 ? "window-indicator" : ""}`}
+            key={seat.seatIndex}
+            className={`seat-card ${seat.seatIndex === 1 ? "window-indicator" : ""}`}
           >
-            <strong>Seat {seat}</strong>
-            <span>{seat === 5 ? "Acting player window" : "Waiting for roster"}</span>
+            <strong>Seat {seat.seatIndex}</strong>
+            <span>{seat.label}</span>
+            <p className="seat-detail">{seat.detail}</p>
           </article>
         ))}
       </div>

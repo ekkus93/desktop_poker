@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
+import { useDesktopShell } from "../../app/useDesktopShell";
 import { StatusBadge } from "../shared/StatusBadge";
 
 export type NavigationItem = {
@@ -17,15 +18,17 @@ export function AppFrame({
   navigation: NavigationItem[];
   children: ReactNode;
 }) {
+  const { displayName, recentJoinPayloads } = useDesktopShell();
+
   return (
     <div className="app-frame">
       <aside className="sidebar">
         <header className="brand">
-          <p className="kicker">M0 scaffold</p>
+          <p className="kicker">M6 frontend shell</p>
           <h1>{bootstrap.appName}</h1>
           <p>
-            Tauri + Rust LAN runtime shell with React-rendered screens and a
-            Rust-owned authority boundary.
+            Real LAN hosting and join flows stay Rust-owned; the React shell now
+            exposes the full route map without falling back to a simulator path.
           </p>
         </header>
 
@@ -34,7 +37,9 @@ export function AppFrame({
           <StatusBadge tone="success">Port {bootstrap.defaultHostPort}</StatusBadge>
           {bootstrap.debugToolsEnabled ? (
             <StatusBadge tone="warning">Debug tools enabled</StatusBadge>
-          ) : null}
+          ) : (
+            <StatusBadge tone="success">Production path only</StatusBadge>
+          )}
         </div>
 
         <nav aria-label="Desktop poker screens">
@@ -53,15 +58,16 @@ export function AppFrame({
 
         <footer className="sidebar-footer">
           <p className="sidebar-note">
+            Display name <strong>{displayName}</strong>
+          </p>
+          <p className="sidebar-note">
             Instance <strong>{bootstrap.instanceId}</strong>
           </p>
           <p className="sidebar-note">
-            Profile namespace:{" "}
-            <span className="mono-value">{bootstrap.profileDirectory}</span>
+            Profile namespace: <span className="mono-value">{bootstrap.profileDirectory}</span>
           </p>
           <p className="footer-copy">
-            Direct join payloads come from the Rust bootstrap layer via CLI or
-            environment input.
+            Recent direct payloads remembered locally: {recentJoinPayloads.length}
           </p>
         </footer>
       </aside>

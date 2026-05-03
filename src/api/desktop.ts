@@ -58,3 +58,11 @@ export function subscribeBootstrap(
     onBootstrap(event.payload);
   });
 }
+
+export function validateJoinPayloadInput(payload: string) {
+  return invoke<JoinPayload>("validate_join_payload_input", { payload });
+}
+
+export function resolveHostLanAddress() {
+  return invoke<string>("resolve_host_lan_address");
+}

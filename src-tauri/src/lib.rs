@@ -10,7 +10,9 @@ pub mod storage;
 pub mod tournament;
 
 use app_state::DesktopAppState;
-use commands::{get_bootstrap_state, list_screen_catalog};
+use commands::{
+    get_bootstrap_state, list_screen_catalog, resolve_host_lan_address, validate_join_payload_input,
+};
 use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,7 +29,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_bootstrap_state,
-            list_screen_catalog
+            list_screen_catalog,
+            validate_join_payload_input,
+            resolve_host_lan_address
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");
