@@ -491,55 +491,55 @@ Before coding, treat these as fixed:
 ## 10. M7 — Main table UX and gameplay controls
 
 ### 10.1 Main table rendering
-- [ ] community cards centered
-- [ ] pot totals visible
-- [ ] action/turn ownership emphasized
-- [ ] local player cards readable
-- [ ] compact but clear opponent seats
-- [ ] eliminated observer presentation
-- [ ] standings access
-- [ ] hand history access
+- [x] community cards centered
+- [x] pot totals visible
+- [x] action/turn ownership emphasized
+- [x] local player cards readable
+- [x] compact but clear opponent seats
+- [x] eliminated observer presentation
+- [x] standings access
+- [x] hand history access
 
 ### 10.2 Action tray
-- [ ] Fold
-- [ ] Check / Call
-- [ ] Bet / Raise
-- [ ] All-in
-- [ ] raise slider
-- [ ] quick buttons:
-  - [ ] Min
-  - [ ] 1/2 Pot
-  - [ ] Pot
-  - [ ] Max
-- [ ] confirmation flow for Raise
-- [ ] confirmation flow for All-in
+- [x] Fold
+- [x] Check / Call
+- [x] Bet / Raise
+- [x] All-in
+- [x] raise slider
+- [x] quick buttons:
+  - [x] Min
+  - [x] 1/2 Pot
+  - [x] Pot
+  - [x] Max
+- [x] confirmation flow for Raise
+- [x] confirmation flow for All-in
 
 ### 10.3 Desktop-specific UX improvements
-- [ ] optional side panel for history/event feed
-- [ ] better use of wide desktop layouts
-- [ ] resizable window support
-- [ ] seat detail popovers
-- [ ] more visible standings/elimination info
+- [x] optional side panel for history/event feed
+- [x] better use of wide desktop layouts
+- [x] resizable window support
+- [x] seat detail popovers
+- [x] more visible standings/elimination info
 
 ### 10.4 Observer mode
-- [ ] no action tray
-- [ ] public-only table
-- [ ] standings visible
-- [ ] hand history visible
+- [x] no action tray
+- [x] public-only table
+- [x] standings visible
+- [x] hand history visible
 
 ### 10.5 Debug-only tools
-- [ ] protocol log viewer
-- [ ] current snapshot inspector
-- [ ] sequence display
-- [ ] action-window inspector
-- [ ] launch additional client instance helper
-- [ ] keep all of this out of production UI
+- [x] protocol log viewer
+- [x] current snapshot inspector
+- [x] sequence display
+- [x] action-window inspector
+- [x] launch additional client instance helper
+- [x] keep all of this out of production UI
 
 ### 10.6 Required tests / checks
-- [ ] action tray only enabled for acting player
-- [ ] observer mode cannot act
-- [ ] table reflects public events correctly
-- [ ] hand history and standings update after settlement
+- [x] action tray only enabled for acting player
+- [x] observer mode cannot act
+- [x] table reflects public events correctly
+- [x] hand history and standings update after settlement
 
 ---
 

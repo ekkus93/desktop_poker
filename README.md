@@ -15,6 +15,7 @@ The repository now contains:
 - M4 poker engine and tournament loop foundation with authoritative action windows, timeout handling, side-pot settlement, blind progression, and tournament lifecycle tests
 - M5 reconnect/resync runtime with original-identity reconnect validation, reconnect-eligible disconnect handling, authoritative snapshot replacement, and sequence mismatch recovery tests
 - M6 frontend shell flow with host/join/lobby/ready-room/table/history/complete/help/error surfaces, debug-gated internal tools, and launch-payload validation wiring
+- M7 main-table UX polish with Rust-backed table projection rendering, observer mode, action tray confirmation flows, side-panel history/standings, and expanded frontend/runtime tests
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices

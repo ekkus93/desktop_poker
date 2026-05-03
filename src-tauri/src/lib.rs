@@ -11,7 +11,9 @@ pub mod tournament;
 
 use app_state::DesktopAppState;
 use commands::{
-    get_bootstrap_state, list_screen_catalog, resolve_host_lan_address, validate_join_payload_input,
+    get_bootstrap_state, get_debug_state, get_table_view, launch_additional_client_instance,
+    list_screen_catalog, resolve_host_lan_address, submit_table_action,
+    validate_join_payload_input,
 };
 use tauri::Emitter;
 
@@ -31,7 +33,11 @@ pub fn run() {
             get_bootstrap_state,
             list_screen_catalog,
             validate_join_payload_input,
-            resolve_host_lan_address
+            resolve_host_lan_address,
+            get_table_view,
+            submit_table_action,
+            get_debug_state,
+            launch_additional_client_instance
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");
