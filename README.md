@@ -70,6 +70,43 @@ npm run test
 npm run tauri dev
 ```
 
+## Build the app
+
+For a production desktop build:
+
+```bash
+npm install
+npm run tauri build
+```
+
+This compiles the frontend and Rust backend, then produces release bundles under `src-tauri/target/release/bundle/`.
+
+If you only want the release binary without the platform bundles:
+
+```bash
+cargo build --manifest-path src-tauri/Cargo.toml --release
+```
+
+## Run the app
+
+For local development:
+
+```bash
+npm run tauri dev
+```
+
+For a compiled release binary:
+
+```bash
+./src-tauri/target/release/desktop-poker
+```
+
+You can also run a packaged Linux build directly, for example:
+
+```bash
+./src-tauri/target/release/bundle/appimage/Desktop\ Poker_0.1.0_amd64.AppImage
+```
+
 ## Running multiple instances locally
 
 The desktop app is intentionally designed for multiple concurrent instances. Use an explicit instance id so each launch gets its own storage namespace, session identity, and reconnect namespace:
