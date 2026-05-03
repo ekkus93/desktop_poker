@@ -51,63 +51,63 @@ Before coding, treat these as fixed:
 ## 3. M0 — Project skeleton and desktop architecture decisions
 
 ### 3.1 Create the Tauri workspace
-- [ ] Create a new Tauri application repository structure or desktop subproject structure
-- [ ] Create Rust backend crates/modules for:
-  - [ ] `domain`
-  - [ ] `engine`
-  - [ ] `tournament`
-  - [ ] `protocol`
-  - [ ] `networking`
-  - [ ] `crypto`
-  - [ ] `storage`
-  - [ ] `interop`
-  - [ ] `app_state`
-- [ ] Create frontend app structure for:
-  - [ ] screens
-  - [ ] shared components
-  - [ ] table rendering
-  - [ ] host/join flows
-  - [ ] debug/internal tools
-- [ ] Wire Tauri command/event bridge between frontend and Rust backend
+- [x] Create a new Tauri application repository structure or desktop subproject structure
+- [x] Create Rust backend crates/modules for:
+  - [x] `domain`
+  - [x] `engine`
+  - [x] `tournament`
+  - [x] `protocol`
+  - [x] `networking`
+  - [x] `crypto`
+  - [x] `storage`
+  - [x] `interop`
+  - [x] `app_state`
+- [x] Create frontend app structure for:
+  - [x] screens
+  - [x] shared components
+  - [x] table rendering
+  - [x] host/join flows
+  - [x] debug/internal tools
+- [x] Wire Tauri command/event bridge between frontend and Rust backend
 
 ### 3.2 Freeze implementation choices
-- [ ] Freeze frontend stack
-  - [ ] Use React + TypeScript unless there is a compelling reason not to
-- [ ] Freeze Rust serialization strategy
-  - [ ] `serde` for JSON models
-  - [ ] one canonical serializer path for signing bytes
-- [ ] Freeze Rust crypto stack
-  - [ ] `ed25519-dalek`
-  - [ ] `x25519-dalek`
-  - [ ] `chacha20poly1305`
-- [ ] Freeze TCP framing approach
-  - [ ] length-prefixed JSON envelopes
-  - [ ] or newline-delimited canonical envelope if and only if safe and fully specified
-- [ ] Freeze host default port
-  - [ ] match Android default if practical
-- [ ] Freeze per-instance storage strategy
-  - [ ] profile directory or instance namespace required
+- [x] Freeze frontend stack
+  - [x] Use React + TypeScript unless there is a compelling reason not to
+- [x] Freeze Rust serialization strategy
+  - [x] `serde` for JSON models
+  - [x] one canonical serializer path for signing bytes
+- [x] Freeze Rust crypto stack
+  - [x] `ed25519-dalek`
+  - [x] `x25519-dalek`
+  - [x] `chacha20poly1305`
+- [x] Freeze TCP framing approach
+  - [x] length-prefixed JSON envelopes
+  - [x] or newline-delimited canonical envelope if and only if safe and fully specified
+- [x] Freeze host default port
+  - [x] match Android default if practical
+- [x] Freeze per-instance storage strategy
+  - [x] profile directory or instance namespace required
 
 ### 3.3 Document architecture boundaries
-- [ ] Create desktop architecture note summarizing:
-  - [ ] Rust-owned logic boundary
-  - [ ] frontend-owned rendering boundary
-  - [ ] protocol compatibility goals with Android
-  - [ ] multi-instance requirements
-- [ ] Explicitly document that frontend must not become source of truth for game state
+- [x] Create desktop architecture note summarizing:
+  - [x] Rust-owned logic boundary
+  - [x] frontend-owned rendering boundary
+  - [x] protocol compatibility goals with Android
+  - [x] multi-instance requirements
+- [x] Explicitly document that frontend must not become source of truth for game state
 
 ### 3.4 Local development setup
-- [ ] Add README instructions for:
-  - [ ] Rust toolchain
-  - [ ] Node/package manager
-  - [ ] Tauri prerequisites on Linux
-  - [ ] running multiple instances locally
-  - [ ] passing join payload via CLI or env var
-- [ ] Add formatting/lint/test commands
-  - [ ] `cargo fmt`
-  - [ ] `cargo clippy`
-  - [ ] Rust tests
-  - [ ] frontend lint/test where applicable
+- [x] Add README instructions for:
+  - [x] Rust toolchain
+  - [x] Node/package manager
+  - [x] Tauri prerequisites on Linux
+  - [x] running multiple instances locally
+  - [x] passing join payload via CLI or env var
+- [x] Add formatting/lint/test commands
+  - [x] `cargo fmt`
+  - [x] `cargo clippy`
+  - [x] Rust tests
+  - [x] frontend lint/test where applicable
 
 ---
 
