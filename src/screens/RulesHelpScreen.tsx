@@ -68,7 +68,8 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
               <li>
                 Current host draft: {hostDraft.tournamentName} on port {hostDraft.hostPort}
               </li>
-              <li>Instance id: {bootstrap.instanceId}</li>
+              <li>Instance label: {bootstrap.instanceLabel}</li>
+              <li>Profile id: {bootstrap.instanceId}</li>
               <li>Debug tools: {bootstrap.debugToolsEnabled ? "enabled" : "hidden"}</li>
             </ul>
           </div>

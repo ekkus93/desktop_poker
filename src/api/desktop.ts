@@ -36,6 +36,10 @@ export type DesktopBootstrapState = {
   runtimeTransport: string;
   cryptoStack: string[];
   instanceId: string;
+  instanceLabel: string;
+  storageNamespace: string;
+  sessionIdentity: string;
+  reconnectNamespace: string;
   profileDirectory: string;
   launchJoinPayload: string | null;
   parsedLaunchJoinPayload: JoinPayload | null;
@@ -187,6 +191,8 @@ export function getDebugState(viewerMode: TableViewerMode) {
   return invoke<DebugInspectorState>("get_debug_state", { viewerMode });
 }
 
-export function launchAdditionalClientInstance() {
-  return invoke<string>("launch_additional_client_instance");
+export function launchAdditionalClientInstance(joinPayload?: string | null) {
+  return invoke<string>("launch_additional_client_instance", {
+    joinPayload: joinPayload ?? null,
+  });
 }

@@ -1785,6 +1785,230 @@ mod tests {
     }
 
     #[test]
+    fn multiple_clients_keep_distinct_identity_and_reconnect_state() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 8,
+            table_id: "table-multi-client".to_string(),
+            table_name: Some("Multi Client".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-multi-client", 8),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let alice_signing_keys = provider.generate_signing_keypair();
+        let alice_signing_public_key = alice_signing_keys.public_key_base64();
+        let alice_encryption_keys = provider.generate_encryption_keypair();
+        let alice_encryption_public_key = alice_encryption_keys.public_key_base64();
+        let alice = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-a".to_string(),
+            display_name: "Alice".to_string(),
+            signing_keys: alice_signing_keys,
+            encryption_keys: alice_encryption_keys,
+        })
+        .expect("alice should connect");
+
+        let bob_signing_keys = provider.generate_signing_keypair();
+        let bob_signing_public_key = bob_signing_keys.public_key_base64();
+        let bob_encryption_keys = provider.generate_encryption_keypair();
+        let bob_encryption_public_key = bob_encryption_keys.public_key_base64();
+        let bob = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-b".to_string(),
+            display_name: "Bob".to_string(),
+            signing_keys: bob_signing_keys,
+            encryption_keys: bob_encryption_keys,
+        })
+        .expect("bob should connect");
+
+        let alice_reconnect_token = match alice
+            .next_event(Duration::from_secs(2))
+            .expect("alice snapshot")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => snapshot
+                .reconnect_token
+                .clone()
+                .expect("alice reconnect token"),
+            other => panic!("expected alice snapshot, got {other:?}"),
+        };
+        let bob_reconnect_token = match bob
+            .next_event(Duration::from_secs(2))
+            .expect("bob snapshot")
+        {
+            ClientRuntimeEvent::Snapshot(snapshot) => snapshot
+                .reconnect_token
+                .clone()
+                .expect("bob reconnect token"),
+            other => panic!("expected bob snapshot, got {other:?}"),
+        };
+
+        assert_ne!(alice_reconnect_token, bob_reconnect_token);
+
+        let state = host.authoritative_state().expect("authoritative state");
+        assert_eq!(state.participants.len(), 2);
+        let alice_participant = state.participants.get("player-a").expect("alice state");
+        let bob_participant = state.participants.get("player-b").expect("bob state");
+        assert_eq!(
+            alice_participant.identity.signing_public_key,
+            alice_signing_public_key
+        );
+        assert_eq!(
+            alice_participant.identity.encryption_public_key,
+            alice_encryption_public_key
+        );
+        assert_eq!(
+            bob_participant.identity.signing_public_key,
+            bob_signing_public_key
+        );
+        assert_eq!(
+            bob_participant.identity.encryption_public_key,
+            bob_encryption_public_key
+        );
+        assert_ne!(
+            alice_participant.identity.signing_public_key,
+            bob_participant.identity.signing_public_key
+        );
+    }
+
+    #[test]
+    fn two_local_clients_can_join_and_receive_live_table_events_on_one_machine() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+
+        let host = HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().expect("socket addr"),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 9,
+            table_id: "table-local-play".to_string(),
+            table_name: Some("Local Play".to_string()),
+            join_token: "join-token".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: sample_tournament_state("table-local-play", 9),
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind");
+
+        let alice = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-local-a".to_string(),
+            display_name: "Alice".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("alice should connect");
+        let bob = ClientRuntime::connect(ClientRuntimeConfig {
+            join_payload: host.encoded_join_payload().to_string(),
+            player_id: "player-local-b".to_string(),
+            display_name: "Bob".to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .expect("bob should connect");
+
+        let _ = alice
+            .next_event(Duration::from_secs(2))
+            .expect("alice snapshot");
+        let _ = bob
+            .next_event(Duration::from_secs(2))
+            .expect("bob snapshot");
+
+        host.broadcast_public_event(
+            ProtocolMessageType::TournamentStartedEvent,
+            &TournamentStartedEvent {
+                tournament_name: "Local Play".to_string(),
+                starting_stack: 1500,
+                blind_schedule_preset: "FAST".to_string(),
+                frozen_player_ids: vec!["player-local-a".to_string(), "player-local-b".to_string()],
+            },
+        )
+        .expect("broadcast tournament started");
+
+        for client in [&alice, &bob] {
+            match client
+                .next_event(Duration::from_secs(2))
+                .expect("public event")
+            {
+                ClientRuntimeEvent::PublicEvent {
+                    message_type,
+                    payload,
+                } => {
+                    assert_eq!(message_type, ProtocolMessageType::TournamentStartedEvent);
+                    assert_eq!(payload.get("tournamentName"), Some(&json!("Local Play")));
+                }
+                other => panic!("expected public event, got {other:?}"),
+            }
+        }
+
+        host.send_private_hole_cards(
+            "player-local-a",
+            &PrivateHoleCardsEvent {
+                recipient_player_id: "player-local-a".to_string(),
+                hole_cards: vec![
+                    Card {
+                        rank: Rank::Ace,
+                        suit: Suit::Spades,
+                    },
+                    Card {
+                        rank: Rank::Ace,
+                        suit: Suit::Hearts,
+                    },
+                ],
+            },
+        )
+        .expect("send alice private cards");
+        host.send_private_hole_cards(
+            "player-local-b",
+            &PrivateHoleCardsEvent {
+                recipient_player_id: "player-local-b".to_string(),
+                hole_cards: vec![
+                    Card {
+                        rank: Rank::King,
+                        suit: Suit::Clubs,
+                    },
+                    Card {
+                        rank: Rank::Queen,
+                        suit: Suit::Diamonds,
+                    },
+                ],
+            },
+        )
+        .expect("send bob private cards");
+
+        match alice
+            .next_event(Duration::from_secs(2))
+            .expect("alice private cards")
+        {
+            ClientRuntimeEvent::PrivateHoleCards(payload) => {
+                assert_eq!(payload.recipient_player_id, "player-local-a");
+                assert_eq!(payload.hole_cards.len(), 2);
+            }
+            other => panic!("expected alice private cards, got {other:?}"),
+        }
+
+        match bob
+            .next_event(Duration::from_secs(2))
+            .expect("bob private cards")
+        {
+            ClientRuntimeEvent::PrivateHoleCards(payload) => {
+                assert_eq!(payload.recipient_player_id, "player-local-b");
+                assert_eq!(payload.hole_cards.len(), 2);
+            }
+            other => panic!("expected bob private cards, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn public_events_flow_from_host_to_client_over_real_tcp() {
         let provider = DefaultCryptoProvider;
         let host_signing_keys = Arc::new(provider.generate_signing_keypair());

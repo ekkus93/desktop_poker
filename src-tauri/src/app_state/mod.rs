@@ -22,6 +22,17 @@ const JOIN_PAYLOAD_ARG: &str = "--join-payload";
 const LOCAL_PLAYER_ID: &str = "local-player";
 const OBSERVER_DISPLAY_NAME: &str = "Riley";
 const OBSERVER_SEAT_INDEX: u8 = 5;
+const DEFAULT_INSTANCE_LABEL: &str = "default";
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct InstanceProfile {
+    instance_label: String,
+    profile_id: String,
+    storage_namespace: String,
+    session_identity: String,
+    reconnect_namespace: String,
+    profile_directory: PathBuf,
+}
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +63,10 @@ pub struct DesktopBootstrapState {
     pub runtime_transport: &'static str,
     pub crypto_stack: Vec<&'static str>,
     pub instance_id: String,
+    pub instance_label: String,
+    pub storage_namespace: String,
+    pub session_identity: String,
+    pub reconnect_namespace: String,
     pub profile_directory: String,
     pub launch_join_payload: Option<String>,
     pub parsed_launch_join_payload: Option<domain::JoinPayload>,
@@ -194,8 +209,7 @@ pub struct DesktopAppState {
 impl DesktopAppState {
     #[must_use]
     pub fn detect() -> Self {
-        let instance_id = detect_instance_id();
-        let profile_directory = detect_profile_directory(&instance_id);
+        let instance_profile = detect_instance_profile();
         let debug_tools_enabled = cfg!(debug_assertions);
         let launch_join_payload = detect_launch_join_payload();
         let (parsed_launch_join_payload, launch_join_payload_error) =
@@ -212,8 +226,12 @@ impl DesktopAppState {
                 join_payload_encoding: interop::JOIN_PAYLOAD_ENCODING,
                 runtime_transport: networking::RUNTIME_TRANSPORT,
                 crypto_stack: crypto::stack(),
-                instance_id,
-                profile_directory: profile_directory.display().to_string(),
+                instance_id: instance_profile.profile_id.clone(),
+                instance_label: instance_profile.instance_label,
+                storage_namespace: instance_profile.storage_namespace,
+                session_identity: instance_profile.session_identity,
+                reconnect_namespace: instance_profile.reconnect_namespace,
+                profile_directory: instance_profile.profile_directory.display().to_string(),
                 launch_join_payload,
                 parsed_launch_join_payload,
                 launch_join_payload_error,
@@ -264,7 +282,10 @@ impl DesktopAppState {
             .debug_state(viewer_mode)
     }
 
-    pub fn launch_additional_client_instance(&self) -> Result<String, String> {
+    pub fn launch_additional_client_instance(
+        &self,
+        join_payload: Option<String>,
+    ) -> Result<String, String> {
         if !cfg!(debug_assertions) {
             return Err("debug launch helper is only available in debug builds".to_string());
         }
@@ -274,16 +295,27 @@ impl DesktopAppState {
             .lock()
             .map_err(|_| "launch counter lock poisoned".to_string())?;
         *launch_counter += 1;
-        let instance_id = format!("debug-client-{}", *launch_counter);
+        let instance_id = build_debug_child_instance_id(
+            &self.bootstrap.instance_id,
+            std::process::id(),
+            *launch_counter,
+        );
         let current_executable = env::current_exe().map_err(|error| error.to_string())?;
         let current_directory = env::current_dir().map_err(|error| error.to_string())?;
 
-        Command::new(current_executable)
+        let mut command = Command::new(current_executable);
+        command
             .arg(INSTANCE_ID_ARG)
             .arg(&instance_id)
-            .current_dir(current_directory)
-            .spawn()
-            .map_err(|error| error.to_string())?;
+            .current_dir(current_directory);
+        if let Some(payload) = join_payload
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            command.arg(JOIN_PAYLOAD_ARG).arg(payload);
+        }
+        command.spawn().map_err(|error| error.to_string())?;
 
         Ok(instance_id)
     }
@@ -388,11 +420,12 @@ fn app_state_descriptor() -> ModuleDescriptor {
     }
 }
 
-fn detect_instance_id() -> String {
-    parse_arg_value(INSTANCE_ID_ARG)
-        .or_else(|| env::var(INSTANCE_ID_ENV_VAR).ok())
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "default".to_string())
+fn detect_instance_profile() -> InstanceProfile {
+    derive_instance_profile(
+        parse_arg_value(INSTANCE_ID_ARG)
+            .or_else(|| env::var(INSTANCE_ID_ENV_VAR).ok())
+            .as_deref(),
+    )
 }
 
 fn detect_launch_join_payload() -> Option<String> {
@@ -427,6 +460,60 @@ fn parse_arg_value(flag: &str) -> Option<String> {
     }
 
     None
+}
+
+fn derive_instance_profile(raw_instance_label: Option<&str>) -> InstanceProfile {
+    let instance_label = raw_instance_label
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(DEFAULT_INSTANCE_LABEL)
+        .to_string();
+    let profile_id = sanitize_profile_id(&instance_label);
+
+    InstanceProfile {
+        instance_label,
+        storage_namespace: format!("desktop-poker:{profile_id}"),
+        session_identity: format!("desktop-session:{profile_id}"),
+        reconnect_namespace: format!("desktop-reconnect:{profile_id}"),
+        profile_directory: detect_profile_directory(&profile_id),
+        profile_id,
+    }
+}
+
+fn sanitize_profile_id(raw_instance_label: &str) -> String {
+    let mut profile_id = String::new();
+    let mut previous_was_separator = false;
+
+    for character in raw_instance_label.trim().chars() {
+        if character.is_ascii_alphanumeric() {
+            profile_id.push(character.to_ascii_lowercase());
+            previous_was_separator = false;
+            continue;
+        }
+
+        if !previous_was_separator && !profile_id.is_empty() {
+            profile_id.push('-');
+            previous_was_separator = true;
+        }
+    }
+
+    while profile_id.ends_with('-') {
+        profile_id.pop();
+    }
+
+    if profile_id.is_empty() {
+        DEFAULT_INSTANCE_LABEL.to_string()
+    } else {
+        profile_id
+    }
+}
+
+fn build_debug_child_instance_id(
+    parent_profile_id: &str,
+    process_id: u32,
+    launch_counter: u32,
+) -> String {
+    format!("{parent_profile_id}-p{process_id}-client-{launch_counter}")
 }
 
 fn detect_profile_directory(instance_id: &str) -> PathBuf {
@@ -663,9 +750,8 @@ impl DesktopTableRuntime {
                 .as_ref()
                 .map(|hand| hand.hand_number),
             action_window_summary,
-            launch_hint:
-                "Spawn another debug client with its own storage namespace to test multi-instance flows."
-                    .to_string(),
+            launch_hint: "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff."
+                .to_string(),
         })
     }
 
@@ -1344,9 +1430,9 @@ fn format_action(action: domain::ActionType) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        demo_controller, detect_profile_directory, screen_catalog, stacked_demo_deck,
-        DesktopAppState, DesktopTableActionKind, TableViewerMode, INSTANCE_ID_ENV_VAR,
-        JOIN_PAYLOAD_ENV_VAR,
+        build_debug_child_instance_id, demo_controller, derive_instance_profile,
+        detect_profile_directory, screen_catalog, stacked_demo_deck, DesktopAppState,
+        DesktopTableActionKind, TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
     };
 
     #[test]
@@ -1359,9 +1445,39 @@ mod tests {
         assert_eq!(state.protocol_version, 1);
         assert_eq!(state.default_host_port, 43_818);
         assert_eq!(state.instance_id, "default");
+        assert_eq!(state.instance_label, "default");
+        assert_eq!(state.storage_namespace, "desktop-poker:default");
+        assert_eq!(state.session_identity, "desktop-session:default");
+        assert_eq!(state.reconnect_namespace, "desktop-reconnect:default");
         assert!(state
             .profile_directory
             .ends_with("desktop-poker/profiles/default"));
+    }
+
+    #[test]
+    fn instance_profile_sanitizes_namespace_and_identity_fields() {
+        let profile = derive_instance_profile(Some("Host A / QA"));
+
+        assert_eq!(profile.instance_label, "Host A / QA");
+        assert_eq!(profile.profile_id, "host-a-qa");
+        assert_eq!(profile.storage_namespace, "desktop-poker:host-a-qa");
+        assert_eq!(profile.session_identity, "desktop-session:host-a-qa");
+        assert_eq!(profile.reconnect_namespace, "desktop-reconnect:host-a-qa");
+        assert!(profile
+            .profile_directory
+            .ends_with("desktop-poker/profiles/host-a-qa"));
+    }
+
+    #[test]
+    fn debug_child_instance_ids_are_scoped_to_the_parent_profile() {
+        let first_child = build_debug_child_instance_id("host-a", 9001, 1);
+        let second_child = build_debug_child_instance_id("host-a", 9001, 2);
+        let other_parent_child = build_debug_child_instance_id("host-b", 9001, 1);
+
+        assert_eq!(first_child, "host-a-p9001-client-1");
+        assert_eq!(second_child, "host-a-p9001-client-2");
+        assert_eq!(other_parent_child, "host-b-p9001-client-1");
+        assert_ne!(first_child, other_parent_child);
     }
 
     #[test]

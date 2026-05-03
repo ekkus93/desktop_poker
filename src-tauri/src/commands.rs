@@ -61,6 +61,7 @@ pub fn get_debug_state(
 #[tauri::command]
 pub fn launch_additional_client_instance(
     state: State<'_, DesktopAppState>,
+    join_payload: Option<String>,
 ) -> Result<String, String> {
-    state.launch_additional_client_instance()
+    state.launch_additional_client_instance(join_payload)
 }

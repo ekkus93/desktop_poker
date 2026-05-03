@@ -51,69 +51,71 @@ export function DesktopShellProvider({
 
   const [displayName, setDisplayName] = useState(() =>
     readStoredValue<string>(
-      localStorage.getItem(storageKey(bootstrap.instanceId, "display-name")),
+      localStorage.getItem(storageKey(bootstrap.storageNamespace, "display-name")),
       defaultDisplayName,
     ),
   );
   const [hostDraft, setHostDraft] = useState(() =>
     readStoredValue<HostDraft>(
-      localStorage.getItem(storageKey(bootstrap.instanceId, "host-draft")),
+      localStorage.getItem(storageKey(bootstrap.storageNamespace, "host-draft")),
       defaultHostDraft,
     ),
   );
   const [joinPayloadDraft, setJoinPayloadDraft] = useState(() =>
     readStoredValue<string>(
-      localStorage.getItem(storageKey(bootstrap.instanceId, "join-draft")),
+      localStorage.getItem(storageKey(bootstrap.storageNamespace, "join-draft")),
       bootstrap.launchJoinPayload ?? "",
     ),
   );
   const [readySeats, setReadySeats] = useState(() =>
     readStoredValue<number[]>(
-      localStorage.getItem(storageKey(bootstrap.instanceId, "ready-seats")),
+      localStorage.getItem(storageKey(bootstrap.storageNamespace, "ready-seats")),
       [],
     ),
   );
   const [recentJoinPayloads, setRecentJoinPayloads] = useState(() =>
     readStoredValue<string[]>(
-      localStorage.getItem(storageKey(bootstrap.instanceId, "recent-join-payloads")),
+      localStorage.getItem(
+        storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
+      ),
       [],
     ),
   );
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.instanceId, "display-name"),
+      localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "display-name"),
       JSON.stringify(displayName),
     );
-  }, [bootstrap.instanceId, displayName]);
+  }, [bootstrap.storageNamespace, displayName]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.instanceId, "host-draft"),
+      localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
       JSON.stringify(hostDraft),
     );
-  }, [bootstrap.instanceId, hostDraft]);
+  }, [bootstrap.storageNamespace, hostDraft]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.instanceId, "join-draft"),
+      localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "join-draft"),
       JSON.stringify(joinPayloadDraft),
     );
-  }, [bootstrap.instanceId, joinPayloadDraft]);
+  }, [bootstrap.storageNamespace, joinPayloadDraft]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.instanceId, "ready-seats"),
+      localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "ready-seats"),
       JSON.stringify(readySeats),
     );
-  }, [bootstrap.instanceId, readySeats]);
+  }, [bootstrap.storageNamespace, readySeats]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.instanceId, "recent-join-payloads"),
+      localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
       JSON.stringify(recentJoinPayloads),
     );
-  }, [bootstrap.instanceId, recentJoinPayloads]);
+  }, [bootstrap.storageNamespace, recentJoinPayloads]);
 
   const value = useMemo<DesktopShellContextValue>(
     () => ({

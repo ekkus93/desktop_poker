@@ -16,6 +16,7 @@ The repository now contains:
 - M5 reconnect/resync runtime with original-identity reconnect validation, reconnect-eligible disconnect handling, authoritative snapshot replacement, and sequence mismatch recovery tests
 - M6 frontend shell flow with host/join/lobby/ready-room/table/history/complete/help/error surfaces, debug-gated internal tools, and launch-payload validation wiring
 - M7 main-table UX polish with Rust-backed table projection rendering, observer mode, action tray confirmation flows, side-panel history/standings, and expanded frontend/runtime tests
+- M8 multi-instance local testing support with isolated profile/session namespaces, debug-only launch helpers, and one-machine host/join/play coverage
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices
@@ -69,7 +70,7 @@ npm run tauri dev
 
 ## Running multiple instances locally
 
-The desktop app is intentionally designed for multiple concurrent instances. Use an explicit instance id so each launch gets its own storage namespace:
+The desktop app is intentionally designed for multiple concurrent instances. Use an explicit instance id so each launch gets its own storage namespace, session identity, and reconnect namespace:
 
 ```bash
 DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev
@@ -80,6 +81,13 @@ You can also pass the instance id on the app command line:
 
 ```bash
 npm run tauri dev -- -- --instance-id client-c
+```
+
+Production binaries can also be launched multiple times with distinct ids:
+
+```bash
+./src-tauri/target/release/desktop-poker --instance-id host-a
+./src-tauri/target/release/desktop-poker --instance-id client-b
 ```
 
 ## Passing a join payload at launch
@@ -97,6 +105,18 @@ npm run tauri dev -- -- --join-payload 'pkr1_...'
 ```
 
 The CLI form and env var are both surfaced through the Rust bootstrap state and made available to the frontend.
+
+## Local multi-instance host/join flow
+
+1. Launch a host instance with its own id, for example `DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev`.
+2. Copy the current `pkr1_...` payload from the host/debug handoff surface.
+3. Launch a second instance with a different id and either paste the payload on the Join screen or pass it on the command line:
+
+```bash
+DESKTOP_POKER_INSTANCE_ID=client-b npm run tauri dev -- -- --join-payload 'pkr1_...'
+```
+
+Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local LAN flows use the same payload path once a connectable host IP is available. In debug builds, the Internal Tools screen can copy the payload directly and launch another instance with the payload already attached.
 
 ## Architecture notes
 

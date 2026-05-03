@@ -61,8 +61,13 @@ export function AppFrame({
             Display name <strong>{displayName}</strong>
           </p>
           <p className="sidebar-note">
-            Instance <strong>{bootstrap.instanceId}</strong>
+            Instance <strong>{bootstrap.instanceLabel}</strong>
           </p>
+          {bootstrap.instanceLabel !== bootstrap.instanceId ? (
+            <p className="sidebar-note">
+              Profile ID <strong>{bootstrap.instanceId}</strong>
+            </p>
+          ) : null}
           <p className="sidebar-note">
             Profile namespace: <span className="mono-value">{bootstrap.profileDirectory}</span>
           </p>

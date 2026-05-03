@@ -11,7 +11,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
     <ScreenShell
       title="Desktop Poker"
       lead="Start a real LAN host or join flow, inspect product rules, and keep debug-only tooling separated from the production path."
-      badges={[bootstrap.frontendStack, `Instance ${bootstrap.instanceId}`]}
+      badges={[bootstrap.frontendStack, `Instance ${bootstrap.instanceLabel}`]}
     >
       <div className="content-grid">
         <SectionCard kicker="Primary actions" title="Entry points">

@@ -546,31 +546,31 @@ Before coding, treat these as fixed:
 ## 11. M8 — Multi-instance local testing support
 
 ### 11.1 Per-instance state isolation
-- [ ] separate storage namespace per instance
-- [ ] separate session identity per instance
-- [ ] separate reconnect data per instance
-- [ ] no cross-instance stomping of settings/state
+- [x] separate storage namespace per instance
+- [x] separate session identity per instance
+- [x] separate reconnect data per instance
+- [x] no cross-instance stomping of settings/state
 
 ### 11.2 Launching multiple instances
-- [ ] allow multiple desktop app instances in debug and production where feasible
-- [ ] no single-instance lock for development/testing builds
-- [ ] document how to launch multiple clients locally
+- [x] allow multiple desktop app instances in debug and production where feasible
+- [x] no single-instance lock for development/testing builds
+- [x] document how to launch multiple clients locally
 
 ### 11.3 Local multi-instance join flow
-- [ ] host on one instance
-- [ ] copy payload
-- [ ] join from another instance via paste or CLI arg
-- [ ] ensure loopback/local LAN flows actually work
+- [x] host on one instance
+- [x] copy payload
+- [x] join from another instance via paste or CLI arg
+- [x] ensure loopback/local LAN flows actually work
 
 ### 11.4 Optional tooling
-- [ ] add a debug command/menu action to launch another instance with copied payload
-- [ ] add a debug action to copy payload directly to clipboard
-- [ ] add an “instance label” or profile ID in debug UI to avoid confusion
+- [x] add a debug command/menu action to launch another instance with copied payload
+- [x] add a debug action to copy payload directly to clipboard
+- [x] add an “instance label” or profile ID in debug UI to avoid confusion
 
 ### 11.5 Required tests / checks
-- [ ] two desktop instances can coexist
-- [ ] they do not share identity/storage incorrectly
-- [ ] they can host/join/play on one machine
+- [x] two desktop instances can coexist
+- [x] they do not share identity/storage incorrectly
+- [x] they can host/join/play on one machine
 
 ---
 

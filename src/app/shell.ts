@@ -64,7 +64,7 @@ export function createDefaultHostDraft(
   bootstrap: DesktopBootstrapState,
 ): HostDraft {
   return {
-    tournamentName: `Desktop Sit 'n Go ${bootstrap.instanceId}`,
+    tournamentName: `Desktop Sit 'n Go ${bootstrap.instanceLabel}`,
     maxPlayers: 6,
     startingStack: 1500,
     blindPresetId: BLIND_PRESETS[0].id,
@@ -75,7 +75,7 @@ export function createDefaultHostDraft(
 }
 
 export function createDefaultDisplayName(bootstrap: DesktopBootstrapState) {
-  return `Player ${bootstrap.instanceId}`;
+  return `Player ${bootstrap.instanceLabel}`;
 }
 
 export function buildParticipantShell(
@@ -149,8 +149,8 @@ export function buildHostShareText(
   ].join("\n");
 }
 
-export function storageKey(instanceId: string, suffix: string) {
-  return `desktop-poker:${instanceId}:${suffix}`;
+export function storageKey(storageNamespace: string, suffix: string) {
+  return `${storageNamespace}:${suffix}`;
 }
 
 export function readStoredValue<T>(
