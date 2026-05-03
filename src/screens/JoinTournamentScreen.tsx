@@ -23,6 +23,25 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 }
               />
             </label>
+            {bootstrap.parsedLaunchJoinPayload ? (
+              <>
+                <p className="surface-label">Decoded payload</p>
+                <div className="surface-row">
+                  <span className="status-badge success">
+                    {bootstrap.parsedLaunchJoinPayload.hostAddress}:
+                    {bootstrap.parsedLaunchJoinPayload.hostPort}
+                  </span>
+                  <span className="status-badge info">
+                    Table {bootstrap.parsedLaunchJoinPayload.tableId}
+                  </span>
+                </div>
+              </>
+            ) : null}
+            {bootstrap.launchJoinPayloadError ? (
+              <p className="field-hint">
+                Payload validation error: {bootstrap.launchJoinPayloadError}
+              </p>
+            ) : null}
           </div>
         </SectionCard>
 

@@ -10,6 +10,7 @@ The repository now contains:
 - Rust module boundaries for `domain`, `engine`, `tournament`, `protocol`, `networking`, `crypto`, `storage`, `interop`, and `app_state`
 - Tauri command/event bridge for frontend bootstrap state
 - M1 domain/state foundation with immutable poker/tournament models, validators, participant capacity semantics, and state projection logic
+- M2 protocol/crypto foundation with Android-shaped envelopes, canonical JSON signing bytes, replay protection, compact `pkr1_` join payload codec, and Ed25519/X25519/ChaCha utilities
 - Architecture notes and frozen implementation choices aligned to the desktop specs
 
 ## Frozen implementation choices

@@ -181,77 +181,77 @@ Before coding, treat these as fixed:
 ## 5. M2 — Protocol and crypto compatibility layer
 
 ### 5.1 Implement canonical envelope models
-- [ ] `SignedEnvelope`
-- [ ] `EncryptedPrivateEnvelope`
-- [ ] message type enums matching the Android protocol where practical
-- [ ] body payload structs for:
-  - [ ] join
-  - [ ] reconnect
-  - [ ] seat claim
-  - [ ] ready state changes
-  - [ ] tournament start
-  - [ ] hand lifecycle events
-  - [ ] action submission
-  - [ ] action rejection
-  - [ ] elimination
-  - [ ] tournament completion
-  - [ ] snapshot
-  - [ ] resync
-  - [ ] protocol errors
+- [x] `SignedEnvelope`
+- [x] `EncryptedPrivateEnvelope`
+- [x] message type enums matching the Android protocol where practical
+- [x] body payload structs for:
+  - [x] join
+  - [x] reconnect
+  - [x] seat claim
+  - [x] ready state changes
+  - [x] tournament start
+  - [x] hand lifecycle events
+  - [x] action submission
+  - [x] action rejection
+  - [x] elimination
+  - [x] tournament completion
+  - [x] snapshot
+  - [x] resync
+  - [x] protocol errors
 
 ### 5.2 Implement canonical JSON serialization for signature bytes
-- [ ] Sort object keys lexicographically at every nesting level
-- [ ] Use UTF-8 encoding
-- [ ] Emit no insignificant whitespace
-- [ ] Exclude `signature` field from signed bytes
-- [ ] Create test vectors for canonical serialization
-- [ ] Compare canonical bytes against expected fixtures
+- [x] Sort object keys lexicographically at every nesting level
+- [x] Use UTF-8 encoding
+- [x] Emit no insignificant whitespace
+- [x] Exclude `signature` field from signed bytes
+- [x] Create test vectors for canonical serialization
+- [x] Compare canonical bytes against expected fixtures
 
 ### 5.3 Implement Rust crypto provider
-- [ ] Generate Ed25519 keypair
-- [ ] Generate X25519 keypair
-- [ ] Sign signed envelopes
-- [ ] Verify signed envelopes
-- [ ] Encrypt private payloads
-- [ ] Decrypt private payloads
-- [ ] Expose key fingerprints / IDs
-- [ ] Keep provider behind internal trait/abstraction
+- [x] Generate Ed25519 keypair
+- [x] Generate X25519 keypair
+- [x] Sign signed envelopes
+- [x] Verify signed envelopes
+- [x] Encrypt private payloads
+- [x] Decrypt private payloads
+- [x] Expose key fingerprints / IDs
+- [x] Keep provider behind internal trait/abstraction
 
 ### 5.4 Replay protection
-- [ ] Add message counters per sender
-- [ ] Add message IDs for dedupe
-- [ ] Reject stale counters
-- [ ] Reject duplicate message IDs
-- [ ] Reject stale session epoch
-- [ ] Reject mismatched table/session identifiers
+- [x] Add message counters per sender
+- [x] Add message IDs for dedupe
+- [x] Reject stale counters
+- [x] Reject duplicate message IDs
+- [x] Reject stale session epoch
+- [x] Reject mismatched table/session identifiers
 
 ### 5.5 Compatibility fixtures
-- [ ] Build protocol fixtures that match Android semantics
-- [ ] Add static tests for:
-  - [ ] envelope field ordering
-  - [ ] signature verification
-  - [ ] encrypted private payload round-trip
-  - [ ] sequence handling
-- [ ] Add comments noting any temporary intentional incompatibility
+- [x] Build protocol fixtures that match Android semantics
+- [x] Add static tests for:
+  - [x] envelope field ordering
+  - [x] signature verification
+  - [x] encrypted private payload round-trip
+  - [x] sequence handling
+- [x] Add comments noting any temporary intentional incompatibility
 
 ### 5.6 Join payload contract
-- [ ] Implement one canonical versioned join payload schema with fields:
-  - [ ] `payloadVersion`
-  - [ ] `hostAddress`
-  - [ ] `hostPort`
-  - [ ] `tableId`
-  - [ ] `sessionEpoch`
-  - [ ] `hostSigningPublicKey`
-  - [ ] `joinToken`
-  - [ ] `generatedAtMs`
-  - [ ] optional `tableName`
-- [ ] Implement strict validation for this payload
-- [ ] Use this exact schema everywhere:
-  - [ ] host generation
-  - [ ] UI display/copy
-  - [ ] join parsing
-  - [ ] CLI/deep link parsing
-  - [ ] Android interoperability testing
+- [x] Implement one canonical versioned join payload schema with fields:
+  - [x] `payloadVersion`
+  - [x] `hostAddress`
+  - [x] `hostPort`
+  - [x] `tableId`
+  - [x] `sessionEpoch`
+  - [x] `hostSigningPublicKey`
+  - [x] `joinToken`
+  - [x] `generatedAtMs`
+  - [x] optional `tableName`
+- [x] Implement strict validation for this payload
+- [x] Use this exact schema everywhere:
+  - [x] host generation
+  - [x] UI display/copy
+  - [x] join parsing
+  - [x] CLI/deep link parsing
+  - [x] Android interoperability testing
 
 ---
 

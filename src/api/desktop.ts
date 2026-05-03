@@ -13,6 +13,18 @@ export type ScreenDescriptor = {
   surface: string;
 };
 
+export type JoinPayload = {
+  payloadVersion: number;
+  hostAddress: string;
+  hostPort: number;
+  tableId: string;
+  sessionEpoch: number;
+  hostSigningPublicKey: string;
+  joinToken: string;
+  generatedAtMs: number;
+  tableName: string | null;
+};
+
 export type DesktopBootstrapState = {
   appName: string;
   protocolVersion: number;
@@ -26,6 +38,8 @@ export type DesktopBootstrapState = {
   instanceId: string;
   profileDirectory: string;
   launchJoinPayload: string | null;
+  parsedLaunchJoinPayload: JoinPayload | null;
+  launchJoinPayloadError: string | null;
   debugToolsEnabled: boolean;
   backendModules: BackendModuleDescriptor[];
   screens: ScreenDescriptor[];

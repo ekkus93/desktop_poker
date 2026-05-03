@@ -44,6 +44,8 @@ pub struct DesktopBootstrapState {
     pub instance_id: String,
     pub profile_directory: String,
     pub launch_join_payload: Option<String>,
+    pub parsed_launch_join_payload: Option<domain::JoinPayload>,
+    pub launch_join_payload_error: Option<String>,
     pub debug_tools_enabled: bool,
     pub backend_modules: Vec<ModuleDescriptor>,
     pub screens: Vec<ScreenDescriptor>,
@@ -60,6 +62,9 @@ impl DesktopAppState {
         let instance_id = detect_instance_id();
         let profile_directory = detect_profile_directory(&instance_id);
         let debug_tools_enabled = cfg!(debug_assertions);
+        let launch_join_payload = detect_launch_join_payload();
+        let (parsed_launch_join_payload, launch_join_payload_error) =
+            parse_launch_join_payload(launch_join_payload.as_deref());
 
         Self {
             bootstrap: DesktopBootstrapState {
@@ -74,7 +79,9 @@ impl DesktopAppState {
                 crypto_stack: crypto::stack(),
                 instance_id,
                 profile_directory: profile_directory.display().to_string(),
-                launch_join_payload: detect_launch_join_payload(),
+                launch_join_payload,
+                parsed_launch_join_payload,
+                launch_join_payload_error,
                 debug_tools_enabled,
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
@@ -203,6 +210,18 @@ fn detect_launch_join_payload() -> Option<String> {
     parse_arg_value(JOIN_PAYLOAD_ARG)
         .or_else(|| env::var(JOIN_PAYLOAD_ENV_VAR).ok())
         .filter(|value| !value.trim().is_empty())
+}
+
+fn parse_launch_join_payload(
+    raw_payload: Option<&str>,
+) -> (Option<domain::JoinPayload>, Option<String>) {
+    match raw_payload {
+        Some(payload) => match protocol::decode_join_payload(payload) {
+            Ok(join_payload) => (Some(join_payload), None),
+            Err(error) => (None, Some(error.to_string())),
+        },
+        None => (None, None),
+    }
 }
 
 fn parse_arg_value(flag: &str) -> Option<String> {

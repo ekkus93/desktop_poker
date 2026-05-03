@@ -17,6 +17,8 @@ const bootstrap: DesktopBootstrapState = {
   instanceId: "test-instance",
   profileDirectory: "/tmp/desktop-poker/test-instance",
   launchJoinPayload: null,
+  parsedLaunchJoinPayload: null,
+  launchJoinPayloadError: null,
   debugToolsEnabled: true,
   backendModules: [],
   screens: [],
