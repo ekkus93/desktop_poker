@@ -472,6 +472,18 @@ dt {
   gap: var(--surface-gap);
 }
 
+.home-stage,
+.pregame-workstation,
+.history-station-layout,
+.help-grid,
+.complete-grid,
+.recovery-grid,
+.table-screen-shell {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
 .home-stage {
   grid-template-columns: minmax(0, 1fr);
   justify-items: stretch;
@@ -522,6 +534,7 @@ dt {
 .support-card,
 .history-primary-card {
   min-height: 0;
+  align-content: start;
 }
 
 .scroll-list {
@@ -1511,6 +1524,16 @@ code {
   .compact-invite-textarea {
     min-height: 7.5rem;
   }
+
+  .history-station-layout,
+  .help-grid,
+  .complete-grid,
+  .recovery-grid,
+  .table-screen-shell,
+  .pregame-workstation,
+  .home-stage {
+    gap: 0.7rem;
+  }
 }
 
 @media (max-height: 780px) {
@@ -1557,6 +1580,16 @@ code {
 
   .compact-invite-textarea {
     min-height: 6.5rem;
+  }
+
+  .history-station-layout,
+  .help-grid,
+  .complete-grid,
+  .recovery-grid,
+  .table-screen-shell,
+  .pregame-workstation,
+  .home-stage {
+    gap: 0.55rem;
   }
 }
 

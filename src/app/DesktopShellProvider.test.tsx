@@ -89,4 +89,36 @@ describe("DesktopShellProvider", () => {
       "Bob",
     );
   });
+
+  it("normalizes legacy host drafts so critical controls stay visible", () => {
+    localStorage.clear();
+
+    const bootstrap = createBootstrap({
+      storageNamespace: "desktop-poker:legacy-host",
+      instanceId: "legacy-host",
+      instanceLabel: "legacy-host",
+    });
+
+    localStorage.setItem(
+      "desktop-poker:legacy-host:host-draft",
+      JSON.stringify({
+        tournamentName: "Legacy Sit 'n Go",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        hostPort: 43818,
+        advancedOpen: false,
+      }),
+    );
+
+    renderWithProviders(<StorageHarness />, { bootstrap });
+
+    expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).toContain(
+      '"tournamentName":"Legacy Sit \'n Go"',
+    );
+    expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).not.toContain(
+      '"advancedOpen":false',
+    );
+  });
 });

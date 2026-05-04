@@ -94,12 +94,14 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.getByDisplayValue(/host endpoint: 192\.168\.1\.10:43818/i)).toBeTruthy();
   });
 
-  it("opens advanced options when a persisted host draft is collapsed", async () => {
+  it("keeps critical setup options visible for legacy persisted host drafts", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
-    const storedDraft = { ...createDefaultHostDraft(bootstrap), advancedOpen: false };
     localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "host-draft"),
-      JSON.stringify(storedDraft),
+      JSON.stringify({
+        ...createDefaultHostDraft(bootstrap),
+        advancedOpen: false,
+      }),
     );
 
     renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {

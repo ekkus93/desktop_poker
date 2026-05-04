@@ -15,7 +15,6 @@ export type HostDraft = {
   blindPresetId: string;
   turnTimerSeconds: number;
   hostPort: number;
-  advancedOpen: boolean;
 };
 
 export type ParticipantShell = {
@@ -71,12 +70,54 @@ export function createDefaultHostDraft(
     blindPresetId: BLIND_PRESETS[0].id,
     turnTimerSeconds: 30,
     hostPort: bootstrap.defaultHostPort,
-    advancedOpen: true,
   };
 }
 
 export function createDefaultDisplayName(bootstrap: DesktopBootstrapState) {
   return `Player ${bootstrap.instanceLabel}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isValidPortNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
+}
+
+export function normalizeHostDraft(
+  value: unknown,
+  fallbackDraft: HostDraft,
+): HostDraft {
+  if (!isRecord(value)) {
+    return fallbackDraft;
+  }
+
+  return {
+    tournamentName:
+      typeof value.tournamentName === "string" && value.tournamentName.trim()
+        ? value.tournamentName
+        : fallbackDraft.tournamentName,
+    maxPlayers:
+      typeof value.maxPlayers === "number" && MAX_PLAYER_OPTIONS.includes(value.maxPlayers)
+        ? value.maxPlayers
+        : fallbackDraft.maxPlayers,
+    startingStack:
+      typeof value.startingStack === "number" && STARTING_STACK_OPTIONS.includes(value.startingStack)
+        ? value.startingStack
+        : fallbackDraft.startingStack,
+    blindPresetId:
+      typeof value.blindPresetId === "string" && BLIND_PRESETS.some((preset) => preset.id === value.blindPresetId)
+        ? value.blindPresetId
+        : fallbackDraft.blindPresetId,
+    turnTimerSeconds:
+      typeof value.turnTimerSeconds === "number" && TURN_TIMER_OPTIONS.includes(value.turnTimerSeconds)
+        ? value.turnTimerSeconds
+        : fallbackDraft.turnTimerSeconds,
+    hostPort: isValidPortNumber(value.hostPort)
+      ? value.hostPort
+      : fallbackDraft.hostPort,
+  };
 }
 
 export function buildParticipantShell(

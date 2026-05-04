@@ -77,55 +77,55 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 3.1 Eliminate critical controls hidden behind legacy persisted state
 
-- [ ] Audit all persisted shell state that can affect initial screen visibility.
-- [ ] Identify any screen where old `localStorage` values can hide essential UI.
-- [ ] Decide which persisted fields are safe to honor and which should be migrated.
-- [ ] Replace one-off runtime recovery hacks with explicit migration or normalization where possible.
-- [ ] Add versioning or normalization logic for persisted UI state if needed.
+- [x] Audit all persisted shell state that can affect initial screen visibility.
+- [x] Identify any screen where old `localStorage` values can hide essential UI.
+- [x] Decide which persisted fields are safe to honor and which should be migrated.
+- [x] Replace one-off runtime recovery hacks with explicit migration or normalization where possible.
+- [x] Add versioning or normalization logic for persisted UI state if needed.
 
 ### 3.2 Review all toggles that hide important controls
 
-- [ ] Review all collapsible UI sections in player-facing flows.
-- [ ] For each collapsible region, classify the hidden content as:
-	- [ ] critical setup
-	- [ ] optional detail
-	- [ ] debug/developer-only
-- [ ] Ensure critical setup controls are visible by default.
-- [ ] Keep optional detail collapsible only when it does not block successful flow completion.
+- [x] Review all collapsible UI sections in player-facing flows.
+- [x] For each collapsible region, classify the hidden content as:
+	- [x] critical setup
+	- [x] optional detail
+	- [x] debug/developer-only
+- [x] Ensure critical setup controls are visible by default.
+- [x] Keep optional detail collapsible only when it does not block successful flow completion.
 
 ## Phase 4: Improve Layout Resilience and Visibility
 
 ### 4.1 Audit the no-scroll shell strategy
 
-- [ ] Review every screen currently rendered inside the fixed-height shell.
-- [ ] Identify screens that rely on global `overflow: hidden` and may clip content.
-- [ ] Decide which screens should have a dedicated internal scroll container.
-- [ ] Replace brittle full-screen clipping with intentional, screen-level overflow behavior.
-- [ ] Keep critical actions and primary context visible without requiring accidental clipping workarounds.
+- [x] Review every screen currently rendered inside the fixed-height shell.
+- [x] Identify screens that rely on global `overflow: hidden` and may clip content.
+- [x] Decide which screens should have a dedicated internal scroll container.
+- [x] Replace brittle full-screen clipping with intentional, screen-level overflow behavior.
+- [x] Keep critical actions and primary context visible without requiring accidental clipping workarounds.
 
 ### 4.2 Add per-screen viewport fit review
 
-- [ ] Review the following screens at common desktop sizes:
-	- [ ] Home
-	- [ ] Host Tournament Setup
-	- [ ] Join Tournament
-	- [ ] Lobby
-	- [ ] Main Table
-	- [ ] Hand History
-	- [ ] Rules
-	- [ ] Recovery
-	- [ ] Tournament Complete
-- [ ] Verify primary headings, main actions, and required controls are visible on initial load.
-- [ ] Verify no critical content is pushed below an inaccessible clipped region.
-- [ ] Verify card grids and control rails still work on shorter-height displays.
+- [x] Review the following screens at common desktop sizes:
+	- [x] Home
+	- [x] Host Tournament Setup
+	- [x] Join Tournament
+	- [x] Lobby
+	- [x] Main Table
+	- [x] Hand History
+	- [x] Rules
+	- [x] Recovery
+	- [x] Tournament Complete
+- [x] Verify primary headings, main actions, and required controls are visible on initial load.
+- [x] Verify no critical content is pushed below an inaccessible clipped region.
+- [x] Verify card grids and control rails still work on shorter-height displays.
 
 ### 4.3 Improve density and hierarchy for short desktop heights
 
-- [ ] Review spacing tokens under `max-height` media queries.
-- [ ] Reduce vertical waste where panels stack too loosely.
-- [ ] Prioritize action visibility over decorative spacing.
-- [ ] Ensure button rows do not push required controls off-screen at shorter heights.
-- [ ] Review form control sizes and line lengths for compact desktop windows.
+- [x] Review spacing tokens under `max-height` media queries.
+- [x] Reduce vertical waste where panels stack too loosely.
+- [x] Prioritize action visibility over decorative spacing.
+- [x] Ensure button rows do not push required controls off-screen at shorter heights.
+- [x] Review form control sizes and line lengths for compact desktop windows.
 
 ## Phase 5: Clean Up Information Architecture
 

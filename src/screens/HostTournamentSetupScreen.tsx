@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { ArrowRight, ChevronDown, ChevronUp, Copy, TriangleAlert, Wifi } from "lucide-react";
+import { ArrowRight, Copy, TriangleAlert, Wifi } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
@@ -66,9 +66,10 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     resolvedHostIp,
     lanError,
   );
-  const blindPreset = BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ?? BLIND_PRESETS[0];
+  const blindPreset =
+    BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ??
+    BLIND_PRESETS[0];
   const inviteReady = Boolean(resolvedHostIp && !lanError);
-  const [hasCheckedAdvancedOpen, setHasCheckedAdvancedOpen] = useState(false);
   const canContinueToLobby = inviteReady;
   const blockedProgressMessage = lanError
     ? "Resolve the LAN address before continuing to the lobby."
@@ -87,13 +88,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     }
   };
 
-  useEffect(() => {
-    if (!hasCheckedAdvancedOpen && hostDraft.advancedOpen === false) {
-      updateHostDraft({ advancedOpen: true });
-      setHasCheckedAdvancedOpen(true);
-    }
-  }, [hasCheckedAdvancedOpen, hostDraft.advancedOpen, updateHostDraft]);
-
   const handleTextField =
     (field: "tournamentName") =>
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -107,39 +101,129 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
       className="pregame-screen-shell"
     >
       <div className="pregame-workstation host-station-layout">
-        <SectionCard kicker="Host station" title="Tournament setup" className="workstation-main-card">
+        <SectionCard
+          kicker="Host station"
+          title="Tournament setup"
+          className="workstation-main-card"
+        >
           <div className="workstation-grid">
-            <div className="form-grid two-column-grid compact-form-grid">
-              <label className="field">
-                Tournament name
-                <input
-                  onChange={handleTextField("tournamentName")}
-                  value={hostDraft.tournamentName}
-                />
-              </label>
-              <label className="field">
-                Max players
-                <select
-                  onChange={(event) => {
-                    updateHostDraft({ maxPlayers: Number.parseInt(event.target.value, 10) });
-                  }}
-                  value={hostDraft.maxPlayers}
-                >
-                  {MAX_PLAYER_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option} players
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="form-grid compact-form-grid">
+              <div className="form-grid two-column-grid compact-form-grid">
+                <label className="field">
+                  Tournament name
+                  <input
+                    onChange={handleTextField("tournamentName")}
+                    value={hostDraft.tournamentName}
+                  />
+                </label>
+                <label className="field">
+                  Max players
+                  <select
+                    onChange={(event) => {
+                      updateHostDraft({
+                        maxPlayers: Number.parseInt(event.target.value, 10),
+                      });
+                    }}
+                    value={hostDraft.maxPlayers}
+                  >
+                    {MAX_PLAYER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option} players
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-grid compact-advanced-panel">
+                <label className="field">
+                  Starting stack
+                  <select
+                    onChange={(event) => {
+                      updateHostDraft({
+                        startingStack: Number.parseInt(event.target.value, 10),
+                      });
+                    }}
+                    value={hostDraft.startingStack}
+                  >
+                    {STARTING_STACK_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option} chips
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Blind preset
+                  <select
+                    onChange={(event) => {
+                      updateHostDraft({ blindPresetId: event.target.value });
+                    }}
+                    value={hostDraft.blindPresetId}
+                  >
+                    {BLIND_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label} · {preset.summary}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Turn timer
+                  <select
+                    onChange={(event) => {
+                      updateHostDraft({
+                        turnTimerSeconds: Number.parseInt(event.target.value, 10),
+                      });
+                    }}
+                    value={hostDraft.turnTimerSeconds}
+                  >
+                    {TURN_TIMER_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option} seconds
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Host port
+                  <input
+                    min={1}
+                    onChange={(event) => {
+                      updateHostDraft({
+                        hostPort: clampPort(
+                          event.target.value,
+                          bootstrap.defaultHostPort,
+                        ),
+                      });
+                    }}
+                    type="number"
+                    value={hostDraft.hostPort}
+                  />
+                </label>
+                <div>
+                  <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
+                </div>
+                {lanError ? <p className="inline-banner error">{lanError}</p> : null}
+              </div>
             </div>
 
             <div className="workstation-side-panel">
               <section className="compact-status-panel">
                 <div className="status-row">
-                  <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
-                    {lanError ? <TriangleAlert className="button-icon" strokeWidth={1.9} /> : <Wifi className="button-icon" strokeWidth={1.9} />}
-                    {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
+                  <div
+                    className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}
+                  >
+                    {lanError ? (
+                      <TriangleAlert className="button-icon" strokeWidth={1.9} />
+                    ) : (
+                      <Wifi className="button-icon" strokeWidth={1.9} />
+                    )}
+                    {lanError
+                      ? "Hosting is blocked"
+                      : resolvedHostIp
+                        ? `Ready on ${resolvedHostIp}`
+                        : "Checking this computer"}
                   </div>
                 </div>
               </section>
@@ -161,12 +245,16 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   }}
                 >
                   <p className="kicker">Ready to share</p>
-                  <p className="invite-lead">Click the invite card or use the copy button below.</p>
+                  <p className="invite-lead">
+                    Click the invite card or use the copy button below.
+                  </p>
                   <h4>{hostDraft.tournamentName}</h4>
                   <div className="invite-stat-grid compact-invite-stat-grid">
                     <div>
                       <span className="invite-stat-label">Join</span>
-                      <strong>{resolvedHostIp}:{hostDraft.hostPort}</strong>
+                      <strong>
+                        {resolvedHostIp}:{hostDraft.hostPort}
+                      </strong>
                     </div>
                     <div>
                       <span className="invite-stat-label">Seats</span>
@@ -178,12 +266,16 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     </div>
                     <div>
                       <span className="invite-stat-label">Blinds</span>
-                      <strong>{blindPreset.label} · {blindPreset.firstLevel}</strong>
+                      <strong>
+                        {blindPreset.label} · {blindPreset.firstLevel}
+                      </strong>
                     </div>
                   </div>
                 </section>
               ) : (
-                <p className={`inline-banner ${lanError ? "error" : "info"}`}>{shareText}</p>
+                <p className={`inline-banner ${lanError ? "error" : "info"}`}>
+                  {shareText}
+                </p>
               )}
 
               <div className="button-row workstation-actions">
@@ -216,92 +308,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </button>
                 )}
               </div>
-              {!canContinueToLobby ? <p className="field-hint">{blockedProgressMessage}</p> : null}
-
-              <div className="button-row">
-                <button
-                  className="secondary-button"
-                  onClick={() => {
-                    updateHostDraft({ advancedOpen: !hostDraft.advancedOpen });
-                  }}
-                  type="button"
-                >
-                  <span className="button-content">
-                    {hostDraft.advancedOpen ? <ChevronUp className="button-icon" strokeWidth={1.9} /> : <ChevronDown className="button-icon" strokeWidth={1.9} />}
-                    <span>{hostDraft.advancedOpen ? "Hide game options" : "Show game options"}</span>
-                  </span>
-                </button>
-              </div>
-
-              {hostDraft.advancedOpen ? (
-                <div className="form-grid compact-advanced-panel">
-                  <label className="field">
-                    Starting stack
-                    <select
-                      onChange={(event) => {
-                        updateHostDraft({
-                          startingStack: Number.parseInt(event.target.value, 10),
-                        });
-                      }}
-                      value={hostDraft.startingStack}
-                    >
-                      {STARTING_STACK_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option} chips
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    Blind preset
-                    <select
-                      onChange={(event) => {
-                        updateHostDraft({ blindPresetId: event.target.value });
-                      }}
-                      value={hostDraft.blindPresetId}
-                    >
-                      {BLIND_PRESETS.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.label} · {preset.summary}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    Turn timer
-                    <select
-                      onChange={(event) => {
-                        updateHostDraft({
-                          turnTimerSeconds: Number.parseInt(event.target.value, 10),
-                        });
-                      }}
-                      value={hostDraft.turnTimerSeconds}
-                    >
-                      {TURN_TIMER_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option} seconds
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    Host port
-                    <input
-                      min={1}
-                      onChange={(event) => {
-                        updateHostDraft({
-                          hostPort: clampPort(event.target.value, bootstrap.defaultHostPort),
-                        });
-                      }}
-                      type="number"
-                      value={hostDraft.hostPort}
-                    />
-                  </label>
-                  <div>
-                    <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
-                  </div>
-                  {lanError ? <p className="inline-banner error">{lanError}</p> : null}
-                </div>
+              {!canContinueToLobby ? (
+                <p className="field-hint">{blockedProgressMessage}</p>
               ) : null}
 
               {copyState ? <p className="inline-banner success">{copyState}</p> : null}
@@ -309,7 +317,12 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               {showFallbackShareDetails ? (
                 <label className="field">
                   Invite details
-                  <textarea className="compact-invite-textarea" readOnly rows={6} value={shareText} />
+                  <textarea
+                    className="compact-invite-textarea"
+                    readOnly
+                    rows={6}
+                    value={shareText}
+                  />
                 </label>
               ) : null}
             </div>
