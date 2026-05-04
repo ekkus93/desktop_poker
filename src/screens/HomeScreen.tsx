@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Flag, History, LogIn, Settings, Wrench } from "lucide-react";
+import { Flag, History, LogIn, Settings } from "lucide-react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -15,12 +15,12 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Desktop Poker"
-      lead="Host a game here or join a table with an invite."
+      title="Your next table"
+      lead="Host a game here or join with an invite."
       badges={[]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Start here" title="Pick your path">
+        <SectionCard kicker="Start here" title="Host or join">
           <div className="button-row">
             <Link className="primary-button" to="/host">
               <span className="button-content">
@@ -34,14 +34,6 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                 <span>Join Tournament</span>
               </span>
             </Link>
-            {bootstrap.debugToolsEnabled ? (
-              <Link className="secondary-button" to="/debug">
-                <span className="button-content">
-                  <Wrench className="button-icon" strokeWidth={1.9} />
-                  <span>Internal Tools</span>
-                </span>
-              </Link>
-            ) : null}
           </div>
           <div className="home-choice-grid">
             <article className="choice-card choice-card-primary">
@@ -57,7 +49,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Resume here">
+        <SectionCard title="Continue where you left off">
           {hasSavedProgress ? (
             <div className="stacked-list compact-home-list">
               <article className="list-panel">
@@ -120,13 +112,13 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
               ) : null}
             </div>
           ) : (
-            <p className="field-hint">No saved hands or remembered invites yet.</p>
+            <p className="field-hint">No saved tables or invites yet.</p>
           )}
           <div className="button-row">
             <Link className="secondary-button" to="/rules">
               <span className="button-content">
                 <Settings className="button-icon" strokeWidth={1.9} />
-                <span>Rules and Settings</span>
+                <span>Game Help</span>
               </span>
             </Link>
           </div>

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Bug, Flag, History, Home, LogIn, Settings } from "lucide-react";
+import { ChevronLeft, Flag, History, Home, LogIn, Settings } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
@@ -40,8 +40,67 @@ export function AppFrame({
   const { displayName } = useDesktopShell();
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
-  const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules" || item.to === "/debug");
+  const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules");
   const primaryNavigation = navigation.filter((item) => item.to !== "/history" && item.to !== "/rules" && item.to !== "/debug");
+  const currentPrimaryRoute = primaryNavigation.find((item) => item.to === location.pathname);
+
+  if (!inTournament) {
+    return (
+      <div className="app-frame landing-frame">
+        <header className="topbar">
+          <div className="topbar-brand">
+            <p className="kicker">Desktop Poker</p>
+            <h1>{bootstrap.appName}</h1>
+          </div>
+
+          {location.pathname === "/" ? <div className="topbar-spacer" aria-hidden="true" /> : (
+            <nav aria-label="Desktop poker navigation" className="topbar-nav">
+              <NavLink className="nav-link topbar-link" to="/">
+                <span className="button-content">
+                  <ChevronLeft className="button-icon" strokeWidth={1.8} />
+                  <span>Back home</span>
+                </span>
+              </NavLink>
+              {currentPrimaryRoute ? (
+                <span className="topbar-current-surface">
+                  {(() => {
+                    const Icon = getNavigationIcon(currentPrimaryRoute.label);
+                    return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                  })()}
+                  <span>{currentPrimaryRoute.label}</span>
+                </span>
+              ) : null}
+            </nav>
+          )}
+
+          <div className="topbar-meta">
+            <p className="player-pill">{displayName}</p>
+            <div className="topbar-support-links">
+              {supportNavigation.map((item) => (
+                <NavLink
+                  key={item.to}
+                  className={({ isActive }) =>
+                    isActive ? "support-link active" : "support-link"
+                  }
+                  to={item.to}
+                >
+                  <span className="button-content">
+                    {(() => {
+                      const Icon = getNavigationIcon(item.label);
+                      return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                    })()}
+                    <span>{item.label}</span>
+                  </span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        </header>
+
+        <main className="content">{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className="app-frame">
@@ -106,7 +165,6 @@ export function AppFrame({
           <p className="sidebar-note">
             Player <strong>{displayName}</strong>
           </p>
-          {bootstrap.debugToolsEnabled ? <p className="footer-copy">Internal tools available in this build.</p> : null}
         </footer>
       </aside>
 

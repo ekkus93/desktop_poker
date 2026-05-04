@@ -100,7 +100,7 @@ describe("AppShell integration", () => {
     renderAppShell("/");
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: "Desktop Poker" }),
+      await screen.findByRole("heading", { level: 2, name: "Your next table" }),
     ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: "Host Tournament" }));

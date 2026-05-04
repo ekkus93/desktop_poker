@@ -11,22 +11,22 @@ describe("HomeScreen", () => {
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Desktop Poker" }),
+      screen.getByRole("heading", { level: 2, name: "Your next table" }),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Rules and Settings" })).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 3, name: "Resume here" })).toBeTruthy();
-    expect(screen.getByText(/no saved hands or remembered invites yet/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Game Help" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: "Continue where you left off" })).toBeTruthy();
+    expect(screen.getByText(/no saved tables or invites yet/i)).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
-  it("shows the debug-only entry when enabled", () => {
+  it("keeps the home screen focused even when debug tools are enabled", () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: true });
 
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
-    expect(screen.getByRole("link", { name: "Internal Tools" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
   it("shows the saved hand-history count from cached storage", () => {
