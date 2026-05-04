@@ -41,4 +41,16 @@ describe("ErrorStateScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reconnect failed" }));
     expect((await screen.findAllByText(/could not restore the same session/i)).length).toBeGreaterThan(0);
   });
+
+  it("exposes the reconnect recovery path with clear next actions", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: true });
+
+    renderWithProviders(<ErrorStateScreen bootstrap={bootstrap} />, { bootstrap });
+
+    fireEvent.click(screen.getByRole("button", { name: "Reconnected" }));
+
+    expect((await screen.findAllByText(/you are back in the same session with the latest table state/i)).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Open table" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Open history" }).length).toBeGreaterThan(0);
+  });
 });

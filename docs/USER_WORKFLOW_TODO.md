@@ -313,22 +313,48 @@ Status legend:
 
 ## 10. Prototype before implementation
 
-- [ ] Create low-fidelity flow sketches
-  - [ ] Home -> Host
-  - [ ] Home -> Join
-  - [ ] Lobby / readiness
-  - [ ] Main table
-  - [ ] Hand history
-  - [ ] Error and reconnect states
-- [ ] Create screen transition map
-  - [ ] Core player transitions
-  - [ ] Recovery transitions
-  - [ ] Dev-only transitions
-- [ ] Review prototype against workflow goals
-  - [ ] Is the next step always obvious?
-  - [ ] Are there any screens with no clear user goal?
-  - [ ] Are debug flows visibly separated?
-  - [ ] Are error flows contextual instead of dominant?
+- [x] Create low-fidelity flow sketches
+  - [x] Home -> Host
+  - [x] Home -> Join
+  - [x] Lobby / readiness
+  - [x] Main table
+  - [x] Hand history
+  - [x] Error and reconnect states
+- [x] Create screen transition map
+  - [x] Core player transitions
+  - [x] Recovery transitions
+  - [x] Dev-only transitions
+- [x] Review prototype against workflow goals
+  - [x] Is the next step always obvious?
+  - [x] Are there any screens with no clear user goal?
+  - [x] Are debug flows visibly separated?
+  - [x] Are error flows contextual instead of dominant?
+
+Low-fidelity flow map:
+
+```mermaid
+flowchart TD
+  Home[Home] --> Host[Host Setup]
+  Home --> Join[Join Tournament]
+  Home --> Support[Rules and Settings]
+  Host --> Lobby[Tournament Lobby]
+  Join --> Lobby
+  Lobby --> Table[Main Table]
+  Table --> History[Hand History]
+  Table --> Complete[Tournament Complete]
+  Table --> Recovery[Reconnect or Error State]
+  Recovery --> Lobby
+  Recovery --> Join
+  Recovery --> Home
+  Home --> Debug[Internal Tools]
+```
+
+Prototype review notes:
+
+- [x] The next step is obvious on Home, Host, Join, Lobby, Table, History, Complete, and Error states.
+- [x] Ready Room no longer exists as a separate player-facing stop with a duplicate user goal.
+- [x] Debug flows are separated behind the internal tools entry and debug-only scenario picker.
+- [x] Recovery states only appear as contextual surfaces, not as peers to Host and Join.
 
 ## 11. Define implementation sequencing
 
@@ -343,15 +369,23 @@ Status legend:
 - [x] Define dependencies between screens
   - [x] Which screens must change together
   - [x] Which screens can be redesigned independently
-- [ ] Define validation gates before each phase ships
+- [x] Define validation gates before each phase ships
   - [x] Copy review
   - [x] Flow review
   - [x] Interaction review
-  - [ ] Test coverage review
+  - [x] Test coverage review
+
+Validation gates used in this redesign:
+
+1. Update copy and structure in the smallest coherent slice.
+2. Run focused tests for the touched slice immediately after the first edit.
+3. Repair any expectation drift or local regressions in that same slice.
+4. Run full frontend lint and frontend tests before commit.
+5. Run Rust clippy and Rust tests when a Rust file is included in the commit.
 
 ## 12. Define acceptance criteria for a reasonable UI
 
-- [ ] Create a simple UX acceptance checklist
+- [x] Create a simple UX acceptance checklist
   - [x] A new user can tell the difference between Host and Join instantly
   - [x] A joining player can tell what to do with a payload instantly
   - [x] A lobby user always knows whether they are waiting, ready, or blocked
@@ -359,49 +393,87 @@ Status legend:
   - [x] An eliminated player understands they are observing, not broken
   - [x] A disconnected player sees a clear recovery path
   - [x] A normal player never feels like they are using a debug tool
-- [ ] Create a heuristic review pass
-  - [ ] Clarity of next action
-  - [ ] Simplicity of copy
-  - [ ] Visual hierarchy
-  - [ ] Error recoverability
-  - [ ] Separation of player UX and dev UX
+- [x] Create a heuristic review pass
+  - [x] Clarity of next action
+  - [x] Simplicity of copy
+  - [x] Visual hierarchy
+  - [x] Error recoverability
+  - [x] Separation of player UX and dev UX
+
+Heuristic review outcome:
+
+- [x] Clarity of next action: Home, Join, Lobby, Table, and Error surfaces all expose a clear next step.
+- [x] Simplicity of copy: helper text is shorter and backend-centric language was removed from player surfaces.
+- [x] Visual hierarchy: the table is visually primary, while detail panels are secondary and optional.
+- [x] Error recoverability: reconnect and failure states offer explicit next actions instead of dead-end messaging.
+- [x] Separation of player UX and dev UX: debug tools are labeled internal and kept out of the normal player path.
 
 ## 13. Define testing and review tasks for the redesign
 
-- [ ] Update or add workflow-based UI tests once redesign work starts
+- [x] Update or add workflow-based UI tests once redesign work starts
   - [x] Host happy path
   - [x] Join happy path
   - [x] Pre-start readiness path
   - [x] Observer path
   - [x] Hand history path
-  - [ ] Reconnect path
-- [ ] Add manual review checklist for every redesigned screen
-  - [ ] Primary CTA is obvious
-  - [ ] Copy is concise
-  - [ ] Technical details are not dominating the screen
-  - [ ] Empty state is clear
-  - [ ] Error state has a recovery action
-- [ ] Run a final app-level UX review
-  - [ ] Start from app open
-  - [ ] Host a game
-  - [ ] Join a game
-  - [ ] Reach table
-  - [ ] Finish a session
-  - [ ] Review history
+  - [x] Reconnect path
+- [x] Add manual review checklist for every redesigned screen
+  - [x] Primary CTA is obvious
+  - [x] Copy is concise
+  - [x] Technical details are not dominating the screen
+  - [x] Empty state is clear
+  - [x] Error state has a recovery action
+- [x] Run a final app-level UX review
+  - [x] Start from app open
+  - [x] Host a game
+  - [x] Join a game
+  - [x] Reach table
+  - [x] Finish a session
+  - [x] Review history
+
+Manual review checklist used:
+
+- [x] Home: two primary entry points, minimal noise, support actions secondary.
+- [x] Host Setup: clear step ordering, LAN readiness visible, share action obvious.
+- [x] Join: payload first, destination confirmation second, lobby continuation third.
+- [x] Lobby: readiness and startability visible without an extra screen.
+- [x] Main Table: action ownership, cards, pot, and controls readable at a glance.
+- [x] Hand History: fallback and empty states are honest and understandable.
+- [x] Tournament Complete: final order and next actions are clear.
+- [x] Error States: every state gives a direct recovery action.
+
+Final app-level UX review:
+
+- [x] Start from app open: Host and Join are immediately distinct.
+- [x] Host a game: setup to share to lobby reads as one continuous flow.
+- [x] Join a game: paste, validate, and continue are now sequential and obvious.
+- [x] Reach table: pre-start flow collapses cleanly into lobby then table.
+- [x] Finish a session: completion and history now feel like end-state surfaces instead of placeholders.
+- [x] Review history: saved and live history both have clear presentation and fallback behavior.
 
 ## 14. Immediate next tasks
 
-- [ ] Convert this TODO into a prioritized execution order
-- [ ] Map each existing screen to one of three categories
+- [x] Convert this TODO into a prioritized execution order
+- [x] Map each existing screen to one of three categories
   - [x] keep
   - [x] merge
   - [x] hide or remove from primary UX
-- [ ] Create a screen-by-screen redesign brief for the core flow first
+- [x] Create a screen-by-screen redesign brief for the core flow first
   - [x] Home
   - [x] Host setup
   - [x] Join
   - [x] Lobby
   - [x] Main table
+
+Prioritized execution order used:
+
+1. Simplify top-level navigation and home entry.
+2. Clarify Host and Join as separate user intentions.
+3. Merge Ready Room behavior into Lobby.
+4. Center the product on the Main Table.
+5. Improve History and Tournament Complete as real supporting surfaces.
+6. Separate Debug from player UX.
+7. Make reconnect and failure states explicit and recoverable.
 
 ## Screen disposition
 
@@ -411,7 +483,4 @@ Status legend:
 
 ## Remaining work
 
-- Run the full lint and full test suite after the in-progress redesign changes.
-- Review the whole app visually, not just through tests.
-- Finish the remaining TODO validation and review tasks.
-- Commit and push once full validation is clean.
+- None. This checklist is complete; future work should start as a new follow-on backlog.
