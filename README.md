@@ -4,24 +4,52 @@
 
 Desktop Poker is a Linux-first Tauri 2 desktop client/host for single-table Sit 'n Go No-Limit Texas Hold'em over real LAN TCP. The Rust backend owns networking, protocol compatibility, crypto, tournament orchestration, reconnect/resync, persistence, and state projection; the React + TypeScript frontend is a rendering shell.
 
-## Current milestone status
+## Current product status
 
-The repository now contains:
+The repository currently includes:
 
-- M0 workspace scaffold for Tauri 2 + Rust + React/TypeScript
-- Rust module boundaries for `domain`, `engine`, `tournament`, `protocol`, `networking`, `crypto`, `storage`, `interop`, and `app_state`
-- Tauri command/event bridge for frontend bootstrap state
-- M1 domain/state foundation with immutable poker/tournament models, validators, participant capacity semantics, and state projection logic
-- M2 protocol/crypto foundation with Android-shaped envelopes, canonical JSON signing bytes, replay protection, compact `pkr1_` join payload codec, and Ed25519/X25519/ChaCha utilities
-- M3 real TCP runtime foundation with length-prefixed JSON framing, host/client join flow, encrypted private delivery, LAN IP validation, and transport tests
-- M4 poker engine and tournament loop foundation with authoritative action windows, timeout handling, side-pot settlement, blind progression, and tournament lifecycle tests
-- M5 reconnect/resync runtime with original-identity reconnect validation, reconnect-eligible disconnect handling, authoritative snapshot replacement, and sequence mismatch recovery tests
-- M6 frontend shell flow with host/join/lobby/ready-room/table/history/complete/help/error surfaces, debug-gated internal tools, and launch-payload validation wiring
-- M7 main-table UX polish with Rust-backed table projection rendering, observer mode, action tray confirmation flows, side-panel history/standings, and expanded frontend/runtime tests
-- M8 multi-instance local testing support with isolated profile/session namespaces, debug-only launch helpers, and one-machine host/join/play coverage
-- M9 Android interop audit against the current Android repo with documented findings and Android-aligned private-envelope key derivation
-- M10 persistence, cached hand-history summaries, Tauri window-state restore, and Linux bundle output for release-readiness
-- Architecture notes and frozen implementation choices aligned to the desktop specs
+- A complete desktop host and join flow for a single-table Sit 'n Go over LAN TCP.
+- A player-first frontend built around `Home`, `Host`, `Join`, `Lobby`, `Main Table`, `History`, `Tournament Complete`, and contextual recovery states.
+- A Rust backend that owns poker rules, tournament orchestration, networking, reconnect and resync behavior, protocol compatibility, crypto, persistence, and state projection.
+- Launch-payload handling for direct join flows using compact `pkr1_...` invitations.
+- Debug-gated internal tools and multi-instance local testing support without exposing those flows as normal player UX.
+- Cached local shell state, saved hand-history summaries, and per-instance storage and window-state isolation.
+- Linux desktop bundle output through Tauri 2.
+- Frontend and Rust test coverage for host, join, table, observer, reconnect, persistence, and transport behavior.
+
+In practice, the app is already usable for local desktop-hosted poker sessions, while mixed Android/Desktop live sessions remain an explicit interop follow-up rather than a proven shipping claim.
+
+## Current player flow
+
+The current player-facing flow is:
+
+1. Home: choose `Host Tournament` or `Join Tournament`
+2. Host or Join setup: configure the table or validate a `pkr1_...` payload
+3. Lobby: review seated players, readiness, and startability
+4. Main Table: play, observe after elimination, and access secondary detail views
+5. History or Complete: review settled hands and final tournament state
+
+Recovery and reconnect states appear only when needed, and debug or multi-instance tooling stays outside the normal player path.
+
+## What the app is responsible for
+
+### Frontend
+
+- Presents the player flow and screen hierarchy.
+- Renders host, join, lobby, table, history, completion, help, and error surfaces.
+- Persists lightweight local shell state such as recent payloads, host draft values, and cached hand-history summaries.
+
+### Rust backend
+
+- Validates tournament configuration and join payloads.
+- Runs the authoritative poker engine and tournament lifecycle.
+- Owns real LAN TCP transport, reconnect and resync logic, protocol framing, signing and encryption helpers, and per-instance bootstrap metadata.
+- Projects player-safe table views for the frontend.
+
+### Internal tooling
+
+- Supports debug review, payload handoff, and multi-instance development workflows.
+- Remains intentionally separated from the normal player path and is hidden outside debug builds.
 
 ## Frozen implementation choices
 
@@ -135,7 +163,7 @@ The desktop shell also persists per-instance display name, host draft, recent di
 
 ## Passing a join payload at launch
 
-M0 wires the launch contract into the bootstrap layer so later milestones can consume it from either environment or CLI input:
+The app accepts a launch payload from either environment or CLI input so the join flow can open with a shared `pkr1_...` invitation already attached:
 
 ```bash
 DESKTOP_POKER_JOIN_PAYLOAD='pkr1_...' npm run tauri dev
@@ -147,12 +175,12 @@ or
 npm run tauri dev -- -- --join-payload 'pkr1_...'
 ```
 
-The CLI form and env var are both surfaced through the Rust bootstrap state and made available to the frontend.
+The CLI form and env var are both surfaced through the Rust bootstrap state and consumed by the frontend join and recovery flows.
 
 ## Local multi-instance host/join flow
 
 1. Launch a host instance with its own id, for example `DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev`.
-2. Copy the current `pkr1_...` payload from the host/debug handoff surface.
+2. Copy the current `pkr1_...` payload from the host flow or from the Internal Tools screen in debug builds.
 3. Launch a second instance with a different id and either paste the payload on the Join screen or pass it on the command line:
 
 ```bash
@@ -171,23 +199,37 @@ See [docs/ANDROID_INTEROP_AUDIT.md](docs/ANDROID_INTEROP_AUDIT.md) for the curre
 
 Current status:
 
-- protocol version and core envelope/join semantics were compared against the Android repo source
-- Android-side crypto/networking/tournament tests were run during the audit
-- mixed-runtime Android/Desktop host-client sessions are **not yet proven** in this repository
+- Core protocol version, join-payload shape, canonical JSON rules, reconnect metadata, and key-derivation behavior were compared against the Android source.
+- Android-side crypto, networking, and tournament tests were run during the audit.
+- Mixed-runtime Android/Desktop host-client sessions are still **audited but not yet proven** by live end-to-end runs in this repository.
 
-## Current limitations and release notes
+## Release notes and current limitations
 
-- **Interop:** Android/Desktop interoperability is audited, but not fully proven until live mixed-runtime host/client sessions succeed.
-- **Discovery:** room-code discovery is still absent/deferred for desktop MVP. Direct `pkr1_...` payload join is the supported path.
+What is supported today:
+
+- Single-table Sit 'n Go No-Limit Texas Hold'em hosted from the desktop app over LAN TCP.
+- Direct join via a shared `pkr1_...` payload.
+- Reconnect and resync behavior within the desktop runtime.
+- Multi-instance local testing with isolated per-instance storage and session identity.
+- Linux development and bundle output through Tauri 2.
+
+What is intentionally limited right now:
+
+- **Interop:** Android/Desktop interoperability is audited, but not fully proven until live mixed-runtime sessions succeed.
+- **Discovery:** there is no room-code discovery or matchmaking flow yet. Direct `pkr1_...` payload join is the supported path.
 - **Network scope:** the app is LAN-only and assumes a trusted host-authoritative table on the local network.
-- **Production behavior:** release builds default to the real TCP LAN runtime, and the debug launch helpers remain hidden outside debug builds.
-- **Assets:** the table uses generated card/felt treatments and simple status badges so the MVP stays license-safe.
-- **Sound:** MVP currently ships without sound. Any future sound support should remain optional and off by default.
+- **Production behavior:** release builds use the real TCP LAN runtime, while debug launch helpers stay hidden outside debug builds.
+- **Assets:** the table uses generated card and felt treatments plus simple status badges so the MVP stays license-safe.
+- **Sound:** sound is currently not included. Any future sound support should remain optional and off by default.
 
 ## Linux bundles
 
-`npm run tauri build` now produces:
+`npm run tauri build` produces Linux release bundles under `src-tauri/target/release/bundle/`.
+
+Current bundle targets:
 
 - `src-tauri/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
 - `src-tauri/target/release/bundle/rpm/Desktop Poker-0.1.0-1.x86_64.rpm`
 - `src-tauri/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`
+
+These bundle names reflect the current package version and will change when the app version changes.
