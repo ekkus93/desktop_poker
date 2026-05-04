@@ -82,7 +82,6 @@ export function buildParticipantShell(
   bootstrap: DesktopBootstrapState,
   hostDraft: HostDraft,
   readySeats: number[],
-  displayName: string,
   recentJoinPayloads: string[],
 ): ParticipantShell[] {
   const seats: ParticipantShell[] = Array.from({ length: hostDraft.maxPlayers }, (_, index) => ({

@@ -7,7 +7,7 @@ describe("RulesHelpScreen", () => {
   it("keeps the rules and settings surface player-friendly", () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
 
-    renderWithProviders(<RulesHelpScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<RulesHelpScreen />, { bootstrap });
 
     expect(screen.getByRole("heading", { name: "Game Help" })).toBeTruthy();
     expect(screen.getByText("How joining works")).toBeTruthy();

@@ -83,10 +83,12 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
       title="Host Tournament Setup"
       lead="Set the table basics, share the invite, then head to the lobby."
       badges={[`Port ${hostDraft.hostPort}`]}
+      className="pregame-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Step 1" title="Tournament setup">
-          <div className="form-grid two-column-grid">
+      <div className="pregame-workstation host-station-layout">
+        <SectionCard kicker="Host station" title="Tournament setup" className="workstation-main-card">
+          <div className="workstation-grid">
+            <div className="form-grid two-column-grid compact-form-grid">
             <label className="field">
               Tournament name
               <input
@@ -171,106 +173,105 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 value={hostDraft.hostPort}
               />
             </label>
-          </div>
-        </SectionCard>
-
-        <SectionCard kicker="Step 2" title="LAN details">
-          <div className="status-row">
-            <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
-              {lanError ? <TriangleAlert className="button-icon" strokeWidth={1.9} /> : <Wifi className="button-icon" strokeWidth={1.9} />}
-              {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
             </div>
-          </div>
-          <p className="field-hint">
-            Players can join once this computer has a reachable LAN address.
-          </p>
-          <div className="button-row">
-            <button
-              className="secondary-button"
-              onClick={() => {
-                updateHostDraft({ advancedOpen: !hostDraft.advancedOpen });
-              }}
-              type="button"
-            >
-              <span className="button-content">
-                {hostDraft.advancedOpen ? <ChevronUp className="button-icon" strokeWidth={1.9} /> : <ChevronDown className="button-icon" strokeWidth={1.9} />}
-                <span>{hostDraft.advancedOpen ? "Hide advanced settings" : "Show advanced settings"}</span>
-              </span>
-            </button>
-          </div>
-          {hostDraft.advancedOpen ? (
-            <div className="form-grid">
-              <p>
-                Share from a LAN address other players on this network can reach.
-              </p>
-              <ul>
-                <li>
-                  <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
-                </li>
-                <li>
-                  <strong>Host port:</strong> {hostDraft.hostPort}
-                </li>
-                <li>
-                  <strong>Joining:</strong> Share the invite from this screen.
-                </li>
-              </ul>
-              {lanError ? <p className="inline-banner error">{lanError}</p> : null}
-            </div>
-          ) : null}
-        </SectionCard>
 
-        <SectionCard kicker="Step 3" title="Share the invite">
-          {inviteReady ? (
-            <section className="invite-card" aria-label="Invite card">
-              <p className="kicker">Ready to share</p>
-              <h4>{hostDraft.tournamentName}</h4>
-              <p className="invite-lead">Pass this invite to the next player so they can join your table.</p>
-              <div className="invite-stat-grid">
-                <div>
-                  <span className="invite-stat-label">Players join at</span>
-                  <strong>{resolvedHostIp}:{hostDraft.hostPort}</strong>
+            <div className="workstation-side-panel">
+              <section className="compact-status-panel">
+                <div className="status-row">
+                  <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
+                    {lanError ? <TriangleAlert className="button-icon" strokeWidth={1.9} /> : <Wifi className="button-icon" strokeWidth={1.9} />}
+                    {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
+                  </div>
                 </div>
-                <div>
-                  <span className="invite-stat-label">Seats</span>
-                  <strong>{hostDraft.maxPlayers} players</strong>
-                </div>
-                <div>
-                  <span className="invite-stat-label">Starting stack</span>
-                  <strong>{hostDraft.startingStack} chips</strong>
-                </div>
-                <div>
-                  <span className="invite-stat-label">Blinds</span>
-                  <strong>{blindPreset.label} · {blindPreset.firstLevel}</strong>
-                </div>
+                <p className="field-hint">Players can join once this computer has a reachable LAN address.</p>
+              </section>
+
+              {inviteReady ? (
+                <section className="invite-card compact-invite-card" aria-label="Invite card">
+                  <p className="kicker">Ready to share</p>
+                  <h4>{hostDraft.tournamentName}</h4>
+                  <p className="invite-lead">Pass this invite to the next player so they can join your table.</p>
+                  <div className="invite-stat-grid compact-invite-stat-grid">
+                    <div>
+                      <span className="invite-stat-label">Players join at</span>
+                      <strong>{resolvedHostIp}:{hostDraft.hostPort}</strong>
+                    </div>
+                    <div>
+                      <span className="invite-stat-label">Seats</span>
+                      <strong>{hostDraft.maxPlayers} players</strong>
+                    </div>
+                    <div>
+                      <span className="invite-stat-label">Starting stack</span>
+                      <strong>{hostDraft.startingStack} chips</strong>
+                    </div>
+                    <div>
+                      <span className="invite-stat-label">Blinds</span>
+                      <strong>{blindPreset.label} · {blindPreset.firstLevel}</strong>
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <p className={`inline-banner ${lanError ? "error" : "info"}`}>{shareText}</p>
+              )}
+
+              <div className="button-row workstation-actions">
+                <button
+                  className="secondary-button"
+                  onClick={() => {
+                    void handleCopy(shareText, "Copied host share details.");
+                  }}
+                  type="button"
+                >
+                  <span className="button-content">
+                    <Copy className="button-icon" strokeWidth={1.9} />
+                    <span>Copy share details</span>
+                  </span>
+                </button>
+                <Link className="primary-button" to="/lobby">
+                  <span className="button-content">
+                    <ArrowRight className="button-icon" strokeWidth={1.9} />
+                    <span>Continue to lobby</span>
+                  </span>
+                </Link>
               </div>
-            </section>
-          ) : (
-            <p className={`inline-banner ${lanError ? "error" : "info"}`}>{shareText}</p>
-          )}
-          <div className="button-row">
-            <button
-              className="secondary-button"
-              onClick={() => {
-                void handleCopy(shareText, "Copied host share details.");
-              }}
-              type="button"
-            >
-              <span className="button-content">
-                <Copy className="button-icon" strokeWidth={1.9} />
-                <span>Copy share details</span>
-              </span>
-            </button>
-            <Link className="primary-button" to="/lobby">
-              <span className="button-content">
-                <ArrowRight className="button-icon" strokeWidth={1.9} />
-                <span>Continue to lobby</span>
-              </span>
-            </Link>
+
+              <div className="button-row">
+                <button
+                  className="secondary-button"
+                  onClick={() => {
+                    updateHostDraft({ advancedOpen: !hostDraft.advancedOpen });
+                  }}
+                  type="button"
+                >
+                  <span className="button-content">
+                    {hostDraft.advancedOpen ? <ChevronUp className="button-icon" strokeWidth={1.9} /> : <ChevronDown className="button-icon" strokeWidth={1.9} />}
+                    <span>{hostDraft.advancedOpen ? "Hide advanced settings" : "Show advanced settings"}</span>
+                  </span>
+                </button>
+              </div>
+
+              {hostDraft.advancedOpen ? (
+                <div className="form-grid compact-advanced-panel">
+                  <p>Share from a LAN address other players on this network can reach.</p>
+                  <ul>
+                    <li>
+                      <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
+                    </li>
+                    <li>
+                      <strong>Host port:</strong> {hostDraft.hostPort}
+                    </li>
+                    <li>
+                      <strong>Joining:</strong> Share the invite from this screen.
+                    </li>
+                  </ul>
+                  {lanError ? <p className="inline-banner error">{lanError}</p> : null}
+                </div>
+              ) : null}
+
+              <p className="field-hint">Copy the invite details now. QR or one-tap invite options can appear here later.</p>
+              {copyState ? <p className="inline-banner success">{copyState}</p> : null}
+            </div>
           </div>
-          <p className="field-hint">
-            Copy the invite details now. QR or one-tap invite options can appear here later.
-          </p>
-          {copyState ? <p className="inline-banner success">{copyState}</p> : null}
         </SectionCard>
       </div>
     </ScreenShell>

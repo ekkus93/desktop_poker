@@ -51,7 +51,7 @@ describe("TournamentCompleteScreen", () => {
       }),
     );
 
-    renderWithProviders(<TournamentCompleteScreen bootstrap={bootstrap} />, {
+    renderWithProviders(<TournamentCompleteScreen />, {
       bootstrap,
     });
 

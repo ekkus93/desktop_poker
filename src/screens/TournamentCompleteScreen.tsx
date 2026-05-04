@@ -36,16 +36,17 @@ export function TournamentCompleteScreen() {
       title="Tournament Complete"
       lead="The table is closed. See who finished on top, then decide whether to play again."
       badges={[hostDraft.tournamentName]}
+      className="support-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Result" title="Final result">
+      <div className="complete-grid">
+        <SectionCard kicker="Result" title="Final result" className="support-card history-primary-card">
           {error ? <p className="inline-banner error">{error}</p> : null}
           <p>
             {tableView?.phaseLabel.toLowerCase().includes("complete")
               ? `${tableView.standings[0]?.displayName ?? "The winner"} wins ${hostDraft.tournamentName}.`
               : `${displayName}, the final order will appear here when the tournament closes.`}
           </p>
-          <div className="stacked-list">
+          <div className="stacked-list scroll-list">
             {(tableView?.standings.length ? tableView.standings : []).map((entry) => (
               <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
                 <div>
@@ -62,37 +63,39 @@ export function TournamentCompleteScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Play again or review the night">
-          <p>{persistedHandHistoryCount} settled hand summaries are ready if you want to look back at the table.</p>
-          <div className="button-row">
-            <Link className="primary-button" to="/host">
-              Host another table
-            </Link>
-            <Link className="secondary-button" to="/history">
-              Review history
-            </Link>
-            <Link className="secondary-button" to="/">
-              Return home
-            </Link>
-          </div>
-        </SectionCard>
+        <div className="history-side-stack">
+          <SectionCard title="Play again or review the night" className="support-card">
+            <p>{persistedHandHistoryCount} settled hand summaries are ready if you want to look back at the table.</p>
+            <div className="button-row">
+              <Link className="primary-button" to="/host">
+                Host another table
+              </Link>
+              <Link className="secondary-button" to="/history">
+                Review history
+              </Link>
+              <Link className="secondary-button" to="/">
+                Return home
+              </Link>
+            </div>
+          </SectionCard>
 
-        <SectionCard title="Final hands">
-          <div className="stacked-list">
-            {tableView?.handHistory.length ? (
-              tableView.handHistory.slice(0, 3).map((entry) => (
-                <article key={entry.handNumber} className="list-panel history-row">
-                  <div>
-                    <strong>{entry.summary}</strong>
-                    <p className="field-hint">Hand {entry.handNumber}</p>
-                  </div>
-                </article>
-              ))
-            ) : (
-              <p className="field-hint">Final hands will appear here when they are available.</p>
-            )}
-          </div>
-        </SectionCard>
+          <SectionCard title="Final hands" className="support-card">
+            <div className="stacked-list scroll-list">
+              {tableView?.handHistory.length ? (
+                tableView.handHistory.slice(0, 3).map((entry) => (
+                  <article key={entry.handNumber} className="list-panel history-row">
+                    <div>
+                      <strong>{entry.summary}</strong>
+                      <p className="field-hint">Hand {entry.handNumber}</p>
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <p className="field-hint">Final hands will appear here when they are available.</p>
+              )}
+            </div>
+          </SectionCard>
+        </div>
       </div>
     </ScreenShell>
   );

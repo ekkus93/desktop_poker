@@ -94,9 +94,10 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
       title="Recovery"
       lead="Here is the fastest way back to the game."
       badges={[SCENARIO_LABELS[scenario]]}
+      className="support-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Current state" title={SCENARIO_LABELS[scenario]}>
+      <div className="recovery-grid">
+        <SectionCard kicker="Current state" title={SCENARIO_LABELS[scenario]} className="support-card">
           <p
             className={`inline-banner ${
               scenario === "reconnect-success"
@@ -125,7 +126,7 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         {bootstrap.debugToolsEnabled ? (
-          <SectionCard kicker="Development only" title="Scenario picker">
+          <SectionCard kicker="Development only" title="Scenario picker" className="support-card">
             <div className="button-row">
               {(Object.keys(SCENARIO_LABELS) as ErrorScenario[]).map((candidate) => (
                 <button

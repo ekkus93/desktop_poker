@@ -7,14 +7,13 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
-  const { displayName, hostDraft, readySeats, recentJoinPayloads, toggleSeatReady } =
+  const { hostDraft, readySeats, recentJoinPayloads, toggleSeatReady } =
     useDesktopShell();
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
   const participants = buildParticipantShell(
     bootstrap,
     hostDraft,
     readySeats,
-    displayName,
     recentJoinPayloads,
   ).filter((seat) => seat.kind !== "open");
   const allReady = participants.length >= 2 && participants.every((seat) => seat.ready);

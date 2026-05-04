@@ -39,16 +39,17 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
       title="Hand History"
       lead="Review recent hands, the current order, and the latest public table updates."
       badges={[tableView?.blindLevelLabel ?? "History"]}
+      className="support-screen-shell"
     >
-      <div className="content-grid wide-grid">
-        <SectionCard kicker="History" title="Recent hands">
+      <div className="history-station-layout">
+        <SectionCard kicker="History" title="Recent hands" className="support-card history-primary-card">
           {error ? <p>{error}</p> : null}
           {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
             <p className="field-hint">
               Showing saved hands from this device.
             </p>
           ) : null}
-          <div className="stacked-list">
+          <div className="stacked-list scroll-list">
             {historyEntries.length ? (
               historyEntries.map((entry) => (
                 <article key={entry.handNumber} className="list-panel history-row">
@@ -84,36 +85,38 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard kicker="Standings" title="Current order">
-          <div className="stacked-list">
-            {tableView?.standings.map((entry) => (
-              <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
-                <div>
-                  <strong>
-                    #{entry.rank} {entry.displayName}
-                  </strong>
-                  <p className="field-hint">
-                    {entry.chipCount ?? 0} chips · {entry.statusLabel}
-                  </p>
-                  {entry.note ? <p className="field-hint">{entry.note}</p> : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        </SectionCard>
+        <div className="history-side-stack">
+          <SectionCard kicker="Standings" title="Current order" className="support-card">
+            <div className="stacked-list scroll-list">
+              {tableView?.standings.map((entry) => (
+                <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
+                  <div>
+                    <strong>
+                      #{entry.rank} {entry.displayName}
+                    </strong>
+                    <p className="field-hint">
+                      {entry.chipCount ?? 0} chips · {entry.statusLabel}
+                    </p>
+                    {entry.note ? <p className="field-hint">{entry.note}</p> : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </SectionCard>
 
-        <SectionCard kicker="Feed" title="Table feed">
-          <div className="stacked-list">
-            {tableView?.eventFeed.map((event) => (
-              <article key={event.sequence} className="list-panel history-row">
-                <div>
-                  <strong>{event.message}</strong>
-                  <p className="field-hint">{event.message}</p>
-                </div>
-              </article>
-            ))}
-          </div>
-        </SectionCard>
+          <SectionCard kicker="Feed" title="Table feed" className="support-card">
+            <div className="stacked-list scroll-list">
+              {tableView?.eventFeed.map((event) => (
+                <article key={event.sequence} className="list-panel history-row">
+                  <div>
+                    <strong>{event.message}</strong>
+                    <p className="field-hint">{event.kind}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </SectionCard>
+        </div>
       </div>
     </ScreenShell>
   );

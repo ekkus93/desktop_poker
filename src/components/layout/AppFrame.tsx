@@ -89,8 +89,8 @@ export function AppFrame({
           <h1>{bootstrap.appName}</h1>
           <p>
             {inTournament
-              ? "Play the hand, keep the table readable, and leave everything else secondary."
-              : "Choose a seat at the table: host the game here or join with an invite."}
+              ? "Play the hand. Keep everything else secondary."
+              : "Host here or join with an invite."}
           </p>
         </header>
 

@@ -15,7 +15,6 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     bootstrap,
     hostDraft,
     readySeats,
-    displayName,
     recentJoinPayloads,
   );
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
@@ -30,33 +29,33 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       title="Tournament Lobby"
       lead="Everyone checks in here before the first hand."
       badges={[hostDraft.tournamentName, canStart ? "Ready to deal" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
+      className="pregame-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Waiting room" title="Gather around the table">
-          <article className="lobby-progress-card">
-            <strong>{canStart ? "Everyone is ready for the first hand" : `${readySeatCount} of ${activeSeats.length} seated players are ready`}</strong>
-            <p className="field-hint">
-              {canStart
-                ? "Deal as soon as the table is set."
-                : seatsStillWaiting === 1
-                  ? "One seated player still needs to check in."
-                  : `${seatsStillWaiting} seated players still need to check in.`}
-            </p>
-            <div className="lobby-status-row">
-              <span className={`status-badge ${localSeatReady ? "success" : "warning"}`}>
-                {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                {localSeatReady ? "You are ready" : "You still need to mark ready"}
-              </span>
-              <span className={`status-badge ${canStart ? "success" : "info"}`}>
-                {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                {canStart ? "Table can start" : "Waiting on the table"}
-              </span>
-            </div>
-          </article>
-        </SectionCard>
+      <div className="pregame-workstation lobby-station-layout">
+        <SectionCard kicker="Waiting room" title="Gather around the table" className="workstation-main-card">
+          <div className="lobby-workstation-grid">
+            <article className="lobby-progress-card compact-lobby-progress">
+              <strong>{canStart ? "Everyone is ready for the first hand" : `${readySeatCount} of ${activeSeats.length} seated players are ready`}</strong>
+              <p className="field-hint">
+                {canStart
+                  ? "Deal as soon as the table is set."
+                  : seatsStillWaiting === 1
+                    ? "One seated player still needs to check in."
+                    : `${seatsStillWaiting} seated players still need to check in.`}
+              </p>
+              <div className="lobby-status-row">
+                <span className={`status-badge ${localSeatReady ? "success" : "warning"}`}>
+                  {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                  {localSeatReady ? "You are ready" : "You still need to mark ready"}
+                </span>
+                <span className={`status-badge ${canStart ? "success" : "info"}`}>
+                  {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                  {canStart ? "Table can start" : "Waiting on the table"}
+                </span>
+              </div>
+            </article>
 
-        <SectionCard kicker="Around the table" title="Seats in the room">
-          <div className="seat-grid lobby-seat-grid">
+            <div className="seat-grid lobby-seat-grid compact-lobby-seat-grid">
             {participants.map((seat) => {
               const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
 
@@ -93,45 +92,44 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 ) : null}
               </article>
             );})}
-          </div>
-        </SectionCard>
+            </div>
 
-        <SectionCard title="Deal the first hand">
-          <p>{canStart ? "Everyone is checked in. Start when you want the cards in the air." : "At least two seated players must be ready before the game can begin."}</p>
-          <div className="button-row">
-            {canStart ? (
-              <Link className="primary-button" to="/table">
-                <span className="button-content">
-                  <Play className="button-icon" strokeWidth={1.9} />
-                  <span>Start tournament</span>
-                </span>
-              </Link>
-            ) : (
-              <button className="primary-button" disabled type="button">
-                <span className="button-content">
-                  <Play className="button-icon" strokeWidth={1.9} />
-                  <span>Start tournament</span>
-                </span>
-              </button>
-            )}
-            <button
-              className="secondary-button compact-button"
-              onClick={() => {
-                setShowLeaveFlow(true);
-              }}
-              type="button"
-            >
-              <span className="button-content">
-                <LogOut className="button-icon" strokeWidth={1.9} />
-                <span>Leave table</span>
-              </span>
-            </button>
+            <section className="lobby-action-rail compact-status-panel">
+              <p>{canStart ? "Everyone is checked in. Start when you want the cards in the air." : "At least two seated players must be ready before the game can begin."}</p>
+              <div className="button-row workstation-actions">
+                {canStart ? (
+                  <Link className="primary-button" to="/table">
+                    <span className="button-content">
+                      <Play className="button-icon" strokeWidth={1.9} />
+                      <span>Start tournament</span>
+                    </span>
+                  </Link>
+                ) : (
+                  <button className="primary-button" disabled type="button">
+                    <span className="button-content">
+                      <Play className="button-icon" strokeWidth={1.9} />
+                      <span>Start tournament</span>
+                    </span>
+                  </button>
+                )}
+                <button
+                  className="secondary-button compact-button"
+                  onClick={() => {
+                    setShowLeaveFlow(true);
+                  }}
+                  type="button"
+                >
+                  <span className="button-content">
+                    <LogOut className="button-icon" strokeWidth={1.9} />
+                    <span>Leave table</span>
+                  </span>
+                </button>
+              </div>
+              {!canStart ? (
+                <p className="field-hint">Mark each seated player ready, then start the table.</p>
+              ) : null}
+            </section>
           </div>
-          {!canStart ? (
-            <p className="field-hint">
-              Mark each seated player ready, then start the table.
-            </p>
-          ) : null}
         </SectionCard>
       </div>
       {showLeaveFlow ? (

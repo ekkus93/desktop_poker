@@ -131,127 +131,127 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       title="Join Tournament"
       lead="Paste the invite you were given, review the destination, then continue into the lobby."
       badges={[sourceSummary]}
+      className="pregame-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Step 1" title="Bring your invite">
-          <div className="form-grid">
-            <label className="field">
-              Tournament invite
-              <textarea
-                onChange={(event) => {
-                  setJoinPayloadDraft(event.target.value);
-                  setValidationState({ status: "idle" });
-                  setInviteBanner(null);
-                  setContinueToLobby(false);
-                }}
-                rows={8}
-                value={joinPayloadDraft}
-              />
-            </label>
-            <div className="button-row">
-              <button
-                className="primary-button"
-                onClick={() => {
-                  void reviewInvite();
-                }}
-                type="button"
-              >
-                <span className="button-content">
-                  <Clipboard className="button-icon" strokeWidth={1.9} />
-                  <span>Review invite</span>
-                </span>
-              </button>
-            </div>
-            <p className="field-hint">
-              Paste the invite you were given, or open the app from a join link.
-            </p>
-          </div>
-          {validationState.status === "validating" ? (
-            <p className="inline-banner info">Checking the invite…</p>
-          ) : null}
-          {validationState.status === "invalid" ? (
-            <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
-          ) : null}
-          {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
-        </SectionCard>
-
-        <SectionCard kicker="Step 2" title="Check the table">
-          {validationState.status === "valid" ? (
-            <section aria-label="Invite preview" className="invite-card">
-              <p className="kicker">Invite looks good</p>
-              <h4>{previewTableName}</h4>
-              <p className="invite-lead">You are about to join this table from the lobby.</p>
-              <div className="invite-stat-grid">
-                <div>
-                  <span className="invite-stat-label">Host</span>
-                  <strong>
-                    <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
-                  </strong>
-                </div>
-                <div>
-                  <span className="invite-stat-label">Table</span>
-                  <strong>{previewTableName}</strong>
-                </div>
-                <div>
-                  <span className="invite-stat-label">Status</span>
-                  <strong>Ready for lobby check-in</strong>
-                </div>
-              </div>
-            </section>
-          ) : (
-            <p>
-              Invite details appear here before you continue.
-            </p>
-          )}
-        </SectionCard>
-
-        <SectionCard kicker="Step 3" title="Join the table">
-          {continueToLobby ? (
-            <div className="button-row">
-              <Link className="primary-button" to="/lobby">
-                <span className="button-content">
-                  <ArrowRight className="button-icon" strokeWidth={1.9} />
-                  <span>Continue to lobby</span>
-                </span>
-              </Link>
-            </div>
-          ) : (
-            <p className="field-hint">Review the invite first. Once it looks right, the lobby action appears here.</p>
-          )}
-          {recentJoinPayloads.length > 0 ? (
-            <div className="stacked-list">
-              <p className="field-hint">Recent invites</p>
-              {recentJoinPayloads.map((payload) => (
-                <button
-                  className="list-button"
-                  key={payload}
-                  onClick={() => {
-                    setJoinPayloadDraft(payload);
-                    setInviteBanner("Loaded a recent invite.");
+      <div className="pregame-workstation join-station-layout">
+        <SectionCard kicker="Join station" title="Bring your invite" className="workstation-main-card">
+          <div className="workstation-grid join-workstation-grid">
+            <div className="form-grid compact-form-grid invite-input-panel">
+              <label className="field">
+                Tournament invite
+                <textarea
+                  className="compact-invite-textarea"
+                  onChange={(event) => {
+                    setJoinPayloadDraft(event.target.value);
                     setValidationState({ status: "idle" });
+                    setInviteBanner(null);
                     setContinueToLobby(false);
+                  }}
+                  rows={6}
+                  value={joinPayloadDraft}
+                />
+              </label>
+              <div className="button-row workstation-actions">
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    void reviewInvite();
                   }}
                   type="button"
                 >
-                  <span className="mono-value">{payload}</span>
+                  <span className="button-content">
+                    <Clipboard className="button-icon" strokeWidth={1.9} />
+                    <span>Review invite</span>
+                  </span>
                 </button>
-              ))}
+                {continueToLobby ? (
+                  <Link className="primary-button ghost-primary-button" to="/lobby">
+                    <span className="button-content">
+                      <ArrowRight className="button-icon" strokeWidth={1.9} />
+                      <span>Continue to lobby</span>
+                    </span>
+                  </Link>
+                ) : null}
+              </div>
+              <p className="field-hint">Paste the invite you were given, or open the app from a join link.</p>
+              {validationState.status === "validating" ? (
+                <p className="inline-banner info">Checking the invite…</p>
+              ) : null}
+              {validationState.status === "invalid" ? (
+                <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
+              ) : null}
+              {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
             </div>
-          ) : (
-            <p>No saved invites yet.</p>
-          )}
-          {recentJoinPayloads.length > 0 ? (
-            <button
-              className="secondary-button"
-              onClick={clearRecentJoinPayloads}
-              type="button"
-            >
-              <span className="button-content">
-                <RotateCcw className="button-icon" strokeWidth={1.9} />
-                <span>Clear recent invites</span>
-              </span>
-            </button>
-          ) : null}
+
+            <div className="workstation-side-panel join-preview-panel">
+              {validationState.status === "valid" ? (
+                <section aria-label="Invite preview" className="invite-card compact-invite-card">
+                  <p className="kicker">Invite looks good</p>
+                  <h4>{previewTableName}</h4>
+                  <p className="invite-lead">You are about to join this table from the lobby.</p>
+                  <div className="invite-stat-grid compact-invite-stat-grid">
+                    <div>
+                      <span className="invite-stat-label">Host</span>
+                      <strong>
+                        <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="invite-stat-label">Table</span>
+                      <strong>{previewTableName}</strong>
+                    </div>
+                    <div>
+                      <span className="invite-stat-label">Status</span>
+                      <strong>Ready for lobby check-in</strong>
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <section className="placeholder-panel compact-placeholder-panel">
+                  <p className="kicker">Preview</p>
+                  <h3>Check the table</h3>
+                  <p>Invite details appear here before you continue.</p>
+                </section>
+              )}
+
+              {recentJoinPayloads.length > 0 ? (
+                <section className="recent-rail">
+                  <div className="recent-rail-header">
+                    <p className="field-hint">Recent invites</p>
+                    <button
+                      className="secondary-button compact-button"
+                      onClick={clearRecentJoinPayloads}
+                      type="button"
+                    >
+                      <span className="button-content">
+                        <RotateCcw className="button-icon" strokeWidth={1.9} />
+                        <span>Clear recent invites</span>
+                      </span>
+                    </button>
+                  </div>
+                  <div className="recent-pill-row">
+                    {recentJoinPayloads.map((payload) => (
+                      <button
+                        className="list-button recent-pill"
+                        key={payload}
+                        onClick={() => {
+                          setJoinPayloadDraft(payload);
+                          setInviteBanner("Loaded a recent invite.");
+                          setValidationState({ status: "idle" });
+                          setContinueToLobby(false);
+                        }}
+                        type="button"
+                      >
+                        <span className="mono-value">{payload}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                <p className="field-hint">No saved invites yet.</p>
+              )}
+            </div>
+          </div>
         </SectionCard>
       </div>
     </ScreenShell>

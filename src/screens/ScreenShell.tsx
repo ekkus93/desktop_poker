@@ -6,14 +6,16 @@ export function ScreenShell({
   lead,
   children,
   badges = [],
+  className,
 }: {
   title: string;
   lead: string;
   children: ReactNode;
   badges?: string[];
+  className?: string;
 }) {
   return (
-    <section className="screen-shell">
+    <section className={className ? `screen-shell ${className}` : "screen-shell"}>
       <header className="screen-header">
         <div className="screen-copy">
           <p className="kicker">Desktop Poker</p>

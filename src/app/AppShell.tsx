@@ -79,9 +79,9 @@ export function AppShell() {
           />
           <Route
             path="/complete"
-            element={<TournamentCompleteScreen bootstrap={bootstrap} />}
+            element={<TournamentCompleteScreen />}
           />
-          <Route path="/rules" element={<RulesHelpScreen bootstrap={bootstrap} />} />
+          <Route path="/rules" element={<RulesHelpScreen />} />
           <Route path="/errors" element={<ErrorStateScreen bootstrap={bootstrap} />} />
           {bootstrap.debugToolsEnabled ? (
             <Route

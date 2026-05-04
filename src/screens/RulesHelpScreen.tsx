@@ -16,9 +16,10 @@ export function RulesHelpScreen() {
       title="Game Help"
       lead="Quick rules, joining basics, and the name this device uses at the table."
       badges={["Help"]}
+      className="support-screen-shell"
     >
-      <div className="content-grid">
-        <SectionCard kicker="Rules" title="Table basics">
+      <div className="help-grid">
+        <SectionCard kicker="Rules" title="Table basics" className="support-card">
           <ul>
             <li>Single-table Sit 'n Go No-Limit Texas Hold'em</li>
             <li>2 to 10 players with equal starting stacks</li>
@@ -27,7 +28,7 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="How joining works">
+        <SectionCard title="How joining works" className="support-card">
           <ul>
             <li>The host shares an invite from the host screen.</li>
             <li>Paste that invite on Join Tournament.</li>
@@ -36,7 +37,7 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard kicker="This device" title="Name and saved table info">
+        <SectionCard kicker="This device" title="Name and saved table info" className="support-card device-settings-card">
           <div className="form-grid" id="settings">
             <label className="field">
               Display name
