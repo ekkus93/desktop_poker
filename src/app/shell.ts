@@ -95,8 +95,8 @@ export function buildParticipantShell(
 
   seats[0] = {
     seatIndex: 1,
-    label: `${displayName} (host)`,
-    detail: `${hostDraft.startingStack} chips · ${getBlindPreset(hostDraft.blindPresetId).label}`,
+    label: "You",
+    detail: `Host · ${hostDraft.startingStack} chips`,
     kind: "host",
     ready: readySeats.includes(1),
   };
@@ -106,12 +106,12 @@ export function buildParticipantShell(
       recentJoinPayloads.length > 0 || bootstrap.launchJoinPayload !== null;
     seats[1] = {
       seatIndex: 2,
-      label: hasJoinIntent ? "Pending LAN participant" : "Reserved join seat",
+      label: hasJoinIntent ? "Waiting for player" : "Reserved seat",
       detail: bootstrap.parsedLaunchJoinPayload
-        ? `${bootstrap.parsedLaunchJoinPayload.hostAddress}:${bootstrap.parsedLaunchJoinPayload.hostPort}`
+        ? "Invite accepted on this device"
         : hasJoinIntent
-          ? "A direct join payload has been captured for the client flow."
-          : "Paste a direct payload on the Join screen to exercise the real join path.",
+          ? "Invite received"
+          : "Ready for the next player",
       kind: "pending",
       ready: readySeats.includes(2),
     };

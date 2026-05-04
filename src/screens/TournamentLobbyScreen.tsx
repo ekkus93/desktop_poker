@@ -48,11 +48,28 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
         <SectionCard kicker="Seat map" title="Seats">
           <div className="seat-grid">
-            {participants.map((seat) => (
-              <article key={seat.seatIndex} className="seat-card">
-                <strong>Seat {seat.seatIndex}</strong>
-                <span>{seat.label}</span>
-                <p className="seat-detail">{seat.detail}</p>
+            {participants.map((seat) => {
+              const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
+
+              return (
+              <article
+                key={seat.seatIndex}
+                className={`seat-card lobby-seat-card ${seat.kind === "open" ? "lobby-seat-open" : "lobby-seat-filled"} ${seat.kind === "host" ? "lobby-seat-local" : ""} ${seat.ready ? "lobby-seat-ready" : ""}`}
+              >
+                <div className="seat-card-header">
+                  <div>
+                    <strong>Seat {seat.seatIndex}</strong>
+                    <span>{seat.label}</span>
+                  </div>
+                  <span className={`status-badge ${seat.kind === "open" ? "info" : seat.ready ? "success" : "warning"}`}>
+                    {seatState}
+                  </span>
+                </div>
+                {seat.kind === "open" ? (
+                  <p className="seat-detail">Open for the next player.</p>
+                ) : (
+                  <p className="seat-detail">{seat.detail}</p>
+                )}
                 {seat.kind !== "open" ? (
                   <button
                     className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
@@ -65,7 +82,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   </button>
                 ) : null}
               </article>
-            ))}
+            );})}
           </div>
         </SectionCard>
 

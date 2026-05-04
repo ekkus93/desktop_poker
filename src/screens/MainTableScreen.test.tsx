@@ -162,7 +162,7 @@ describe("MainTableScreen", () => {
     ).toBeTruthy();
   });
 
-  it("requires confirmation for raise and all-in actions", async () => {
+  it("submits raises directly and still confirms all-in actions", async () => {
     const initialView = createTableView();
     mockedGetTableView.mockResolvedValue(initialView);
     mockedSubmitTableAction.mockResolvedValue(
@@ -173,8 +173,6 @@ describe("MainTableScreen", () => {
     renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
     fireEvent.click(await screen.findByRole("button", { name: /bet \/ raise/i }));
-    expect(await screen.findByText(/confirm raise/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     await waitFor(() => {
       expect(mockedSubmitTableAction).toHaveBeenCalledWith(

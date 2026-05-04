@@ -156,7 +156,7 @@ describe("AppShell integration", () => {
         name: "Tournament Lobby",
       }),
     ).toBeTruthy();
-    expect(screen.getAllByText(/pending lan participant/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
 
     const readyButtons = screen.getAllByRole("button", { name: "Mark ready" });
     fireEvent.click(readyButtons[0]);
@@ -233,7 +233,7 @@ describe("AppShell integration", () => {
         name: "Tournament Complete",
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/1 remembered join payloads/i)).toBeTruthy();
+    expect(screen.getByText(/1 settled hand summaries are ready to review/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
     ).toBe(false);
@@ -248,7 +248,7 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/showing locally saved hand summaries for this device/i),
+      screen.getByText(/showing saved hands from this device/i),
     ).toBeTruthy();
     expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
     expect(

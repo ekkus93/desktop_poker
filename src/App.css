@@ -623,6 +623,28 @@ dt,
   gap: 0.7rem;
 }
 
+.lobby-seat-card {
+  align-content: start;
+}
+
+.lobby-seat-open {
+  border-style: dashed;
+  background: rgba(12, 24, 41, 0.45);
+}
+
+.lobby-seat-filled {
+  background: rgba(12, 24, 41, 0.78);
+}
+
+.lobby-seat-local {
+  border-color: rgba(110, 231, 183, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.22);
+}
+
+.lobby-seat-ready {
+  border-color: rgba(34, 197, 94, 0.38);
+}
+
 .compact-seat {
   min-height: auto;
 }
@@ -708,8 +730,21 @@ dt,
   gap: 0.35rem;
 }
 
+.observer-banner strong {
+  color: var(--text-primary);
+}
+
+.observer-banner span {
+  color: var(--text-secondary);
+}
+
 .action-tray-row {
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.action-tray-row .primary-button {
+  min-height: 3rem;
+  font-weight: 700;
 }
 
 .raise-controls {

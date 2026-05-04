@@ -91,6 +91,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   }, [tableView]);
 
   const quickSizes = useMemo(() => buildQuickSizes(tableView?.actionTray), [tableView]);
+  const activeViewerMode = tableView?.viewerMode ?? viewerMode;
 
   const submitAction = async (
     actionKind: DesktopTableActionKind,
@@ -126,7 +127,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
   const handlePrimaryAction = async (actionKind: DesktopTableActionKind) => {
     if (actionKind === "betOrRaise") {
-      queueConfirmation("betOrRaise", "Confirm raise");
+      if (!tableView?.actionTray) {
+        return;
+      }
+
+      await submitAction(actionKind, raiseAmount ?? defaultRaiseAmount(tableView.actionTray));
       return;
     }
 
@@ -209,16 +214,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <div className={`desktop-table-layout ${showSidePanel ? "with-side-panel" : ""}`}>
             <section className="table-surface enhanced-table-surface">
               <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
-                <p className="kicker">{viewerMode === "observer" ? "Observing" : tableView.actionTray ? "Your move" : "Waiting"}</p>
+                <p className="kicker">{activeViewerMode === "observer" ? "Observing" : tableView.actionTray ? "Your move" : "Waiting"}</p>
                 <h3>
-                  {viewerMode === "observer"
+                  {activeViewerMode === "observer"
                     ? "Watching the public table."
                     : tableView.actionTray
                       ? `${tableView.actionTray.ownerLabel} to act.`
                       : `${tableView.actionOwnerLabel} to act.`}
                 </h3>
                 <p className="field-hint">
-                  {viewerMode === "observer"
+                  {activeViewerMode === "observer"
                     ? "Private cards and action controls stay hidden while you watch."
                     : tableView.actionTray
                       ? `Call ${tableView.actionTray.callAmount} chips, or choose another legal action below.`
@@ -242,7 +247,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               </header>
 
               {tableView.observerBanner ? (
-                <div className="inline-banner info observer-banner">{tableView.observerBanner}</div>
+                <div className="inline-banner info observer-banner">
+                  <strong>Observer mode</strong>
+                  <span>{tableView.observerBanner}</span>
+                </div>
               ) : null}
 
               <div className="table-summary-row">
@@ -268,7 +276,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
               <div className="seat-grid enhanced-seat-grid">
                 {tableView.seats.map((seat) => {
-                  const seatLabel = seat.isLocal && viewerMode === "local" ? `${displayName} (you)` : seat.displayName;
+                  const seatLabel = seat.isLocal && activeViewerMode === "local" ? `${displayName} (you)` : seat.displayName;
                   const isOpen = openSeatIndex === seat.seatIndex;
                   return (
                     <article
@@ -286,7 +294,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                         <span>{seat.statusLabel}</span>
                         {seat.chipCount !== null ? <span>{seat.chipCount} chips</span> : null}
                       </p>
-                      <p className="seat-detail">Contribution {seat.contribution}</p>
+                      <p className="seat-detail">
+                        {seat.isObserver ? "Watching public action" : seat.isEliminated ? "Eliminated from this hand" : `Contribution ${seat.contribution}`}
+                      </p>
                       <div className={`seat-card-grid ${seat.isLocal ? "show-local-cards" : ""}`}>
                         {seat.cardsHidden ? (
                           <div className="hidden-card-row" aria-label={`Seat ${seat.seatIndex} hidden cards`}>
@@ -331,7 +341,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       <article key={`${entry.rank}-${entry.displayName}`} className="list-panel standings-row">
                         <div>
                           <strong>
-                            #{entry.rank} {entry.isLocal && viewerMode === "local" ? `${displayName} (you)` : entry.displayName}
+                            #{entry.rank} {entry.isLocal && activeViewerMode === "local" ? `${displayName} (you)` : entry.displayName}
                           </strong>
                           <p className="field-hint">
                             {entry.chipCount ?? 0} chips · {entry.statusLabel}
@@ -384,7 +394,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <SectionCard kicker="Action" title="Act from your seat">
             <div className="action-owner-banner">
               <strong>{tableView.actionTray.ownerLabel}</strong>
-              <span className="field-hint">Choose one action.</span>
+              <span className="field-hint">Choose one action now.</span>
             </div>
             <div className="button-row action-tray-row">
               <button
@@ -396,7 +406,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 Fold
               </button>
               <button
-                className="secondary-button"
+                className="primary-button"
                 disabled={submitting}
                 onClick={() => void handlePrimaryAction("checkOrCall")}
                 type="button"
@@ -404,7 +414,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 {tableView.actionTray.checkOrCallLabel}
               </button>
               <button
-                className="primary-button"
+                className="secondary-button"
                 disabled={submitting || tableView.actionTray.maxRaiseTo === null}
                 onClick={() => void handlePrimaryAction("betOrRaise")}
                 type="button"
@@ -412,7 +422,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 {tableView.actionTray.betOrRaiseLabel}
               </button>
               <button
-                className="primary-button"
+                className="secondary-button"
                 disabled={submitting}
                 onClick={() => void handlePrimaryAction("allIn")}
                 type="button"
@@ -420,6 +430,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 All-in
               </button>
             </div>
+            {tableView.actionTray.maxRaiseTo === null ? (
+              <p className="field-hint">Raise opens when the next legal raise becomes available.</p>
+            ) : null}
             <div className="raise-controls">
               <label className="field" htmlFor="raise-slider">
                 <span>Raise size</span>
@@ -472,7 +485,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         ) : tableView ? (
           <SectionCard kicker="Action" title="No action required">
             <p>
-              {viewerMode === "observer"
+              {activeViewerMode === "observer"
                 ? "Observer preview shows the public table only."
                 : "Waiting for the next action."}
             </p>

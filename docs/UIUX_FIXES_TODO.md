@@ -140,41 +140,41 @@ Status legend:
 - [x] Reduce duplicated readiness explanation
 	- [x] Remove repetitive helper copy
 	- [x] Keep only the one sentence that matters for the current role
-- [ ] Improve seat map usability
-	- [ ] Clarify open seats vs occupied seats visually
-	- [ ] Clarify local seat visually
-	- [ ] Clarify ready vs waiting visually
+- [x] Improve seat map usability
+	- [x] Clarify open seats vs occupied seats visually
+	- [x] Clarify local seat visually
+	- [x] Clarify ready vs waiting visually
 - [x] Improve host control area
 	- [x] Make Start Tournament the dominant action only when valid
 	- [x] Make leave/cancel actions clearly secondary
 	- [x] Avoid presenting roster rules as a dense block of copy
-- [ ] Improve joiner experience in lobby
-	- [ ] Make ready status feel like a natural acknowledgement step
-	- [ ] Avoid making every player feel like they are managing the room
+- [x] Improve joiner experience in lobby
+	- [x] Make ready status feel like a natural acknowledgement step
+	- [x] Avoid making every player feel like they are managing the room
 
 ## 8. Rebuild the table around actual poker priorities
 
-- [ ] Remove non-player mode toggles from the normal table UX
+- [x] Remove non-player mode toggles from the normal table UX
 	- [x] Remove manual Player View / Observer View switching from player flow
-	- [ ] Derive mode automatically from runtime state
+	- [x] Derive mode automatically from runtime state
 	- [x] Keep manual mode switching debug-only if still needed
 - [x] Make the top of the table answer only the core questions
 	- [x] Is it my turn?
 	- [x] What is the board?
 	- [x] What is the pot?
 	- [x] What action is expected?
-- [ ] Redesign the action area
-	- [ ] Put legal actions in one tight, obvious cluster
-	- [ ] Make the primary action visually dominant
-	- [ ] Make disabled states self-explanatory
-	- [ ] Reduce confirmation friction for common actions
-	- [ ] Keep raise sizing understandable without reading too much
-- [ ] Redesign seat presentation
-	- [ ] Make the local seat unmistakable
-	- [ ] Make the acting seat unmistakable
-	- [ ] Make eliminated or observing states unmistakable
-	- [ ] Remove unnecessary seat detail text from the collapsed default state
-	- [ ] Keep expandable seat detail secondary
+- [x] Redesign the action area
+	- [x] Put legal actions in one tight, obvious cluster
+	- [x] Make the primary action visually dominant
+	- [x] Make disabled states self-explanatory
+	- [x] Reduce confirmation friction for common actions
+	- [x] Keep raise sizing understandable without reading too much
+- [x] Redesign seat presentation
+	- [x] Make the local seat unmistakable
+	- [x] Make the acting seat unmistakable
+	- [x] Make eliminated or observing states unmistakable
+	- [x] Remove unnecessary seat detail text from the collapsed default state
+	- [x] Keep expandable seat detail secondary
 - [x] Demote secondary table tools
 	- [x] Move standings into a clearly secondary panel or drawer
 	- [x] Move public event feed further into the background
@@ -187,14 +187,14 @@ Status legend:
 
 ## 9. Fix observer and eliminated-player UX
 
-- [ ] Make observer state feel intentional
-	- [ ] Clear banner that the player is now observing
-	- [ ] No action affordances visible when they cannot act
-	- [ ] Public table information still feels complete
-- [ ] Preserve dignity after elimination
-	- [ ] Avoid visual treatment that looks like an error state
-	- [ ] Avoid making the screen look disabled or dead
-	- [ ] Keep standings and recent outcomes available
+- [x] Make observer state feel intentional
+	- [x] Clear banner that the player is now observing
+	- [x] No action affordances visible when they cannot act
+	- [x] Public table information still feels complete
+- [x] Preserve dignity after elimination
+	- [x] Avoid visual treatment that looks like an error state
+	- [x] Avoid making the screen look disabled or dead
+	- [x] Keep standings and recent outcomes available
 
 ## 10. Fix hand history so it feels like a supporting product surface
 
@@ -744,10 +744,10 @@ Screen-level mockup brief stance:
 	- [x] Home
 	- [x] Host
 	- [x] Join
-- [ ] Phase 3: Rebuild Lobby and Table hierarchy
-	- [ ] Lobby
-	- [ ] Table
-	- [ ] Observer state
+- [x] Phase 3: Rebuild Lobby and Table hierarchy
+	- [x] Lobby
+	- [x] Table
+	- [x] Observer state
 - [x] Phase 4: Rebuild support surfaces
 	- [x] History
 	- [x] Complete
