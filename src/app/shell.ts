@@ -70,7 +70,7 @@ export function createDefaultHostDraft(
     blindPresetId: BLIND_PRESETS[0].id,
     turnTimerSeconds: 30,
     hostPort: bootstrap.defaultHostPort,
-    advancedOpen: false,
+    advancedOpen: true,
   };
 }
 
