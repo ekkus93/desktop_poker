@@ -23,6 +23,7 @@ export type ParticipantShell = {
   label: string;
   detail: string;
   kind: "host" | "pending" | "open";
+  isLocal: boolean;
   ready: boolean;
 };
 
@@ -89,6 +90,7 @@ export function buildParticipantShell(
     label: "Open seat",
     detail: "",
     kind: "open" as const,
+    isLocal: false,
     ready: false,
   }));
 
@@ -97,6 +99,7 @@ export function buildParticipantShell(
     label: "You",
     detail: `Host · ${hostDraft.startingStack} chips`,
     kind: "host",
+    isLocal: true,
     ready: readySeats.includes(1),
   };
 
@@ -112,6 +115,7 @@ export function buildParticipantShell(
           ? "Invite received"
           : "Reserved",
       kind: "pending",
+      isLocal: false,
       ready: readySeats.includes(2),
     };
   }

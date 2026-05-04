@@ -17,6 +17,7 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
     recentJoinPayloads,
   ).filter((seat) => seat.kind !== "open");
   const allReady = participants.length >= 2 && participants.every((seat) => seat.ready);
+  const showsHostControlledSeats = bootstrap.debugToolsEnabled && participants.some((seat) => !seat.isLocal);
 
   return (
     <ScreenShell
@@ -25,6 +26,9 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
     >
       <div className="content-grid">
         <SectionCard kicker="Readiness" title="Participant readiness">
+          {showsHostControlledSeats ? (
+            <p className="field-hint">Pending seats use host-controlled ready toggles in debug mode.</p>
+          ) : null}
           <div className="stacked-list">
             {participants.map((seat) => (
               <article key={seat.seatIndex} className="list-panel">
@@ -32,15 +36,25 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
                   <strong>{seat.label}</strong>
                   <p className="field-hint">Seat {seat.seatIndex} · {seat.detail}</p>
                 </div>
-                <button
-                  className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
-                  onClick={() => {
-                    toggleSeatReady(seat.seatIndex);
-                  }}
-                  type="button"
-                >
-                  {seat.ready ? "Ready" : "Not ready"}
-                </button>
+                {seat.isLocal || bootstrap.debugToolsEnabled ? (
+                  <button
+                    className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
+                    onClick={() => {
+                      toggleSeatReady(seat.seatIndex);
+                    }}
+                    type="button"
+                  >
+                    {seat.isLocal
+                      ? seat.ready
+                        ? "Ready"
+                        : "Not ready"
+                      : seat.ready
+                        ? "Host marked ready"
+                        : "Host marks ready"}
+                  </button>
+                ) : (
+                  <p className="field-hint">Waiting on player readiness.</p>
+                )}
               </article>
             ))}
           </div>

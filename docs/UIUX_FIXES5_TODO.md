@@ -14,30 +14,30 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 1.1 Fix local seat identification in the lobby
 
-- [ ] Audit how the local player is identified in the lobby.
-- [ ] Replace the current `seat.label === displayName` lookup with a reliable local-player signal.
-- [ ] Prefer a stable field such as `isLocal`, local seat index, or another explicit local-player flag.
-- [ ] Verify the top-level "You: Ready" badge reflects the actual local seat state.
-- [ ] Verify the table-ready summary reflects the correct count of ready players.
+- [x] Audit how the local player is identified in the lobby.
+- [x] Replace the current `seat.label === displayName` lookup with a reliable local-player signal.
+- [x] Prefer a stable field such as `isLocal`, local seat index, or another explicit local-player flag.
+- [x] Verify the top-level "You: Ready" badge reflects the actual local seat state.
+- [x] Verify the table-ready summary reflects the correct count of ready players.
 
 ### 1.2 Prevent misleading readiness controls
 
-- [ ] Decide the intended behavior for lobby readiness buttons.
+- [x] Decide the intended behavior for lobby readiness buttons.
 - [ ] If only the local player should control readiness:
-	- [ ] Hide readiness buttons for non-local occupied seats.
-	- [ ] Keep non-local seats read-only.
-	- [ ] Ensure only the local seat exposes a ready toggle.
-- [ ] If host-controlled simulation is intentionally supported:
-	- [ ] Visually mark the screen as simulation/debug behavior.
-	- [ ] Rename controls so they do not read like real player actions.
-	- [ ] Hide simulation-only controls outside debug mode.
-- [ ] Review seat labels and status chips so they communicate who controls what.
+	- [x] Hide readiness buttons for non-local occupied seats.
+	- [x] Keep non-local seats read-only.
+	- [x] Ensure only the local seat exposes a ready toggle.
+- [x] If host-controlled simulation is intentionally supported:
+	- [x] Visually mark the screen as simulation/debug behavior.
+	- [x] Rename controls so they do not read like real player actions.
+	- [x] Hide simulation-only controls outside debug mode.
+- [x] Review seat labels and status chips so they communicate who controls what.
 
 ### 1.3 Verify participant-shell naming consistency
 
-- [ ] Review `buildParticipantShell` labels for host, local player, pending seats, and open seats.
-- [ ] Remove any UI logic that relies on display text for identity matching.
-- [ ] Ensure labels are presentation-only and not used as keys for behavior.
+- [x] Review `buildParticipantShell` labels for host, local player, pending seats, and open seats.
+- [x] Remove any UI logic that relies on display text for identity matching.
+- [x] Ensure labels are presentation-only and not used as keys for behavior.
 
 ## Phase 2: Fix Broken or Misleading Flow Gating
 

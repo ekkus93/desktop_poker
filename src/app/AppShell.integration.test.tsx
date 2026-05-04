@@ -159,9 +159,8 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
 
-    const readyButtons = screen.getAllByRole("button", { name: "Mark ready" });
-    fireEvent.click(readyButtons[0]);
-    fireEvent.click(readyButtons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
 
     expect(
       screen.getByRole("link", { name: "Start tournament" }),
@@ -219,9 +218,8 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    const readyButtons = screen.getAllByRole("button", { name: "Mark ready" });
-    fireEvent.click(readyButtons[0]);
-    fireEvent.click(readyButtons[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
     fireEvent.click(screen.getByRole("link", { name: "Start tournament" }));
 
     expect(

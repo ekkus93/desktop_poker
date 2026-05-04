@@ -8,7 +8,7 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
-  const { displayName, hostDraft, readySeats, recentJoinPayloads, toggleSeatReady } =
+  const { hostDraft, readySeats, recentJoinPayloads, toggleSeatReady } =
     useDesktopShell();
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
   const participants = buildParticipantShell(
@@ -19,10 +19,11 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   );
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const canStart = activeSeats.length >= 2 && activeSeats.every((seat) => seat.ready);
-  const localSeat = participants.find((seat) => seat.kind !== "open" && seat.label === displayName);
+  const localSeat = participants.find((seat) => seat.isLocal);
   const localSeatReady = localSeat?.ready ?? false;
   const readySeatCount = activeSeats.filter((seat) => seat.ready).length;
   const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
+  const showsHostControlledSeats = bootstrap.debugToolsEnabled && activeSeats.some((seat) => !seat.isLocal);
 
   return (
     <ScreenShell
@@ -45,16 +46,26 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
                 </span>
               </div>
+              {showsHostControlledSeats ? (
+                <p className="field-hint">Pending seats use host-controlled ready toggles in debug mode.</p>
+              ) : null}
             </article>
 
             <div className="seat-grid lobby-seat-grid compact-lobby-seat-grid">
             {participants.map((seat) => {
               const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
+              const readyButtonLabel = seat.isLocal
+                ? seat.ready
+                  ? "Ready"
+                  : "Mark ready"
+                : seat.ready
+                  ? "Host marked ready"
+                  : "Host marks ready";
 
               return (
               <article
                 key={seat.seatIndex}
-                className={`seat-card lobby-seat-card ${seat.kind === "open" ? "lobby-seat-open" : "lobby-seat-filled"} ${seat.kind === "host" ? "lobby-seat-local" : ""} ${seat.ready ? "lobby-seat-ready" : ""}`}
+                className={`seat-card lobby-seat-card ${seat.kind === "open" ? "lobby-seat-open" : "lobby-seat-filled"} ${seat.isLocal ? "lobby-seat-local" : ""} ${seat.ready ? "lobby-seat-ready" : ""}`}
               >
                 <div className="seat-card-header">
                   <div>
@@ -69,7 +80,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 {seat.kind !== "open" && seat.detail ? (
                   <p className="seat-detail">{seat.detail}</p>
                 ) : null}
-                {seat.kind !== "open" ? (
+                {seat.kind !== "open" && (seat.isLocal || bootstrap.debugToolsEnabled) ? (
                   <button
                     className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
                     onClick={() => {
@@ -77,8 +88,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     }}
                     type="button"
                   >
-                    {seat.ready ? "Ready" : "Mark ready"}
+                    {readyButtonLabel}
                   </button>
+                ) : seat.kind !== "open" ? (
+                  <p className="field-hint">Waiting on player readiness.</p>
                 ) : null}
               </article>
             );})}
