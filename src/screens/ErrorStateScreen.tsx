@@ -89,9 +89,9 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Reconnect / Error States"
-      lead="Show a clear problem, explain what it means, and offer one obvious next step."
-      badges={[bootstrap.runtimeTransport, SCENARIO_LABELS[scenario]]}
+      title="Connection & Recovery"
+      lead="Explain what happened, what it means, and the next best recovery step."
+      badges={[SCENARIO_LABELS[scenario]]}
     >
       <div className="content-grid">
         <SectionCard kicker="Current state" title={SCENARIO_LABELS[scenario]}>
@@ -116,14 +116,6 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="What the user needs to know">
-          <ul>
-            <li>Do not leave the user guessing what happened.</li>
-            <li>Do not make technical diagnostics the main message.</li>
-            <li>Always offer one clear recovery path.</li>
-          </ul>
-        </SectionCard>
-
         {bootstrap.debugToolsEnabled ? (
           <SectionCard kicker="Internal review" title="Scenario picker">
             <div className="button-row">
@@ -144,20 +136,6 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
           </SectionCard>
         ) : null}
       </div>
-
-      <section className="dialog-card">
-        <p className="kicker">Dialog preview</p>
-        <h3>{SCENARIO_LABELS[scenario]}</h3>
-        <p>{scenarioMessage[scenario]}</p>
-        <div className="button-row">
-          <Link className="primary-button" to={scenarioAction.primaryTo}>
-            {scenarioAction.primaryLabel}
-          </Link>
-          <Link className="secondary-button" to={scenarioAction.secondaryTo}>
-            {scenarioAction.secondaryLabel}
-          </Link>
-        </div>
-      </section>
     </ScreenShell>
   );
 }

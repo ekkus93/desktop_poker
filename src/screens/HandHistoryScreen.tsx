@@ -36,15 +36,15 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Hand History"
-      lead="Review settled hands, standings, and recent public events without leaving the player flow behind."
-      badges={[bootstrap.serializationStrategy, tableView?.blindLevelLabel ?? "History"]}
+      lead="Review recent hands, the current order, and the latest public table updates."
+      badges={[tableView?.blindLevelLabel ?? "History"]}
     >
       <div className="content-grid wide-grid">
-        <SectionCard kicker="History" title="Settled hands">
+        <SectionCard kicker="History" title="Recent hands">
           {error ? <p>{error}</p> : null}
           {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
             <p className="field-hint">
-              Showing locally saved hand summaries for this device.
+              Showing saved hands from this device.
             </p>
           ) : null}
           <div className="stacked-list">
@@ -52,10 +52,9 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
               historyEntries.map((entry) => (
                 <article key={entry.handNumber} className="list-panel history-row">
                   <div>
-                    <strong>Hand {entry.handNumber}</strong>
-                    <p className="field-hint">{entry.summary}</p>
+                    <strong>{entry.summary}</strong>
                     <p className="field-hint">
-                      Pot {entry.potTotal} · Winners: {entry.winningPlayers.join(", ")}
+                      Hand {entry.handNumber} · Pot {entry.potTotal} · Winners: {entry.winningPlayers.join(", ")}
                     </p>
                     {entry.eliminatedPlayers.length ? (
                       <p className="field-hint">
@@ -66,7 +65,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                 </article>
               ))
             ) : (
-              <p className="field-hint">No settled hands yet. Return to the table to keep the game moving.</p>
+              <p className="field-hint">No hands have settled yet.</p>
             )}
           </div>
           <div className="button-row">
@@ -94,14 +93,12 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard kicker="Feed" title="Recent public events">
+        <SectionCard kicker="Feed" title="Table feed">
           <div className="stacked-list">
             {tableView?.eventFeed.map((event) => (
               <article key={event.sequence} className="list-panel history-row">
                 <div>
-                  <strong>
-                    Seq {event.sequence} · {event.kind}
-                  </strong>
+                  <strong>{event.message}</strong>
                   <p className="field-hint">{event.message}</p>
                 </div>
               </article>

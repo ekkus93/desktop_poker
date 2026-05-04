@@ -55,7 +55,7 @@ describe("TournamentCompleteScreen", () => {
       bootstrap,
     });
 
-    expect(await screen.findByText(/the tournament is complete/i)).toBeTruthy();
+    expect(await screen.findByText(/maya wins/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(screen.getByText(/won the tournament/i)).toBeTruthy();
   });

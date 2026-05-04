@@ -198,45 +198,45 @@ Status legend:
 
 ## 10. Fix hand history so it feels like a supporting product surface
 
-- [ ] Improve list readability
-	- [ ] Make each hand entry scannable in one pass
-	- [ ] Surface winner, pot, and notable outcome first
-	- [ ] Demote dense details
-- [ ] Clarify live vs saved history
-	- [ ] Tell the user which history they are looking at
-	- [ ] Avoid storage-centric language
-	- [ ] Make fallback behavior feel intentional
-- [ ] Improve empty and sparse states
-	- [ ] No history yet
-	- [ ] History exists but table state is unavailable
-	- [ ] Tournament just started
+- [x] Improve list readability
+	- [x] Make each hand entry scannable in one pass
+	- [x] Surface winner, pot, and notable outcome first
+	- [x] Demote dense details
+- [x] Clarify live vs saved history
+	- [x] Tell the user which history they are looking at
+	- [x] Avoid storage-centric language
+	- [x] Make fallback behavior feel intentional
+- [x] Improve empty and sparse states
+	- [x] No history yet
+	- [x] History exists but table state is unavailable
+	- [x] Tournament just started
 
 ## 11. Fix tournament completion UX
 
-- [ ] Make tournament completion feel final and satisfying
-	- [ ] Clear winner emphasis
-	- [ ] Clear final standings
-	- [ ] Clear next actions
-- [ ] Reduce placeholder energy
-	- [ ] Remove anything that reads like an unfinished debug surface
-	- [ ] Keep summary content short and celebratory
-- [ ] Improve next-step options
-	- [ ] Review history
-	- [ ] Return home
-	- [ ] Start another game only if that flow is genuinely supported
+- [x] Make tournament completion feel final and satisfying
+	- [x] Clear winner emphasis
+	- [x] Clear final standings
+	- [x] Clear next actions
+- [x] Reduce placeholder energy
+	- [x] Remove anything that reads like an unfinished debug surface
+	- [x] Keep summary content short and celebratory
+- [x] Improve next-step options
+	- [x] Review history
+	- [x] Return home
+	- [x] Start another game only if that flow is genuinely supported
 
 ## 12. Fix error and reconnect UX
 
-- [ ] Remove scenario-picker behavior from player flow
-	- [ ] Keep scenario switching debug-only
-	- [ ] Ensure default error surfaces always reflect real runtime state
-- [ ] Simplify all recovery states
-	- [ ] What happened
-	- [ ] What it means
-	- [ ] What to do next
-- [ ] Reduce duplicate error presentation
-	- [ ] Avoid showing the same state in both a full screen and dialog preview unless debugging
-	- [ ] Use one recovery surface per context
+- [x] Remove scenario-picker behavior from player flow
+	- [x] Keep scenario switching debug-only
+	- [x] Ensure default error surfaces always reflect real runtime state
+- [x] Simplify all recovery states
+	- [x] What happened
+	- [x] What it means
+	- [x] What to do next
+- [x] Reduce duplicate error presentation
+	- [x] Avoid showing the same state in both a full screen and dialog preview unless debugging
+	- [x] Use one recovery surface per context
 - [ ] Standardize recovery actions
 	- [ ] Retry
 	- [ ] Rejoin
@@ -748,10 +748,10 @@ Screen-level mockup brief stance:
 	- [ ] Lobby
 	- [ ] Table
 	- [ ] Observer state
-- [ ] Phase 4: Rebuild support surfaces
-	- [ ] History
-	- [ ] Complete
-	- [ ] Errors
+- [x] Phase 4: Rebuild support surfaces
+	- [x] History
+	- [x] Complete
+	- [x] Errors
 - [ ] Phase 5: Polish visual system and copy
 	- [ ] Copy pass
 	- [ ] spacing pass
