@@ -43,35 +43,35 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 2.1 Fix Join flow continuation state
 
-- [ ] Review all entry paths into Join Tournament:
-	- [ ] manual paste
-	- [ ] recent invite load
-	- [ ] launch payload
-	- [ ] deep-link payload
-- [ ] Ensure a valid invite always enables the correct next-step CTA.
-- [ ] Ensure invalid invite states always disable progression.
-- [ ] Remove any mismatch between preview validity and button visibility.
-- [ ] Confirm the preview, success banner, and continue action all derive from the same state model.
+- [x] Review all entry paths into Join Tournament:
+	- [x] manual paste
+	- [x] recent invite load
+	- [x] launch payload
+	- [x] deep-link payload
+- [x] Ensure a valid invite always enables the correct next-step CTA.
+- [x] Ensure invalid invite states always disable progression.
+- [x] Remove any mismatch between preview validity and button visibility.
+- [x] Confirm the preview, success banner, and continue action all derive from the same state model.
 
 ### 2.2 Fix Host flow continuation gating
 
-- [ ] Define the exact conditions required to proceed from Host setup to Lobby.
-- [ ] Disable or hide "Continue to lobby" when hosting is blocked.
-- [ ] Disable or hide "Continue to lobby" while LAN address resolution is still pending, if progression should be blocked.
-- [ ] Add visible explanation text for blocked progression.
-- [ ] Ensure the button state and the status banner never contradict each other.
+- [x] Define the exact conditions required to proceed from Host setup to Lobby.
+- [x] Disable or hide "Continue to lobby" when hosting is blocked.
+- [x] Disable or hide "Continue to lobby" while LAN address resolution is still pending, if progression should be blocked.
+- [x] Add visible explanation text for blocked progression.
+- [x] Ensure the button state and the status banner never contradict each other.
 
 ### 2.3 Make invite-sharing actions trustworthy
 
-- [ ] Decide the primary share affordance on Host setup:
-	- [ ] clickable invite card
-	- [ ] explicit copy button
-	- [ ] both
-- [ ] Ensure the primary share affordance is visually obvious.
-- [ ] Add error handling for clipboard failures.
-- [ ] Show a failure banner if clipboard access is denied or unavailable.
-- [ ] Consider a fallback reveal area with selectable share text if copy fails.
-- [ ] Make success and failure states visually distinct.
+- [x] Decide the primary share affordance on Host setup:
+	- [x] clickable invite card
+	- [x] explicit copy button
+	- [x] both
+- [x] Ensure the primary share affordance is visually obvious.
+- [x] Add error handling for clipboard failures.
+- [x] Show a failure banner if clipboard access is denied or unavailable.
+- [x] Consider a fallback reveal area with selectable share text if copy fails.
+- [x] Make success and failure states visually distinct.
 
 ## Phase 3: Remove Hidden-State UX Traps
 

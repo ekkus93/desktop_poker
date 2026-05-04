@@ -29,6 +29,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
   const [lanError, setLanError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [showFallbackShareDetails, setShowFallbackShareDetails] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -67,10 +69,22 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const blindPreset = BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ?? BLIND_PRESETS[0];
   const inviteReady = Boolean(resolvedHostIp && !lanError);
   const [hasCheckedAdvancedOpen, setHasCheckedAdvancedOpen] = useState(false);
+  const canContinueToLobby = inviteReady;
+  const blockedProgressMessage = lanError
+    ? "Resolve the LAN address before continuing to the lobby."
+    : "Wait for a reachable LAN address before continuing to the lobby.";
 
   const handleCopy = async (value: string, message: string) => {
-    await navigator.clipboard.writeText(value);
-    setCopyState(message);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyState(message);
+      setCopyError(null);
+      setShowFallbackShareDetails(false);
+    } catch {
+      setCopyState(null);
+      setCopyError("Copy failed. Share the invite details manually.");
+      setShowFallbackShareDetails(true);
+    }
   };
 
   useEffect(() => {
@@ -175,6 +189,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               <div className="button-row workstation-actions">
                 <button
                   className="secondary-button"
+                  disabled={!inviteReady}
                   onClick={() => {
                     void handleCopy(shareText, "Copied host share details.");
                   }}
@@ -185,13 +200,23 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     <span>Copy invite</span>
                   </span>
                 </button>
-                <Link className="primary-button" to="/lobby">
-                  <span className="button-content">
-                    <ArrowRight className="button-icon" strokeWidth={1.9} />
-                    <span>Continue to lobby</span>
-                  </span>
-                </Link>
+                {canContinueToLobby ? (
+                  <Link className="primary-button" to="/lobby">
+                    <span className="button-content">
+                      <ArrowRight className="button-icon" strokeWidth={1.9} />
+                      <span>Continue to lobby</span>
+                    </span>
+                  </Link>
+                ) : (
+                  <button className="primary-button" disabled type="button">
+                    <span className="button-content">
+                      <ArrowRight className="button-icon" strokeWidth={1.9} />
+                      <span>Continue to lobby</span>
+                    </span>
+                  </button>
+                )}
               </div>
+              {!canContinueToLobby ? <p className="field-hint">{blockedProgressMessage}</p> : null}
 
               <div className="button-row">
                 <button
@@ -280,6 +305,13 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               ) : null}
 
               {copyState ? <p className="inline-banner success">{copyState}</p> : null}
+              {copyError ? <p className="inline-banner error">{copyError}</p> : null}
+              {showFallbackShareDetails ? (
+                <label className="field">
+                  Invite details
+                  <textarea className="compact-invite-textarea" readOnly rows={6} value={shareText} />
+                </label>
+              ) : null}
             </div>
           </div>
         </SectionCard>

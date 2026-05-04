@@ -34,7 +34,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     status: "idle",
   });
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
-  const [continueToLobby, setContinueToLobby] = useState(false);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -44,8 +43,19 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   useEffect(() => {
     if (deepLinkPayload && deepLinkPayload !== joinPayloadDraft) {
       setJoinPayloadDraft(deepLinkPayload);
-      setInviteBanner("Invite imported from a deep-link launch.");
-      setContinueToLobby(false);
+
+      void validateJoinPayloadInput(deepLinkPayload)
+        .then((parsedPayload) => {
+          setValidationState({ status: "valid", payload: parsedPayload });
+          setInviteBanner("Invite imported from a deep-link launch.");
+        })
+        .catch((error: unknown) => {
+          setValidationState({
+            status: "invalid",
+            message: normaliseError(error),
+          });
+          setInviteBanner(null);
+        });
     }
   }, [deepLinkPayload, joinPayloadDraft, setJoinPayloadDraft]);
 
@@ -59,6 +69,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         status: "valid",
         payload: bootstrap.parsedLaunchJoinPayload,
       });
+      setInviteBanner("Invite already attached to this launch.");
       return;
     }
 
@@ -67,6 +78,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         status: "invalid",
         message: bootstrap.launchJoinPayloadError,
       });
+      setInviteBanner(null);
     }
   }, [
     bootstrap.launchJoinPayload,
@@ -82,6 +94,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         status: "invalid",
         message: "Paste an invite to continue.",
       });
+      setInviteBanner(null);
       return null;
     }
 
@@ -93,6 +106,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         status: "valid",
         payload: bootstrap.parsedLaunchJoinPayload,
       });
+      setInviteBanner("Invite already attached to this launch.");
       return bootstrap.parsedLaunchJoinPayload;
     }
 
@@ -102,7 +116,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       const parsedPayload = await validateJoinPayloadInput(trimmedPayload);
       setValidationState({ status: "valid", payload: parsedPayload });
       rememberJoinPayload(trimmedPayload);
-      setContinueToLobby(true);
       setInviteBanner(
         `Ready: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`,
       );
@@ -112,6 +125,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         status: "invalid",
         message: normaliseError(error),
       });
+      setInviteBanner(null);
       return null;
     }
   };
@@ -125,6 +139,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     validationState.status === "valid"
       ? validationState.payload.tableName ?? validationState.payload.tableId
       : null;
+  const canContinueToLobby = validationState.status === "valid";
 
   return (
     <ScreenShell
@@ -144,7 +159,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     setJoinPayloadDraft(event.target.value);
                     setValidationState({ status: "idle" });
                     setInviteBanner(null);
-                    setContinueToLobby(false);
                   }}
                   rows={6}
                   value={joinPayloadDraft}
@@ -163,7 +177,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     <span>Check invite</span>
                   </span>
                 </button>
-                {continueToLobby ? (
+                {canContinueToLobby ? (
                   <Link className="primary-button ghost-primary-button" to="/lobby">
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
@@ -232,9 +246,19 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                         key={payload}
                         onClick={() => {
                           setJoinPayloadDraft(payload);
-                          setInviteBanner("Loaded a recent invite.");
-                          setValidationState({ status: "idle" });
-                          setContinueToLobby(false);
+
+                          void validateJoinPayloadInput(payload)
+                            .then((parsedPayload) => {
+                              setValidationState({ status: "valid", payload: parsedPayload });
+                              setInviteBanner("Loaded a recent invite.");
+                            })
+                            .catch((error: unknown) => {
+                              setValidationState({
+                                status: "invalid",
+                                message: normaliseError(error),
+                              });
+                              setInviteBanner(null);
+                            });
                         }}
                         type="button"
                       >

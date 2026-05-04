@@ -60,6 +60,40 @@ describe("HostTournamentSetupScreen", () => {
     expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
   });
 
+  it("blocks lobby continuation until hosting is ready", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    mockedResolveHostLanAddress.mockRejectedValueOnce(new Error("No reachable LAN IP"));
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    expect((await screen.findAllByText(/no reachable lan ip/i)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: /continue to lobby/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /continue to lobby/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/resolve the lan address before continuing to the lobby/i)).toBeTruthy();
+  });
+
+  it("shows a manual share fallback when clipboard copy fails", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    const writeText = vi.fn().mockRejectedValue(new Error("Clipboard denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /copy invite/i }));
+
+    expect(await screen.findByText(/copy failed\. share the invite details manually\./i)).toBeTruthy();
+    expect(screen.getByDisplayValue(/host endpoint: 192\.168\.1\.10:43818/i)).toBeTruthy();
+  });
+
   it("opens advanced options when a persisted host draft is collapsed", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     const storedDraft = { ...createDefaultHostDraft(bootstrap), advancedOpen: false };

@@ -31,6 +31,7 @@ describe("JoinTournamentScreen", () => {
 
   it("prefers a deep-link invite over the stored draft", async () => {
     const bootstrap = createBootstrap({ launchJoinPayload: "pkr1_launch" });
+    mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
 
     renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
       bootstrap,
@@ -43,6 +44,23 @@ describe("JoinTournamentScreen", () => {
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+  });
+
+  it("shows the continue action for a valid launch-attached invite", async () => {
+    const bootstrap = createBootstrap({
+      launchJoinPayload: "pkr1_launch",
+      parsedLaunchJoinPayload: parsedPayload,
+    });
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/join"],
+    });
+
+    expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
+    expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("shows invite review failures from the Rust parser", async () => {
