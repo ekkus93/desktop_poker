@@ -39,7 +39,7 @@ export function AppFrame({
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
   const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules");
-  const primaryNavigation = navigation.filter((item) => item.to !== "/history" && item.to !== "/rules" && item.to !== "/debug");
+  const primaryNavigation = navigation.filter((item) => item.to !== "/history" && item.to !== "/rules");
   const currentPrimaryRoute = primaryNavigation.find((item) => item.to === location.pathname);
 
   if (!inTournament) {

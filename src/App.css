@@ -432,7 +432,7 @@ dt {
 }
 
 .home-screen-grid-with-resume {
-  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.75fr);
 }
 
 .wide-grid {
@@ -475,6 +475,17 @@ dt {
 .choice-card-primary {
   border-color: rgba(221, 180, 94, 0.35);
   box-shadow: inset 0 0 0 1px rgba(221, 180, 94, 0.2);
+}
+
+.home-hero-card {
+  max-width: 60rem;
+  justify-self: center;
+}
+
+.home-hero-card .kicker,
+.home-hero-card h3,
+.home-hero-card > p {
+  text-align: left;
 }
 
 .invite-card {
@@ -713,11 +724,13 @@ dt,
 
 .table-headline-card {
   display: grid;
-  gap: 0.45rem;
-  padding: 1rem 1.05rem;
+  gap: 0.5rem;
+  padding: 1.15rem 1.2rem;
   border-radius: 1rem;
-  border: 1px solid rgba(231, 220, 200, 0.12);
-  background: rgba(21, 39, 28, 0.92);
+  border: 1px solid rgba(231, 220, 200, 0.14);
+  background:
+    radial-gradient(circle at top, rgba(239, 210, 139, 0.1), transparent 45%),
+    rgba(21, 39, 28, 0.94);
 }
 
 .table-headline-card.is-active-turn {
@@ -753,15 +766,16 @@ dt,
 
 .table-summary-row {
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  align-items: stretch;
 }
 
 .pot-summary-card {
   display: grid;
-  gap: 0.3rem;
-  padding: 0.95rem 1rem;
+  gap: 0.38rem;
+  padding: 1rem 1.05rem;
   border-radius: 0.9rem;
   border: 1px solid rgba(231, 220, 200, 0.12);
-  background: rgba(18, 12, 9, 0.62);
+  background: rgba(18, 12, 9, 0.72);
 }
 
 .pot-summary-card strong {
@@ -860,7 +874,8 @@ dt,
 
 .enhanced-seat-card {
   position: relative;
-  gap: 0.7rem;
+  gap: 0.62rem;
+  padding: 0.8rem;
 }
 
 .lobby-seat-card {
@@ -963,6 +978,23 @@ dt,
   border-radius: 0.8rem;
   border: 1px solid rgba(231, 220, 200, 0.16);
   background: rgba(18, 12, 9, 0.82);
+}
+
+.table-side-panel .section-card {
+  background: rgba(22, 17, 13, 0.74);
+}
+
+.table-side-panel .list-panel {
+  background: rgba(30, 22, 17, 0.62);
+}
+
+.action-owner-banner strong {
+  font-size: 1.05rem;
+}
+
+.action-tray-row .secondary-button,
+.action-tray-row .primary-button {
+  min-height: 3.2rem;
 }
 
 .observer-banner,

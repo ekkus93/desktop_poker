@@ -20,7 +20,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
       badges={[]}
     >
       <div className={`content-grid home-screen-grid${hasSavedProgress ? " home-screen-grid-with-resume" : ""}`}>
-        <SectionCard kicker="Tonight's game" title="Choose your seat">
+        <SectionCard kicker="Tonight's game" title="Choose your seat" className="home-hero-card">
           <div className="button-row">
             <Link className="primary-button" to="/host">
               <span className="button-content">
@@ -58,19 +58,19 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         {hasSavedProgress ? (
-        <SectionCard title="Continue where you left off">
+        <SectionCard title="Pick up the night">
             <div className="stacked-list compact-home-list">
               <article className="list-panel">
                 <div>
                   <strong>{displayName}</strong>
-                  <p className="field-hint">Saved host draft: {hostDraft.tournamentName}</p>
+                  <p className="field-hint">Saved host setup: {hostDraft.tournamentName}</p>
                 </div>
               </article>
               {hasSavedHistory ? (
                 <article className="list-panel">
                   <div>
                     <strong>{persistedHandHistoryCount} saved hand summaries</strong>
-                    <p className="field-hint">Review the last settled hands from this device.</p>
+                    <p className="field-hint">Look back at the last settled hands from this device.</p>
                   </div>
                   <div className="button-row">
                     <Link className="secondary-button" to="/history">
@@ -86,7 +86,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                 <article className="list-panel">
                   <div>
                     <strong>Saved invites</strong>
-                    <p className="field-hint">Jump back into a remembered invite or review the latest one.</p>
+                    <p className="field-hint">Jump back into a remembered table from the join screen.</p>
                   </div>
                   <div className="button-row">
                     <Link className="secondary-button" to="/join">
@@ -101,7 +101,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
               {hasLaunchPayload ? (
                 <article className="list-panel">
                   <div>
-                    <strong>{bootstrap.launchJoinPayloadError ? "Invite needs attention" : "Invite ready to review"}</strong>
+                    <strong>{bootstrap.launchJoinPayloadError ? "Invite needs attention" : "Invite ready"}</strong>
                     <p className="field-hint">
                       {bootstrap.launchJoinPayloadError
                         ? bootstrap.launchJoinPayloadError
@@ -112,7 +112,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                     <Link className="secondary-button" to="/join">
                       <span className="button-content">
                         <LogIn className="button-icon" strokeWidth={1.9} />
-                        <span>Review Invite</span>
+                        <span>Open Invite</span>
                       </span>
                     </Link>
                   </div>

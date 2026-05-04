@@ -45,9 +45,7 @@ export function AppShell() {
 
   const primaryRoutes = new Set(["/", "/host", "/join", "/history", "/rules"]);
   const navigation = bootstrap.screens
-    .filter(
-      (screen) => primaryRoutes.has(screen.route) || screen.route === "/debug",
-    )
+    .filter((screen) => primaryRoutes.has(screen.route))
     .map((screen) => ({
       to: screen.route,
       label: screen.title,

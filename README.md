@@ -24,19 +24,19 @@ In practice, the app is already usable for local desktop-hosted poker sessions, 
 The current player-facing flow is:
 
 1. Home: choose `Host Tournament` or `Join Tournament`
-2. Host or Join setup: configure the table or validate a `pkr1_...` payload
-3. Lobby: review seated players, readiness, and startability
-4. Main Table: play, observe after elimination, and access secondary detail views
-5. History or Complete: review settled hands and final tournament state
+2. Host or Join setup: open a table or bring an invite and confirm the destination
+3. Lobby: gather the table, check readiness, and start the first hand
+4. Main Table: play the hand while the board, pot, and current decision stay front and center
+5. History, Help, Recovery, or Complete: review secondary details only when you choose them or when the game needs them
 
-Recovery and reconnect states appear only when needed, and debug or multi-instance tooling stays outside the normal player path.
+Recovery and reconnect states appear only when needed, and debug or multi-instance tooling stays on a hidden debug-only route outside the normal player path.
 
 ## What the app is responsible for
 
 ### Frontend
 
 - Presents the player flow and screen hierarchy.
-- Renders host, join, lobby, table, history, completion, help, and error surfaces.
+- Renders host, join, lobby, table, history, completion, help, and recovery surfaces.
 - Persists lightweight local shell state such as recent payloads, host draft values, and cached hand-history summaries.
 
 ### Rust backend
@@ -49,7 +49,7 @@ Recovery and reconnect states appear only when needed, and debug or multi-instan
 ### Internal tooling
 
 - Supports debug review, payload handoff, and multi-instance development workflows.
-- Remains intentionally separated from the normal player path and is hidden outside debug builds.
+- Remains intentionally separated from the normal player path and lives on a hidden debug-only route.
 
 ## Frozen implementation choices
 
@@ -180,14 +180,14 @@ The CLI form and env var are both surfaced through the Rust bootstrap state and 
 ## Local multi-instance host/join flow
 
 1. Launch a host instance with its own id, for example `DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev`.
-2. Copy the current `pkr1_...` payload from the host flow or from the Internal Tools screen in debug builds.
+2. Copy the current `pkr1_...` payload from the host flow or from the hidden debug route in debug builds.
 3. Launch a second instance with a different id and either paste the payload on the Join screen or pass it on the command line:
 
 ```bash
 DESKTOP_POKER_INSTANCE_ID=client-b npm run tauri dev -- -- --join-payload 'pkr1_...'
 ```
 
-Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local LAN flows use the same payload path once a connectable host IP is available. In debug builds, the Internal Tools screen can copy the payload directly and launch another instance with the payload already attached.
+Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local LAN flows use the same payload path once a connectable host IP is available. In debug builds, the hidden debug route can copy the payload directly and launch another instance with the payload already attached.
 
 ## Architecture notes
 

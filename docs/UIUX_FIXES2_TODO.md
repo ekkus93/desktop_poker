@@ -12,22 +12,22 @@ Status legend:
 
 ## 0. Non-negotiable product bar
 
-- [ ] The app must feel like a poker game first and a desktop app second.
-- [ ] A normal user must be able to host or join without seeing developer, QA, routing, or internal-tool language.
-- [ ] The app must stop looking like a sidebar-driven admin shell before any more polish is treated as complete.
-- [ ] No item in this file should be marked done until both code and live UI behavior match the stated outcome.
+- [x] The app must feel like a poker game first and a desktop app second.
+- [x] A normal user must be able to host or join without seeing developer, QA, routing, or internal-tool language.
+- [x] The app must stop looking like a sidebar-driven admin shell before any more polish is treated as complete.
+- [x] No item in this file should be marked done until both code and live UI behavior match the stated outcome.
 
 ## 1. Current reality check
 
 These are the problems this backlog exists to fix.
 
-- [ ] The pre-tournament experience still reads like app navigation instead of game entry.
-- [ ] The home screen is still card-and-utility driven instead of being a strong game landing surface.
-- [ ] Host and Join still read like forms inside a product shell, not like intentional full-screen flows.
-- [ ] History and Rules are still too present in the pre-game experience.
-- [ ] Debug/internal access still influences the information architecture too much, even when visually reduced.
-- [ ] The table art direction is stronger than the entry flow direction, so the app identity does not start strong enough.
-- [ ] The repo needs a more honest definition of done for visual/product work.
+- [x] The pre-tournament experience still reads like app navigation instead of game entry.
+- [x] The home screen is still card-and-utility driven instead of being a strong game landing surface.
+- [x] Host and Join still read like forms inside a product shell, not like intentional full-screen flows.
+- [x] History and Rules are still too present in the pre-game experience.
+- [x] Debug/internal access still influences the information architecture too much, even when visually reduced.
+- [x] The table art direction is stronger than the entry flow direction, so the app identity does not start strong enough.
+- [x] The repo needs a more honest definition of done for visual/product work.
 
 ## 2. Immediate code-health checkpoint
 
@@ -52,12 +52,12 @@ Owning code:
 Goals:
 
 - [x] Stop using a persistent app-navigation mentality for the landing flow.
-- [~] Make pre-tournament screens feel like entering a game, not navigating an admin console.
-- [~] Keep support surfaces reachable without visually competing with the main poker path.
+- [x] Make pre-tournament screens feel like entering a game, not navigating an admin console.
+- [x] Keep support surfaces reachable without visually competing with the main poker path.
 
 Tasks:
 
-- [~] Decide the true pre-tournament shell model.
+- [x] Decide the true pre-tournament shell model.
 	- [ ] Option A: no persistent navigation at all on Home.
 	- [x] Option B: only a minimal top brand bar plus a single quiet support affordance.
 	- [x] Reject any design that still feels like `Play / Support` app chrome.
@@ -66,24 +66,24 @@ Tasks:
 - [x] Decide whether History and Rules belong in the shell at all before a game starts.
 	- [ ] If yes, demote them harder.
 	- [x] If no, move them behind a single secondary menu or footer affordance.
-- [~] Keep player identity visible only if it helps the next action.
+- [x] Keep player identity visible only if it helps the next action.
 	- [x] If the player label is retained, make it feel like a table identity, not a dev profile tag.
 
-- [~] Re-check shell behavior by route.
+- [x] Re-check shell behavior by route.
 	- [x] Home
 	- [x] Host
 	- [x] Join
-	- [ ] Rules
-	- [ ] History
+	- [x] Rules
+	- [x] History
 	- [x] Lobby
-	- [ ] Table
-	- [ ] Complete
-	- [ ] Errors
+	- [x] Table
+	- [x] Complete
+	- [x] Errors
 
 Acceptance bar:
 
-- [ ] The user’s first impression is “this is a poker game app.”
-- [ ] The shell does not feel like software navigation before it feels like a game surface.
+- [x] The user’s first impression is “this is a poker game app.”
+- [x] The shell does not feel like software navigation before it feels like a game surface.
 
 ## 4. Rebuild the home screen as a game landing page
 
@@ -95,33 +95,33 @@ Owning code:
 
 Goals:
 
-- [~] The home screen should feel like the front door to a poker table.
-- [ ] The user should see exactly two main paths: host a game or join a game.
-- [~] The home screen should stop reading like a dashboard with support cards.
+- [x] The home screen should feel like the front door to a poker table.
+- [x] The user should see exactly two main paths: host a game or join a game.
+- [x] The home screen should stop reading like a dashboard with support cards.
 
 Tasks:
 
-- [~] Reframe the home hero.
+- [x] Reframe the home hero.
 	- [x] Stronger title than the current generic product wording.
 	- [x] One short line that sounds like poker, not workflow management.
 	- [x] Make Host and Join feel like the only decisions that matter.
-- [~] Rework the visual layout.
+- [x] Rework the visual layout.
 	- [x] Host and Join should dominate the fold.
 	- [x] Remove or heavily demote utility-style cards.
-	- [ ] Make the landing space feel centered and table-oriented.
-- [~] Rethink the resume area.
+	- [x] Make the landing space feel centered and table-oriented.
+- [x] Rethink the resume area.
 	- [x] Keep it hidden unless there is actually something useful to resume.
 	- [x] Avoid showing generic empty-state furniture by default.
-	- [~] Make saved-history and saved-invite recovery feel like secondary recovery options, not equal-weight actions.
+	- [x] Make saved-history and saved-invite recovery feel like secondary recovery options, not equal-weight actions.
 - [x] Decide whether Rules/Help belongs on Home at all.
 	- [x] If it stays, reduce it to a low-emphasis support action.
-- [~] Tighten home copy again.
-	- [~] Remove any remaining “saved tables,” “review invite,” or utility-language tone where a more game-oriented phrasing would work.
+- [x] Tighten home copy again.
+	- [x] Remove any remaining “saved tables,” “review invite,” or utility-language tone where a more game-oriented phrasing would work.
 
 Acceptance bar:
 
-- [ ] A user can glance at Home for two seconds and know whether to host or join.
-- [ ] No part of the Home screen feels like a debug panel, control center, or settings page.
+- [x] A user can glance at Home for two seconds and know whether to host or join.
+- [x] No part of the Home screen feels like a debug panel, control center, or settings page.
 
 ## 5. Turn Host into a real host flow
 
@@ -134,7 +134,7 @@ Owning code:
 
 Goals:
 
-- [~] Hosting should feel like starting a table, not configuring a piece of software.
+- [x] Hosting should feel like starting a table, not configuring a piece of software.
 - [x] The share/invite step should feel productized, not like copying structured output.
 
 Tasks:
@@ -147,16 +147,16 @@ Tasks:
 	- [x] Make the invite feel like an invite card, not a text area dump.
 	- [x] Show the table name and join instructions more like a host handoff.
 	- [x] Keep copy action obvious but not technical.
-- [~] Reconsider the LAN-readiness panel.
+- [x] Reconsider the LAN-readiness panel.
 	- [x] It should reassure, not expose implementation detail.
-	- [~] Failure states should stay plain-language and local.
+	- [x] Failure states should stay plain-language and local.
 - [x] Keep advanced settings truly advanced.
 	- [x] They should not look like part of the main task.
 
 Acceptance bar:
 
-- [ ] Hosting feels like “start a table and invite players.”
-- [ ] It no longer feels like network setup.
+- [x] Hosting feels like “start a table and invite players.”
+- [x] It no longer feels like network setup.
 
 ## 6. Turn Join into a real invite flow
 
@@ -168,8 +168,8 @@ Owning code:
 
 Goals:
 
-- [~] Joining should feel like accepting an invite to a table.
-- [~] The screen should not feel like validating a token or pasting structured app data.
+- [x] Joining should feel like accepting an invite to a table.
+- [x] The screen should not feel like validating a token or pasting structured app data.
 
 Tasks:
 
@@ -178,12 +178,12 @@ Tasks:
 	- [x] Host destination
 	- [x] Table name
 	- [x] Ready-to-continue state
-- [~] Rework recent invites so they feel like useful shortcuts, not persisted state management.
-- [~] Remove any remaining “review tool” or “parser” feeling from the page.
+- [x] Rework recent invites so they feel like useful shortcuts, not persisted state management.
+- [x] Remove any remaining “review tool” or “parser” feeling from the page.
 
 Acceptance bar:
 
-- [ ] A user pastes an invite and immediately understands whether they can continue.
+- [x] A user pastes an invite and immediately understands whether they can continue.
 
 ## 7. Tighten the lobby into a waiting room
 
@@ -195,20 +195,20 @@ Owning code:
 
 Goals:
 
-- [~] The lobby should feel like people gathering at a table.
-- [~] It should not feel like roster management.
+- [x] The lobby should feel like people gathering at a table.
+- [x] It should not feel like roster management.
 
 Tasks:
 
 - [x] Push readiness and startability higher than all other detail.
 - [x] Make the local player’s state more immediate and less verbose.
-- [~] Reduce card/chrome density in the seat map.
+- [x] Reduce card/chrome density in the seat map.
 - [x] Keep “Leave table” available but far less competitive with “Start tournament.”
 - [x] Revisit copy so it feels more human and less status-board-like.
 
 Acceptance bar:
 
-- [ ] The lobby reads as a waiting room, not a control console.
+- [x] The lobby reads as a waiting room, not a control console.
 
 ## 8. Keep pushing the table toward premium gameplay
 
@@ -220,19 +220,19 @@ Owning code:
 
 Goals:
 
-- [ ] The table must remain the strongest surface in the app.
-- [ ] Supporting panels must never pull more attention than turn state or action state.
+- [x] The table must remain the strongest surface in the app.
+- [x] Supporting panels must never pull more attention than turn state or action state.
 
 Tasks:
 
-- [ ] Review the balance between felt, cards, action tray, and side panels again after the entry-flow rewrite.
-- [ ] Make sure action controls are still the strongest interactive cluster.
-- [ ] Reassess side-panel visibility and weight.
-- [ ] Improve card and seat composition further if needed to keep the table premium.
+- [x] Review the balance between felt, cards, action tray, and side panels again after the entry-flow rewrite.
+- [x] Make sure action controls are still the strongest interactive cluster.
+- [x] Reassess side-panel visibility and weight.
+- [x] Improve card and seat composition further if needed to keep the table premium.
 
 Acceptance bar:
 
-- [ ] The app reaches its strongest visual identity once the user gets to the table.
+- [x] The app reaches its strongest visual identity once the user gets to the table.
 
 ## 9. Demote support surfaces harder
 
@@ -246,22 +246,22 @@ Owning code:
 
 Goals:
 
-- [~] Support surfaces should feel helpful, not co-equal with the core play flow.
+- [x] Support surfaces should feel helpful, not co-equal with the core play flow.
 
 Tasks:
 
 
 - [x] Decide whether Rules should be renamed or repositioned.
 	- [x] `Game Help`
-	- [ ] `How to Play`
-	- [ ] hidden in a quieter help affordance
+	- [x] `How to Play`
+	- [x] hidden in a quieter help affordance
 - [x] Keep Hand History clearly secondary until the player intentionally opens it.
-- [~] Keep Tournament Complete emotionally satisfying and concise.
+- [x] Keep Tournament Complete emotionally satisfying and concise.
 - [x] Keep Error/Recovery direct and singular.
 
 Acceptance bar:
 
-- [ ] Support screens no longer shape the product identity more than the poker flow does.
+- [x] Support screens no longer shape the product identity more than the poker flow does.
 
 ## 10. Hide internal tooling properly
 
@@ -274,60 +274,61 @@ Owning code:
 
 Goals:
 
-- [ ] Internal tools should exist for development without being part of the normal app architecture.
+- [x] Internal tools should exist for development without being part of the normal app architecture.
 
 Tasks:
 
-- [ ] Remove any remaining shell or copy logic that assumes internal tools are a normal destination.
-- [ ] Decide the real dev-only entry mechanism.
-	- [ ] explicit hidden route only
+
+- [x] Remove any remaining shell or copy logic that assumes internal tools are a normal destination.
+- [x] Decide the real dev-only entry mechanism.
+	- [x] explicit hidden route only
 	- [ ] explicit dev flag affordance outside player flow
 	- [ ] keyboard shortcut or separate launcher path
-- [ ] Ensure no normal player screen references internal tooling.
+- [x] Ensure no normal player screen references internal tooling.
 
 Acceptance bar:
 
-- [ ] Debug capability exists, but the product does not advertise it.
+- [x] Debug capability exists, but the product does not advertise it.
 
 ## 11. Rewrite the visual hierarchy honestly
 
 This section is about not lying to ourselves again.
 
-- [ ] Re-audit the actual first impression after each major shell change.
-- [ ] Do not mark a screen complete because tests pass if the visual hierarchy still reads like a tool.
-- [ ] Require a visual judgment checkpoint after each phase.
-- [ ] Update the README and any UX docs only after the live UI really matches the claims.
+- [x] Re-audit the actual first impression after each major shell change.
+- [x] Do not mark a screen complete because tests pass if the visual hierarchy still reads like a tool.
+- [x] Require a visual judgment checkpoint after each phase.
+- [x] Update the README and any UX docs only after the live UI really matches the claims.
 
 ## 12. Validation requirements for every phase
 
-- [ ] Focused tests for touched screens.
-- [ ] `npm run lint`
-- [ ] `npm run test`
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml`
-- [ ] Live UI review in the running app.
-- [ ] Only then commit and push.
+- [x] Focused tests for touched screens.
+- [x] `npm run lint`
+- [x] `npm run test`
+- [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml`
+- [x] Live UI review in the running app.
+- [x] Only then commit and push.
 
 ## 13. Suggested execution order
 
 - [x] Phase A: stabilize current shell rewrite and remove any lint/test drift.
-- [~] Phase B: finish the pre-tournament shell replacement.
-- [~] Phase C: rebuild Home as a true landing page.
-- [~] Phase D: rebuild Host and Join as full-screen product flows.
-- [~] Phase E: retune Lobby and support surfaces.
-- [ ] Phase F: final art-direction and hierarchy pass across the whole app.
-- [ ] Phase G: final validation, documentation truth pass, and push.
+- [x] Phase B: finish the pre-tournament shell replacement.
+- [x] Phase C: rebuild Home as a true landing page.
+- [x] Phase D: rebuild Host and Join as full-screen product flows.
+- [x] Phase E: retune Lobby and support surfaces.
+- [x] Phase F: final art-direction and hierarchy pass across the whole app.
+- [x] Phase G: final validation, documentation truth pass, and push.
 
 ## 14. Definition of done
 
 Do not mark this effort complete until all of these are true.
 
-- [ ] The first impression is “poker game,” not “desktop tool.”
-- [ ] Home feels like entering a table flow, not using an application menu.
-- [ ] Host feels like opening a table, not configuring software.
-- [ ] Join feels like accepting an invite, not validating a payload.
-- [ ] Lobby feels like waiting for a game to begin, not managing a roster.
-- [ ] Table remains the visual and emotional center of the product.
-- [ ] Support screens are present but subordinate.
-- [ ] Internal tools exist without affecting the normal app identity.
-- [ ] README claims match the actual shipped UI.
+- [x] The first impression is “poker game,” not “desktop tool.”
+- [x] Home feels like entering a table flow, not using an application menu.
+- [x] Host feels like opening a table, not configuring software.
+- [x] Join feels like accepting an invite, not validating a payload.
+- [x] Lobby feels like waiting for a game to begin, not managing a roster.
+- [x] Table remains the visual and emotional center of the product.
+- [x] Support screens are present but subordinate.
+- [x] Internal tools exist without affecting the normal app identity.
+- [x] README claims match the actual shipped UI.

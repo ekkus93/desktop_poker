@@ -158,7 +158,7 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(
-      screen.getByText(/waiting for the next action/i),
+      screen.getByText(/waiting for the next decision at the table/i),
     ).toBeTruthy();
   });
 
