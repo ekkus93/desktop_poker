@@ -104,7 +104,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       rememberJoinPayload(trimmedPayload);
       setContinueToLobby(true);
       setInviteBanner(
-        `Invite ready for ${parsedPayload.hostAddress}:${parsedPayload.hostPort}.`,
+        `Ready: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`,
       );
       return parsedPayload;
     } catch (error) {
@@ -129,16 +129,15 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Join Tournament"
-      lead="Paste the invite you were given, review the destination, then continue into the lobby."
       badges={[sourceSummary]}
       className="pregame-screen-shell"
     >
       <div className="pregame-workstation join-station-layout">
-        <SectionCard kicker="Join station" title="Bring your invite" className="workstation-main-card">
+        <SectionCard kicker="Join station" title="Join" className="workstation-main-card">
           <div className="workstation-grid join-workstation-grid">
             <div className="form-grid compact-form-grid invite-input-panel">
               <label className="field">
-                Tournament invite
+                Invite
                 <textarea
                   className="compact-invite-textarea"
                   onChange={(event) => {
@@ -161,7 +160,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Clipboard className="button-icon" strokeWidth={1.9} />
-                    <span>Review invite</span>
+                    <span>Check invite</span>
                   </span>
                 </button>
                 {continueToLobby ? (
@@ -173,7 +172,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   </Link>
                 ) : null}
               </div>
-              <p className="field-hint">Paste the invite you were given, or open the app from a join link.</p>
               {validationState.status === "validating" ? (
                 <p className="inline-banner info">Checking the invite…</p>
               ) : null}
@@ -188,7 +186,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 <section aria-label="Invite preview" className="invite-card compact-invite-card">
                   <p className="kicker">Invite looks good</p>
                   <h4>{previewTableName}</h4>
-                  <p className="invite-lead">You are about to join this table from the lobby.</p>
                   <div className="invite-stat-grid compact-invite-stat-grid">
                     <div>
                       <span className="invite-stat-label">Host</span>
@@ -202,15 +199,14 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     </div>
                     <div>
                       <span className="invite-stat-label">Status</span>
-                      <strong>Ready for lobby check-in</strong>
+                      <strong>Lobby ready</strong>
                     </div>
                   </div>
                 </section>
               ) : (
                 <section className="placeholder-panel compact-placeholder-panel">
                   <p className="kicker">Preview</p>
-                  <h3>Check the table</h3>
-                  <p>Invite details appear here before you continue.</p>
+                  <h3>Invite details</h3>
                 </section>
               )}
 
@@ -225,7 +221,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     >
                       <span className="button-content">
                         <RotateCcw className="button-icon" strokeWidth={1.9} />
-                        <span>Clear recent invites</span>
+                        <span>Clear saved</span>
                       </span>
                     </button>
                   </div>
@@ -248,7 +244,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   </div>
                 </section>
               ) : (
-                <p className="field-hint">No saved invites yet.</p>
+                <p className="field-hint">No invites saved.</p>
               )}
             </div>
           </div>

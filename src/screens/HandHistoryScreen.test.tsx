@@ -71,7 +71,7 @@ describe("HandHistoryScreen", () => {
 
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/showing saved hands from this device/i),
+      screen.getByText(/saved on this device/i),
     ).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
   });
@@ -110,7 +110,7 @@ describe("HandHistoryScreen", () => {
     renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(
-      await screen.findByText(/no hands have settled yet\./i),
+      await screen.findByText(/no settled hands yet\./i),
     ).toBeTruthy();
   });
 
@@ -129,7 +129,7 @@ describe("HandHistoryScreen", () => {
 
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/no hands have settled yet\./i),
+      screen.getByText(/no settled hands yet\./i),
     ).toBeTruthy();
   });
 });

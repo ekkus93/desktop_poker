@@ -26,31 +26,23 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Tournament Lobby"
-      lead="Everyone checks in here before the first hand."
+      title="Lobby"
       badges={[hostDraft.tournamentName, canStart ? "Ready to deal" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
       className="pregame-screen-shell"
     >
       <div className="pregame-workstation lobby-station-layout">
-        <SectionCard kicker="Waiting room" title="Gather around the table" className="workstation-main-card">
+        <SectionCard kicker="Table" title="Ready room" className="workstation-main-card">
           <div className="lobby-workstation-grid">
             <article className="lobby-progress-card compact-lobby-progress">
-              <strong>{canStart ? "Everyone is ready for the first hand" : `${readySeatCount} of ${activeSeats.length} seated players are ready`}</strong>
-              <p className="field-hint">
-                {canStart
-                  ? "Deal as soon as the table is set."
-                  : seatsStillWaiting === 1
-                    ? "One seated player still needs to check in."
-                    : `${seatsStillWaiting} seated players still need to check in.`}
-              </p>
+              <strong>{canStart ? "Ready to start" : `${readySeatCount}/${activeSeats.length} ready`}</strong>
               <div className="lobby-status-row">
                 <span className={`status-badge ${localSeatReady ? "success" : "warning"}`}>
                   {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                  {localSeatReady ? "You are ready" : "You still need to mark ready"}
+                  {localSeatReady ? "You: Ready" : "You: Waiting"}
                 </span>
                 <span className={`status-badge ${canStart ? "success" : "info"}`}>
                   {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                  {canStart ? "Table can start" : "Waiting on the table"}
+                  {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
                 </span>
               </div>
             </article>
@@ -74,11 +66,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     {seatState}
                   </span>
                 </div>
-                {seat.kind === "open" ? (
-                  <p className="seat-detail">Open for the next player.</p>
-                ) : (
+                {seat.kind !== "open" && seat.detail ? (
                   <p className="seat-detail">{seat.detail}</p>
-                )}
+                ) : null}
                 {seat.kind !== "open" ? (
                   <button
                     className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
@@ -95,7 +85,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             </div>
 
             <section className="lobby-action-rail compact-status-panel">
-              <p>{canStart ? "Everyone is checked in. Start when you want the cards in the air." : "At least two seated players must be ready before the game can begin."}</p>
+              <strong>{canStart ? "Start when ready" : "Need 2 ready players"}</strong>
               <div className="button-row workstation-actions">
                 {canStart ? (
                   <Link className="primary-button" to="/table">
@@ -125,20 +115,14 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   </span>
                 </button>
               </div>
-              {!canStart ? (
-                <p className="field-hint">Mark each seated player ready, then start the table.</p>
-              ) : null}
             </section>
           </div>
         </SectionCard>
       </div>
       {showLeaveFlow ? (
         <section className="dialog-card">
-          <p className="kicker">Exit lobby</p>
+          <p className="kicker">Leave</p>
           <h3>Leave this lobby?</h3>
-          <p>
-            Leave this table and go back home?
-          </p>
           <div className="button-row">
             <Link className="primary-button" to="/">
               Leave table

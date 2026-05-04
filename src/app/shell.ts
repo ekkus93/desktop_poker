@@ -87,7 +87,7 @@ export function buildParticipantShell(
   const seats: ParticipantShell[] = Array.from({ length: hostDraft.maxPlayers }, (_, index) => ({
     seatIndex: index + 1,
     label: "Open seat",
-    detail: "Waiting for a real LAN participant.",
+    detail: "",
     kind: "open" as const,
     ready: false,
   }));
@@ -107,10 +107,10 @@ export function buildParticipantShell(
       seatIndex: 2,
       label: hasJoinIntent ? "Waiting for player" : "Reserved seat",
       detail: bootstrap.parsedLaunchJoinPayload
-        ? "Invite accepted on this device"
+        ? "Invite accepted"
         : hasJoinIntent
           ? "Invite received"
-          : "Ready for the next player",
+          : "Reserved",
       kind: "pending",
       ready: readySeats.includes(2),
     };

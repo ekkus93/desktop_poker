@@ -12,10 +12,10 @@ describe("TournamentLobbyScreen", () => {
       initialEntries: ["/lobby"],
     });
 
-    expect(screen.queryByText("2 of 2 seated players are ready")).toBeNull();
-    expect(screen.getByText("0 of 2 seated players are ready")).toBeTruthy();
-    expect(screen.getByText("You still need to mark ready")).toBeTruthy();
-    expect(screen.getByText("Waiting on the table")).toBeTruthy();
+    expect(screen.queryByText("2/2 ready")).toBeNull();
+    expect(screen.getByText("0/2 ready")).toBeTruthy();
+    expect(screen.getByText("You: Waiting")).toBeTruthy();
+    expect(screen.getByText("2 waiting")).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Mark ready" }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
   });
@@ -32,7 +32,7 @@ describe("TournamentLobbyScreen", () => {
     fireEvent.click(readyButtons[0]);
     fireEvent.click(readyButtons[1]);
 
-    expect(screen.getByText("Everyone is ready for the first hand")).toBeTruthy();
+    expect(screen.getByText("Ready to start")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Start tournament" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Leave table" })).toBeTruthy();
   });

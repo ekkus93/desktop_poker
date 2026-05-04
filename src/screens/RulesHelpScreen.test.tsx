@@ -9,8 +9,8 @@ describe("RulesHelpScreen", () => {
 
     renderWithProviders(<RulesHelpScreen />, { bootstrap });
 
-    expect(screen.getByRole("heading", { name: "Game Help" })).toBeTruthy();
-    expect(screen.getByText("How joining works")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Rules" })).toBeTruthy();
+    expect(screen.getByText("Join")).toBeTruthy();
     expect(screen.getByRole("button", { name: /clear saved invites/i })).toBeTruthy();
 
     expect(screen.queryByText(/profile id/i)).toBeNull();

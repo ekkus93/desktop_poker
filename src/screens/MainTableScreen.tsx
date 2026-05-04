@@ -147,7 +147,6 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Main Table"
-      lead="Cards up. The board, the pot, and the next decision stay front and center." 
       badges={[tableView?.blindLevelLabel ?? "Loading table"]}
       className="table-screen-layout"
     >
@@ -203,7 +202,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
         {loading ? (
           <SectionCard title="Loading table state">
-            <p className="field-hint">Getting the latest table state.</p>
+            <span className="field-hint">Loading.</span>
           </SectionCard>
         ) : null}
 
@@ -229,18 +228,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <p className="kicker">{activeViewerMode === "observer" ? "Observing" : tableView.actionTray ? "Your move" : "Waiting"}</p>
                   <h3>
                     {activeViewerMode === "observer"
-                      ? "Watching the public table."
+                      ? "Public table"
                       : tableView.actionTray
-                        ? `${tableView.actionTray.ownerLabel} has the action.`
-                        : `${tableView.actionOwnerLabel} has the action.`}
+                        ? `${tableView.actionTray.ownerLabel} to act`
+                        : tableView.actionOwnerLabel}
                   </h3>
-                  <p className="field-hint">
-                    {activeViewerMode === "observer"
-                      ? "Private cards and action controls stay hidden while you watch."
-                      : tableView.actionTray
-                        ? `Call ${tableView.actionTray.callAmount} chips, or pick another line below.`
-                        : "Stay ready while the hand plays forward."}
-                  </p>
                 </div>
 
                 <header className="table-surface-header">
@@ -349,7 +341,6 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 <SectionCard kicker="Action" title="Play this spot" className="table-action-card">
                   <div className="action-owner-banner">
                     <strong>{tableView.actionTray.ownerLabel}</strong>
-                    <span className="field-hint">Choose one action now.</span>
                   </div>
                   <div className="button-row action-tray-row">
                     <button
@@ -386,7 +377,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     </button>
                   </div>
                   {tableView.actionTray.maxRaiseTo === null ? (
-                    <p className="field-hint">Raise opens when the next legal raise becomes available.</p>
+                    <p className="field-hint">Raise locked</p>
                   ) : null}
                   <div className="raise-controls">
                     <label className="field" htmlFor="raise-slider">
@@ -402,7 +393,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       />
                     </label>
                     <p className="field-hint">
-                      Raise to <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · To call {tableView.actionTray.callAmount} · Pot {tableView.actionTray.potTotal}
+                      To <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Call {tableView.actionTray.callAmount} · Pot {tableView.actionTray.potTotal}
                     </p>
                     <div className="button-row quick-size-row">
                       {quickSizes.map((option) => (
@@ -438,11 +429,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   {actionError ? <div className="inline-banner error">{actionError}</div> : null}
                 </SectionCard>
               ) : (
-                <SectionCard kicker="Action" title="No action required" className="table-action-card">
+                <SectionCard kicker="Action" title="Waiting" className="table-action-card">
                   <p>
                     {activeViewerMode === "observer"
-                      ? "Observer preview shows the public table only."
-                      : "Waiting for the next decision at the table."}
+                      ? "Public table only."
+                      : "Waiting for next action."}
                   </p>
                 </SectionCard>
               )}
@@ -494,7 +485,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                         </article>
                       ))
                     ) : (
-                      <p className="field-hint">No hands have settled yet.</p>
+                      <p className="field-hint">No settled hands yet.</p>
                     )}
                   </div>
                 </SectionCard>

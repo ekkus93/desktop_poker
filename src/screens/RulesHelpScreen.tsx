@@ -13,8 +13,7 @@ export function RulesHelpScreen() {
 
   return (
     <ScreenShell
-      title="Game Help"
-      lead="Quick rules, joining basics, and the name this device uses at the table."
+      title="Rules"
       badges={["Help"]}
       className="support-screen-shell"
     >
@@ -28,7 +27,7 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="How joining works" className="support-card">
+        <SectionCard title="Join" className="support-card">
           <ul>
             <li>The host shares an invite from the host screen.</li>
             <li>Paste that invite on Join Tournament.</li>
@@ -37,7 +36,7 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard kicker="This device" title="Name and saved table info" className="support-card device-settings-card">
+        <SectionCard kicker="This device" title="Name and saved info" className="support-card device-settings-card">
           <div className="form-grid" id="settings">
             <label className="field">
               Display name
@@ -48,7 +47,7 @@ export function RulesHelpScreen() {
                 value={displayName}
               />
             </label>
-            <p className="field-hint">This is the name other players see when you host or join from here.</p>
+            <p className="field-hint">Shown at the table.</p>
             <div className="button-row">
               <button className="secondary-button" onClick={resetHostDraft} type="button">
                 Reset host setup
@@ -61,11 +60,9 @@ export function RulesHelpScreen() {
                 Clear saved invites ({recentJoinPayloads.length})
               </button>
             </div>
-            <ul>
-              <li>Your display name is saved for future games on this device.</li>
-              <li>Host setup can be reset if you want a clean table setup.</li>
-              <li>{recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"} on this device.</li>
-            </ul>
+            <p className="field-hint">
+              {recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"}.
+            </p>
           </div>
         </SectionCard>
       </div>

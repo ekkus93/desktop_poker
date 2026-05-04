@@ -87,11 +87,6 @@ export function AppFrame({
         <header className="brand">
           <p className="kicker">Desktop Poker</p>
           <h1>{bootstrap.appName}</h1>
-          <p>
-            {inTournament
-              ? "Play the hand. Keep everything else secondary."
-              : "Host here or join with an invite."}
-          </p>
         </header>
 
         <section className="sidebar-group">

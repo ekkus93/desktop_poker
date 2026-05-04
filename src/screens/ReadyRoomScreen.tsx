@@ -21,7 +21,6 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Ready Room"
-      lead="Double-check who is seated and ready before the host starts the game."
       badges={[`Turn timer ${hostDraft.turnTimerSeconds}s`, `${participants.length} participants` ]}
     >
       <div className="content-grid">
@@ -47,7 +46,7 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Before the game starts">
+        <SectionCard title="Before start">
           <ul>
             <li>The seated roster locks when the game starts.</li>
             <li>New players cannot join after the table is running.</li>
@@ -77,9 +76,7 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
             </button>
           </div>
           {!allReady ? (
-            <p className="field-hint">
-              The host start button unlocks only when every occupied seat is ready.
-            </p>
+            <p className="field-hint">All seats must be ready.</p>
           ) : null}
         </SectionCard>
       </div>

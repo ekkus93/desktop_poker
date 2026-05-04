@@ -9,7 +9,7 @@ export function ScreenShell({
   className,
 }: {
   title: string;
-  lead: string;
+  lead?: string;
   children: ReactNode;
   badges?: string[];
   className?: string;
@@ -20,7 +20,7 @@ export function ScreenShell({
         <div className="screen-copy">
           <p className="kicker">Desktop Poker</p>
           <h2>{title}</h2>
-          <p className="screen-lead">{lead}</p>
+          {lead ? <p className="screen-lead">{lead}</p> : null}
         </div>
         <div className="badge-row">
           {badges.map((badge) => (

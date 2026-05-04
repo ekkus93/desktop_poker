@@ -39,7 +39,7 @@ describe("JoinTournamentScreen", () => {
 
     await waitFor(() => {
       expect(
-        (screen.getByLabelText("Tournament invite") as HTMLTextAreaElement).value,
+        (screen.getByLabelText("Invite") as HTMLTextAreaElement).value,
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
@@ -55,10 +55,10 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Tournament invite"), {
+    fireEvent.change(screen.getByLabelText("Invite"), {
       target: { value: "pkr1_bad" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     expect(await screen.findByText("invalid compact join payload")).toBeTruthy();
   });
@@ -71,14 +71,14 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Tournament invite"), {
+    fireEvent.change(screen.getByLabelText("Invite"), {
       target: { value: "pkr1_good" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
-    expect(screen.getByText("Invite ready for 192.168.1.10:43818.")).toBeTruthy();
+    expect(screen.getByText("Ready: 192.168.1.10:43818")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Continue to lobby" }),
     ).toBeTruthy();

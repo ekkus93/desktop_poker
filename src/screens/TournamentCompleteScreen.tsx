@@ -6,7 +6,7 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
 export function TournamentCompleteScreen() {
-  const { displayName, hostDraft, persistedHandHistoryCount } = useDesktopShell();
+  const { hostDraft, persistedHandHistoryCount } = useDesktopShell();
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,6 @@ export function TournamentCompleteScreen() {
   return (
     <ScreenShell
       title="Tournament Complete"
-      lead="The table is closed. See who finished on top, then decide whether to play again."
       badges={[hostDraft.tournamentName]}
       className="support-screen-shell"
     >
@@ -44,7 +43,7 @@ export function TournamentCompleteScreen() {
           <p>
             {tableView?.phaseLabel.toLowerCase().includes("complete")
               ? `${tableView.standings[0]?.displayName ?? "The winner"} wins ${hostDraft.tournamentName}.`
-              : `${displayName}, the final order will appear here when the tournament closes.`}
+              : "Final order appears here when the tournament closes."}
           </p>
           <div className="stacked-list scroll-list">
             {(tableView?.standings.length ? tableView.standings : []).map((entry) => (
@@ -64,8 +63,8 @@ export function TournamentCompleteScreen() {
         </SectionCard>
 
         <div className="history-side-stack">
-          <SectionCard title="Play again or review the night" className="support-card">
-            <p>{persistedHandHistoryCount} settled hand summaries are ready if you want to look back at the table.</p>
+          <SectionCard title="Next" className="support-card">
+            <p>{persistedHandHistoryCount} hand summaries saved.</p>
             <div className="button-row">
               <Link className="primary-button" to="/host">
                 Host another table
@@ -91,7 +90,7 @@ export function TournamentCompleteScreen() {
                   </article>
                 ))
               ) : (
-                <p className="field-hint">Final hands will appear here when they are available.</p>
+                <p className="field-hint">No final hands yet.</p>
               )}
             </div>
           </SectionCard>

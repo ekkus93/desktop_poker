@@ -100,7 +100,7 @@ describe("AppShell integration", () => {
     renderAppShell("/");
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: "Pull up a chair" }),
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: "Host Tournament" }));
@@ -127,7 +127,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", {
         level: 2,
-        name: "Tournament Lobby",
+        name: "Lobby",
       }),
     ).toBeTruthy();
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
@@ -140,10 +140,10 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Tournament invite"), {
+    fireEvent.change(screen.getByLabelText("Invite"), {
       target: { value: "pkr1_good" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
@@ -154,7 +154,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", {
         level: 2,
-        name: "Tournament Lobby",
+        name: "Lobby",
       }),
     ).toBeTruthy();
     expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
@@ -203,10 +203,10 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Tournament invite"), {
+    fireEvent.change(screen.getByLabelText("Invite"), {
       target: { value: "pkr1_restart" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
 
@@ -216,7 +216,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", {
         level: 2,
-        name: "Tournament Lobby",
+        name: "Lobby",
       }),
     ).toBeTruthy();
     const readyButtons = screen.getAllByRole("button", { name: "Mark ready" });
@@ -235,7 +235,7 @@ describe("AppShell integration", () => {
         name: "Tournament Complete",
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/1 settled hand summaries are ready if you want to look back at the table/i)).toBeTruthy();
+    expect(screen.getByText(/1 hand summaries saved/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
     ).toBe(false);
@@ -250,7 +250,7 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/showing saved hands from this device/i),
+      screen.getByText(/saved on this device/i),
     ).toBeTruthy();
     expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
     expect(
@@ -415,10 +415,10 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Tournament invite"), {
+    fireEvent.change(screen.getByLabelText("Invite"), {
       target: { value: "pkr1_bad" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     expect(await screen.findByText("Join payload rejected")).toBeTruthy();
     expect(

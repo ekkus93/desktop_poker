@@ -81,7 +81,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Host Tournament Setup"
-      lead="Set the table basics, share the invite, then head to the lobby."
       badges={[`Port ${hostDraft.hostPort}`]}
       className="pregame-screen-shell"
     >
@@ -183,17 +182,15 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
                   </div>
                 </div>
-                <p className="field-hint">Players can join once this computer has a reachable LAN address.</p>
               </section>
 
               {inviteReady ? (
                 <section className="invite-card compact-invite-card" aria-label="Invite card">
                   <p className="kicker">Ready to share</p>
                   <h4>{hostDraft.tournamentName}</h4>
-                  <p className="invite-lead">Pass this invite to the next player so they can join your table.</p>
                   <div className="invite-stat-grid compact-invite-stat-grid">
                     <div>
-                      <span className="invite-stat-label">Players join at</span>
+                      <span className="invite-stat-label">Join</span>
                       <strong>{resolvedHostIp}:{hostDraft.hostPort}</strong>
                     </div>
                     <div>
@@ -201,7 +198,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                       <strong>{hostDraft.maxPlayers} players</strong>
                     </div>
                     <div>
-                      <span className="invite-stat-label">Starting stack</span>
+                      <span className="invite-stat-label">Stack</span>
                       <strong>{hostDraft.startingStack} chips</strong>
                     </div>
                     <div>
@@ -224,7 +221,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Copy className="button-icon" strokeWidth={1.9} />
-                    <span>Copy share details</span>
+                    <span>Copy invite</span>
                   </span>
                 </button>
                 <Link className="primary-button" to="/lobby">
@@ -252,7 +249,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
               {hostDraft.advancedOpen ? (
                 <div className="form-grid compact-advanced-panel">
-                  <p>Share from a LAN address other players on this network can reach.</p>
                   <ul>
                     <li>
                       <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
@@ -260,15 +256,11 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     <li>
                       <strong>Host port:</strong> {hostDraft.hostPort}
                     </li>
-                    <li>
-                      <strong>Joining:</strong> Share the invite from this screen.
-                    </li>
                   </ul>
                   {lanError ? <p className="inline-banner error">{lanError}</p> : null}
                 </div>
               ) : null}
 
-              <p className="field-hint">Copy the invite details now. QR or one-tap invite options can appear here later.</p>
               {copyState ? <p className="inline-banner success">{copyState}</p> : null}
             </div>
           </div>

@@ -47,7 +47,7 @@ describe("AppShell", () => {
     renderWithRoute("/does-not-exist");
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Pull up a chair" }),
+      screen.getByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
   });
 });

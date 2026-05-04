@@ -80,7 +80,7 @@ describe("MainTableScreen", () => {
       expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
     });
     expect(
-      screen.getByText(/observer preview shows the public table only/i),
+      screen.getByText(/public table only/i),
     ).toBeTruthy();
   });
 
@@ -158,7 +158,7 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(
-      screen.getByText(/waiting for the next decision at the table/i),
+      screen.getByText(/waiting for next action/i),
     ).toBeTruthy();
   });
 

@@ -11,12 +11,12 @@ describe("HomeScreen", () => {
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Pull up a chair" }),
+      screen.getByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Game Help" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 3, name: "Pick up the night" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 3, name: "Resume" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe("HomeScreen", () => {
 
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
-    expect(screen.getByText("2 saved hand summaries")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 3, name: "Pick up the night" })).toBeTruthy();
+    expect(screen.getByText("2 hands")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: "Resume" })).toBeTruthy();
   });
 });

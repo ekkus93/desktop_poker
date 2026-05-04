@@ -62,20 +62,20 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
 
   const scenarioMessage: Record<ErrorScenario, string> = {
     reconnecting:
-      "The connection dropped. The app is trying to restore the same session.",
+      "Reconnecting to the table.",
     "reconnect-success":
-      "You are back in the same session with the latest table state.",
+      "Back at the table.",
     "reconnect-failed":
-      "The app could not restore the same session. Rejoin if the game is still available.",
+      "Could not restore this session. Rejoin if the game is still open.",
     "host-lost":
-      "The host is gone or the table closed. You cannot keep playing from this screen.",
+      "The host is gone or the table closed.",
     "invalid-invite": bootstrap.launchJoinPayloadError
-      ? `The shared invite could not be opened: ${bootstrap.launchJoinPayloadError}`
-      : "The invite could not be opened. Check it and try again.",
+      ? `Invite error: ${bootstrap.launchJoinPayloadError}`
+      : "Invite error.",
     "invalid-lan-ip": hostLanError ?? "Hosting requires a reachable LAN IP address.",
     "join-failed": joinPayloadDraft.trim()
-      ? "The invite looked valid, but the host did not accept the connection."
-      : "Join failed because there was no valid invite to use.",
+      ? "The host did not accept the connection."
+      : "No valid invite was available.",
   };
 
   const scenarioAction = {
@@ -92,7 +92,6 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Recovery"
-      lead="Here is the fastest way back to the game."
       badges={[SCENARIO_LABELS[scenario]]}
       className="support-screen-shell"
     >
@@ -141,7 +140,6 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
                 </button>
               ))}
             </div>
-            <p className="field-hint">Use this only to review states during development and QA.</p>
           </SectionCard>
         ) : null}
       </div>

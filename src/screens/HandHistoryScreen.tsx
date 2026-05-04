@@ -37,7 +37,6 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Hand History"
-      lead="Review recent hands, the current order, and the latest public table updates."
       badges={[tableView?.blindLevelLabel ?? "History"]}
       className="support-screen-shell"
     >
@@ -46,7 +45,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           {error ? <p>{error}</p> : null}
           {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
             <p className="field-hint">
-              Showing saved hands from this device.
+              Saved on this device.
             </p>
           ) : null}
           <div className="stacked-list scroll-list">
@@ -72,21 +71,21 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                 </article>
               ))
             ) : (
-              <p className="field-hint">No hands have settled yet.</p>
+              <p className="field-hint">No settled hands yet.</p>
             )}
           </div>
           <div className="button-row">
             <Link className="secondary-button compact-button" to="/table">
               <span className="button-content">
                 <History className="button-icon" strokeWidth={1.9} />
-                <span>Back to table</span>
+                <span>Table</span>
               </span>
             </Link>
           </div>
         </SectionCard>
 
         <div className="history-side-stack">
-          <SectionCard kicker="Standings" title="Current order" className="support-card">
+          <SectionCard kicker="Standings" title="Order" className="support-card">
             <div className="stacked-list scroll-list">
               {tableView?.standings.map((entry) => (
                 <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
@@ -104,7 +103,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
             </div>
           </SectionCard>
 
-          <SectionCard kicker="Feed" title="Table feed" className="support-card">
+          <SectionCard kicker="Feed" title="Events" className="support-card">
             <div className="stacked-list scroll-list">
               {tableView?.eventFeed.map((event) => (
                 <article key={event.sequence} className="list-panel history-row">
