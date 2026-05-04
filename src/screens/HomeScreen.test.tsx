@@ -15,13 +15,13 @@ describe("HomeScreen", () => {
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Hand History" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Rules and Settings" })).toBeTruthy();
     expect(
       screen
-        .getByText(/saved hand-history summaries:/i)
+        .getByText(/saved hand summaries:/i)
         .closest("li")?.textContent,
-    ).toContain("Saved hand-history summaries: 0");
+    ).toContain("Saved hand summaries: 0");
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
@@ -58,8 +58,8 @@ describe("HomeScreen", () => {
 
     expect(
       screen
-        .getByText(/saved hand-history summaries:/i)
+        .getByText(/saved hand summaries:/i)
         .closest("li")?.textContent,
-    ).toContain("Saved hand-history summaries: 2");
+    ).toContain("Saved hand summaries: 2");
   });
 });

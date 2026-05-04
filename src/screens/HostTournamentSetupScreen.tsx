@@ -78,11 +78,11 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Host Tournament Setup"
-      lead="Configure a real single-table Sit 'n Go host draft, inspect LAN diagnostics, and keep the share surface aligned with what the Rust runtime can actually advertise."
+      lead="Set the basics, confirm this computer can host, then share the invite."
       badges={[`Port ${hostDraft.hostPort}`, bootstrap.runtimeTransport]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Host configuration" title="Tournament setup">
+        <SectionCard kicker="Step 1" title="Tournament setup">
           <div className="form-grid two-column-grid">
             <label className="field">
               Tournament name
@@ -171,7 +171,15 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Advanced hosting diagnostics">
+        <SectionCard kicker="Step 2" title="LAN details">
+          <p className="field-hint">
+            Other players need a reachable LAN address from this computer before they can join.
+          </p>
+          <div className="status-row">
+            <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
+              {lanError ? "Host address unavailable" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking host address"}
+            </div>
+          </div>
           <div className="button-row">
             <button
               className="secondary-button"
@@ -186,8 +194,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           {hostDraft.advancedOpen ? (
             <div className="form-grid">
               <p>
-                Production hosting requires a non-loopback LAN IP. The shell asks
-                the Rust runtime for that address instead of inventing one.
+                Hosting needs a real LAN address that other devices can reach.
               </p>
               <ul>
                 <li>
@@ -197,7 +204,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   <strong>Host port:</strong> {hostDraft.hostPort}
                 </li>
                 <li>
-                  <strong>Runtime warning:</strong> Room-code discovery stays hidden.
+                  <strong>Discovery:</strong> Direct payload join only.
                 </li>
               </ul>
               {lanError ? <p className="inline-banner error">{lanError}</p> : null}
@@ -205,9 +212,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           ) : null}
         </SectionCard>
 
-        <SectionCard kicker="Join share" title="Join payload display">
+        <SectionCard kicker="Step 3" title="Share the invite">
           <label className="field">
-            Join payload slot
+            Join details
             <textarea readOnly rows={9} value={shareText} />
           </label>
           <div className="button-row">
@@ -227,12 +234,11 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               Show QR
             </button>
             <Link className="primary-button" to="/lobby">
-              Continue to lobby shell
+              Continue to lobby
             </Link>
           </div>
           <p className="field-hint">
-            Copy payload stays disabled until the live Rust host runtime emits an
-            actual <code>pkr1_</code> join payload for this table.
+            Share details are ready now. The direct <code>pkr1_</code> payload stays disabled until the host runtime produces it.
           </p>
           {copyState ? <p className="inline-banner success">{copyState}</p> : null}
         </SectionCard>

@@ -349,12 +349,6 @@ pub fn screen_catalog(debug_tools_enabled: bool) -> Vec<ScreenDescriptor> {
             surface: "screen",
         },
         ScreenDescriptor {
-            id: "ready-room",
-            title: "Ready Room",
-            route: "/ready-room",
-            surface: "screen",
-        },
-        ScreenDescriptor {
             id: "main-table",
             title: "Main Table",
             route: "/table",

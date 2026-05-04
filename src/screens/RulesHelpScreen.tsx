@@ -15,8 +15,8 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Rules / Help"
-      lead="Review the frozen Sit 'n Go rules, networking constraints, and desktop settings that are already available in the shell."
+      title="Rules / Settings"
+      lead="Keep the game rules nearby, check the connection basics, and manage settings saved on this device."
       badges={[`Port ${bootstrap.defaultHostPort}`, "Rules + settings"]}
     >
       <div className="content-grid">
@@ -32,8 +32,8 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
         <SectionCard title="Networking help">
           <ul>
             <li>Direct payload join is the canonical v1 path.</li>
-            <li>Room-code discovery is not exposed until it is real.</li>
-            <li>Production hosting must fail loudly when no LAN IP exists.</li>
+            <li>Room-code discovery is not available yet.</li>
+            <li>Hosting requires a reachable LAN IP.</li>
             <li>Multiple instances can run without profile collisions.</li>
           </ul>
         </SectionCard>

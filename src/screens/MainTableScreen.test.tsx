@@ -139,6 +139,7 @@ describe("MainTableScreen", () => {
     renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
     fireEvent.click(await screen.findByRole("button", { name: "Check" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
 
     expect(
       await screen.findByText(/the turn was published to every seat and observer/i),

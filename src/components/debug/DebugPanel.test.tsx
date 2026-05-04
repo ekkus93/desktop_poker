@@ -71,7 +71,7 @@ describe("DebugPanel", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Launch extra debug client with payload",
+        name: "Launch extra client with payload",
       }),
     );
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
 import { StatusBadge } from "../shared/StatusBadge";
@@ -19,16 +19,21 @@ export function AppFrame({
   children: ReactNode;
 }) {
   const { displayName, recentJoinPayloads } = useDesktopShell();
+  const location = useLocation();
+  const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
+  const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules" || item.to === "/debug");
+  const primaryNavigation = navigation.filter((item) => item.to !== "/history" && item.to !== "/rules" && item.to !== "/debug");
 
   return (
     <div className="app-frame">
       <aside className="sidebar">
         <header className="brand">
-          <p className="kicker">M6 frontend shell</p>
+          <p className="kicker">Desktop Poker</p>
           <h1>{bootstrap.appName}</h1>
           <p>
-            Real LAN hosting and join flows stay Rust-owned; the React shell now
-            exposes the full route map without falling back to a simulator path.
+            {inTournament
+              ? "Stay focused on the table, check the standings, and recover cleanly if something goes wrong."
+              : "Host a local game, join with a payload, and keep each instance separate."}
           </p>
         </header>
 
@@ -42,37 +47,68 @@ export function AppFrame({
           )}
         </div>
 
-        <nav aria-label="Desktop poker screens">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.to}
-              className={({ isActive }) =>
-                isActive ? "nav-link active" : "nav-link"
-              }
-              to={item.to}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <section className="sidebar-group">
+          <p className="sidebar-section-label">Main actions</p>
+          <nav aria-label="Desktop poker navigation">
+            {primaryNavigation.map((item) => (
+              <NavLink
+                key={item.to}
+                className={({ isActive }) =>
+                  isActive ? "nav-link active" : "nav-link"
+                }
+                to={item.to}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </section>
+
+        <section className="sidebar-group">
+          <p className="sidebar-section-label">Support</p>
+          <nav aria-label="Desktop poker support navigation">
+            {supportNavigation.map((item) => (
+              <NavLink
+                key={item.to}
+                className={({ isActive }) =>
+                  isActive ? "nav-link active" : "nav-link"
+                }
+                to={item.to}
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+        </section>
+
+        {inTournament ? (
+          <section className="sidebar-focus-card">
+            <p className="kicker">Current focus</p>
+            <h2>Stay in the same flow</h2>
+            <p>
+              The main player path is lobby, table, then history. Everything else
+              is secondary while a game is running.
+            </p>
+          </section>
+        ) : null}
 
         <footer className="sidebar-footer">
           <p className="sidebar-note">
-            Display name <strong>{displayName}</strong>
+            Player <strong>{displayName}</strong>
           </p>
           <p className="sidebar-note">
-            Instance <strong>{bootstrap.instanceLabel}</strong>
+            This window <strong>{bootstrap.instanceLabel}</strong>
           </p>
           {bootstrap.instanceLabel !== bootstrap.instanceId ? (
             <p className="sidebar-note">
-              Profile ID <strong>{bootstrap.instanceId}</strong>
+              Internal ID <strong>{bootstrap.instanceId}</strong>
             </p>
           ) : null}
           <p className="sidebar-note">
-            Profile namespace: <span className="mono-value">{bootstrap.profileDirectory}</span>
+            Profile folder: <span className="mono-value">{bootstrap.profileDirectory}</span>
           </p>
           <p className="footer-copy">
-            Recent direct payloads remembered locally: {recentJoinPayloads.length}
+            Saved join payloads: {recentJoinPayloads.length}
           </p>
         </footer>
       </aside>

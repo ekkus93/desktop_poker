@@ -24,7 +24,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showSidePanel, setShowSidePanel] = useState(true);
+  const [showSidePanel, setShowSidePanel] = useState(false);
   const [openSeatIndex, setOpenSeatIndex] = useState<number | null>(null);
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
   const [confirmation, setConfirmation] = useState<
@@ -141,7 +141,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Main Table"
-      lead="M7 adds a real desktop table shell backed by the Rust tournament controller, including observer projection, history, standings, and gated debug tooling."
+      lead="Read the table at a glance, act when it is your turn, and keep the rest of the game visible without extra noise."
       badges={[displayName, bootstrap.runtimeTransport, tableView?.blindLevelLabel ?? "Loading table"]}
     >
       <div className="table-screen-shell">
@@ -166,7 +166,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               onClick={() => setShowSidePanel((current) => !current)}
               type="button"
             >
-              {showSidePanel ? "Hide" : "Show"} side panel
+              {showSidePanel ? "Hide details" : "Show details"}
             </button>
           </div>
           <div className="button-row">
@@ -186,19 +186,45 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
         {loading ? (
           <SectionCard title="Loading table state">
-            <p className="field-hint">Requesting the latest Rust-owned table projection…</p>
+            <p className="field-hint">Getting the latest table state.</p>
           </SectionCard>
         ) : null}
 
         {error ? (
           <SectionCard title="Table unavailable">
             <p>{error}</p>
+            <div className="button-row">
+              <Link className="primary-button" to="/lobby">
+                Return to lobby
+              </Link>
+              <Link className="secondary-button" to="/history">
+                Open history
+              </Link>
+            </div>
           </SectionCard>
         ) : null}
 
         {tableView ? (
           <div className={`desktop-table-layout ${showSidePanel ? "with-side-panel" : ""}`}>
             <section className="table-surface enhanced-table-surface">
+              <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
+                <p className="kicker">{viewerMode === "observer" ? "Observer view" : tableView.actionTray ? "Your turn" : "Table status"}</p>
+                <h3>
+                  {viewerMode === "observer"
+                    ? "You are watching the public table only."
+                    : tableView.actionTray
+                      ? `${tableView.actionTray.ownerLabel}, act now.`
+                      : `Waiting on ${tableView.actionOwnerLabel}.`}
+                </h3>
+                <p className="field-hint">
+                  {viewerMode === "observer"
+                    ? "Private cards and action controls are hidden while you observe."
+                    : tableView.actionTray
+                      ? `Legal actions are ready below. The current call is ${tableView.actionTray.callAmount} chips.`
+                      : "The table stays visible while the next action window is prepared."}
+                </p>
+              </div>
+
               <header className="table-surface-header">
                 <div>
                   <p className="kicker">{tableView.tableName}</p>
@@ -220,15 +246,15 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
               <div className="table-summary-row">
                 <div className="pot-summary-card">
-                  <span className="surface-label">Main pot</span>
+                  <span className="surface-label">Pot</span>
                   <strong>{tableView.potTotal} chips</strong>
                 </div>
                 <div className="pot-summary-card action-owner-card">
-                  <span className="surface-label">Action owner</span>
+                  <span className="surface-label">Acting player</span>
                   <strong>{tableView.actionOwnerLabel}</strong>
                 </div>
                 <div className="pot-summary-card elimination-card">
-                  <span className="surface-label">Elimination</span>
+                  <span className="surface-label">Latest outcome</span>
                   <strong>{tableView.eliminationSummary}</strong>
                 </div>
               </div>
@@ -316,7 +342,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   </div>
                 </SectionCard>
 
-                <SectionCard kicker="Event feed" title="Public table events">
+                <SectionCard kicker="Table events" title="Recent public events">
                   <div className="stacked-list event-feed-list">
                     {tableView.eventFeed.map((event) => (
                       <article key={event.sequence} className="list-panel history-row">
@@ -354,10 +380,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         ) : null}
 
         {tableView?.actionTray ? (
-          <SectionCard kicker="Action tray" title="Act from your seat">
+          <SectionCard kicker="Action" title="Act from your seat">
             <div className="action-owner-banner">
               <strong>{tableView.actionTray.ownerLabel}</strong>
-              <span className="field-hint">Only the acting player gets enabled controls.</span>
+              <span className="field-hint">Choose one action. Raise and all-in ask for confirmation.</span>
             </div>
             <div className="button-row action-tray-row">
               <button
@@ -395,7 +421,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
             </div>
             <div className="raise-controls">
               <label className="field" htmlFor="raise-slider">
-                <span>Raise slider</span>
+                <span>Raise size</span>
                 <input
                   id="raise-slider"
                   max={tableView.actionTray.maxRaiseTo ?? 0}
@@ -443,7 +469,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
             {actionError ? <div className="inline-banner error">{actionError}</div> : null}
           </SectionCard>
         ) : tableView ? (
-          <SectionCard kicker="Action tray" title="Public-only table">
+          <SectionCard kicker="Action" title="No action required">
             <p>
               {viewerMode === "observer"
                 ? "Observer mode keeps the table public-only and removes all action controls."

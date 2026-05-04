@@ -71,7 +71,7 @@ describe("HandHistoryScreen", () => {
 
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/showing locally saved hand-history summaries/i),
+      screen.getByText(/showing locally saved hand summaries for this device/i),
     ).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
   });
@@ -111,7 +111,7 @@ describe("HandHistoryScreen", () => {
 
     expect(
       await screen.findByText(
-        /no hands have settled yet\. use the main table to progress the current hand\./i,
+        /no settled hands yet\. return to the table to keep the game moving\./i,
       ),
     ).toBeTruthy();
   });
@@ -132,7 +132,7 @@ describe("HandHistoryScreen", () => {
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
       screen.getByText(
-        /no hands have settled yet\. use the main table to progress the current hand\./i,
+        /no settled hands yet\. return to the table to keep the game moving\./i,
       ),
     ).toBeTruthy();
   });

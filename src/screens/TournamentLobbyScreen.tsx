@@ -19,14 +19,41 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   );
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const canStart = activeSeats.length >= 2 && activeSeats.every((seat) => seat.ready);
+  const localSeat = participants.find((seat) => seat.kind !== "open" && seat.label === displayName);
+  const localSeatReady = localSeat?.ready ?? false;
 
   return (
     <ScreenShell
       title="Tournament Lobby"
-      lead="Seat assignment, participant visibility, ready toggles, and host start controls live here before the tournament moves into the main table flow."
+      lead="Wait here until everyone is seated and ready, then start from this screen."
       badges={[hostDraft.tournamentName, `${activeSeats.length}/${hostDraft.maxPlayers} seated` ]}
     >
       <div className="content-grid">
+        <SectionCard kicker="Ready state" title="What happens next?">
+          <div className="stacked-list">
+            <article className="list-panel">
+              <div>
+                <strong>{localSeatReady ? "You are ready" : "You are not ready yet"}</strong>
+                <p className="field-hint">
+                  {localSeatReady
+                    ? "Wait for the rest of the table, or start when everyone is ready."
+                    : "Mark your seat ready before the game can start."}
+                </p>
+              </div>
+            </article>
+            <article className="list-panel">
+              <div>
+                <strong>{canStart ? "The game can start now" : "The game cannot start yet"}</strong>
+                <p className="field-hint">
+                  {canStart
+                    ? "At least two players are seated and every occupied seat is ready."
+                    : "Every occupied seat must be marked ready before the host starts the game."}
+                </p>
+              </div>
+            </article>
+          </div>
+        </SectionCard>
+
         <SectionCard kicker="Seat map" title="Lobby seating">
           <div className="seat-grid">
             {participants.map((seat) => (
@@ -66,11 +93,13 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Host controls">
-          <p>
-            Roster freeze happens only after the host starts the tournament and
-            the Rust backend confirms the seated, ready roster.
-          </p>
+        <SectionCard title="Start from here">
+          <p>The game can start once at least two seated players are ready.</p>
+          <ul>
+            <li>The seated roster locks when the game starts.</li>
+            <li>New players cannot join after the table is running.</li>
+            <li>Disconnected players must reconnect instead of joining again.</li>
+          </ul>
           <div className="button-row">
             {canStart ? (
               <Link className="primary-button" to="/table">
@@ -81,9 +110,6 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 Start tournament
               </button>
             )}
-            <Link className="secondary-button" to="/ready-room">
-              Open ready room
-            </Link>
             <button
               className="secondary-button"
               onClick={() => {
@@ -96,9 +122,23 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           </div>
           {!canStart ? (
             <p className="field-hint">
-              At least two occupied seats must be marked ready before the host can start.
+              Mark each seated player ready, then start from here.
             </p>
           ) : null}
+        </SectionCard>
+
+        <SectionCard title="Shared state">
+          <ul>
+            <li>
+              <strong>Remembered payloads:</strong> {recentJoinPayloads.length}
+            </li>
+            <li>
+              <strong>Host:</strong> {displayName}
+            </li>
+            <li>
+              <strong>Table:</strong> {hostDraft.tournamentName}
+            </li>
+          </ul>
         </SectionCard>
       </div>
       {showLeaveFlow ? (
@@ -106,8 +146,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           <p className="kicker">Leave table flow</p>
           <h3>Leave this lobby?</h3>
           <p>
-            Leaving drops the current local shell state and returns you to the
-            home flow. A real runtime disconnect command will slot into this action.
+            Leave this table and go back home?
           </p>
           <div className="button-row">
             <Link className="primary-button" to="/">

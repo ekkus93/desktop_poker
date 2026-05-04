@@ -16,7 +16,7 @@ export function ScreenShell({
     <section className="screen-shell">
       <header className="screen-header">
         <div className="screen-copy">
-          <p className="kicker">Desktop shell</p>
+          <p className="kicker">Desktop Poker</p>
           <h2>{title}</h2>
           <p className="screen-lead">{lead}</p>
         </div>

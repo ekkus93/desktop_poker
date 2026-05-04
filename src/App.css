@@ -1,9 +1,18 @@
 :root {
+  --bg-base: #08131d;
+  --bg-soft: rgba(9, 18, 31, 0.84);
+  --bg-panel: rgba(12, 24, 41, 0.72);
+  --border-soft: rgba(124, 140, 168, 0.18);
+  --text-main: #dfe9f7;
+  --text-dim: #9eb0c7;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 131, 246, 0.18);
+  --success: #6ee7b7;
+  --danger: #fca5a5;
   color: #e8eef8;
   background: #07111f;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Avenir Next", "Segoe UI Variable", "Segoe UI", "Noto Sans", sans-serif;
   font-synthesis: none;
   line-height: 1.5;
   font-weight: 400;
@@ -80,6 +89,20 @@ button:disabled {
   border-right: 1px solid rgba(124, 140, 168, 0.18);
 }
 
+.sidebar-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sidebar-section-label {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .brand {
   display: flex;
   flex-direction: column;
@@ -121,8 +144,26 @@ dt {
 
 .nav-link:hover,
 .nav-link.active {
-  background: rgba(59, 131, 246, 0.18);
+  background: var(--accent-soft);
   transform: translateX(2px);
+}
+
+.sidebar-focus-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(110, 231, 183, 0.22);
+  background: rgba(16, 37, 35, 0.58);
+}
+
+.sidebar-focus-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sidebar-focus-card p {
+  margin: 0;
 }
 
 .sidebar-footer {
@@ -225,8 +266,13 @@ dt {
 }
 
 .primary-button {
-  background: #3b82f6;
+  background: var(--accent);
   color: #f8fbff;
+}
+
+.ghost-primary-button {
+  background: rgba(59, 131, 246, 0.14);
+  border-color: rgba(59, 131, 246, 0.35);
 }
 
 .secondary-button,
@@ -261,6 +307,31 @@ dt {
   border-radius: 1rem;
   border: 1px solid rgba(124, 140, 168, 0.18);
   background: rgba(9, 18, 31, 0.84);
+}
+
+.home-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.85rem;
+}
+
+.choice-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(124, 140, 168, 0.2);
+  background: rgba(12, 24, 41, 0.58);
+}
+
+.choice-card h3,
+.choice-card p {
+  margin: 0;
+}
+
+.choice-card-primary {
+  border-color: rgba(59, 131, 246, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(59, 131, 246, 0.22);
 }
 
 .section-card ul,
@@ -303,6 +374,37 @@ dt,
 .field {
   display: grid;
   gap: 0.35rem;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border: 1px solid rgba(124, 140, 168, 0.24);
+  background: rgba(124, 140, 168, 0.1);
+}
+
+.status-pill.success {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.status-pill.info {
+  border-color: rgba(59, 131, 246, 0.35);
+  background: rgba(59, 131, 246, 0.14);
+}
+
+.status-pill.danger {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.14);
 }
 
 .field input,
@@ -391,6 +493,29 @@ dt,
 .table-top-row {
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
   align-items: center;
+}
+
+.table-headline-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(124, 140, 168, 0.18);
+  background: rgba(15, 27, 45, 0.82);
+}
+
+.table-headline-card.is-active-turn {
+  border-color: rgba(59, 131, 246, 0.46);
+  box-shadow: inset 0 0 0 1px rgba(59, 131, 246, 0.2);
+}
+
+.table-headline-card.is-waiting {
+  border-color: rgba(110, 231, 183, 0.24);
+}
+
+.table-headline-card h3,
+.table-headline-card p {
+  margin: 0;
 }
 
 .desktop-table-layout.with-side-panel {

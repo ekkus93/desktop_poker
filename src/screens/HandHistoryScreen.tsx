@@ -36,7 +36,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Hand History"
-      lead="Settled hands, table events, and current standings now come from the same Rust-backed table shell that powers the main table route."
+      lead="Review settled hands, standings, and recent public events without leaving the player flow behind."
       badges={[bootstrap.serializationStrategy, tableView?.blindLevelLabel ?? "History"]}
     >
       <div className="content-grid wide-grid">
@@ -44,8 +44,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           {error ? <p>{error}</p> : null}
           {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
             <p className="field-hint">
-              Showing locally saved hand-history summaries for this desktop
-              instance.
+              Showing locally saved hand summaries for this device.
             </p>
           ) : null}
           <div className="stacked-list">
@@ -67,8 +66,13 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                 </article>
               ))
             ) : (
-              <p className="field-hint">No hands have settled yet. Use the main table to progress the current hand.</p>
+              <p className="field-hint">No settled hands yet. Return to the table to keep the game moving.</p>
             )}
+          </div>
+          <div className="button-row">
+            <Link className="secondary-button compact-button" to="/table">
+              Back to table
+            </Link>
           </div>
         </SectionCard>
 
@@ -102,11 +106,6 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                 </div>
               </article>
             ))}
-          </div>
-          <div className="button-row">
-            <Link className="secondary-button compact-button" to="/table">
-              Back to table
-            </Link>
           </div>
         </SectionCard>
       </div>

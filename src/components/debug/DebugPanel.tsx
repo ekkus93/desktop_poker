@@ -92,6 +92,12 @@ export function DebugPanel({
 
   const content = (
     <div className={asScreen ? "screen-shell" : "debug-panel"}>
+      <SectionCard kicker="Internal only" title="Debug tools">
+        <p className="field-hint">
+          These tools are for development and QA. They should stay outside the normal player path.
+        </p>
+      </SectionCard>
+
       <div className="button-row">
         <button
           className={viewerMode === "local" ? "primary-button compact-button" : "secondary-button compact-button"}
@@ -142,7 +148,7 @@ export function DebugPanel({
             <span className="mono-value">{bootstrap.reconnectNamespace}</span>
           </li>
           <li>
-            <strong>Profile namespace:</strong>{" "}
+            <strong>Profile folder:</strong>{" "}
             <span className="mono-value">{bootstrap.profileDirectory}</span>
           </li>
         </ul>
@@ -218,14 +224,14 @@ export function DebugPanel({
             onClick={() => void handleLaunch(true)}
             type="button"
           >
-            Launch extra debug client with payload
+            Launch extra client with payload
           </button>
           <button
             className="secondary-button"
             onClick={() => void handleLaunch(false)}
             type="button"
           >
-            Launch extra debug client
+            Launch extra client
           </button>
         </div>
         {copyStatus ? <div className="inline-banner success">{copyStatus}</div> : null}

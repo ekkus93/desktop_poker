@@ -7,27 +7,22 @@ import type { ScreenProps } from "./types";
 export function HomeScreen({ bootstrap }: ScreenProps) {
   const { displayName, hostDraft, recentJoinPayloads, persistedHandHistoryCount } =
     useDesktopShell();
+  const hasSavedProgress = recentJoinPayloads.length > 0 || persistedHandHistoryCount > 0;
 
   return (
     <ScreenShell
       title="Desktop Poker"
-      lead="Start a real LAN host or join flow, inspect product rules, and keep debug-only tooling separated from the production path."
+      lead="Choose one path: host a game here or join a game with a payload."
       badges={[bootstrap.frontendStack, `Instance ${bootstrap.instanceLabel}`]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Primary actions" title="Entry points">
+        <SectionCard kicker="Start here" title="Pick your path">
           <div className="button-row">
             <Link className="primary-button" to="/host">
               Host Tournament
             </Link>
-            <Link className="secondary-button" to="/join">
+            <Link className="primary-button ghost-primary-button" to="/join">
               Join Tournament
-            </Link>
-            <Link className="secondary-button" to="/rules">
-              Rules
-            </Link>
-            <Link className="secondary-button" to="/rules#settings">
-              Settings
             </Link>
             {bootstrap.debugToolsEnabled ? (
               <Link className="secondary-button" to="/debug">
@@ -35,53 +30,80 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
               </Link>
             ) : null}
           </div>
-          <p className="field-hint">
-            The default runtime path stays on real LAN TCP. No simulator mode is
-            exposed in the production UI.
-          </p>
+          <div className="home-choice-grid">
+            <article className="choice-card choice-card-primary">
+              <p className="kicker">Host</p>
+              <h3>Run the table from this computer</h3>
+              <p>Set the tournament basics, share the invite, then start when players are ready.</p>
+            </article>
+            <article className="choice-card">
+              <p className="kicker">Join</p>
+              <h3>Paste a payload and sit down</h3>
+              <p>Use a <code>pkr1_</code> payload, confirm the destination, then continue into the lobby.</p>
+            </article>
+          </div>
         </SectionCard>
 
-        <SectionCard title="Current shell snapshot">
+        <SectionCard title="This device">
           <ul>
             <li>
-              <strong>Display name:</strong> {displayName}
+              <strong>Name:</strong> {displayName}
             </li>
             <li>
-              <strong>Next host draft:</strong> {hostDraft.tournamentName}
+              <strong>Saved host draft:</strong> {hostDraft.tournamentName}
             </li>
             <li>
-              <strong>Remembered join payloads:</strong> {recentJoinPayloads.length}
+              <strong>Saved join payloads:</strong> {recentJoinPayloads.length}
             </li>
             <li>
-              <strong>Saved hand-history summaries:</strong> {persistedHandHistoryCount}
+              <strong>Saved hand summaries:</strong> {persistedHandHistoryCount}
             </li>
             <li>
-              <strong>Profile namespace:</strong>{" "}
+              <strong>Profile folder:</strong>{" "}
               <span className="mono-value">{bootstrap.profileDirectory}</span>
             </li>
           </ul>
         </SectionCard>
 
-        <SectionCard title="Launch payload and runtime stance">
+        <SectionCard title="Saved progress">
+          {hasSavedProgress ? (
+            <div className="button-row">
+              <Link className="secondary-button" to="/history">
+                Open Hand History
+              </Link>
+              <Link className="secondary-button" to="/join">
+                Open Join Screen
+              </Link>
+              <Link className="secondary-button" to="/rules#settings">
+                Open Settings
+              </Link>
+            </div>
+          ) : (
+            <p className="field-hint">This device does not have any saved hands or remembered join payloads yet.</p>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Join payload status">
           {bootstrap.launchJoinPayload ? (
             <p>
-              A direct join payload was provided at launch and is ready on the
-              Join screen.
+              A launch payload is already loaded. Open Join Tournament to review it and continue.
             </p>
           ) : (
             <p>
-              No launch payload is currently attached. Paste a <code>pkr1_</code>{" "}
-              payload on the Join screen or pass one from CLI/deep-link entry.
+              No launch payload is attached. Use Join Tournament when someone shares a payload with you.
             </p>
           )}
           {bootstrap.launchJoinPayloadError ? (
             <p className="inline-banner error">{bootstrap.launchJoinPayloadError}</p>
           ) : null}
-          <ul>
-            <li>Real TCP transport only.</li>
-            <li>Room-code discovery remains hidden until implemented.</li>
-            <li>Debug/internal tools stay behind debug builds only.</li>
-          </ul>
+          <div className="button-row">
+            <Link className="secondary-button" to="/history">
+              Hand History
+            </Link>
+            <Link className="secondary-button" to="/rules">
+              Rules and Settings
+            </Link>
+          </div>
         </SectionCard>
       </div>
     </ScreenShell>

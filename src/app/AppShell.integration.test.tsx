@@ -117,11 +117,11 @@ describe("AppShell integration", () => {
     });
 
     expect(
-      (screen.getByLabelText("Join payload slot") as HTMLTextAreaElement).value,
+      (screen.getByLabelText("Join details") as HTMLTextAreaElement).value,
     ).toContain("Tournament: Friday Finals");
 
     fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby shell" }),
+      screen.getByRole("link", { name: "Continue to lobby" }),
     );
 
     expect(
@@ -130,10 +130,10 @@ describe("AppShell integration", () => {
         name: "Tournament Lobby",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Friday Finals")).toBeTruthy();
+    expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
   });
 
-  it("runs a join-to-table shell flow with shared state across lobby, ready room, table, and history", async () => {
+  it("runs a join-to-table flow through lobby, table, and history", async () => {
     renderAppShell("/join");
 
     expect(
@@ -147,7 +147,7 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByText("Friday Night")).toBeTruthy();
     fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby shell" }),
+      screen.getByRole("link", { name: "Continue to lobby" }),
     );
 
     expect(
@@ -165,13 +165,6 @@ describe("AppShell integration", () => {
     expect(
       screen.getByRole("link", { name: "Start tournament" }),
     ).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("link", { name: "Open ready room" }));
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "Ready Room" }),
-    ).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Ready" })).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("link", { name: "Start tournament" }));
 
@@ -216,7 +209,7 @@ describe("AppShell integration", () => {
     expect(await screen.findByText("Friday Night")).toBeTruthy();
 
     fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby shell" }),
+      screen.getByRole("link", { name: "Continue to lobby" }),
     );
     expect(
       await screen.findByRole("heading", {
@@ -255,7 +248,7 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(
-      screen.getByText(/showing locally saved hand-history summaries/i),
+      screen.getByText(/showing locally saved hand summaries for this device/i),
     ).toBeTruthy();
     expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
     expect(
@@ -315,6 +308,7 @@ describe("AppShell integration", () => {
           element?.textContent?.includes("Player Alice Instance (you)") ?? false,
       ).length,
     ).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
@@ -392,6 +386,7 @@ describe("AppShell integration", () => {
           element?.textContent?.includes("Player Bob Instance (you)") ?? false,
       ).length,
     ).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
     expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(screen.getByText("Maya")).toBeTruthy();
@@ -415,7 +410,7 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByText("Join payload rejected")).toBeTruthy();
     expect(
-      screen.queryByRole("link", { name: "Continue to lobby shell" }),
+      screen.queryByRole("link", { name: "Continue to lobby" }),
     ).toBeNull();
 
     mockedGetTableView.mockRejectedValueOnce(

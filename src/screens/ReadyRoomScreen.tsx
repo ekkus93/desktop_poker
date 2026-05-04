@@ -22,7 +22,7 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Ready Room"
-      lead="Use the ready room to confirm seated participants, explain roster freeze, and keep the host-only start action explicit."
+      lead="Double-check who is seated and ready before the host starts the game."
       badges={[`Turn timer ${hostDraft.turnTimerSeconds}s`, `${participants.length} participants` ]}
     >
       <div className="content-grid">
@@ -48,11 +48,11 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Roster freeze explanation">
+        <SectionCard title="Before the game starts">
           <ul>
-            <li>The host freezes the seated roster only after start succeeds.</li>
-            <li>Late payloads stay out of the hand loop once the table is running.</li>
-            <li>Reconnect paths are handled separately from new joins.</li>
+            <li>The seated roster locks when the game starts.</li>
+            <li>New players cannot join after the table is running.</li>
+            <li>Disconnected players must reconnect instead of joining again.</li>
           </ul>
           <div className="button-row">
             {allReady ? (
@@ -89,8 +89,7 @@ export function ReadyRoomScreen({ bootstrap }: ScreenProps) {
           <p className="kicker">Leave table flow</p>
           <h3>Leave before start?</h3>
           <p>
-            The production runtime will tear down the current session and return
-            you to Home. This shell already exposes the confirmation step.
+            Leave this table and return home?
           </p>
           <div className="button-row">
             <Link className="primary-button" to="/">

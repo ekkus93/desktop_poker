@@ -119,21 +119,21 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Join Tournament"
-      lead="Paste a direct join payload, validate it with the Rust parser, and stage the connection handoff without pretending the client runtime is something else."
+      lead="Paste the payload you were given, confirm it looks right, then continue into the lobby."
       badges={[bootstrap.joinPayloadEncoding, sourceSummary]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Join flow" title="Paste payload">
+        <SectionCard kicker="Step 1" title="Paste payload">
           <div className="form-grid">
             <label className="field">
               Paste payload
               <textarea
                 onChange={(event) => {
-                   setJoinPayloadDraft(event.target.value);
-                   setValidationState({ status: "idle" });
-                   setConnectBanner(null);
-                   setContinueToLobby(false);
-                 }}
+                  setJoinPayloadDraft(event.target.value);
+                  setValidationState({ status: "idle" });
+                  setConnectBanner(null);
+                  setContinueToLobby(false);
+                }}
                 rows={8}
                 value={joinPayloadDraft}
               />
@@ -156,11 +156,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                       return;
                     }
 
-                     rememberJoinPayload(joinPayloadDraft);
-                     setContinueToLobby(true);
-                     setConnectBanner(
-                       `Payload validated for ${payload.hostAddress}:${payload.hostPort}. The next backend step is wiring this shell into the live client runtime command path.`,
-                     );
+                    rememberJoinPayload(joinPayloadDraft);
+                    setContinueToLobby(true);
+                    setConnectBanner(
+                      `Payload validated for ${payload.hostAddress}:${payload.hostPort}.`,
+                    );
                   });
                 }}
                 type="button"
@@ -169,9 +169,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               </button>
             </div>
             <p className="field-hint">
-              Supported launch sources today: <code>--join-payload</code>,{" "}
-              <code>DESKTOP_POKER_JOIN_PAYLOAD</code>, and hash-route deep links like{" "}
-              <code>#/join?payload=pkr1_...</code>.
+              You can paste a payload manually or arrive here with one already attached at launch.
             </p>
           </div>
           {validationState.status === "validating" ? (
@@ -181,16 +179,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             <p className="inline-banner error">{validationState.message}</p>
           ) : null}
           {connectBanner ? <p className="inline-banner success">{connectBanner}</p> : null}
-          {continueToLobby ? (
-            <div className="button-row">
-              <Link className="primary-button" to="/lobby">
-                Continue to lobby shell
-              </Link>
-            </div>
-          ) : null}
         </SectionCard>
 
-        <SectionCard title="Decoded payload">
+        <SectionCard kicker="Step 2" title="Check the destination">
           {validationState.status === "valid" ? (
             <dl className="detail-grid">
               <div>
@@ -214,13 +205,21 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             </dl>
           ) : (
             <p>
-              Valid payloads decode here before the client runtime is asked to
-              connect.
+              Valid payload details appear here before you continue.
             </p>
           )}
         </SectionCard>
 
-        <SectionCard title="Recent payloads">
+        <SectionCard kicker="Step 3" title="Continue or reuse a recent payload">
+          {continueToLobby ? (
+            <div className="button-row">
+              <Link className="primary-button" to="/lobby">
+                Continue to lobby
+              </Link>
+            </div>
+          ) : (
+            <p className="field-hint">Validate the payload first. Once it passes, the lobby action appears here.</p>
+          )}
           {recentJoinPayloads.length > 0 ? (
             <div className="stacked-list">
               {recentJoinPayloads.map((payload) => (
@@ -239,7 +238,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               ))}
             </div>
           ) : (
-            <p>No join payloads have been remembered for this instance yet.</p>
+            <p>No join payloads have been saved on this device yet.</p>
           )}
           {recentJoinPayloads.length > 0 ? (
             <button

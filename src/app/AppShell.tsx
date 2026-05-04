@@ -8,7 +8,6 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { HostTournamentSetupScreen } from "../screens/HostTournamentSetupScreen";
 import { JoinTournamentScreen } from "../screens/JoinTournamentScreen";
 import { MainTableScreen } from "../screens/MainTableScreen";
-import { ReadyRoomScreen } from "../screens/ReadyRoomScreen";
 import { RulesHelpScreen } from "../screens/RulesHelpScreen";
 import { TournamentCompleteScreen } from "../screens/TournamentCompleteScreen";
 import { TournamentLobbyScreen } from "../screens/TournamentLobbyScreen";
@@ -44,10 +43,15 @@ export function AppShell() {
     );
   }
 
-  const navigation = bootstrap.screens.map((screen) => ({
-    to: screen.route,
-    label: screen.title,
-  }));
+  const primaryRoutes = new Set(["/", "/host", "/join", "/history", "/rules"]);
+  const navigation = bootstrap.screens
+    .filter(
+      (screen) => primaryRoutes.has(screen.route) || screen.route === "/debug",
+    )
+    .map((screen) => ({
+      to: screen.route,
+      label: screen.title,
+    }));
 
   return (
     <DesktopShellProvider bootstrap={bootstrap}>
@@ -68,7 +72,7 @@ export function AppShell() {
           />
           <Route
             path="/ready-room"
-            element={<ReadyRoomScreen bootstrap={bootstrap} />}
+            element={<Navigate replace to="/lobby" />}
           />
           <Route path="/table" element={<MainTableScreen bootstrap={bootstrap} />} />
           <Route

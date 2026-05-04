@@ -77,9 +77,9 @@ describe("JoinTournamentScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
     expect(await screen.findByText("Friday Night")).toBeTruthy();
-    expect(screen.getByText(/next backend step is wiring this shell/i)).toBeTruthy();
+    expect(screen.getByText("Payload validated for 192.168.1.10:43818.")).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: "Continue to lobby shell" }),
+      screen.getByRole("link", { name: "Continue to lobby" }),
     ).toBeTruthy();
   });
 });
