@@ -10,6 +10,7 @@ import {
   createDefaultDisplayName,
   createDefaultHostDraft,
   type HostDraft,
+  normalizeHostDraft,
   readStoredValue,
   storageKey,
 } from "./shell";
@@ -65,8 +66,11 @@ export function DesktopShellProvider({
     ),
   );
   const [hostDraft, setHostDraft] = useState(() =>
-    readStoredValue<HostDraft>(
-      localStorage.getItem(storageKey(bootstrap.storageNamespace, "host-draft")),
+    normalizeHostDraft(
+      readStoredValue<unknown>(
+        localStorage.getItem(storageKey(bootstrap.storageNamespace, "host-draft")),
+        defaultHostDraft,
+      ),
       defaultHostDraft,
     ),
   );
