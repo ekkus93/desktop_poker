@@ -15,7 +15,8 @@ describe("HomeScreen", () => {
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Help" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
     expect(screen.queryByRole("heading", { level: 3, name: "Resume" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });

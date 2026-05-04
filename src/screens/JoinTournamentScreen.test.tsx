@@ -79,6 +79,7 @@ describe("JoinTournamentScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     expect(await screen.findByText("invalid compact join payload")).toBeTruthy();
+    expect(screen.getByText(/fix the invite above before continuing to the lobby/i)).toBeTruthy();
   });
 
   it("shows decoded invite details after validation", async () => {
@@ -100,5 +101,6 @@ describe("JoinTournamentScreen", () => {
     expect(
       screen.getByRole("link", { name: "Continue to lobby" }),
     ).toBeTruthy();
+    expect(screen.getByText(/invite checked\. continue when ready/i)).toBeTruthy();
   });
 });

@@ -4,14 +4,16 @@ import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { RulesHelpScreen } from "./RulesHelpScreen";
 
 describe("RulesHelpScreen", () => {
-  it("keeps the rules and settings surface player-friendly", () => {
+  it("keeps gameplay help separate from local device settings", () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
 
     renderWithProviders(<RulesHelpScreen />, { bootstrap });
 
-    expect(screen.getByRole("heading", { name: "Rules" })).toBeTruthy();
-    expect(screen.getByText("Join")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /clear saved invites/i })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Help" })).toBeTruthy();
+    expect(screen.getByText("Host flow")).toBeTruthy();
+    expect(screen.getByText("Join flow")).toBeTruthy();
+    expect(screen.getByText("Observers and history")).toBeTruthy();
+    expect(screen.queryByLabelText(/display name/i)).toBeNull();
 
     expect(screen.queryByText(/profile id/i)).toBeNull();
     expect(screen.queryByText(/instance label/i)).toBeNull();

@@ -37,7 +37,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             <article className="lobby-progress-card compact-lobby-progress">
               <strong>{canStart ? "Ready to start" : `${readySeatCount}/${activeSeats.length} ready`}</strong>
               <div className="lobby-status-row">
-                <span className={`status-badge ${localSeatReady ? "success" : "warning"}`}>
+                <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
                   {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
                   {localSeatReady ? "You: Ready" : "You: Waiting"}
                 </span>
@@ -72,7 +72,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     <strong>Seat {seat.seatIndex}</strong>
                     <span>{seat.label}</span>
                   </div>
-                  <span className={`status-badge ${seat.kind === "open" ? "info" : seat.ready ? "success" : "warning"}`}>
+                  <span className={`status-badge ${seat.kind === "open" ? "info" : seat.ready ? "success" : "info"}`}>
                     {seat.kind === "open" ? <Clock3 className="button-icon" strokeWidth={1.9} /> : seat.ready ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
                     {seatState}
                   </span>

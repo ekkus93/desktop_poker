@@ -1,19 +1,10 @@
-import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
 export function RulesHelpScreen() {
-  const {
-    displayName,
-    setDisplayName,
-    resetHostDraft,
-    recentJoinPayloads,
-    clearRecentJoinPayloads,
-  } = useDesktopShell();
-
   return (
     <ScreenShell
-      title="Rules"
+      title="Help"
       badges={["Help"]}
       className="support-screen-shell"
     >
@@ -27,7 +18,15 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Join" className="support-card">
+        <SectionCard title="Host flow" className="support-card">
+          <ul>
+            <li>Start on Host Tournament and confirm the LAN address is ready.</li>
+            <li>Share the invite card with everyone joining the table.</li>
+            <li>Open the lobby only after the host machine shows a reachable address.</li>
+          </ul>
+        </SectionCard>
+
+        <SectionCard title="Join flow" className="support-card">
           <ul>
             <li>The host shares an invite from the host screen.</li>
             <li>Paste that invite on Join Tournament.</li>
@@ -36,34 +35,12 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard kicker="This device" title="Name and saved info" className="support-card device-settings-card">
-          <div className="form-grid" id="settings">
-            <label className="field">
-              Display name
-              <input
-                onChange={(event) => {
-                  setDisplayName(event.target.value);
-                }}
-                value={displayName}
-              />
-            </label>
-            <p className="field-hint">Shown at the table.</p>
-            <div className="button-row">
-              <button className="secondary-button" onClick={resetHostDraft} type="button">
-                Reset host setup
-              </button>
-              <button
-                className="secondary-button"
-                onClick={clearRecentJoinPayloads}
-                type="button"
-              >
-                Clear saved invites ({recentJoinPayloads.length})
-              </button>
-            </div>
-            <p className="field-hint">
-              {recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"}.
-            </p>
-          </div>
+        <SectionCard title="Observers and history" className="support-card">
+          <ul>
+            <li>Eliminated players remain connected as public observers.</li>
+            <li>Hand History keeps saved summaries on this device for offline review.</li>
+            <li>Settings stores your local name, host draft, and recent invites.</li>
+          </ul>
         </SectionCard>
       </div>
     </ScreenShell>

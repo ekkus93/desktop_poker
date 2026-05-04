@@ -353,6 +353,11 @@ dt {
   border-color: rgba(63, 110, 143, 0.35);
 }
 
+.status-badge.accent {
+  background: rgba(129, 106, 76, 0.18);
+  border-color: rgba(196, 165, 126, 0.35);
+}
+
 .inline-banner.error {
   background: rgba(179, 54, 60, 0.16);
   border-color: rgba(179, 54, 60, 0.35);

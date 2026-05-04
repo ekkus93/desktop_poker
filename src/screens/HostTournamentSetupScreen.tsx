@@ -27,6 +27,7 @@ function clampPort(value: string, fallbackPort: number) {
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const { hostDraft, updateHostDraft } = useDesktopShell();
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
+  const [isResolvingLan, setIsResolvingLan] = useState(true);
   const [lanError, setLanError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
   useEffect(() => {
     let active = true;
+    setIsResolvingLan(true);
 
     void resolveHostLanAddress()
       .then((ipAddress) => {
@@ -43,6 +45,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
         setResolvedHostIp(ipAddress);
         setLanError(null);
+        setIsResolvingLan(false);
       })
       .catch((error: unknown) => {
         if (!active) {
@@ -53,6 +56,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         setLanError(
           error instanceof Error ? error.message : "Unable to resolve a LAN host address.",
         );
+        setIsResolvingLan(false);
       });
 
     return () => {
@@ -73,7 +77,10 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const canContinueToLobby = inviteReady;
   const blockedProgressMessage = lanError
     ? "Resolve the LAN address before continuing to the lobby."
-    : "Wait for a reachable LAN address before continuing to the lobby.";
+    : "Still checking this computer's LAN address. Copy and continue unlock when the address is ready.";
+  const copyBlockedMessage = lanError
+    ? "Invite copy is unavailable until the LAN address issue is fixed."
+    : "Invite copy unlocks after the LAN address check finishes.";
 
   const handleCopy = async (value: string, message: string) => {
     try {
@@ -202,7 +209,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   />
                 </label>
                 <div>
-                  <strong>Resolved LAN IP:</strong> {resolvedHostIp ?? "Pending lookup"}
+                  <strong>Resolved LAN IP:</strong> {isResolvingLan ? "Looking up LAN address..." : resolvedHostIp ?? "Unavailable"}
                 </div>
                 {lanError ? <p className="inline-banner error">{lanError}</p> : null}
               </div>
@@ -223,7 +230,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                       ? "Hosting is blocked"
                       : resolvedHostIp
                         ? `Ready on ${resolvedHostIp}`
-                        : "Checking this computer"}
+                        : "Checking LAN address"}
                   </div>
                 </div>
               </section>
@@ -308,6 +315,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </button>
                 )}
               </div>
+              {!inviteReady ? (
+                <p className="field-hint">{copyBlockedMessage}</p>
+              ) : null}
               {!canContinueToLobby ? (
                 <p className="field-hint">{blockedProgressMessage}</p>
               ) : null}

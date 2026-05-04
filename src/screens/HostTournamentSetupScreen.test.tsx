@@ -73,6 +73,7 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.queryByRole("link", { name: /continue to lobby/i })).toBeNull();
     expect(screen.getByRole("button", { name: /continue to lobby/i }).hasAttribute("disabled")).toBe(true);
     expect(screen.getByText(/resolve the lan address before continuing to the lobby/i)).toBeTruthy();
+    expect(screen.getByText(/invite copy is unavailable until the lan address issue is fixed/i)).toBeTruthy();
   });
 
   it("shows a manual share fallback when clipboard copy fails", async () => {

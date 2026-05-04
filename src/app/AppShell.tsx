@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { DebugPanel } from "../components/debug/DebugPanel";
 import { AppFrame } from "../components/layout/AppFrame";
 import { DesktopShellProvider } from "./DesktopShellProvider";
+import { DeviceSettingsScreen } from "../screens/DeviceSettingsScreen";
 import { ErrorStateScreen } from "../screens/ErrorStateScreen";
 import { HandHistoryScreen } from "../screens/HandHistoryScreen";
 import { HomeScreen } from "../screens/HomeScreen";
@@ -43,13 +44,17 @@ export function AppShell() {
     );
   }
 
-  const primaryRoutes = new Set(["/", "/host", "/join", "/history", "/rules"]);
-  const navigation = bootstrap.screens
-    .filter((screen) => primaryRoutes.has(screen.route))
-    .map((screen) => ({
-      to: screen.route,
-      label: screen.title,
-    }));
+  const routeTitles = new Map(
+    bootstrap.screens.map((screen) => [screen.route, screen.title]),
+  );
+  const navigation = [
+    { to: "/", label: routeTitles.get("/") ?? "Home" },
+    { to: "/host", label: routeTitles.get("/host") ?? "Host" },
+    { to: "/join", label: routeTitles.get("/join") ?? "Join" },
+    { to: "/history", label: routeTitles.get("/history") ?? "History" },
+    { to: "/rules", label: "Help" },
+    { to: "/settings", label: "Settings" },
+  ];
 
   return (
     <DesktopShellProvider bootstrap={bootstrap}>
@@ -77,6 +82,7 @@ export function AppShell() {
             path="/history"
             element={<HandHistoryScreen bootstrap={bootstrap} />}
           />
+          <Route path="/settings" element={<DeviceSettingsScreen />} />
           <Route
             path="/complete"
             element={<TournamentCompleteScreen />}

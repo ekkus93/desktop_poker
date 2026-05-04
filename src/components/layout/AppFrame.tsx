@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ChevronLeft, Flag, History, Home, LogIn, Settings } from "lucide-react";
+import { ChevronLeft, CircleHelp, Flag, History, Home, LogIn, Settings } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
@@ -19,7 +19,9 @@ function getNavigationIcon(label: string) {
       return LogIn;
     case "History":
       return History;
-    case "Rules":
+    case "Help":
+      return CircleHelp;
+    case "Settings":
       return Settings;
     default:
       return null;
@@ -38,9 +40,10 @@ export function AppFrame({
   const { displayName } = useDesktopShell();
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
-  const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules");
-  const primaryNavigation = navigation.filter((item) => item.to !== "/history" && item.to !== "/rules");
-  const currentPrimaryRoute = primaryNavigation.find((item) => item.to === location.pathname);
+  const supportRoutes = new Set(["/history", "/rules", "/settings"]);
+  const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
+  const primaryNavigation = navigation.filter((item) => !supportRoutes.has(item.to));
+  const currentSurfaceRoute = navigation.find((item) => item.to === location.pathname);
 
   if (!inTournament) {
     return (
@@ -59,13 +62,13 @@ export function AppFrame({
                   <span>Back home</span>
                 </span>
               </NavLink>
-              {currentPrimaryRoute ? (
+              {currentSurfaceRoute ? (
                 <span className="topbar-current-surface">
                   {(() => {
-                    const Icon = getNavigationIcon(currentPrimaryRoute.label);
+                    const Icon = getNavigationIcon(currentSurfaceRoute.label);
                     return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
                   })()}
-                  <span>{currentPrimaryRoute.label}</span>
+                  <span>{currentSurfaceRoute.label}</span>
                 </span>
               ) : null}
             </nav>

@@ -140,6 +140,14 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       ? validationState.payload.tableName ?? validationState.payload.tableId
       : null;
   const canContinueToLobby = validationState.status === "valid";
+  const canCheckInvite = joinPayloadDraft.trim().length > 0 && validationState.status !== "validating";
+  const continueHint = canContinueToLobby
+    ? "Invite checked. Continue when ready."
+    : validationState.status === "validating"
+      ? "Continue unlocks after the invite check finishes."
+      : validationState.status === "invalid"
+        ? "Fix the invite above before continuing to the lobby."
+        : "Paste an invite, then check it to continue.";
 
   return (
     <ScreenShell
@@ -167,6 +175,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               <div className="button-row workstation-actions">
                 <button
                   className="primary-button"
+                  disabled={!canCheckInvite}
                   onClick={() => {
                     void reviewInvite();
                   }}
@@ -174,7 +183,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Clipboard className="button-icon" strokeWidth={1.9} />
-                    <span>Check invite</span>
+                    <span>{validationState.status === "validating" ? "Checking invite" : "Check invite"}</span>
                   </span>
                 </button>
                 {canContinueToLobby ? (
@@ -184,10 +193,18 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                       <span>Continue to lobby</span>
                     </span>
                   </Link>
-                ) : null}
+                ) : (
+                  <button className="primary-button ghost-primary-button" disabled type="button">
+                    <span className="button-content">
+                      <ArrowRight className="button-icon" strokeWidth={1.9} />
+                      <span>Continue to lobby</span>
+                    </span>
+                  </button>
+                )}
               </div>
+              <p className="field-hint">{continueHint}</p>
               {validationState.status === "validating" ? (
-                <p className="inline-banner info">Checking the invite…</p>
+                <p className="inline-banner info">Checking the invite and host details…</p>
               ) : null}
               {validationState.status === "invalid" ? (
                 <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
@@ -246,6 +263,8 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                         key={payload}
                         onClick={() => {
                           setJoinPayloadDraft(payload);
+                          setValidationState({ status: "validating" });
+                          setInviteBanner(null);
 
                           void validateJoinPayloadInput(payload)
                             .then((parsedPayload) => {

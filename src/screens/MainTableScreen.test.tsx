@@ -158,7 +158,7 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(
-      screen.getByText(/waiting for next action/i),
+      screen.getByText(/waiting for the next action from the host/i),
     ).toBeTruthy();
   });
 
@@ -181,6 +181,7 @@ describe("MainTableScreen", () => {
         60,
       );
     });
+    expect(screen.queryByText(/sending your action to the host/i)).toBeNull();
 
     mockedSubmitTableAction.mockClear();
     mockedGetTableView.mockResolvedValue(initialView);
@@ -196,6 +197,38 @@ describe("MainTableScreen", () => {
         "allIn",
         undefined,
       );
+    });
+  });
+
+  it("explains locked raise actions and shows a submission banner while waiting", async () => {
+    const initialView = createTableView({
+      actionTray: {
+        ...createTableView().actionTray,
+        maxRaiseTo: null,
+      },
+    });
+    let resolveAction: ((value: ReturnType<typeof createTableView>) => void) | null = null;
+    mockedGetTableView.mockResolvedValue(initialView);
+    mockedSubmitTableAction.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAction = resolve;
+        }),
+    );
+
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(await screen.findByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
+  expect(screen.getByRole("button", { name: /bet \/ raise/i }).hasAttribute("disabled")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fold" }));
+    expect(await screen.findByText(/sending your action to the host/i)).toBeTruthy();
+
+    resolveAction?.(createTableView({ actionTray: null, actionOwnerLabel: "Maya" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/sending your action to the host/i)).toBeNull();
     });
   });
 });

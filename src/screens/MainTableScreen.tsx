@@ -202,7 +202,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
         {loading ? (
           <SectionCard title="Loading table state">
-            <span className="field-hint">Loading.</span>
+            <span className="field-hint">Requesting the current table state from the host.</span>
           </SectionCard>
         ) : null}
 
@@ -246,7 +246,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <div className="badge-row">
                     <StatusBadge tone="success">{tableView.streetLabel}</StatusBadge>
                     <StatusBadge tone="info">{tableView.blindLevelLabel}</StatusBadge>
-                    <StatusBadge tone="warning">Pot {tableView.potTotal}</StatusBadge>
+                    <StatusBadge tone="accent">Pot {tableView.potTotal}</StatusBadge>
                   </div>
                 </header>
 
@@ -376,8 +376,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       All-in
                     </button>
                   </div>
+                  {submitting ? (
+                    <div className="inline-banner info">Sending your action to the host…</div>
+                  ) : null}
                   {tableView.actionTray.maxRaiseTo === null ? (
-                    <p className="field-hint">Raise locked</p>
+                    <p className="field-hint">Raise unavailable until a legal raise size is offered for this spot.</p>
                   ) : null}
                   <div className="raise-controls">
                     <label className="field" htmlFor="raise-slider">
@@ -433,7 +436,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <p>
                     {activeViewerMode === "observer"
                       ? "Public table only."
-                      : "Waiting for next action."}
+                      : "Waiting for the next action from the host."}
                   </p>
                 </SectionCard>
               )}

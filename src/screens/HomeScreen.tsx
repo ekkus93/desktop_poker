@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Flag, History, LogIn, Settings } from "lucide-react";
+import { CircleHelp, Flag, History, LogIn, Settings } from "lucide-react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -38,8 +38,14 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
           <div className="button-row home-support-row compact-support-row">
             <Link className="secondary-button" to="/rules">
               <span className="button-content">
+                <CircleHelp className="button-icon" strokeWidth={1.9} />
+                <span>Help</span>
+              </span>
+            </Link>
+            <Link className="secondary-button" to="/settings">
+              <span className="button-content">
                 <Settings className="button-icon" strokeWidth={1.9} />
-                <span>Rules</span>
+                <span>Settings</span>
               </span>
             </Link>
           </div>

@@ -5,7 +5,7 @@ export function StatusBadge({
   tone = "info",
 }: {
   children: ReactNode;
-  tone?: "info" | "success" | "warning";
+  tone?: "info" | "success" | "warning" | "accent";
 }) {
   return <span className={`status-badge ${tone}`}>{children}</span>;
 }

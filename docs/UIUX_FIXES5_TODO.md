@@ -131,99 +131,96 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 5.1 Separate Help from Device Settings
 
-- [ ] Review the current Rules screen content.
-- [ ] Split pure gameplay/help content from device-level settings.
-- [ ] Decide whether device settings should move to:
-	- [ ] a separate Settings screen
-	- [ ] a secondary support panel
-	- [ ] a lower-priority device section with stronger separation
-- [ ] Reduce context switching between rules explanation and configuration tasks.
+- [x] Review the current Rules screen content.
+- [x] Split pure gameplay/help content from device-level settings.
+- [x] Decide to move device settings to a separate Settings screen.
+- [x] Reduce context switching between rules explanation and configuration tasks.
 
 ### 5.2 Clarify support vs gameplay surfaces
 
-- [ ] Review navigation labels for support screens.
-- [ ] Ensure labels clearly distinguish:
-	- [ ] active play
-	- [ ] historical review
-	- [ ] help/reference
-	- [ ] device configuration
-	- [ ] recovery/error handling
-- [ ] Tighten any labels that feel generic or ambiguous.
+- [x] Review navigation labels for support screens.
+- [x] Ensure labels clearly distinguish:
+	- [x] active play
+	- [x] historical review
+	- [x] help/reference
+	- [x] device configuration
+	- [x] recovery/error handling
+- [x] Tighten any labels that feel generic or ambiguous.
 
 ## Phase 6: Tighten Action Design and Feedback
 
 ### 6.1 Improve state feedback for asynchronous actions
 
-- [ ] Review async states for:
-	- [ ] LAN IP resolution
-	- [ ] invite validation
-	- [ ] table loading
-	- [ ] action submission
-	- [ ] clipboard copy
-- [ ] Ensure each async state has clear idle, loading, success, and failure feedback where relevant.
-- [ ] Replace vague messages with direct outcome-oriented feedback.
-- [ ] Prevent actions from appearing clickable when the result is not available yet.
+- [x] Review async states for:
+	- [x] LAN IP resolution
+	- [x] invite validation
+	- [x] table loading
+	- [x] action submission
+	- [x] clipboard copy
+- [x] Ensure each async state has clear idle, loading, success, and failure feedback where relevant.
+- [x] Replace vague messages with direct outcome-oriented feedback.
+- [x] Prevent actions from appearing clickable when the result is not available yet.
 
 ### 6.2 Make disabled actions self-explanatory
 
-- [ ] Audit disabled buttons across pregame and table flows.
-- [ ] Add nearby explanatory text when an action is unavailable.
-- [ ] Avoid leaving disabled controls without context.
-- [ ] Ensure disabled actions remain visually legible and do not look broken.
+- [x] Audit disabled buttons across pregame and table flows.
+- [x] Add nearby explanatory text when an action is unavailable.
+- [x] Avoid leaving disabled controls without context.
+- [x] Ensure disabled actions remain visually legible and do not look broken.
 
 ## Phase 7: Strengthen Visual Consistency
 
 ### 7.1 Standardize primary and secondary CTA hierarchy
 
-- [ ] Audit every button row on Home, Host, Join, Lobby, Table, and Complete screens.
-- [ ] Ensure there is one obvious primary action per decision point.
-- [ ] Downgrade secondary utilities so they do not visually compete with the main next step.
-- [ ] Keep button copy short and specific.
+- [x] Audit every button row on Home, Host, Join, Lobby, Table, and Complete screens.
+- [x] Ensure there is one obvious primary action per decision point.
+- [x] Downgrade secondary utilities so they do not visually compete with the main next step.
+- [x] Keep button copy short and specific.
 
 ### 7.2 Review badge and status color semantics
 
-- [ ] Audit all `success`, `warning`, `info`, and `error` uses.
-- [ ] Ensure similar states use the same tone across screens.
-- [ ] Remove any cases where a state color is technically correct but semantically confusing.
-- [ ] Verify contrast remains readable for all badge and banner states.
+- [x] Audit all `success`, `warning`, `info`, and `error` uses.
+- [x] Ensure similar states use the same tone across screens.
+- [x] Remove any cases where a state color is technically correct but semantically confusing.
+- [x] Verify contrast remains readable for all badge and banner states.
 
 ### 7.3 Review typography and supporting text density
 
-- [ ] Audit helper text and low-priority copy across the app.
-- [ ] Remove explanatory text that repeats what the controls already say.
-- [ ] Keep support text focused on what the user needs to decide or do next.
-- [ ] Ensure headings and subheadings are consistent in tone and length.
+- [x] Audit helper text and low-priority copy across the app.
+- [x] Remove explanatory text that repeats what the controls already say.
+- [x] Keep support text focused on what the user needs to decide or do next.
+- [x] Ensure headings and subheadings are consistent in tone and length.
 
 ## Phase 8: Add Real Regression Coverage
 
 ### 8.1 Expand unit tests for initial visible state
 
-- [ ] Add component tests for each major screen’s default visible controls.
-- [ ] Verify critical controls exist on first render for fresh state.
-- [ ] Verify critical controls still exist when persisted state is present.
-- [ ] Add tests for blocked states and disabled-state explanations.
+- [x] Add component tests for each major screen’s default visible controls.
+- [x] Verify critical controls exist on first render for fresh state.
+- [x] Verify critical controls still exist when persisted state is present.
+- [x] Add tests for blocked states and disabled-state explanations.
 
 ### 8.2 Add tests for persisted-state migrations and normalization
 
-- [ ] Add tests that simulate old saved shell state.
-- [ ] Verify outdated persisted values cannot hide or break critical UI.
-- [ ] Add coverage for state normalization if persisted schema changes are introduced.
+- [x] Add tests that simulate old saved shell state.
+- [x] Verify outdated persisted values cannot hide or break critical UI.
+- [x] Add coverage for state normalization if persisted schema changes are introduced.
 
 ### 8.3 Add flow-level integration tests for CTA truthfulness
 
-- [ ] Add integration tests covering:
-	- [ ] host blocked but cannot continue
-	- [ ] host ready and can continue
-	- [ ] launch invite valid and can continue
-	- [ ] invite invalid and cannot continue
-	- [ ] local readiness badge matches actual local seat state
-- [ ] Ensure each flow checks both content and enabled/disabled action state.
+- [x] Add integration tests covering:
+	- [x] host blocked but cannot continue
+	- [x] host ready and can continue
+	- [x] launch invite valid and can continue
+	- [x] invite invalid and cannot continue
+	- [x] local readiness badge matches actual local seat state
+- [x] Ensure each flow checks both content and enabled/disabled action state.
 
 ### 8.4 Add viewport-fit tests where practical
 
-- [ ] Add tests that assert critical controls render within the intended scroll container or visible shell region.
-- [ ] Add tests for shorter-height desktop layouts where regressions are likely.
-- [ ] Prefer behavior-scoped layout assertions over brittle pixel snapshots.
+- [x] Add tests that assert critical controls render within the intended scroll container or visible shell region.
+- [x] Add tests for shorter-height desktop layouts where regressions are likely.
+- [x] Prefer behavior-scoped layout assertions over brittle pixel snapshots.
 
 ## Phase 9: Final QA Pass
 
@@ -249,11 +246,11 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ## Deliverables
 
-- [ ] Corrected lobby player-state logic
-- [ ] Corrected host/join progression gating
-- [ ] Safer persisted-state handling
-- [ ] More resilient per-screen overflow behavior
-- [ ] Cleaner support/settings information architecture
-- [ ] Expanded regression test coverage for visible UI state and real user flows
+- [x] Corrected lobby player-state logic
+- [x] Corrected host/join progression gating
+- [x] Safer persisted-state handling
+- [x] More resilient per-screen overflow behavior
+- [x] Cleaner support/settings information architecture
+- [x] Expanded regression test coverage for visible UI state and real user flows
 - [ ] Final manual QA signoff for desktop viewport usability
 

@@ -181,6 +181,53 @@ describe("AppShell integration", () => {
     expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
   });
 
+  it("keeps host setup blocked until the LAN address resolves", async () => {
+    mockedResolveHostLanAddress.mockRejectedValueOnce(
+      new Error("No reachable LAN IP"),
+    );
+
+    renderAppShell("/host");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Host Tournament Setup",
+      }),
+    ).toBeTruthy();
+    expect(await screen.findByText("No reachable LAN IP")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue to lobby" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/resolve the lan address before continuing to the lobby/i)).toBeTruthy();
+  });
+
+  it("lets a launch-attached invite continue straight into the lobby flow", async () => {
+    const bootstrap = createAppBootstrap({
+      launchJoinPayload: "pkr1_launch",
+      parsedLaunchJoinPayload: createParsedJoinPayload(),
+    });
+
+    renderAppShell("/join", bootstrap);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+    expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
+    expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+  });
+
+  it("keeps the lobby readiness badge aligned with the local seat state", async () => {
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    expect(screen.getByText("You: Waiting")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+
+    expect(await screen.findByText("You: Ready")).toBeTruthy();
+  });
+
   it("persists shell state and cached hand history across a restart-like remount", async () => {
     const bootstrap = createAppBootstrap({
       storageNamespace: "desktop-poker:restart-flow",
@@ -540,6 +587,7 @@ describe("AppShell integration", () => {
 
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Help" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
   });
 });
