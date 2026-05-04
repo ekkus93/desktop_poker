@@ -51,9 +51,9 @@ Owning code:
 
 Goals:
 
-- [ ] Stop using a persistent app-navigation mentality for the landing flow.
-- [ ] Make pre-tournament screens feel like entering a game, not navigating an admin console.
-- [ ] Keep support surfaces reachable without visually competing with the main poker path.
+- [x] Stop using a persistent app-navigation mentality for the landing flow.
+- [~] Make pre-tournament screens feel like entering a game, not navigating an admin console.
+- [~] Keep support surfaces reachable without visually competing with the main poker path.
 
 Tasks:
 
@@ -61,20 +61,21 @@ Tasks:
 	- [ ] Option A: no persistent navigation at all on Home.
 	- [x] Option B: only a minimal top brand bar plus a single quiet support affordance.
 	- [x] Reject any design that still feels like `Play / Support` app chrome.
-- [~] Remove any remaining shell text that sounds like a product tour or workflow explanation.
+- [x] Remove any remaining shell text that sounds like a product tour or workflow explanation.
 - [x] Remove any visible debug/internal promotion from the normal shell, even in dev builds.
-- [ ] Decide whether History and Rules belong in the shell at all before a game starts.
+- [x] Decide whether History and Rules belong in the shell at all before a game starts.
 	- [ ] If yes, demote them harder.
-	- [ ] If no, move them behind a single secondary menu or footer affordance.
+	- [x] If no, move them behind a single secondary menu or footer affordance.
 - [~] Keep player identity visible only if it helps the next action.
 	- [x] If the player label is retained, make it feel like a table identity, not a dev profile tag.
-- [ ] Re-check shell behavior by route.
-	- [ ] Home
-	- [ ] Host
-	- [ ] Join
+
+- [~] Re-check shell behavior by route.
+	- [x] Home
+	- [x] Host
+	- [x] Join
 	- [ ] Rules
 	- [ ] History
-	- [ ] Lobby
+	- [x] Lobby
 	- [ ] Table
 	- [ ] Complete
 	- [ ] Errors
@@ -94,9 +95,9 @@ Owning code:
 
 Goals:
 
-- [ ] The home screen should feel like the front door to a poker table.
+- [~] The home screen should feel like the front door to a poker table.
 - [ ] The user should see exactly two main paths: host a game or join a game.
-- [ ] The home screen should stop reading like a dashboard with support cards.
+- [~] The home screen should stop reading like a dashboard with support cards.
 
 Tasks:
 
@@ -104,18 +105,18 @@ Tasks:
 	- [x] Stronger title than the current generic product wording.
 	- [x] One short line that sounds like poker, not workflow management.
 	- [x] Make Host and Join feel like the only decisions that matter.
-- [ ] Rework the visual layout.
-	- [ ] Host and Join should dominate the fold.
-	- [ ] Remove or heavily demote utility-style cards.
+- [~] Rework the visual layout.
+	- [x] Host and Join should dominate the fold.
+	- [x] Remove or heavily demote utility-style cards.
 	- [ ] Make the landing space feel centered and table-oriented.
-- [ ] Rethink the resume area.
-	- [ ] Keep it hidden unless there is actually something useful to resume.
-	- [ ] Avoid showing generic empty-state furniture by default.
-	- [ ] Make saved-history and saved-invite recovery feel like secondary recovery options, not equal-weight actions.
-- [ ] Decide whether Rules/Help belongs on Home at all.
-	- [ ] If it stays, reduce it to a low-emphasis support action.
+- [~] Rethink the resume area.
+	- [x] Keep it hidden unless there is actually something useful to resume.
+	- [x] Avoid showing generic empty-state furniture by default.
+	- [~] Make saved-history and saved-invite recovery feel like secondary recovery options, not equal-weight actions.
+- [x] Decide whether Rules/Help belongs on Home at all.
+	- [x] If it stays, reduce it to a low-emphasis support action.
 - [~] Tighten home copy again.
-	- [ ] Remove any remaining “saved tables,” “review invite,” or utility-language tone where a more game-oriented phrasing would work.
+	- [~] Remove any remaining “saved tables,” “review invite,” or utility-language tone where a more game-oriented phrasing would work.
 
 Acceptance bar:
 
@@ -133,24 +134,24 @@ Owning code:
 
 Goals:
 
-- [ ] Hosting should feel like starting a table, not configuring a piece of software.
-- [ ] The share/invite step should feel productized, not like copying structured output.
+- [~] Hosting should feel like starting a table, not configuring a piece of software.
+- [x] The share/invite step should feel productized, not like copying structured output.
 
 Tasks:
 
-- [ ] Rework the visual hierarchy of Host.
-	- [ ] One clear setup area.
-	- [ ] One clear share/invite area.
-	- [ ] One clear continue action.
-- [ ] Improve the share surface.
-	- [ ] Make the invite feel like an invite card, not a text area dump.
-	- [ ] Show the table name and join instructions more like a host handoff.
-	- [ ] Keep copy action obvious but not technical.
-- [ ] Reconsider the LAN-readiness panel.
-	- [ ] It should reassure, not expose implementation detail.
-	- [ ] Failure states should stay plain-language and local.
-- [ ] Keep advanced settings truly advanced.
-	- [ ] They should not look like part of the main task.
+- [x] Rework the visual hierarchy of Host.
+	- [x] One clear setup area.
+	- [x] One clear share/invite area.
+	- [x] One clear continue action.
+- [x] Improve the share surface.
+	- [x] Make the invite feel like an invite card, not a text area dump.
+	- [x] Show the table name and join instructions more like a host handoff.
+	- [x] Keep copy action obvious but not technical.
+- [~] Reconsider the LAN-readiness panel.
+	- [x] It should reassure, not expose implementation detail.
+	- [~] Failure states should stay plain-language and local.
+- [x] Keep advanced settings truly advanced.
+	- [x] They should not look like part of the main task.
 
 Acceptance bar:
 
@@ -167,18 +168,18 @@ Owning code:
 
 Goals:
 
-- [ ] Joining should feel like accepting an invite to a table.
-- [ ] The screen should not feel like validating a token or pasting structured app data.
+- [~] Joining should feel like accepting an invite to a table.
+- [~] The screen should not feel like validating a token or pasting structured app data.
 
 Tasks:
 
-- [ ] Rework the screen to make the invite input feel like the whole screen’s purpose.
-- [ ] Make the review step feel confident and product-like.
-	- [ ] Host destination
-	- [ ] Table name
-	- [ ] Ready-to-continue state
-- [ ] Rework recent invites so they feel like useful shortcuts, not persisted state management.
-- [ ] Remove any remaining “review tool” or “parser” feeling from the page.
+- [x] Rework the screen to make the invite input feel like the whole screen’s purpose.
+- [x] Make the review step feel confident and product-like.
+	- [x] Host destination
+	- [x] Table name
+	- [x] Ready-to-continue state
+- [~] Rework recent invites so they feel like useful shortcuts, not persisted state management.
+- [~] Remove any remaining “review tool” or “parser” feeling from the page.
 
 Acceptance bar:
 
@@ -194,16 +195,16 @@ Owning code:
 
 Goals:
 
-- [ ] The lobby should feel like people gathering at a table.
-- [ ] It should not feel like roster management.
+- [~] The lobby should feel like people gathering at a table.
+- [~] It should not feel like roster management.
 
 Tasks:
 
-- [ ] Push readiness and startability higher than all other detail.
-- [ ] Make the local player’s state more immediate and less verbose.
-- [ ] Reduce card/chrome density in the seat map.
-- [ ] Keep “Leave table” available but far less competitive with “Start tournament.”
-- [ ] Revisit copy so it feels more human and less status-board-like.
+- [x] Push readiness and startability higher than all other detail.
+- [x] Make the local player’s state more immediate and less verbose.
+- [~] Reduce card/chrome density in the seat map.
+- [x] Keep “Leave table” available but far less competitive with “Start tournament.”
+- [x] Revisit copy so it feels more human and less status-board-like.
 
 Acceptance bar:
 
@@ -309,10 +310,10 @@ This section is about not lying to ourselves again.
 ## 13. Suggested execution order
 
 - [x] Phase A: stabilize current shell rewrite and remove any lint/test drift.
-- [ ] Phase B: finish the pre-tournament shell replacement.
-- [ ] Phase C: rebuild Home as a true landing page.
-- [ ] Phase D: rebuild Host and Join as full-screen product flows.
-- [ ] Phase E: retune Lobby and support surfaces.
+- [~] Phase B: finish the pre-tournament shell replacement.
+- [~] Phase C: rebuild Home as a true landing page.
+- [~] Phase D: rebuild Host and Join as full-screen product flows.
+- [~] Phase E: retune Lobby and support surfaces.
 - [ ] Phase F: final art-direction and hierarchy pass across the whole app.
 - [ ] Phase G: final validation, documentation truth pass, and push.
 

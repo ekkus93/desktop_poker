@@ -22,33 +22,41 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const canStart = activeSeats.length >= 2 && activeSeats.every((seat) => seat.ready);
   const localSeat = participants.find((seat) => seat.kind !== "open" && seat.label === displayName);
   const localSeatReady = localSeat?.ready ?? false;
+  const readySeatCount = activeSeats.filter((seat) => seat.ready).length;
+  const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
 
   return (
     <ScreenShell
       title="Tournament Lobby"
-      lead="Seat everyone, mark ready, then start the table."
-      badges={[hostDraft.tournamentName, canStart ? "Ready to start" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
+      lead="Everyone checks in here before the first hand."
+      badges={[hostDraft.tournamentName, canStart ? "Ready to deal" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Ready state" title="Ready to start?">
-          <div className="stacked-list">
-            <article className="list-panel">
-              <div>
-                <strong>{localSeatReady ? "Your seat is ready" : "Your seat is waiting"}</strong>
-                <p className="field-hint">{localSeatReady ? "You are set." : "Mark ready when you are set."}</p>
-              </div>
-            </article>
-            <article className="list-panel">
-              <div>
-                <strong>{canStart ? "The table can start now" : "The table is still waiting"}</strong>
-                <p className="field-hint">{canStart ? "Everyone seated is ready." : "Every occupied seat must be ready."}</p>
-              </div>
-            </article>
-          </div>
+        <SectionCard kicker="Waiting room" title="Gather around the table">
+          <article className="lobby-progress-card">
+            <strong>{canStart ? "Everyone is ready for the first hand" : `${readySeatCount} of ${activeSeats.length} seated players are ready`}</strong>
+            <p className="field-hint">
+              {canStart
+                ? "Deal as soon as the table is set."
+                : seatsStillWaiting === 1
+                  ? "One seated player still needs to check in."
+                  : `${seatsStillWaiting} seated players still need to check in.`}
+            </p>
+            <div className="lobby-status-row">
+              <span className={`status-badge ${localSeatReady ? "success" : "warning"}`}>
+                {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                {localSeatReady ? "You are ready" : "You still need to mark ready"}
+              </span>
+              <span className={`status-badge ${canStart ? "success" : "info"}`}>
+                {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                {canStart ? "Table can start" : "Waiting on the table"}
+              </span>
+            </div>
+          </article>
         </SectionCard>
 
-        <SectionCard kicker="Seat map" title="Seats">
-          <div className="seat-grid">
+        <SectionCard kicker="Around the table" title="Seats in the room">
+          <div className="seat-grid lobby-seat-grid">
             {participants.map((seat) => {
               const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
 
@@ -88,8 +96,8 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Start table">
-          <p>{canStart ? "Everyone is ready. Start when the table is set." : "At least two seated players must be ready before the game can start."}</p>
+        <SectionCard title="Deal the first hand">
+          <p>{canStart ? "Everyone is checked in. Start when you want the cards in the air." : "At least two seated players must be ready before the game can begin."}</p>
           <div className="button-row">
             {canStart ? (
               <Link className="primary-button" to="/table">
@@ -107,7 +115,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               </button>
             )}
             <button
-              className="secondary-button"
+              className="secondary-button compact-button"
               onClick={() => {
                 setShowLeaveFlow(true);
               }}
@@ -128,7 +136,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       </div>
       {showLeaveFlow ? (
         <section className="dialog-card">
-          <p className="kicker">Leave table flow</p>
+          <p className="kicker">Exit lobby</p>
           <h3>Leave this lobby?</h3>
           <p>
             Leave this table and go back home?

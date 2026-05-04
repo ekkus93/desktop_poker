@@ -121,6 +121,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     : bootstrap.launchJoinPayload
       ? "Invite already attached"
       : "Paste an invite";
+  const previewTableName =
+    validationState.status === "valid"
+      ? validationState.payload.tableName ?? validationState.payload.tableId
+      : null;
 
   return (
     <ScreenShell
@@ -129,10 +133,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       badges={[sourceSummary]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Step 1" title="Paste invite">
+        <SectionCard kicker="Step 1" title="Bring your invite">
           <div className="form-grid">
             <label className="field">
-              Paste invite
+              Tournament invite
               <textarea
                 onChange={(event) => {
                   setJoinPayloadDraft(event.target.value);
@@ -159,7 +163,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               </button>
             </div>
             <p className="field-hint">
-              You can paste an invite manually or arrive here with one already attached at launch.
+              Paste the invite you were given, or open the app from a join link.
             </p>
           </div>
           {validationState.status === "validating" ? (
@@ -171,28 +175,29 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
           {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
         </SectionCard>
 
-        <SectionCard kicker="Step 2" title="Check the destination">
+        <SectionCard kicker="Step 2" title="Check the table">
           {validationState.status === "valid" ? (
-            <dl className="detail-grid">
-              <div>
-                <dt>Host</dt>
-                <dd>
-                  <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
-                </dd>
+            <section aria-label="Invite preview" className="invite-card">
+              <p className="kicker">Invite looks good</p>
+              <h4>{previewTableName}</h4>
+              <p className="invite-lead">You are about to join this table from the lobby.</p>
+              <div className="invite-stat-grid">
+                <div>
+                  <span className="invite-stat-label">Host</span>
+                  <strong>
+                    <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
+                  </strong>
+                </div>
+                <div>
+                  <span className="invite-stat-label">Table</span>
+                  <strong>{previewTableName}</strong>
+                </div>
+                <div>
+                  <span className="invite-stat-label">Status</span>
+                  <strong>Ready for lobby check-in</strong>
+                </div>
               </div>
-              <div>
-                <dt>Table</dt>
-                <dd>{validationState.payload.tableName ?? validationState.payload.tableId}</dd>
-              </div>
-              <div>
-                <dt>Session epoch</dt>
-                <dd>{validationState.payload.sessionEpoch}</dd>
-              </div>
-              <div>
-                <dt>Invite version</dt>
-                <dd>{validationState.payload.payloadVersion}</dd>
-              </div>
-            </dl>
+            </section>
           ) : (
             <p>
               Invite details appear here before you continue.
@@ -200,7 +205,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
           )}
         </SectionCard>
 
-        <SectionCard kicker="Step 3" title="Continue or reuse a recent invite">
+        <SectionCard kicker="Step 3" title="Join the table">
           {continueToLobby ? (
             <div className="button-row">
               <Link className="primary-button" to="/lobby">
@@ -215,6 +220,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
           )}
           {recentJoinPayloads.length > 0 ? (
             <div className="stacked-list">
+              <p className="field-hint">Recent invites</p>
               {recentJoinPayloads.map((payload) => (
                 <button
                   className="list-button"

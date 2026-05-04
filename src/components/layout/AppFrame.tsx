@@ -21,8 +21,6 @@ function getNavigationIcon(label: string) {
       return History;
     case "Rules":
       return Settings;
-    case "Debug":
-      return Bug;
     default:
       return null;
   }
@@ -74,26 +72,7 @@ export function AppFrame({
           )}
 
           <div className="topbar-meta">
-            <p className="player-pill">{displayName}</p>
-            <div className="topbar-support-links">
-              {supportNavigation.map((item) => (
-                <NavLink
-                  key={item.to}
-                  className={({ isActive }) =>
-                    isActive ? "support-link active" : "support-link"
-                  }
-                  to={item.to}
-                >
-                  <span className="button-content">
-                    {(() => {
-                      const Icon = getNavigationIcon(item.label);
-                      return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
-                    })()}
-                    <span>{item.label}</span>
-                  </span>
-                </NavLink>
-              ))}
-            </div>
+            <p className="player-pill">Playing as {displayName}</p>
           </div>
         </header>
 

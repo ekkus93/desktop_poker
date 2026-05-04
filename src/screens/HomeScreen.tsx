@@ -15,12 +15,12 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Your next table"
-      lead="Host a game here or join with an invite."
+      title="Pull up a chair"
+      lead="Host the table here or join with an invite."
       badges={[]}
     >
-      <div className="content-grid">
-        <SectionCard kicker="Start here" title="Host or join">
+      <div className={`content-grid home-screen-grid${hasSavedProgress ? " home-screen-grid-with-resume" : ""}`}>
+        <SectionCard kicker="Tonight's game" title="Choose your seat">
           <div className="button-row">
             <Link className="primary-button" to="/host">
               <span className="button-content">
@@ -38,19 +38,27 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
           <div className="home-choice-grid">
             <article className="choice-card choice-card-primary">
               <p className="kicker">Host</p>
-              <h3>Run the table from this computer</h3>
-              <p>Set the tournament basics, share the invite, then start when players are ready.</p>
+              <h3>Deal from this computer</h3>
+              <p>Set the table, share the invite, then start when everyone is ready.</p>
             </article>
             <article className="choice-card">
               <p className="kicker">Join</p>
-              <h3>Paste an invite and sit down</h3>
-              <p>Paste the invite you were given, confirm the table, then continue into the lobby.</p>
+              <h3>Join with your invite</h3>
+              <p>Paste the invite you were given, check the table, then head into the lobby.</p>
             </article>
+          </div>
+          <div className="button-row home-support-row">
+            <Link className="secondary-button" to="/rules">
+              <span className="button-content">
+                <Settings className="button-icon" strokeWidth={1.9} />
+                <span>Game Help</span>
+              </span>
+            </Link>
           </div>
         </SectionCard>
 
+        {hasSavedProgress ? (
         <SectionCard title="Continue where you left off">
-          {hasSavedProgress ? (
             <div className="stacked-list compact-home-list">
               <article className="list-panel">
                 <div>
@@ -111,18 +119,8 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                 </article>
               ) : null}
             </div>
-          ) : (
-            <p className="field-hint">No saved tables or invites yet.</p>
-          )}
-          <div className="button-row">
-            <Link className="secondary-button" to="/rules">
-              <span className="button-content">
-                <Settings className="button-icon" strokeWidth={1.9} />
-                <span>Game Help</span>
-              </span>
-            </Link>
-          </div>
         </SectionCard>
+        ) : null}
       </div>
     </ScreenShell>
   );

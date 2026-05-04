@@ -39,7 +39,7 @@ describe("JoinTournamentScreen", () => {
 
     await waitFor(() => {
       expect(
-        (screen.getByLabelText("Paste invite") as HTMLTextAreaElement).value,
+        (screen.getByLabelText("Tournament invite") as HTMLTextAreaElement).value,
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
@@ -55,7 +55,7 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Paste invite"), {
+    fireEvent.change(screen.getByLabelText("Tournament invite"), {
       target: { value: "pkr1_bad" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
@@ -71,12 +71,13 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Paste invite"), {
+    fireEvent.change(screen.getByLabelText("Tournament invite"), {
       target: { value: "pkr1_good" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
 
-    expect(await screen.findByText("Friday Night")).toBeTruthy();
+    expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
+    expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
     expect(screen.getByText("Invite ready for 192.168.1.10:43818.")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Continue to lobby" }),

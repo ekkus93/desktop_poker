@@ -64,6 +64,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     resolvedHostIp,
     lanError,
   );
+  const blindPreset = BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ?? BLIND_PRESETS[0];
+  const inviteReady = Boolean(resolvedHostIp && !lanError);
 
   const handleCopy = async (value: string, message: string) => {
     await navigator.clipboard.writeText(value);
@@ -218,10 +220,33 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         <SectionCard kicker="Step 3" title="Share the invite">
-          <label className="field">
-            Join details
-            <textarea readOnly rows={9} value={shareText} />
-          </label>
+          {inviteReady ? (
+            <section className="invite-card" aria-label="Invite card">
+              <p className="kicker">Ready to share</p>
+              <h4>{hostDraft.tournamentName}</h4>
+              <p className="invite-lead">Pass this invite to the next player so they can join your table.</p>
+              <div className="invite-stat-grid">
+                <div>
+                  <span className="invite-stat-label">Players join at</span>
+                  <strong>{resolvedHostIp}:{hostDraft.hostPort}</strong>
+                </div>
+                <div>
+                  <span className="invite-stat-label">Seats</span>
+                  <strong>{hostDraft.maxPlayers} players</strong>
+                </div>
+                <div>
+                  <span className="invite-stat-label">Starting stack</span>
+                  <strong>{hostDraft.startingStack} chips</strong>
+                </div>
+                <div>
+                  <span className="invite-stat-label">Blinds</span>
+                  <strong>{blindPreset.label} · {blindPreset.firstLevel}</strong>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <p className={`inline-banner ${lanError ? "error" : "info"}`}>{shareText}</p>
+          )}
           <div className="button-row">
             <button
               className="secondary-button"
@@ -243,7 +268,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
             </Link>
           </div>
           <p className="field-hint">
-            Share details are ready now. QR or one-tap invite options can appear here later.
+            Copy the invite details now. QR or one-tap invite options can appear here later.
           </p>
           {copyState ? <p className="inline-banner success">{copyState}</p> : null}
         </SectionCard>

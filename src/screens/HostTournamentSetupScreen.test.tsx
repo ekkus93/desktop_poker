@@ -50,6 +50,9 @@ describe("HostTournamentSetupScreen", () => {
 
     expect(await screen.findByRole("button", { name: /copy share details/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /continue to lobby/i })).toBeTruthy();
-    expect(screen.getByDisplayValue(/share these table details with the next player/i)).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 2, name: "Host Tournament Setup" })).toBeTruthy();
+    expect(screen.getByLabelText("Invite card")).toBeTruthy();
+    expect(screen.getByText(/pass this invite to the next player/i)).toBeTruthy();
+    expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
   });
 });
