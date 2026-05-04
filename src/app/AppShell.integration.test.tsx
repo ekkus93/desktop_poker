@@ -235,7 +235,7 @@ describe("AppShell integration", () => {
         name: "Tournament Complete",
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/1 settled hand summaries are ready to review/i)).toBeTruthy();
+    expect(screen.getByText(/1 settled hand summaries are ready if you want to look back at the table/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
     ).toBe(false);

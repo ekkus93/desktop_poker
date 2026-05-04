@@ -246,17 +246,18 @@ Owning code:
 
 Goals:
 
-- [ ] Support surfaces should feel helpful, not co-equal with the core play flow.
+- [~] Support surfaces should feel helpful, not co-equal with the core play flow.
 
 Tasks:
 
-- [ ] Decide whether Rules should be renamed or repositioned.
-	- [ ] `Game Help`
+
+- [x] Decide whether Rules should be renamed or repositioned.
+	- [x] `Game Help`
 	- [ ] `How to Play`
 	- [ ] hidden in a quieter help affordance
-- [ ] Keep Hand History clearly secondary until the player intentionally opens it.
-- [ ] Keep Tournament Complete emotionally satisfying and concise.
-- [ ] Keep Error/Recovery direct and singular.
+- [x] Keep Hand History clearly secondary until the player intentionally opens it.
+- [~] Keep Tournament Complete emotionally satisfying and concise.
+- [x] Keep Error/Recovery direct and singular.
 
 Acceptance bar:
 

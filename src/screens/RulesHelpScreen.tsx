@@ -13,9 +13,9 @@ export function RulesHelpScreen() {
 
   return (
     <ScreenShell
-      title="Rules & Settings"
-      lead="Review the game basics and update what this device remembers."
-      badges={["Rules + settings"]}
+      title="Game Help"
+      lead="Quick rules, joining basics, and the name this device uses at the table."
+      badges={["Help"]}
     >
       <div className="content-grid">
         <SectionCard kicker="Rules" title="Table basics">
@@ -29,14 +29,14 @@ export function RulesHelpScreen() {
 
         <SectionCard title="How joining works">
           <ul>
-            <li>Share an invite from the host setup screen.</li>
+            <li>The host shares an invite from the host screen.</li>
             <li>Paste that invite on Join Tournament.</li>
-            <li>Hosting requires a reachable LAN IP.</li>
-            <li>Room-code discovery is not available yet.</li>
+            <li>Check the table preview, then continue into the lobby.</li>
+            <li>The host computer needs a reachable LAN address before others can join.</li>
           </ul>
         </SectionCard>
 
-        <SectionCard kicker="Settings" title="Saved on this device">
+        <SectionCard kicker="This device" title="Name and saved table info">
           <div className="form-grid" id="settings">
             <label className="field">
               Display name
@@ -47,23 +47,23 @@ export function RulesHelpScreen() {
                 value={displayName}
               />
             </label>
-            <p className="field-hint">Used whenever you host or join from this device.</p>
+            <p className="field-hint">This is the name other players see when you host or join from here.</p>
             <div className="button-row">
               <button className="secondary-button" onClick={resetHostDraft} type="button">
-                Reset host defaults
+                Reset host setup
               </button>
               <button
                 className="secondary-button"
                 onClick={clearRecentJoinPayloads}
                 type="button"
               >
-                Clear recent invites ({recentJoinPayloads.length})
+                Clear saved invites ({recentJoinPayloads.length})
               </button>
             </div>
             <ul>
-              <li>Your display name is saved for future games.</li>
-              <li>Host defaults can be reset if you want to start fresh.</li>
-              <li>{recentJoinPayloads.length} recent invite{recentJoinPayloads.length === 1 ? "" : "s"} saved on this device.</li>
+              <li>Your display name is saved for future games on this device.</li>
+              <li>Host setup can be reset if you want a clean table setup.</li>
+              <li>{recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"} on this device.</li>
             </ul>
           </div>
         </SectionCard>

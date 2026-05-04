@@ -34,7 +34,7 @@ export function TournamentCompleteScreen() {
   return (
     <ScreenShell
       title="Tournament Complete"
-      lead="Review the finish, check the final order, then choose what to do next."
+      lead="The table is closed. See who finished on top, then decide whether to play again."
       badges={[hostDraft.tournamentName]}
     >
       <div className="content-grid">
@@ -62,11 +62,11 @@ export function TournamentCompleteScreen() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Next">
-          <p>{persistedHandHistoryCount} settled hand summaries are ready to review.</p>
+        <SectionCard title="Play again or review the night">
+          <p>{persistedHandHistoryCount} settled hand summaries are ready if you want to look back at the table.</p>
           <div className="button-row">
             <Link className="primary-button" to="/host">
-              Host again
+              Host another table
             </Link>
             <Link className="secondary-button" to="/history">
               Review history
