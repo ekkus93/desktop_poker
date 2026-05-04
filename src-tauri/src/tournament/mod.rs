@@ -1551,8 +1551,7 @@ mod tests {
             .start_tournament(0)
             .expect("tournament should start");
 
-        let mut now_ms = 1;
-        for _ in 0..8 {
+        for now_ms in 1..=8 {
             let window = action_window(&controller);
             let action_type = if window.legal_actions.contains(&ActionType::Check) {
                 ActionType::Check
@@ -1570,7 +1569,6 @@ mod tests {
                     now_ms,
                 )
                 .expect("scripted action should succeed");
-            now_ms += 1;
             if controller
                 .state()
                 .current_hand
@@ -1617,8 +1615,7 @@ mod tests {
             .start_tournament(0)
             .expect("tournament should start");
 
-        let mut now_ms = 1;
-        for _ in 0..8 {
+        for now_ms in 1..=8 {
             let window = action_window(&controller);
             let action_type = if window.legal_actions.contains(&ActionType::Check) {
                 ActionType::Check
@@ -1636,7 +1633,6 @@ mod tests {
                     now_ms,
                 )
                 .expect("scripted action should resolve the hand");
-            now_ms += 1;
             if controller
                 .state()
                 .current_hand
@@ -1702,8 +1698,7 @@ mod tests {
             .expect("time advance should succeed");
         assert_eq!(controller.state().blind_level_index, 0);
 
-        let mut now_ms = 1;
-        for _ in 0..8 {
+        for now_ms in 1..=8 {
             let window = action_window(&controller);
             let action_type = if window.legal_actions.contains(&ActionType::Check) {
                 ActionType::Check
@@ -1721,7 +1716,6 @@ mod tests {
                     now_ms,
                 )
                 .expect("action should succeed");
-            now_ms += 1;
             if controller
                 .state()
                 .current_hand
