@@ -520,4 +520,28 @@ describe("AppShell integration", () => {
       await screen.findByText(/maya won 240 chip\(s\)\./i),
     ).toBeTruthy();
   });
+
+  it("keeps the desktop shell fixed to the viewport so all primary UI controls remain reachable", async () => {
+    renderAppShell("/");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+
+    const appFrame = document.querySelector(".app-frame");
+    expect(appFrame).toBeTruthy();
+    expect(appFrame).toBeInstanceOf(HTMLElement);
+    expect((appFrame as HTMLElement).style.height).toBe("100dvh");
+    expect((appFrame as HTMLElement).style.overflow).toBe("hidden");
+
+    const content = appFrame?.querySelector(".content");
+    expect(content).toBeTruthy();
+    expect(content).toBeInstanceOf(HTMLElement);
+    expect((content as HTMLElement).style.height).toBe("100%");
+    expect((content as HTMLElement).style.overflow).toBe("auto");
+
+    expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Rules" })).toBeTruthy();
+  });
 });

@@ -44,7 +44,7 @@ export function AppFrame({
 
   if (!inTournament) {
     return (
-      <div className="app-frame landing-frame">
+      <div className="app-frame landing-frame" style={{ height: "100dvh", overflow: "hidden" }}>
         <header className="topbar">
           <div className="topbar-brand">
             <p className="kicker">Desktop Poker</p>
@@ -76,13 +76,13 @@ export function AppFrame({
           </div>
         </header>
 
-        <main className="content">{children}</main>
+        <main className="content" style={{ height: "100%", overflow: "auto" }}>{children}</main>
       </div>
     );
   }
 
   return (
-    <div className="app-frame">
+    <div className="app-frame" style={{ height: "100dvh", overflow: "hidden" }}>
       <aside className="sidebar">
         <header className="brand">
           <p className="kicker">Desktop Poker</p>
@@ -142,7 +142,7 @@ export function AppFrame({
         </footer>
       </aside>
 
-      <main className="content">{children}</main>
+      <main className="content" style={{ height: "100%", overflow: "auto" }}>{children}</main>
     </div>
   );
 }

@@ -57,7 +57,8 @@
 body {
   margin: 0;
   min-width: 0;
-  min-height: var(--viewport-height);
+  height: var(--viewport-height);
+  overflow: hidden;
   background:
     radial-gradient(circle at top, rgba(36, 90, 62, 0.3), transparent 30%),
     linear-gradient(180deg, #1b130f 0%, #120c09 100%);
@@ -82,11 +83,14 @@ button:disabled {
 
 #root {
   min-height: var(--viewport-height);
+  height: var(--viewport-height);
+  overflow: hidden;
 }
 
 .loading-shell,
 .error-shell {
   min-height: var(--viewport-height);
+  height: var(--viewport-height);
   display: grid;
   place-items: center;
   padding: 2rem;
@@ -106,12 +110,14 @@ button:disabled {
 .app-frame {
   display: grid;
   grid-template-columns: 18rem 1fr;
-  min-height: var(--viewport-height);
+  height: var(--viewport-height);
+  overflow: hidden;
 }
 
 .landing-frame {
   grid-template-columns: 1fr;
   grid-template-rows: auto 1fr;
+  height: 100%;
 }
 
 .landing-frame .content {
@@ -348,6 +354,8 @@ dt {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;
+  overflow: auto;
   gap: var(--shell-gap);
   padding: var(--shell-page-padding);
 }
@@ -559,7 +567,7 @@ dt {
 
 .pregame-hero-card {
   align-content: center;
-  min-height: min(34rem, calc(var(--viewport-height) - 13rem));
+  min-height: 0;
 }
 
 .home-hero-card .kicker,
@@ -944,7 +952,7 @@ dt,
 }
 
 .table-screen-shell {
-  min-height: calc(var(--viewport-height) - 11rem);
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
   align-content: start;
 }
