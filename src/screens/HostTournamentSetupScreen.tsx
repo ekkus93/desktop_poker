@@ -78,8 +78,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Host Tournament Setup"
-      lead="Set the basics, confirm this computer can host, then share the invite."
-      badges={[`Port ${hostDraft.hostPort}`, bootstrap.runtimeTransport]}
+      lead="Set the table basics, share the invite, then head to the lobby."
+      badges={[`Port ${hostDraft.hostPort}`]}
     >
       <div className="content-grid">
         <SectionCard kicker="Step 1" title="Tournament setup">
@@ -172,14 +172,14 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         <SectionCard kicker="Step 2" title="LAN details">
-          <p className="field-hint">
-            Other players need a reachable LAN address from this computer before they can join.
-          </p>
           <div className="status-row">
             <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
-              {lanError ? "Host address unavailable" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking host address"}
+              {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
             </div>
           </div>
+          <p className="field-hint">
+            Players can join once this computer has a reachable LAN address.
+          </p>
           <div className="button-row">
             <button
               className="secondary-button"
@@ -194,7 +194,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           {hostDraft.advancedOpen ? (
             <div className="form-grid">
               <p>
-                Hosting needs a real LAN address that other devices can reach.
+                Share from a LAN address other players on this network can reach.
               </p>
               <ul>
                 <li>
@@ -227,18 +227,12 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
             >
               Copy share details
             </button>
-            <button className="secondary-button" disabled type="button">
-              Copy payload
-            </button>
-            <button className="secondary-button" disabled type="button">
-              Show QR
-            </button>
             <Link className="primary-button" to="/lobby">
               Continue to lobby
             </Link>
           </div>
           <p className="field-hint">
-            Share details are ready now. The direct <code>pkr1_</code> payload stays disabled until the host runtime produces it.
+            Share details are ready now. Direct payload and QR sharing can appear here later when the runtime exposes them.
           </p>
           {copyState ? <p className="inline-banner success">{copyState}</p> : null}
         </SectionCard>

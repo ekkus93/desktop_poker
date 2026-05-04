@@ -143,7 +143,7 @@ describe("AppShell integration", () => {
     fireEvent.change(screen.getByLabelText("Paste payload"), {
       target: { value: "pkr1_good" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
 
     expect(await screen.findByText("Friday Night")).toBeTruthy();
     fireEvent.click(
@@ -205,7 +205,7 @@ describe("AppShell integration", () => {
     fireEvent.change(screen.getByLabelText("Paste payload"), {
       target: { value: "pkr1_restart" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
     expect(await screen.findByText("Friday Night")).toBeTruthy();
 
     fireEvent.click(
@@ -416,7 +416,7 @@ describe("AppShell integration", () => {
     fireEvent.change(screen.getByLabelText("Paste payload"), {
       target: { value: "pkr1_bad" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
 
     expect(await screen.findByText("Join payload rejected")).toBeTruthy();
     expect(

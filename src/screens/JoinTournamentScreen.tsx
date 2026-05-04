@@ -32,7 +32,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const [validationState, setValidationState] = useState<ValidationState>({
     status: "idle",
   });
-  const [connectBanner, setConnectBanner] = useState<string | null>(null);
+  const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [continueToLobby, setContinueToLobby] = useState(false);
 
   const deepLinkPayload = useMemo(() => {
@@ -43,7 +43,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   useEffect(() => {
     if (deepLinkPayload && deepLinkPayload !== joinPayloadDraft) {
       setJoinPayloadDraft(deepLinkPayload);
-      setConnectBanner("Join payload imported from a deep-link launch.");
+      setInviteBanner("Invite imported from a deep-link launch.");
       setContinueToLobby(false);
     }
   }, [deepLinkPayload, joinPayloadDraft, setJoinPayloadDraft]);
@@ -74,12 +74,12 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     joinPayloadDraft,
   ]);
 
-  const runValidation = async () => {
+  const reviewInvite = async () => {
     const trimmedPayload = joinPayloadDraft.trim();
     if (!trimmedPayload) {
       setValidationState({
         status: "invalid",
-        message: "Paste a pkr1_ payload or legacy JSON payload to continue.",
+        message: "Paste a pkr1_ payload to continue.",
       });
       return null;
     }
@@ -100,6 +100,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     try {
       const parsedPayload = await validateJoinPayloadInput(trimmedPayload);
       setValidationState({ status: "valid", payload: parsedPayload });
+      rememberJoinPayload(trimmedPayload);
+      setContinueToLobby(true);
+      setInviteBanner(
+        `Invite ready for ${parsedPayload.hostAddress}:${parsedPayload.hostPort}.`,
+      );
       return parsedPayload;
     } catch (error) {
       setValidationState({
@@ -119,8 +124,8 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Join Tournament"
-      lead="Paste the payload you were given, confirm it looks right, then continue into the lobby."
-      badges={[bootstrap.joinPayloadEncoding, sourceSummary]}
+      lead="Paste the invite you were given, review the destination, then continue into the lobby."
+      badges={[sourceSummary]}
     >
       <div className="content-grid">
         <SectionCard kicker="Step 1" title="Paste payload">
@@ -131,7 +136,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 onChange={(event) => {
                   setJoinPayloadDraft(event.target.value);
                   setValidationState({ status: "idle" });
-                  setConnectBanner(null);
+                  setInviteBanner(null);
                   setContinueToLobby(false);
                 }}
                 rows={8}
@@ -140,45 +145,26 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             </label>
             <div className="button-row">
               <button
-                className="secondary-button"
-                onClick={() => {
-                  void runValidation();
-                }}
-                type="button"
-              >
-                Validate payload
-              </button>
-              <button
                 className="primary-button"
                 onClick={() => {
-                  void runValidation().then((payload) => {
-                    if (!payload) {
-                      return;
-                    }
-
-                    rememberJoinPayload(joinPayloadDraft);
-                    setContinueToLobby(true);
-                    setConnectBanner(
-                      `Payload validated for ${payload.hostAddress}:${payload.hostPort}.`,
-                    );
-                  });
+                  void reviewInvite();
                 }}
                 type="button"
               >
-                Connect
+                Review invite
               </button>
             </div>
             <p className="field-hint">
-              You can paste a payload manually or arrive here with one already attached at launch.
+              You can paste an invite manually or arrive here with one already attached at launch.
             </p>
           </div>
           {validationState.status === "validating" ? (
-            <p className="inline-banner info">Validating payload with the Rust decoder…</p>
+            <p className="inline-banner info">Checking the invite with the Rust decoder…</p>
           ) : null}
           {validationState.status === "invalid" ? (
             <p className="inline-banner error">{validationState.message}</p>
           ) : null}
-          {connectBanner ? <p className="inline-banner success">{connectBanner}</p> : null}
+          {inviteBanner ? <p className="inline-banner success">{inviteBanner}</p> : null}
         </SectionCard>
 
         <SectionCard kicker="Step 2" title="Check the destination">
@@ -218,7 +204,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               </Link>
             </div>
           ) : (
-            <p className="field-hint">Validate the payload first. Once it passes, the lobby action appears here.</p>
+            <p className="field-hint">Review the invite first. Once it looks right, the lobby action appears here.</p>
           )}
           {recentJoinPayloads.length > 0 ? (
             <div className="stacked-list">
@@ -228,8 +214,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   key={payload}
                   onClick={() => {
                     setJoinPayloadDraft(payload);
-                    setConnectBanner("Loaded a recent payload into the join form.");
+                    setInviteBanner("Loaded a recent invite.");
                     setValidationState({ status: "idle" });
+                    setContinueToLobby(false);
                   }}
                   type="button"
                 >
@@ -238,7 +225,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               ))}
             </div>
           ) : (
-            <p>No join payloads have been saved on this device yet.</p>
+            <p>No saved invites yet.</p>
           )}
           {recentJoinPayloads.length > 0 ? (
             <button

@@ -90,42 +90,42 @@ Status legend:
 
 ## 5. Make host setup feel like one clean setup flow
 
-- [ ] Simplify host setup structure
-	- [ ] Keep the form focused on required setup only
-	- [ ] Collapse advanced options harder
-	- [ ] Hide developer-ish hosting details by default
-- [ ] Improve the share step
-	- [ ] Make the shareable thing visually obvious
-	- [ ] Distinguish plain-language share details from raw payload data
-	- [ ] Avoid showing disabled actions without clear reason
-	- [ ] If payload copy is unavailable, explain availability briefly and locally
-- [ ] Improve LAN readiness presentation
-	- [ ] Replace implementation wording with simple host-readiness language
-	- [ ] Keep failure copy actionable
-	- [ ] Remove unnecessary technical explanation from the default state
-- [ ] Improve flow continuity
-	- [ ] Make "Continue to lobby" feel like the natural next step
-	- [ ] Preserve host confidence that setup is complete before continuing
+- [x] Simplify host setup structure
+	- [x] Keep the form focused on required setup only
+	- [x] Collapse advanced options harder
+	- [x] Hide developer-ish hosting details by default
+- [x] Improve the share step
+	- [x] Make the shareable thing visually obvious
+	- [x] Distinguish plain-language share details from raw payload data
+	- [x] Avoid showing disabled actions without clear reason
+	- [x] If payload copy is unavailable, explain availability briefly and locally
+- [x] Improve LAN readiness presentation
+	- [x] Replace implementation wording with simple host-readiness language
+	- [x] Keep failure copy actionable
+	- [x] Remove unnecessary technical explanation from the default state
+- [x] Improve flow continuity
+	- [x] Make "Continue to lobby" feel like the natural next step
+	- [x] Preserve host confidence that setup is complete before continuing
 
 ## 6. Make join feel like a normal invitation flow
 
-- [ ] Rebuild join around one central action
-	- [ ] Paste payload
-	- [ ] Validate payload
-	- [ ] Confirm destination
-	- [ ] Continue to lobby
-- [ ] Remove ambiguity between Validate and Connect
-	- [ ] Decide whether these are truly separate actions in the UX
-	- [ ] If they remain separate, explain the distinction with almost no text
-	- [ ] If they do not need to be separate, collapse them
-- [ ] Improve payload destination confirmation
-	- [ ] Show host and table clearly
-	- [ ] Show just enough metadata to build confidence
-	- [ ] Hide values that do not help player decision-making
-- [ ] Make recent payload reuse actually helpful
-	- [ ] Shorten how recent items are presented
-	- [ ] Make tapping one feel like a direct reuse action
-	- [ ] Keep clear/remove actions secondary
+- [x] Rebuild join around one central action
+	- [x] Paste payload
+	- [x] Validate payload
+	- [x] Confirm destination
+	- [x] Continue to lobby
+- [x] Remove ambiguity between Validate and Connect
+	- [x] Decide whether these are truly separate actions in the UX
+	- [x] If they remain separate, explain the distinction with almost no text
+	- [x] If they do not need to be separate, collapse them
+- [x] Improve payload destination confirmation
+	- [x] Show host and table clearly
+	- [x] Show just enough metadata to build confidence
+	- [x] Hide values that do not help player decision-making
+- [x] Make recent payload reuse actually helpful
+	- [x] Shorten how recent items are presented
+	- [x] Make tapping one feel like a direct reuse action
+	- [x] Keep clear/remove actions secondary
 - [ ] Validate join usability
 	- [ ] A user knows what to paste
 	- [ ] A user knows whether the payload is valid
@@ -740,10 +740,10 @@ Screen-level mockup brief stance:
 	- [x] Remove shell metadata
 	- [x] Remove player-facing mode toggles
 	- [x] Move debug-only controls out of normal screens
-- [ ] Phase 2: Rebuild Home, Host, and Join around single-task flows
-	- [ ] Home
-	- [ ] Host
-	- [ ] Join
+- [x] Phase 2: Rebuild Home, Host, and Join around single-task flows
+	- [x] Home
+	- [x] Host
+	- [x] Join
 - [ ] Phase 3: Rebuild Lobby and Table hierarchy
 	- [ ] Lobby
 	- [ ] Table

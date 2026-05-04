@@ -45,7 +45,7 @@ describe("JoinTournamentScreen", () => {
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
   });
 
-  it("shows validation failures from the Rust parser", async () => {
+  it("shows invite review failures from the Rust parser", async () => {
     const bootstrap = createBootstrap();
     mockedValidateJoinPayloadInput.mockRejectedValueOnce(
       new Error("invalid compact join payload"),
@@ -58,7 +58,7 @@ describe("JoinTournamentScreen", () => {
     fireEvent.change(screen.getByLabelText("Paste payload"), {
       target: { value: "pkr1_bad" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Validate payload" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
 
     expect(await screen.findByText("invalid compact join payload")).toBeTruthy();
   });
@@ -74,10 +74,10 @@ describe("JoinTournamentScreen", () => {
     fireEvent.change(screen.getByLabelText("Paste payload"), {
       target: { value: "pkr1_good" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
 
     expect(await screen.findByText("Friday Night")).toBeTruthy();
-    expect(screen.getByText("Payload validated for 192.168.1.10:43818.")).toBeTruthy();
+    expect(screen.getByText("Invite ready for 192.168.1.10:43818.")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Continue to lobby" }),
     ).toBeTruthy();
