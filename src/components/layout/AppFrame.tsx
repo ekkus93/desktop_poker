@@ -76,7 +76,7 @@ export function AppFrame({
           </div>
         </header>
 
-        <main className="content" style={{ height: "100%", overflow: "auto" }}>{children}</main>
+        <main className="content" style={{ height: "100%", overflow: "hidden" }}>{children}</main>
       </div>
     );
   }
@@ -142,7 +142,7 @@ export function AppFrame({
         </footer>
       </aside>
 
-      <main className="content" style={{ height: "100%", overflow: "auto" }}>{children}</main>
+      <main className="content" style={{ height: "100%", overflow: "hidden" }}>{children}</main>
     </div>
   );
 }

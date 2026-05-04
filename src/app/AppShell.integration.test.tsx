@@ -538,7 +538,7 @@ describe("AppShell integration", () => {
     expect(content).toBeTruthy();
     expect(content).toBeInstanceOf(HTMLElement);
     expect((content as HTMLElement).style.height).toBe("100%");
-    expect((content as HTMLElement).style.overflow).toBe("auto");
+    expect((content as HTMLElement).style.overflow).toBe("hidden");
 
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();

@@ -54,6 +54,11 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100dvh;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 0;
@@ -116,7 +121,7 @@ button:disabled {
 
 .landing-frame {
   grid-template-columns: 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
 
@@ -124,6 +129,8 @@ button:disabled {
   width: min(var(--content-max-width), 100%);
   margin: 0 auto;
   padding-top: 1.2rem;
+  height: 100%;
+  overflow: hidden;
 }
 
 .topbar {
@@ -355,7 +362,7 @@ dt {
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   gap: var(--shell-gap);
   padding: var(--shell-page-padding);
 }

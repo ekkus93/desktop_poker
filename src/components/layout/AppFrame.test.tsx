@@ -30,6 +30,6 @@ describe("AppFrame", () => {
     expect(content).toBeTruthy();
     expect(content).toBeInstanceOf(HTMLElement);
     expect((content as HTMLElement).style.height).toBe("100%");
-    expect((content as HTMLElement).style.overflow).toBe("auto");
+    expect((content as HTMLElement).style.overflow).toBe("hidden");
   });
 });
