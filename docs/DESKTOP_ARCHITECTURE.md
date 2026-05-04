@@ -27,7 +27,7 @@ The React + TypeScript frontend owns:
 
 The frontend may stage user input locally, but all game actions must flow through Rust-owned validation and authority.
 
-## Frozen M0 implementation choices
+## Current implementation choices
 
 - **Frontend stack:** React + TypeScript
 - **Rust JSON models:** `serde`

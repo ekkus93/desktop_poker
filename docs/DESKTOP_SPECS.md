@@ -507,23 +507,26 @@ Desktop UX should be:
 - Host Tournament Setup
 - Join Tournament
 - Tournament Lobby
-- Ready Room
 - Main Table
 - Hand History
 - Tournament Complete
-- Rules / Help
-- Reconnect / Error dialogs
-- optional Debug / Developer panel
+- Rules / Settings
+- Reconnect / Error states
+- optional Internal Tools screen in debug builds only
+
+Ready-state behavior is merged into the Tournament Lobby rather than exposed as a separate player-facing Ready Room.
 
 ### 13.3 Home screen
 Primary actions:
 - Host Tournament
 - Join Tournament
-- Rules
-- Settings
+
+Support actions:
+- Rules / Settings
+- Hand History
 
 Optional developer action in debug builds only:
-- Open Simulator / Internal Test Tools
+- Open Internal Tools
 
 ### 13.4 Host screen
 Host screen should support:
@@ -533,9 +536,9 @@ Host screen should support:
 - blind preset
 - turn timer
 - host port
-- display generated join payload
-- copy payload button
-- optional show QR button
+- display share details for other players immediately
+- copy share details button
+- direct payload copy and QR sharing only when the host runtime has produced them
 
 ### 13.5 Join screen
 Join screen should support:
@@ -582,7 +585,7 @@ Debug-only tools may include:
 - reconnect token status view
 - launch additional client instance shortcut
 
-These must not pollute production UX.
+These surfaces should be presented as internal tools and must not pollute production UX.
 
 ---
 
@@ -605,8 +608,8 @@ Each desktop instance must have isolated local state:
 - hand-history cache if persisted
 - no accidental sharing between instances unless deliberately designed
 
-### 14.4 Simulator stance
-Simulator or synthetic participant tools may exist, but:
+### 14.4 Internal-tools stance
+Internal tools or synthetic participant helpers may exist, but:
 - they are debug/internal only
 - they are not the production default
 - they must not hide broken real LAN behavior
