@@ -80,7 +80,7 @@ describe("MainTableScreen", () => {
       expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
     });
     expect(
-      screen.getByText(/observer preview keeps the table public-only/i),
+      screen.getByText(/observer preview shows the public table only/i),
     ).toBeTruthy();
   });
 
@@ -149,7 +149,7 @@ describe("MainTableScreen", () => {
     renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
     fireEvent.click(await screen.findByRole("button", { name: "Check" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
 
     expect(
       await screen.findByText(/the turn was published to every seat and observer/i),
@@ -158,7 +158,7 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(
-      screen.getByText(/waiting for the next local action window/i),
+      screen.getByText(/waiting for the next action/i),
     ).toBeTruthy();
   });
 

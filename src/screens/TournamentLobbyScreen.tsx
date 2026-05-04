@@ -25,36 +25,28 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Tournament Lobby"
-      lead="Wait here until everyone is seated and ready, then start from this screen."
-      badges={[hostDraft.tournamentName, `${activeSeats.length}/${hostDraft.maxPlayers} seated` ]}
+      lead="Seat everyone, mark ready, then start the table."
+      badges={[hostDraft.tournamentName, canStart ? "Ready to start" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Ready state" title="What happens next?">
+        <SectionCard kicker="Ready state" title="Ready to start?">
           <div className="stacked-list">
             <article className="list-panel">
               <div>
-                <strong>{localSeatReady ? "You are ready" : "You are not ready yet"}</strong>
-                <p className="field-hint">
-                  {localSeatReady
-                    ? "Wait for the rest of the table, or start when everyone is ready."
-                    : "Mark your seat ready before the game can start."}
-                </p>
+                <strong>{localSeatReady ? "Your seat is ready" : "Your seat is waiting"}</strong>
+                <p className="field-hint">{localSeatReady ? "You are set." : "Mark ready when you are set."}</p>
               </div>
             </article>
             <article className="list-panel">
               <div>
-                <strong>{canStart ? "The game can start now" : "The game cannot start yet"}</strong>
-                <p className="field-hint">
-                  {canStart
-                    ? "At least two players are seated and every occupied seat is ready."
-                    : "Every occupied seat must be marked ready before the host starts the game."}
-                </p>
+                <strong>{canStart ? "The table can start now" : "The table is still waiting"}</strong>
+                <p className="field-hint">{canStart ? "Everyone seated is ready." : "Every occupied seat must be ready."}</p>
               </div>
             </article>
           </div>
         </SectionCard>
 
-        <SectionCard kicker="Seat map" title="Lobby seating">
+        <SectionCard kicker="Seat map" title="Seats">
           <div className="seat-grid">
             {participants.map((seat) => (
               <article key={seat.seatIndex} className="seat-card">
@@ -77,29 +69,8 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Participant list">
-          <div className="stacked-list">
-            {activeSeats.map((seat) => (
-              <article key={seat.seatIndex} className="list-panel">
-                <div>
-                  <strong>{seat.label}</strong>
-                  <p className="field-hint">{seat.detail}</p>
-                </div>
-                <span className={`status-badge ${seat.ready ? "success" : "warning"}`}>
-                  {seat.ready ? "Ready" : "Waiting"}
-                </span>
-              </article>
-            ))}
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Start from here">
-          <p>The game can start once at least two seated players are ready.</p>
-          <ul>
-            <li>The seated roster locks when the game starts.</li>
-            <li>New players cannot join after the table is running.</li>
-            <li>Disconnected players must reconnect instead of joining again.</li>
-          </ul>
+        <SectionCard title="Start table">
+          <p>{canStart ? "Everyone is ready. Start when the table is set." : "At least two seated players must be ready before the game can start."}</p>
           <div className="button-row">
             {canStart ? (
               <Link className="primary-button" to="/table">
@@ -122,23 +93,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           </div>
           {!canStart ? (
             <p className="field-hint">
-              Mark each seated player ready, then start from here.
+              Mark each seated player ready, then start the table.
             </p>
           ) : null}
-        </SectionCard>
-
-        <SectionCard title="Shared state">
-          <ul>
-            <li>
-              <strong>Remembered payloads:</strong> {recentJoinPayloads.length}
-            </li>
-            <li>
-              <strong>Host:</strong> {displayName}
-            </li>
-            <li>
-              <strong>Table:</strong> {hostDraft.tournamentName}
-            </li>
-          </ul>
         </SectionCard>
       </div>
       {showLeaveFlow ? (

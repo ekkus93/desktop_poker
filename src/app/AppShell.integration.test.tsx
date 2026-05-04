@@ -318,7 +318,7 @@ describe("AppShell integration", () => {
           element?.textContent?.includes("Player Alice Instance (you)") ?? false,
       ).length,
     ).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
     expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
@@ -396,7 +396,7 @@ describe("AppShell integration", () => {
           element?.textContent?.includes("Player Bob Instance (you)") ?? false,
       ).length,
     ).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
     expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(screen.getByText("Maya")).toBeTruthy();

@@ -133,21 +133,21 @@ Status legend:
 
 ## 7. Make the lobby feel like a table waiting room, not a control panel
 
-- [ ] Redesign the lobby around waiting, readiness, and startability
-	- [ ] Make player readiness instantly scannable
-	- [ ] Make startability instantly scannable
-	- [ ] Make the local player’s next step instantly scannable
-- [ ] Reduce duplicated readiness explanation
-	- [ ] Remove repetitive helper copy
-	- [ ] Keep only the one sentence that matters for the current role
+- [x] Redesign the lobby around waiting, readiness, and startability
+	- [x] Make player readiness instantly scannable
+	- [x] Make startability instantly scannable
+	- [x] Make the local player’s next step instantly scannable
+- [x] Reduce duplicated readiness explanation
+	- [x] Remove repetitive helper copy
+	- [x] Keep only the one sentence that matters for the current role
 - [ ] Improve seat map usability
 	- [ ] Clarify open seats vs occupied seats visually
 	- [ ] Clarify local seat visually
 	- [ ] Clarify ready vs waiting visually
-- [ ] Improve host control area
-	- [ ] Make Start Tournament the dominant action only when valid
-	- [ ] Make leave/cancel actions clearly secondary
-	- [ ] Avoid presenting roster rules as a dense block of copy
+- [x] Improve host control area
+	- [x] Make Start Tournament the dominant action only when valid
+	- [x] Make leave/cancel actions clearly secondary
+	- [x] Avoid presenting roster rules as a dense block of copy
 - [ ] Improve joiner experience in lobby
 	- [ ] Make ready status feel like a natural acknowledgement step
 	- [ ] Avoid making every player feel like they are managing the room
@@ -158,11 +158,11 @@ Status legend:
 	- [x] Remove manual Player View / Observer View switching from player flow
 	- [ ] Derive mode automatically from runtime state
 	- [x] Keep manual mode switching debug-only if still needed
-- [ ] Make the top of the table answer only the core questions
-	- [ ] Is it my turn?
-	- [ ] What is the board?
-	- [ ] What is the pot?
-	- [ ] What action is expected?
+- [x] Make the top of the table answer only the core questions
+	- [x] Is it my turn?
+	- [x] What is the board?
+	- [x] What is the pot?
+	- [x] What action is expected?
 - [ ] Redesign the action area
 	- [ ] Put legal actions in one tight, obvious cluster
 	- [ ] Make the primary action visually dominant
@@ -175,15 +175,15 @@ Status legend:
 	- [ ] Make eliminated or observing states unmistakable
 	- [ ] Remove unnecessary seat detail text from the collapsed default state
 	- [ ] Keep expandable seat detail secondary
-- [ ] Demote secondary table tools
-	- [ ] Move standings into a clearly secondary panel or drawer
-	- [ ] Move public event feed further into the background
-	- [ ] Keep hand history secondary while a hand is active
-	- [ ] Remove top-row competition between details/history/standings and the action flow
-- [ ] Rework table copy
-	- [ ] Remove text that narrates what the UI already shows
-	- [ ] Remove terms that sound like QA modes
-	- [ ] Keep turn-state copy extremely short
+- [x] Demote secondary table tools
+	- [x] Move standings into a clearly secondary panel or drawer
+	- [x] Move public event feed further into the background
+	- [x] Keep hand history secondary while a hand is active
+	- [x] Remove top-row competition between details/history/standings and the action flow
+- [x] Rework table copy
+	- [x] Remove text that narrates what the UI already shows
+	- [x] Remove terms that sound like QA modes
+	- [x] Keep turn-state copy extremely short
 
 ## 9. Fix observer and eliminated-player UX
 

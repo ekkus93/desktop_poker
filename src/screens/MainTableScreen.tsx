@@ -141,8 +141,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Main Table"
-      lead="Read the table at a glance, act when it is your turn, and keep the rest of the game visible without extra noise."
-      badges={[displayName, bootstrap.runtimeTransport, tableView?.blindLevelLabel ?? "Loading table"]}
+      lead="See the board, the pot, and whose turn it is at a glance."
+      badges={[displayName, tableView?.blindLevelLabel ?? "Loading table"]}
     >
       <div className="table-screen-shell">
         <div className="table-top-row">
@@ -170,7 +170,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               onClick={() => setShowSidePanel((current) => !current)}
               type="button"
             >
-              {showSidePanel ? "Hide details" : "Show details"}
+              {showSidePanel ? "Hide table details" : "Table details"}
             </button>
           </div>
           <div className="button-row">
@@ -182,9 +182,6 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 Tournament complete
               </Link>
             ) : null}
-            <a className="secondary-button compact-button" href="#standings-panel">
-              Standings
-            </a>
           </div>
         </div>
 
@@ -212,20 +209,20 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <div className={`desktop-table-layout ${showSidePanel ? "with-side-panel" : ""}`}>
             <section className="table-surface enhanced-table-surface">
               <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
-                <p className="kicker">{viewerMode === "observer" ? "Observer view" : tableView.actionTray ? "Your turn" : "Table status"}</p>
+                <p className="kicker">{viewerMode === "observer" ? "Observing" : tableView.actionTray ? "Your move" : "Waiting"}</p>
                 <h3>
                   {viewerMode === "observer"
-                    ? "You are watching the public table only."
+                    ? "Watching the public table."
                     : tableView.actionTray
-                      ? `${tableView.actionTray.ownerLabel}, act now.`
-                      : `Waiting on ${tableView.actionOwnerLabel}.`}
+                      ? `${tableView.actionTray.ownerLabel} to act.`
+                      : `${tableView.actionOwnerLabel} to act.`}
                 </h3>
                 <p className="field-hint">
                   {viewerMode === "observer"
-                    ? "Private cards and action controls are hidden while you observe."
+                    ? "Private cards and action controls stay hidden while you watch."
                     : tableView.actionTray
-                      ? `Legal actions are ready below. The current call is ${tableView.actionTray.callAmount} chips.`
-                      : "The table stays visible while the next action window is prepared."}
+                      ? `Call ${tableView.actionTray.callAmount} chips, or choose another legal action below.`
+                      : "The table stays live while you wait."}
                 </p>
               </div>
 
@@ -234,7 +231,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <p className="kicker">{tableView.tableName}</p>
                   <h3>{tableView.tournamentName}</h3>
                   <p className="field-hint">
-                    Table {tableView.tableId} · Hand {tableView.currentHandNumber ?? "—"} · {tableView.phaseLabel}
+                    Hand {tableView.currentHandNumber ?? "—"} · {tableView.phaseLabel}
                   </p>
                 </div>
                 <div className="badge-row">
@@ -387,7 +384,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <SectionCard kicker="Action" title="Act from your seat">
             <div className="action-owner-banner">
               <strong>{tableView.actionTray.ownerLabel}</strong>
-              <span className="field-hint">Choose one action. Raise and all-in ask for confirmation.</span>
+              <span className="field-hint">Choose one action.</span>
             </div>
             <div className="button-row action-tray-row">
               <button
@@ -437,7 +434,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 />
               </label>
               <p className="field-hint">
-                Raise to <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Current bet {tableView.actionTray.currentBet} · Pot {tableView.actionTray.potTotal}
+                Raise to <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Bet {tableView.actionTray.currentBet} · Pot {tableView.actionTray.potTotal}
               </p>
               <div className="button-row quick-size-row">
                 {quickSizes.map((option) => (
@@ -476,8 +473,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <SectionCard kicker="Action" title="No action required">
             <p>
               {viewerMode === "observer"
-                ? "Observer preview keeps the table public-only and removes all action controls."
-                : "Waiting for the next local action window. The table remains visible while opponents act."}
+                ? "Observer preview shows the public table only."
+                : "Waiting for the next action."}
             </p>
           </SectionCard>
         ) : null}
