@@ -226,7 +226,7 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 9.1 Manual screen review checklist
 
-- [ ] Run the app in desktop dev mode.
+- [x] Run the app in desktop dev mode.
 - [ ] Review all major screens at typical desktop size.
 - [ ] Review all major screens at shorter-height desktop size.
 - [ ] Review fresh state and persisted-state scenarios.
@@ -234,15 +234,15 @@ This backlog turns the latest UI/UX review into concrete implementation work.
 
 ### 9.2 Input and keyboard interaction review
 
-- [ ] Verify keyboard access for buttons, toggles, sliders, and clickable cards.
-- [ ] Verify focus order is sane on Host, Join, Lobby, and Main Table.
-- [ ] Verify keyboard activation does not trigger surprising side effects.
+- [x] Verify keyboard access for buttons, toggles, sliders, and clickable cards.
+- [x] Verify focus order is sane on Host, Join, Lobby, and Main Table.
+- [x] Verify keyboard activation does not trigger surprising side effects.
 
 ### 9.3 Clipboard and error fallback review
 
-- [ ] Verify invite copy works when clipboard permissions are available.
-- [ ] Verify fallback messaging appears when clipboard access fails.
-- [ ] Verify users can still retrieve invite details even if copy is unavailable.
+- [x] Verify invite copy works when clipboard permissions are available.
+- [x] Verify fallback messaging appears when clipboard access fails.
+- [x] Verify users can still retrieve invite details even if copy is unavailable.
 
 ## Deliverables
 

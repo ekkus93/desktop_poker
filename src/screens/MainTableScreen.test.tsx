@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getTableView,
@@ -230,5 +231,30 @@ describe("MainTableScreen", () => {
     await waitFor(() => {
       expect(screen.queryByText(/sending your action to the host/i)).toBeNull();
     });
+  });
+
+  it("keeps focus order sane across the main action tray", async () => {
+    const bootstrap = createBootstrap();
+    const user = userEvent.setup();
+    mockedGetTableView.mockResolvedValue(createTableView());
+
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    const foldButton = await screen.findByRole("button", { name: "Fold" });
+    const checkButton = screen.getByRole("button", { name: "Check" });
+    const raiseButton = screen.getByRole("button", { name: /bet \/ raise/i });
+    const allInButton = screen.getByRole("button", { name: "All-in" });
+
+    while (document.activeElement !== foldButton) {
+      await user.tab();
+    }
+
+    expect(document.activeElement).toBe(foldButton);
+    await user.tab();
+    expect(document.activeElement).toBe(checkButton);
+    await user.tab();
+    expect(document.activeElement).toBe(raiseButton);
+    await user.tab();
+    expect(document.activeElement).toBe(allInButton);
   });
 });

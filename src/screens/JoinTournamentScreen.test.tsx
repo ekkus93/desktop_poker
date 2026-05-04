@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   type JoinPayload,
@@ -102,5 +103,31 @@ describe("JoinTournamentScreen", () => {
       screen.getByRole("link", { name: "Continue to lobby" }),
     ).toBeTruthy();
     expect(screen.getByText(/invite checked\. continue when ready/i)).toBeTruthy();
+  });
+
+  it("keeps keyboard focus moving through the join flow in a sane order", async () => {
+    const bootstrap = createBootstrap();
+    const user = userEvent.setup();
+    mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    const inviteField = screen.getByLabelText("Invite");
+    const checkInviteButton = screen.getByRole("button", { name: "Check invite" });
+
+    await user.tab();
+    expect(document.activeElement).toBe(inviteField);
+
+    await user.type(inviteField, "pkr1_good");
+    await user.tab();
+    expect(document.activeElement).toBe(checkInviteButton);
+
+    await user.keyboard("[Enter]");
+
+    const continueLink = await screen.findByRole("link", { name: "Continue to lobby" });
+    await user.tab();
+    expect(document.activeElement).toBe(continueLink);
   });
 });

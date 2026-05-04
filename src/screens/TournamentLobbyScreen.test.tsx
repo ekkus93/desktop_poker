@@ -1,4 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { TournamentLobbyScreen } from "./TournamentLobbyScreen";
@@ -51,6 +52,29 @@ describe("TournamentLobbyScreen", () => {
     expect(screen.getByText("You: Waiting")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+
+    expect(screen.getByText("You: Ready")).toBeTruthy();
+    expect(screen.getByText("1/2 ready")).toBeTruthy();
+  });
+
+  it("supports keyboard readiness toggles for the local player", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    const user = userEvent.setup();
+
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    const readyButton = screen.getByRole("button", { name: "Mark ready" });
+
+    while (document.activeElement !== readyButton) {
+      await user.tab();
+    }
+
+    expect(document.activeElement).toBe(readyButton);
+
+    await user.keyboard("[Enter]");
 
     expect(screen.getByText("You: Ready")).toBeTruthy();
     expect(screen.getByText("1/2 ready")).toBeTruthy();

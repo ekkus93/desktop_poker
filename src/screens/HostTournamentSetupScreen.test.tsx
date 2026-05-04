@@ -60,6 +60,27 @@ describe("HostTournamentSetupScreen", () => {
     expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
   });
 
+  it("supports keyboard activation on the invite card", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const inviteCard = await screen.findByRole("button", { name: /copy invite details/i });
+    inviteCard.focus();
+    fireEvent.keyDown(inviteCard, { key: "Enter" });
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Host endpoint:"));
+    expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
+  });
+
   it("blocks lobby continuation until hosting is ready", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     mockedResolveHostLanAddress.mockRejectedValueOnce(new Error("No reachable LAN IP"));
