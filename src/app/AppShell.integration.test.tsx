@@ -256,15 +256,25 @@ describe("AppShell integration", () => {
     ).toBe(false);
   });
 
-  it("switches between local and observer table projections without losing shell routing", async () => {
-    renderAppShell("/table");
+  it("keeps observer preview behind debug mode while preserving table routing", async () => {
+    const firstRender = renderAppShell(
+      "/table",
+      createAppBootstrap({ debugToolsEnabled: false }),
+    );
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
     expect(await screen.findByLabelText("Ace of spades")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
+    firstRender.unmount();
 
-    fireEvent.click(screen.getByRole("button", { name: "Observer view" }));
+    renderAppShell("/table", createAppBootstrap({ debugToolsEnabled: true }));
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Observer preview" }));
 
     expect(
       await screen.findByText(/observer mode uses the public projector only/i),

@@ -8,12 +8,13 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
   const { displayName, hostDraft, recentJoinPayloads, persistedHandHistoryCount } =
     useDesktopShell();
   const hasSavedProgress = recentJoinPayloads.length > 0 || persistedHandHistoryCount > 0;
+  const hasLaunchPayload = Boolean(bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError);
 
   return (
     <ScreenShell
       title="Desktop Poker"
-      lead="Choose one path: host a game here or join a game with a payload."
-      badges={[bootstrap.frontendStack, `Instance ${bootstrap.instanceLabel}`]}
+      lead="Host a game here or join a table with an invite."
+      badges={[]}
     >
       <div className="content-grid">
         <SectionCard kicker="Start here" title="Pick your path">
@@ -44,62 +45,51 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="This device">
-          <ul>
-            <li>
-              <strong>Name:</strong> {displayName}
-            </li>
-            <li>
-              <strong>Saved host draft:</strong> {hostDraft.tournamentName}
-            </li>
-            <li>
-              <strong>Saved join payloads:</strong> {recentJoinPayloads.length}
-            </li>
-            <li>
-              <strong>Saved hand summaries:</strong> {persistedHandHistoryCount}
-            </li>
-            <li>
-              <strong>Profile folder:</strong>{" "}
-              <span className="mono-value">{bootstrap.profileDirectory}</span>
-            </li>
-          </ul>
-        </SectionCard>
-
-        <SectionCard title="Saved progress">
+        <SectionCard title="Resume here">
           {hasSavedProgress ? (
-            <div className="button-row">
-              <Link className="secondary-button" to="/history">
-                Open Hand History
-              </Link>
-              <Link className="secondary-button" to="/join">
-                Open Join Screen
-              </Link>
-              <Link className="secondary-button" to="/rules#settings">
-                Open Settings
-              </Link>
+            <div className="stacked-list compact-home-list">
+              <article className="list-panel">
+                <div>
+                  <strong>{displayName}</strong>
+                  <p className="field-hint">Saved host draft: {hostDraft.tournamentName}</p>
+                </div>
+              </article>
+              <article className="list-panel">
+                <div>
+                  <strong>{persistedHandHistoryCount} saved hand summaries</strong>
+                  <p className="field-hint">Open saved results or jump back into a remembered invite.</p>
+                </div>
+                <div className="button-row">
+                  <Link className="secondary-button" to="/history">
+                    Open Hand History
+                  </Link>
+                  <Link className="secondary-button" to="/join">
+                    Open Join Screen
+                  </Link>
+                </div>
+              </article>
+              {hasLaunchPayload ? (
+                <article className="list-panel">
+                  <div>
+                    <strong>{bootstrap.launchJoinPayloadError ? "Invite needs attention" : "Invite ready to review"}</strong>
+                    <p className="field-hint">
+                      {bootstrap.launchJoinPayloadError
+                        ? bootstrap.launchJoinPayloadError
+                        : "A shared invite is already attached to this launch."}
+                    </p>
+                  </div>
+                  <div className="button-row">
+                    <Link className="secondary-button" to="/join">
+                      Review Invite
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
             </div>
           ) : (
-            <p className="field-hint">This device does not have any saved hands or remembered join payloads yet.</p>
+            <p className="field-hint">No saved hands or remembered invites yet.</p>
           )}
-        </SectionCard>
-
-        <SectionCard title="Join payload status">
-          {bootstrap.launchJoinPayload ? (
-            <p>
-              A launch payload is already loaded. Open Join Tournament to review it and continue.
-            </p>
-          ) : (
-            <p>
-              No launch payload is attached. Use Join Tournament when someone shares a payload with you.
-            </p>
-          )}
-          {bootstrap.launchJoinPayloadError ? (
-            <p className="inline-banner error">{bootstrap.launchJoinPayloadError}</p>
-          ) : null}
           <div className="button-row">
-            <Link className="secondary-button" to="/history">
-              Hand History
-            </Link>
             <Link className="secondary-button" to="/rules">
               Rules and Settings
             </Link>

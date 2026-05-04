@@ -147,20 +147,24 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
       <div className="table-screen-shell">
         <div className="table-top-row">
           <div className="button-row">
-            <button
-              className={viewerMode === "local" ? "primary-button compact-button" : "secondary-button compact-button"}
-              onClick={() => setViewerMode("local")}
-              type="button"
-            >
-              Player view
-            </button>
-            <button
-              className={viewerMode === "observer" ? "primary-button compact-button" : "secondary-button compact-button"}
-              onClick={() => setViewerMode("observer")}
-              type="button"
-            >
-              Observer view
-            </button>
+            {bootstrap.debugToolsEnabled ? (
+              <>
+                <button
+                  className={viewerMode === "local" ? "primary-button compact-button" : "secondary-button compact-button"}
+                  onClick={() => setViewerMode("local")}
+                  type="button"
+                >
+                  Player preview
+                </button>
+                <button
+                  className={viewerMode === "observer" ? "primary-button compact-button" : "secondary-button compact-button"}
+                  onClick={() => setViewerMode("observer")}
+                  type="button"
+                >
+                  Observer preview
+                </button>
+              </>
+            ) : null}
             <button
               className="secondary-button compact-button"
               onClick={() => setShowSidePanel((current) => !current)}
@@ -472,7 +476,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <SectionCard kicker="Action" title="No action required">
             <p>
               {viewerMode === "observer"
-                ? "Observer mode keeps the table public-only and removes all action controls."
+                ? "Observer preview keeps the table public-only and removes all action controls."
                 : "Waiting for the next local action window. The table remains visible while opponents act."}
             </p>
           </SectionCard>

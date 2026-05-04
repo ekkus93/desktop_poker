@@ -33,7 +33,7 @@ describe("MainTableScreen", () => {
     mockedSubmitTableAction.mockReset();
   });
 
-  it("enables the action tray only for the acting local player and blocks observer mode", async () => {
+  it("enables the action tray only for the acting local player and keeps observer preview in debug only", async () => {
     const localView = createTableView();
     const observerView = createTableView({
       viewerMode: "observer",
@@ -50,8 +50,10 @@ describe("MainTableScreen", () => {
       Promise.resolve(viewerMode === "observer" ? observerView : localView),
     );
 
-    const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    const firstRender = renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(
       (await screen.findByRole("button", { name: "Fold" })) as HTMLButtonElement,
@@ -61,7 +63,15 @@ describe("MainTableScreen", () => {
     ).toHaveProperty("disabled", false);
     expect(screen.getByText("A♠")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Observer view" }));
+    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
+    firstRender.unmount();
+
+    const debugBootstrap = createBootstrap({ debugToolsEnabled: true });
+    renderWithProviders(<MainTableScreen bootstrap={debugBootstrap} />, {
+      bootstrap: debugBootstrap,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Observer preview" }));
 
     expect(
       await screen.findByText(/observer mode uses the public projector only/i),
@@ -70,7 +80,7 @@ describe("MainTableScreen", () => {
       expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
     });
     expect(
-      screen.getByText(/observer mode keeps the table public-only/i),
+      screen.getByText(/observer preview keeps the table public-only/i),
     ).toBeTruthy();
   });
 

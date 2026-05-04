@@ -15,13 +15,9 @@ describe("HomeScreen", () => {
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Host Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Hand History" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Rules and Settings" })).toBeTruthy();
-    expect(
-      screen
-        .getByText(/saved hand summaries:/i)
-        .closest("li")?.textContent,
-    ).toContain("Saved hand summaries: 0");
+    expect(screen.getByRole("heading", { level: 3, name: "Resume here" })).toBeTruthy();
+    expect(screen.getByText(/no saved hands or remembered invites yet/i)).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
@@ -56,10 +52,6 @@ describe("HomeScreen", () => {
 
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
-    expect(
-      screen
-        .getByText(/saved hand summaries:/i)
-        .closest("li")?.textContent,
-    ).toContain("Saved hand summaries: 2");
+    expect(screen.getByText("2 saved hand summaries")).toBeTruthy();
   });
 });

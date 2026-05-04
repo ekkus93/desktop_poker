@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
-import { StatusBadge } from "../shared/StatusBadge";
 
 export type NavigationItem = {
   to: string;
@@ -18,7 +17,7 @@ export function AppFrame({
   navigation: NavigationItem[];
   children: ReactNode;
 }) {
-  const { displayName, recentJoinPayloads } = useDesktopShell();
+  const { displayName } = useDesktopShell();
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
   const supportNavigation = navigation.filter((item) => item.to === "/history" || item.to === "/rules" || item.to === "/debug");
@@ -32,23 +31,13 @@ export function AppFrame({
           <h1>{bootstrap.appName}</h1>
           <p>
             {inTournament
-              ? "Stay focused on the table, check the standings, and recover cleanly if something goes wrong."
-              : "Host a local game, join with a payload, and keep each instance separate."}
+              ? "Play the hand, keep the table readable, and leave everything else secondary."
+              : "Choose a seat at the table: host the game here or join with an invite."}
           </p>
         </header>
 
-        <div className="badge-row">
-          <StatusBadge tone="info">Protocol v{bootstrap.protocolVersion}</StatusBadge>
-          <StatusBadge tone="success">Port {bootstrap.defaultHostPort}</StatusBadge>
-          {bootstrap.debugToolsEnabled ? (
-            <StatusBadge tone="warning">Debug tools enabled</StatusBadge>
-          ) : (
-            <StatusBadge tone="success">Production path only</StatusBadge>
-          )}
-        </div>
-
         <section className="sidebar-group">
-          <p className="sidebar-section-label">Main actions</p>
+          <p className="sidebar-section-label">Play</p>
           <nav aria-label="Desktop poker navigation">
             {primaryNavigation.map((item) => (
               <NavLink
@@ -81,35 +70,11 @@ export function AppFrame({
           </nav>
         </section>
 
-        {inTournament ? (
-          <section className="sidebar-focus-card">
-            <p className="kicker">Current focus</p>
-            <h2>Stay in the same flow</h2>
-            <p>
-              The main player path is lobby, table, then history. Everything else
-              is secondary while a game is running.
-            </p>
-          </section>
-        ) : null}
-
         <footer className="sidebar-footer">
           <p className="sidebar-note">
             Player <strong>{displayName}</strong>
           </p>
-          <p className="sidebar-note">
-            This window <strong>{bootstrap.instanceLabel}</strong>
-          </p>
-          {bootstrap.instanceLabel !== bootstrap.instanceId ? (
-            <p className="sidebar-note">
-              Internal ID <strong>{bootstrap.instanceId}</strong>
-            </p>
-          ) : null}
-          <p className="sidebar-note">
-            Profile folder: <span className="mono-value">{bootstrap.profileDirectory}</span>
-          </p>
-          <p className="footer-copy">
-            Saved join payloads: {recentJoinPayloads.length}
-          </p>
+          {bootstrap.debugToolsEnabled ? <p className="footer-copy">Internal tools available in this build.</p> : null}
         </footer>
       </aside>
 
