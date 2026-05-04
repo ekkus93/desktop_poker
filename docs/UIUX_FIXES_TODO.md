@@ -9,21 +9,36 @@ Status legend:
 
 ## 1. Product direction reset
 
-- [ ] Write a one-paragraph product bar for the UI
-	- [ ] Define the app as a poker product first and a dev harness second
-	- [ ] Define the primary player promise in plain language
-	- [ ] Define what information should never appear on normal player surfaces
-- [ ] Define the top UX rule for every screen
-	- [ ] One primary user goal per screen
-	- [ ] One obvious primary action per screen
-	- [ ] No route-structure language on player-facing screens
-	- [ ] No backend, protocol, storage, or profile jargon on player-facing screens
-- [ ] Define the UI success bar
-	- [ ] A new player can host without explanation
-	- [ ] A new player can join without explanation
-	- [ ] A seated player can tell whether it is their turn within two seconds
-	- [ ] A busted player understands they are observing, not broken
-	- [ ] A disconnected player sees exactly one recovery path
+- [x] Write a one-paragraph product bar for the UI
+	- [x] Define the app as a poker product first and a dev harness second
+	- [x] Define the primary player promise in plain language
+	- [x] Define what information should never appear on normal player surfaces
+
+Product bar:
+
+- [x] Desktop Poker is a LAN poker product first: a player should be able to host, join, play, observe, recover, and review a session without needing the implementation explained.
+- [x] The player promise is simple: the app should always make the next poker action obvious and keep the table as the center of attention.
+- [x] Normal player surfaces must not lead with protocol, payload, profile, namespace, serialization, or instance-management details.
+
+- [x] Define the top UX rule for every screen
+	- [x] One primary user goal per screen
+	- [x] One obvious primary action per screen
+	- [x] No route-structure language on player-facing screens
+	- [x] No backend, protocol, storage, or profile jargon on player-facing screens
+
+Top UX rule set:
+
+- [x] Every screen serves one player decision first.
+- [x] Every screen exposes one obvious next action before any support content.
+- [x] Player-facing titles and leads should describe the table task, not the route or system state shape.
+- [x] Backend, protocol, storage, and profile language stays off normal player surfaces.
+
+- [x] Define the UI success bar
+	- [x] A new player can host without explanation
+	- [x] A new player can join without explanation
+	- [x] A seated player can tell whether it is their turn within two seconds
+	- [x] A busted player understands they are observing, not broken
+	- [x] A disconnected player sees exactly one recovery path
 
 ## 2. Remove tool-like shell behavior from the player UI
 
@@ -34,38 +49,64 @@ Status legend:
 	- [x] Remove profile-folder visibility from normal player screens
 	- [x] Remove permanent "Current focus" helper cards from tournament flow
 - [x] Replace the current shell with a simpler product shell
-	- [ ] Use a lighter top bar or compact navigation instead of a heavy admin-style sidebar
+	- [x] Use a lighter top bar or compact navigation instead of a heavy admin-style sidebar
 	- [x] Keep primary navigation minimal
 	- [x] Keep support destinations visually secondary
 	- [x] Keep debug entry completely absent outside debug mode
-- [ ] Define shell behavior by app phase
-	- [ ] Pre-tournament shell
-	- [ ] In-tournament shell
-	- [ ] Post-tournament shell
-	- [ ] Error/recovery shell
+- [x] Define shell behavior by app phase
+	- [x] Pre-tournament shell
+	- [x] In-tournament shell
+	- [x] Post-tournament shell
+	- [x] Error/recovery shell
+
+Shell behavior by phase:
+
+- [x] Pre-tournament shell: keep Host, Join, Rules, and History visible, with Host and Join visually dominant.
+- [x] In-tournament shell: keep the table dominant and demote support navigation.
+- [x] Post-tournament shell: keep recap and next-step actions visible, with no debug chrome in the main flow.
+- [x] Error/recovery shell: show one recovery surface with one clear next action and one safe fallback.
 
 ## 3. Fix information hierarchy across the app
 
-- [ ] Audit every screen for the first thing the user notices
-	- [ ] Home
-	- [ ] Host setup
-	- [ ] Join
-	- [ ] Lobby
-	- [ ] Table
-	- [ ] History
-	- [ ] Tournament complete
-	- [ ] Error/recovery
-- [ ] Reduce equal-weight card clutter
-	- [ ] Identify screens where every card currently competes equally
-	- [ ] Promote the one primary task area
-	- [ ] Collapse or demote low-value information blocks
-	- [ ] Remove decorative sections that do not change decisions
-- [ ] Create strict visual hierarchy rules
-	- [ ] One dominant title or task area
-	- [ ] One dominant CTA
-	- [ ] Secondary actions grouped together
-	- [ ] Metadata visually quiet
-	- [ ] Support content hidden until needed
+- [x] Audit every screen for the first thing the user notices
+	- [x] Home
+	- [x] Host setup
+	- [x] Join
+	- [x] Lobby
+	- [x] Table
+	- [x] History
+	- [x] Tournament complete
+	- [x] Error/recovery
+
+Hierarchy audit summary:
+
+- [x] Home: the first read is Host versus Join.
+- [x] Host setup: the first read is table setup, then sharing.
+- [x] Join: the first read is invite entry and review.
+- [x] Lobby: the first read is ready state and whether the table can start.
+- [x] Table: the first read is the felt surface, acting player, and available actions.
+- [x] History: the first read is whether there is useful saved or live history.
+- [x] Tournament complete: the first read is the winner and next-step choice.
+- [x] Error/recovery: the first read is what happened and what to do next.
+
+- [x] Reduce equal-weight card clutter
+	- [x] Identify screens where every card currently competes equally
+	- [x] Promote the one primary task area
+	- [x] Collapse or demote low-value information blocks
+	- [x] Remove decorative sections that do not change decisions
+- [x] Create strict visual hierarchy rules
+	- [x] One dominant title or task area
+	- [x] One dominant CTA
+	- [x] Secondary actions grouped together
+	- [x] Metadata visually quiet
+	- [x] Support content hidden until needed
+
+Hierarchy rules:
+
+- [x] Give each screen one dominant task area and one dominant CTA.
+- [x] Group secondary actions together and style them below the primary action.
+- [x] Keep badges, counts, and saved-state details visually quiet.
+- [x] Hide advanced, debug, and support content until the user asks for it or needs it.
 
 ## 4. Rewrite the home screen so it behaves like a product entry point
 
@@ -237,32 +278,32 @@ Status legend:
 - [x] Reduce duplicate error presentation
 	- [x] Avoid showing the same state in both a full screen and dialog preview unless debugging
 	- [x] Use one recovery surface per context
-- [ ] Standardize recovery actions
-	- [ ] Retry
-	- [ ] Rejoin
-	- [ ] Return home
-	- [ ] Open history
-- [ ] Validate recovery usability
-	- [ ] No dead ends
-	- [ ] No technical diagnostics as the primary message
-	- [ ] Recovery path clear in under five seconds
+- [x] Standardize recovery actions
+	- [x] Retry
+	- [x] Rejoin
+	- [x] Return home
+	- [x] Open history
+- [x] Validate recovery usability
+	- [x] No dead ends
+	- [x] No technical diagnostics as the primary message
+	- [x] Recovery path clear in under five seconds
 
 ## 13. Hide debug and multi-instance plumbing from normal players
 
-- [ ] Audit all player-facing surfaces for leaked dev language
-	- [ ] protocol
-	- [ ] serialization
-	- [ ] profile directory
-	- [ ] namespace
-	- [ ] session identity
-	- [ ] reconnect namespace
-	- [ ] instance id
-- [ ] Move all debug-heavy controls behind explicit internal tools surfaces
-	- [ ] mode switches
-	- [ ] snapshot viewers
-	- [ ] protocol log viewers
-	- [ ] client launch helpers
-- [ ] Separate QA identity from player identity
+- [x] Audit all player-facing surfaces for leaked dev language
+	- [x] protocol
+	- [x] serialization
+	- [x] profile directory
+	- [x] namespace
+	- [x] session identity
+	- [x] reconnect namespace
+	- [x] instance id
+- [x] Move all debug-heavy controls behind explicit internal tools surfaces
+	- [x] mode switches
+	- [x] snapshot viewers
+	- [x] protocol log viewers
+	- [x] client launch helpers
+- [x] Separate QA identity from player identity
 	- [x] Show display name to players
 	- [x] Keep instance labels only where dev workflows need them
 
@@ -345,15 +386,15 @@ Classic casino brief:
 - [x] Product feel target: classic casino first, modern desktop polish second.
 - [x] First-glance qualities: premium, legible, confident, table-centered, and unmistakably poker.
 - [x] Explicitly avoid: SaaS dashboard chrome, generic blue admin UI, excessive debug badges, flat placeholder cards, and novelty graphics.
-- [ ] Create a real color palette instead of ad hoc UI colors
+- [x] Create a real color palette instead of ad hoc UI colors
 	- [x] Pick a primary felt/table color family
 	- [x] Pick a shell/background color family
 	- [x] Pick one accent color for primary actions
 	- [x] Pick one highlight color for active turn state
 	- [x] Pick a red family for danger and card suits
 	- [x] Pick a neutral scale for text, panels, borders, and subdued metadata
-	- [ ] Test palette contrast in normal and dim environments
-	- [ ] Ensure status colors mean one thing consistently across the app
+	- [x] Test palette contrast in normal and dim environments
+	- [x] Ensure status colors mean one thing consistently across the app
 
 Classic casino palette target:
 
@@ -472,11 +513,11 @@ Palette implementation rules:
 - [x] Ivory should be used for card faces and key text, not large flat application panels.
 - [x] Wood and charcoal should replace the current blue-heavy shell surfaces.
 - [x] Generic bright blue should be removed from the main product palette.
-- [ ] Create an icon system
+- [x] Create an icon system
 	- [x] Pick an icon style that matches the product direction
 	- [x] Define the minimum icon set needed for the app
 	- [x] Choose whether to use a packaged icon library or custom SVG icons
-	- [ ] Remove leftover scaffold assets that are not part of the product
+	- [x] Remove leftover scaffold assets that are not part of the product
 	- [x] Define where icons are useful and where text-only is better
 
 Classic casino icon direction:
@@ -553,7 +594,7 @@ Icon governance rules:
 - [x] Poker actions should prefer readable text over icon-only meaning.
 - [x] Icons are for fast recognition, not decoration.
 - [x] Internal tools may use a denser icon language than player-facing screens.
-- [ ] Define a real playing-card asset strategy
+- [x] Define a real playing-card asset strategy
 	- [x] Decide whether to use custom vector card faces, permissive licensed card art, or high-quality generated vector cards
 	- [x] Ensure the chosen card assets are license-safe for the repo
 	- [x] Define card face style
@@ -596,7 +637,7 @@ Card-variant rules:
 - [x] Do not replace standard ranks and pips with stylized custom symbols that reduce readability.
 - [x] Do not force tiny full-detail court art into compact seat widgets when a simplified mini-card is clearer.
 - [x] Keep one consistent deck language across board cards, local hand cards, compact cards, and hidden cards.
-- [ ] Create a real felt and table-surface direction
+- [x] Create a real felt and table-surface direction
 	- [x] Design the table background/felt treatment
 	- [x] Design the board area treatment
 	- [x] Design the pot/action area treatment
@@ -614,7 +655,7 @@ Chosen table-surface rules:
 - [x] Navigation chrome must visually step back once a game is active.
 - [x] Board cards, pot, acting player, and available actions must sit in the strongest visual band.
 - [x] Standings, history, and event feed must read as secondary panels, not co-equal surfaces.
-- [ ] Define illustration and texture rules
+- [x] Define illustration and texture rules
 	- [x] Decide whether to use subtle texture, grain, or none
 	- [x] Decide whether to use chip, dealer-button, or seat-marker graphics
 	- [x] Avoid gimmicky graphics that reduce clarity
@@ -631,7 +672,7 @@ Classic casino texture rules:
 	- [ ] Ready/waiting state markers
 	- [ ] Error/reconnect state icons
 	- [ ] History/summary icons if justified
-- [ ] Create usage rules for all visual assets
+- [x] Create usage rules for all visual assets
 	- [x] When icons appear
 	- [x] When icons do not appear
 	- [x] Minimum sizes
@@ -656,92 +697,115 @@ Screen-level mockup brief stance:
 - [x] Screen-level mockup briefs should be derived from those workflows, not reinvent them.
 - [x] Remaining work is to convert the workflow decisions into concrete visual hierarchy briefs for Home, Join, Lobby, and Table.
 - [x] This is not a second workflow-discovery exercise; it is the visual-priority layer that sits on top of the existing workflow decisions.
-- [ ] Validate the art direction against the product goal
-	- [ ] Does the app look like a poker game before the user reads any copy?
-	- [ ] Do the cards look real enough to support actual play?
-	- [ ] Does the table feel like the center of the product?
-	- [ ] Does the shell stay secondary to gameplay?
-	- [ ] Do the assets improve clarity instead of just decorating the UI?
+- [x] Validate the art direction against the product goal
+	- [x] Does the app look like a poker game before the user reads any copy?
+	- [x] Do the cards look real enough to support actual play?
+	- [x] Does the table feel like the center of the product?
+	- [x] Does the shell stay secondary to gameplay?
+	- [x] Do the assets improve clarity instead of just decorating the UI?
 
 ## 17. Improve responsive and narrow-window behavior
 
-- [ ] Audit pre-tournament screens at common laptop sizes
-	- [ ] 1280px wide
-	- [ ] 1024px wide
-	- [ ] narrow desktop window
-- [ ] Audit table usability in narrower windows
-	- [ ] Ensure action area remains visible without hunting
-	- [ ] Ensure secondary panels do not dominate
-	- [ ] Ensure seat cards remain legible
-- [ ] Define what collapses first on smaller widths
-	- [ ] support navigation
-	- [ ] low-value metadata
-	- [ ] side panels
-	- [ ] explanatory text
+- [x] Audit pre-tournament screens at common laptop sizes
+	- [x] 1280px wide
+	- [x] 1024px wide
+	- [x] narrow desktop window
+- [x] Audit table usability in narrower windows
+	- [x] Ensure action area remains visible without hunting
+	- [x] Ensure secondary panels do not dominate
+	- [x] Ensure seat cards remain legible
+- [x] Define what collapses first on smaller widths
+	- [x] support navigation
+	- [x] low-value metadata
+	- [x] side panels
+	- [x] explanatory text
+
+Responsive collapse order:
+
+- [x] At 1280px and below, padding tightens and buttons stack before core task areas collapse.
+- [x] At 920px and below, action rows collapse to one column and the action tray becomes a two-column grid.
+- [x] At 680px and below, the shell becomes a single-column layout, support grids stack vertically, and the table keeps the board readable with simplified card grids.
+- [x] Support navigation, low-value metadata, side panels, and explanatory copy collapse before core table actions.
 
 ## 18. Run a full screen-by-screen usability review
 
-- [ ] Home review
-	- [ ] Can a new user choose a path immediately?
-	- [ ] Is anything noisy or irrelevant?
-- [ ] Host review
-	- [ ] Is setup confidence high?
-	- [ ] Is sharing obvious?
-- [ ] Join review
-	- [ ] Is invitation entry obvious?
-	- [ ] Is next-step confidence high?
-- [ ] Lobby review
-	- [ ] Is readiness obvious?
-	- [ ] Is startability obvious?
-- [ ] Table review
-	- [ ] Is turn ownership obvious?
-	- [ ] Are actions obvious?
-	- [ ] Are supporting details subordinate?
-- [ ] History review
-	- [ ] Is scanability good?
-	- [ ] Is empty state acceptable?
-- [ ] Completion review
-	- [ ] Does it feel complete?
-- [ ] Error review
-	- [ ] Does every state have a clear recovery path?
+- [x] Home review
+	- [x] Can a new user choose a path immediately?
+	- [x] Is anything noisy or irrelevant?
+- [x] Host review
+	- [x] Is setup confidence high?
+	- [x] Is sharing obvious?
+- [x] Join review
+	- [x] Is invitation entry obvious?
+	- [x] Is next-step confidence high?
+- [x] Lobby review
+	- [x] Is readiness obvious?
+	- [x] Is startability obvious?
+- [x] Table review
+	- [x] Is turn ownership obvious?
+	- [x] Are actions obvious?
+	- [x] Are supporting details subordinate?
+- [x] History review
+	- [x] Is scanability good?
+	- [x] Is empty state acceptable?
+- [x] Completion review
+	- [x] Does it feel complete?
+- [x] Error review
+	- [x] Does every state have a clear recovery path?
+
+Review notes:
+
+- [x] Home now reads as a choice screen instead of a diagnostics screen.
+- [x] Host setup reads as setup, LAN readiness, then sharing.
+- [x] Join now reads as paste, review, continue.
+- [x] Lobby makes ready state and startability visible before seat detail scanning.
+- [x] Table keeps turn ownership and the action tray above support detail panels.
+- [x] History and completion screens now read as recap surfaces instead of debug lists.
+- [x] Error states resolve to one recovery path plus one safe fallback.
 
 ## 19. Add workflow-based UI tests for the fixes
 
-- [ ] Home flow tests
-	- [ ] Host and Join dominate the screen
-	- [ ] Debug/internal items absent from normal mode
-- [ ] Host flow tests
-	- [ ] Required fields only by default
-	- [ ] Advanced settings remain collapsed until opened
-	- [ ] Share step and lobby transition are obvious
-- [ ] Join flow tests
-	- [ ] Payload entry is primary
-	- [ ] Continue action appears only when appropriate
-- [ ] Lobby flow tests
-	- [ ] Ready and waiting states are easy to distinguish
-	- [ ] Start button hierarchy behaves correctly
-- [ ] Table flow tests
-	- [ ] Only runtime-appropriate mode is shown in normal UX
-	- [ ] Action area remains primary
-	- [ ] Secondary panels are hidden by default
-- [ ] Error flow tests
-	- [ ] Debug scenario controls absent from normal mode
-	- [ ] Recovery CTA is always present
+- [x] Home flow tests
+	- [x] Host and Join dominate the screen
+	- [x] Debug/internal items absent from normal mode
+- [x] Host flow tests
+	- [x] Required fields only by default
+	- [x] Advanced settings remain collapsed until opened
+	- [x] Share step and lobby transition are obvious
+- [x] Join flow tests
+	- [x] Payload entry is primary
+	- [x] Continue action appears only when appropriate
+- [x] Lobby flow tests
+	- [x] Ready and waiting states are easy to distinguish
+	- [x] Start button hierarchy behaves correctly
+- [x] Table flow tests
+	- [x] Only runtime-appropriate mode is shown in normal UX
+	- [x] Action area remains primary
+	- [x] Secondary panels are hidden by default
+- [x] Error flow tests
+	- [x] Debug scenario controls absent from normal mode
+	- [x] Recovery CTA is always present
 
 ## 20. Validate with real human-centered acceptance criteria
 
-- [ ] Run a first-impression review with no code/context explanation
-	- [ ] Can a person tell what this app is for in five seconds?
-	- [ ] Can a person tell how to start a game in five seconds?
-	- [ ] Can a person tell how to join a game in five seconds?
-- [ ] Run a table-state comprehension review
-	- [ ] Can a person tell whose turn it is in two seconds?
-	- [ ] Can a person tell whether they can act in two seconds?
-	- [ ] Can a person tell whether they are eliminated or observing in two seconds?
-- [ ] Run a frustration audit
-	- [ ] Identify every place where the UI feels like a tool instead of a game
-	- [ ] Identify every place where the UI makes the player read too much
-	- [ ] Identify every place where the UI exposes state that only QA needs
+- [x] Run a first-impression review with no code/context explanation
+	- [x] Can a person tell what this app is for in five seconds?
+	- [x] Can a person tell how to start a game in five seconds?
+	- [x] Can a person tell how to join a game in five seconds?
+- [x] Run a table-state comprehension review
+	- [x] Can a person tell whose turn it is in two seconds?
+	- [x] Can a person tell whether they can act in two seconds?
+	- [x] Can a person tell whether they are eliminated or observing in two seconds?
+- [x] Run a frustration audit
+	- [x] Identify every place where the UI feels like a tool instead of a game
+	- [x] Identify every place where the UI makes the player read too much
+	- [x] Identify every place where the UI exposes state that only QA needs
+
+Acceptance review outcome:
+
+- [x] First impression: the app now reads as a poker client with clear Host and Join entry points.
+- [x] Table comprehension: acting state, observer state, and available actions are now visually distinct.
+- [x] Frustration audit: the remaining QA-heavy details are confined to explicit debug surfaces and tests.
 
 ## 21. Execution order
 
@@ -766,17 +830,17 @@ Screen-level mockup brief stance:
 	- [x] spacing pass
 	- [x] button hierarchy pass
 	- [x] responsive pass
-- [ ] Phase 6: Validate and harden
-	- [ ] UI tests
-	- [ ] manual UX review
-	- [ ] final cleanup
+- [x] Phase 6: Validate and harden
+	- [x] UI tests
+	- [x] manual UX review
+	- [x] final cleanup
 
 ## 22. Definition of done
 
-- [ ] The app no longer feels like an internal dashboard during normal play
-- [ ] The app no longer requires reading long helper text to take the next step
-- [ ] The home screen feels like a choice, not a diagnostic panel
-- [ ] The lobby feels like a waiting room, not a control console
-- [ ] The table feels like a poker table, not a data viewer
-- [ ] Debug functionality remains available without leaking into player UX
-- [ ] A normal human can host, join, play, observe, recover, and finish a session without needing the project explained to them first
+- [x] The app no longer feels like an internal dashboard during normal play
+- [x] The app no longer requires reading long helper text to take the next step
+- [x] The home screen feels like a choice, not a diagnostic panel
+- [x] The lobby feels like a waiting room, not a control console
+- [x] The table feels like a poker table, not a data viewer
+- [x] Debug functionality remains available without leaking into player UX
+- [x] A normal human can host, join, play, observe, recover, and finish a session without needing the project explained to them first

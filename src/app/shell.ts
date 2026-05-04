@@ -135,7 +135,7 @@ export function buildHostShareText(
   }
 
   if (!resolvedHostIp) {
-    return "Resolving a connectable LAN IP for the host share payload...";
+    return "Checking for a LAN address players on this network can reach...";
   }
 
   return [

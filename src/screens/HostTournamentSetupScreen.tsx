@@ -209,7 +209,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   <strong>Host port:</strong> {hostDraft.hostPort}
                 </li>
                 <li>
-                  <strong>Discovery:</strong> Direct payload join only.
+                  <strong>Joining:</strong> Share the invite from this screen.
                 </li>
               </ul>
               {lanError ? <p className="inline-banner error">{lanError}</p> : null}
@@ -243,7 +243,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
             </Link>
           </div>
           <p className="field-hint">
-            Share details are ready now. Direct payload and QR sharing can appear here later when the runtime exposes them.
+            Share details are ready now. QR or one-tap invite options can appear here later.
           </p>
           {copyState ? <p className="inline-banner success">{copyState}</p> : null}
         </SectionCard>

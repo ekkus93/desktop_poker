@@ -32,6 +32,16 @@ describe("ErrorStateScreen", () => {
     expect(screen.getAllByRole("link", { name: "Fix invite" }).length).toBeGreaterThan(0);
   });
 
+  it("keeps scenario controls out of the normal player flow", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<ErrorStateScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect((await screen.findAllByText(/the connection dropped/i)).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Scenario picker")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reconnect failed" })).toBeNull();
+  });
+
   it("keeps the scenario picker available only for debug review", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: true });
 

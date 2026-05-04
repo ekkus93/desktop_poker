@@ -1,13 +1,11 @@
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
-import type { ScreenProps } from "./types";
 
-export function RulesHelpScreen({ bootstrap }: ScreenProps) {
+export function RulesHelpScreen() {
   const {
     displayName,
     setDisplayName,
-    hostDraft,
     resetHostDraft,
     recentJoinPayloads,
     clearRecentJoinPayloads,
@@ -15,30 +13,30 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
 
   return (
     <ScreenShell
-      title="Rules / Settings"
-      lead="Keep the game rules nearby, check the connection basics, and manage settings saved on this device."
-      badges={[`Port ${bootstrap.defaultHostPort}`, "Rules + settings"]}
+      title="Rules & Settings"
+      lead="Review the game basics and update what this device remembers."
+      badges={["Rules + settings"]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Rules" title="MVP game model">
+        <SectionCard kicker="Rules" title="Table basics">
           <ul>
             <li>Single-table Sit 'n Go No-Limit Texas Hold'em</li>
             <li>2 to 10 players with equal starting stacks</li>
-            <li>Host-authoritative LAN TCP gameplay and reconnect handling</li>
-            <li>Eliminated players remain read-only observers</li>
+            <li>Everyone joins the same host on the local network</li>
+            <li>Busted players stay to watch as observers</li>
           </ul>
         </SectionCard>
 
-        <SectionCard title="Networking help">
+        <SectionCard title="How joining works">
           <ul>
-            <li>Direct payload join is the canonical v1 path.</li>
-            <li>Room-code discovery is not available yet.</li>
+            <li>Share an invite from the host setup screen.</li>
+            <li>Paste that invite on Join Tournament.</li>
             <li>Hosting requires a reachable LAN IP.</li>
-            <li>Multiple instances can run without profile collisions.</li>
+            <li>Room-code discovery is not available yet.</li>
           </ul>
         </SectionCard>
 
-        <SectionCard kicker="Settings" title="Local shell settings">
+        <SectionCard kicker="Settings" title="Saved on this device">
           <div className="form-grid" id="settings">
             <label className="field">
               Display name
@@ -49,9 +47,7 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
                 value={displayName}
               />
             </label>
-            <p className="field-hint">
-              Stored locally under <span className="mono-value">{bootstrap.profileDirectory}</span>.
-            </p>
+            <p className="field-hint">Used whenever you host or join from this device.</p>
             <div className="button-row">
               <button className="secondary-button" onClick={resetHostDraft} type="button">
                 Reset host defaults
@@ -61,16 +57,13 @@ export function RulesHelpScreen({ bootstrap }: ScreenProps) {
                 onClick={clearRecentJoinPayloads}
                 type="button"
               >
-                Clear recent payloads ({recentJoinPayloads.length})
+                Clear recent invites ({recentJoinPayloads.length})
               </button>
             </div>
             <ul>
-              <li>
-                Current host draft: {hostDraft.tournamentName} on port {hostDraft.hostPort}
-              </li>
-              <li>Instance label: {bootstrap.instanceLabel}</li>
-              <li>Profile id: {bootstrap.instanceId}</li>
-              <li>Debug tools: {bootstrap.debugToolsEnabled ? "enabled" : "hidden"}</li>
+              <li>Your display name is saved for future games.</li>
+              <li>Host defaults can be reset if you want to start fresh.</li>
+              <li>{recentJoinPayloads.length} recent invite{recentJoinPayloads.length === 1 ? "" : "s"} saved on this device.</li>
             </ul>
           </div>
         </SectionCard>
