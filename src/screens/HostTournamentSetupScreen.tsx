@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { ArrowRight, ChevronDown, ChevronUp, Copy, TriangleAlert, Wifi } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
@@ -174,6 +175,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         <SectionCard kicker="Step 2" title="LAN details">
           <div className="status-row">
             <div className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}>
+              {lanError ? <TriangleAlert className="button-icon" strokeWidth={1.9} /> : <Wifi className="button-icon" strokeWidth={1.9} />}
               {lanError ? "Hosting is blocked" : resolvedHostIp ? `Ready on ${resolvedHostIp}` : "Checking this computer"}
             </div>
           </div>
@@ -188,7 +190,10 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               }}
               type="button"
             >
-              {hostDraft.advancedOpen ? "Hide advanced settings" : "Show advanced settings"}
+              <span className="button-content">
+                {hostDraft.advancedOpen ? <ChevronUp className="button-icon" strokeWidth={1.9} /> : <ChevronDown className="button-icon" strokeWidth={1.9} />}
+                <span>{hostDraft.advancedOpen ? "Hide advanced settings" : "Show advanced settings"}</span>
+              </span>
             </button>
           </div>
           {hostDraft.advancedOpen ? (
@@ -225,10 +230,16 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               }}
               type="button"
             >
-              Copy share details
+              <span className="button-content">
+                <Copy className="button-icon" strokeWidth={1.9} />
+                <span>Copy share details</span>
+              </span>
             </button>
             <Link className="primary-button" to="/lobby">
-              Continue to lobby
+              <span className="button-content">
+                <ArrowRight className="button-icon" strokeWidth={1.9} />
+                <span>Continue to lobby</span>
+              </span>
             </Link>
           </div>
           <p className="field-hint">

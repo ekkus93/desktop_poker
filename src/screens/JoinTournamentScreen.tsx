@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, BadgeCheck, Clipboard, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -17,7 +18,7 @@ type ValidationState =
   | { status: "invalid"; message: string };
 
 function normaliseError(error: unknown) {
-  return error instanceof Error ? error.message : "Join payload validation failed.";
+  return error instanceof Error ? error.message : "The invite could not be checked.";
 }
 
 export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
@@ -79,7 +80,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     if (!trimmedPayload) {
       setValidationState({
         status: "invalid",
-        message: "Paste a pkr1_ payload to continue.",
+        message: "Paste an invite to continue.",
       });
       return null;
     }
@@ -116,10 +117,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   };
 
   const sourceSummary = deepLinkPayload
-    ? "Deep-link payload detected"
+    ? "Invite opened from a link"
     : bootstrap.launchJoinPayload
-      ? "CLI or environment launch payload detected"
-      : "Manual paste mode";
+      ? "Invite already attached"
+      : "Paste an invite";
 
   return (
     <ScreenShell
@@ -128,10 +129,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       badges={[sourceSummary]}
     >
       <div className="content-grid">
-        <SectionCard kicker="Step 1" title="Paste payload">
+        <SectionCard kicker="Step 1" title="Paste invite">
           <div className="form-grid">
             <label className="field">
-              Paste payload
+              Paste invite
               <textarea
                 onChange={(event) => {
                   setJoinPayloadDraft(event.target.value);
@@ -151,7 +152,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 }}
                 type="button"
               >
-                Review invite
+                <span className="button-content">
+                  <Clipboard className="button-icon" strokeWidth={1.9} />
+                  <span>Review invite</span>
+                </span>
               </button>
             </div>
             <p className="field-hint">
@@ -159,12 +163,12 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             </p>
           </div>
           {validationState.status === "validating" ? (
-            <p className="inline-banner info">Checking the invite with the Rust decoder…</p>
+            <p className="inline-banner info">Checking the invite…</p>
           ) : null}
           {validationState.status === "invalid" ? (
-            <p className="inline-banner error">{validationState.message}</p>
+            <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
           ) : null}
-          {inviteBanner ? <p className="inline-banner success">{inviteBanner}</p> : null}
+          {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
         </SectionCard>
 
         <SectionCard kicker="Step 2" title="Check the destination">
@@ -173,7 +177,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               <div>
                 <dt>Host</dt>
                 <dd>
-                  {validationState.payload.hostAddress}:{validationState.payload.hostPort}
+                  <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
                 </dd>
               </div>
               <div>
@@ -185,22 +189,25 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 <dd>{validationState.payload.sessionEpoch}</dd>
               </div>
               <div>
-                <dt>Payload version</dt>
+                <dt>Invite version</dt>
                 <dd>{validationState.payload.payloadVersion}</dd>
               </div>
             </dl>
           ) : (
             <p>
-              Valid payload details appear here before you continue.
+              Invite details appear here before you continue.
             </p>
           )}
         </SectionCard>
 
-        <SectionCard kicker="Step 3" title="Continue or reuse a recent payload">
+        <SectionCard kicker="Step 3" title="Continue or reuse a recent invite">
           {continueToLobby ? (
             <div className="button-row">
               <Link className="primary-button" to="/lobby">
-                Continue to lobby
+                <span className="button-content">
+                  <ArrowRight className="button-icon" strokeWidth={1.9} />
+                  <span>Continue to lobby</span>
+                </span>
               </Link>
             </div>
           ) : (
@@ -233,7 +240,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               onClick={clearRecentJoinPayloads}
               type="button"
             >
-              Clear recent payloads
+              <span className="button-content">
+                <RotateCcw className="button-icon" strokeWidth={1.9} />
+                <span>Clear recent invites</span>
+              </span>
             </button>
           ) : null}
         </SectionCard>

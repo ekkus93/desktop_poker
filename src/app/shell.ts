@@ -144,8 +144,8 @@ export function buildHostShareText(
     `Capacity: ${hostDraft.maxPlayers} players · ${hostDraft.startingStack} starting chips`,
     `Blind preset: ${getBlindPreset(hostDraft.blindPresetId).label} (${getBlindPreset(hostDraft.blindPresetId).firstLevel} start)`,
     `Turn timer: ${hostDraft.turnTimerSeconds}s`,
-    "Live pkr1 join payloads appear here after the Rust host listener binds. This shell reserves the share surface without inventing a simulator payload.",
-    `Launch payload slot: ${bootstrap.launchJoinPayload ?? "empty"}`,
+    "Share these table details with the next player so they can join from the Join screen.",
+    bootstrap.launchJoinPayload ? "An invite is already attached to this launch." : "No invite is attached to this launch.",
   ].join("\n");
 }
 

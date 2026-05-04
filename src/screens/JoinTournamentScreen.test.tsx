@@ -29,7 +29,7 @@ describe("JoinTournamentScreen", () => {
     mockedValidateJoinPayloadInput.mockReset();
   });
 
-  it("prefers a deep-link payload over the stored draft", async () => {
+  it("prefers a deep-link invite over the stored draft", async () => {
     const bootstrap = createBootstrap({ launchJoinPayload: "pkr1_launch" });
 
     renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
@@ -39,7 +39,7 @@ describe("JoinTournamentScreen", () => {
 
     await waitFor(() => {
       expect(
-        (screen.getByLabelText("Paste payload") as HTMLTextAreaElement).value,
+        (screen.getByLabelText("Paste invite") as HTMLTextAreaElement).value,
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
@@ -55,7 +55,7 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Paste payload"), {
+    fireEvent.change(screen.getByLabelText("Paste invite"), {
       target: { value: "pkr1_bad" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
@@ -63,7 +63,7 @@ describe("JoinTournamentScreen", () => {
     expect(await screen.findByText("invalid compact join payload")).toBeTruthy();
   });
 
-  it("shows decoded payload details after validation", async () => {
+  it("shows decoded invite details after validation", async () => {
     const bootstrap = createBootstrap();
     mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
 
@@ -71,7 +71,7 @@ describe("JoinTournamentScreen", () => {
       bootstrap,
     });
 
-    fireEvent.change(screen.getByLabelText("Paste payload"), {
+    fireEvent.change(screen.getByLabelText("Paste invite"), {
       target: { value: "pkr1_good" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));

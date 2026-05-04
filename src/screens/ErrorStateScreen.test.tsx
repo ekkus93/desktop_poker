@@ -23,13 +23,13 @@ describe("ErrorStateScreen", () => {
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
   });
 
-  it("surfaces an invalid launch payload as the primary state", async () => {
+  it("surfaces an invalid launch invite as the primary state", async () => {
     const bootstrap = createBootstrap({ launchJoinPayloadError: "bad payload" });
 
     renderWithProviders(<ErrorStateScreen bootstrap={bootstrap} />, { bootstrap });
 
-    expect((await screen.findAllByText(/the launch payload failed validation/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Fix payload" }).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/the shared invite could not be opened/i)).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Fix invite" }).length).toBeGreaterThan(0);
   });
 
   it("keeps the scenario picker available only for debug review", async () => {

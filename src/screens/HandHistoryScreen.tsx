@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { History, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
 import { readPersistedHandHistory } from "../app/persistence";
@@ -52,7 +53,12 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
               historyEntries.map((entry) => (
                 <article key={entry.handNumber} className="list-panel history-row">
                   <div>
-                    <strong>{entry.summary}</strong>
+                    <strong>
+                      <span className="button-content">
+                        <Trophy className="button-icon" strokeWidth={1.9} />
+                        <span>{entry.summary}</span>
+                      </span>
+                    </strong>
                     <p className="field-hint">
                       Hand {entry.handNumber} · Pot {entry.potTotal} · Winners: {entry.winningPlayers.join(", ")}
                     </p>
@@ -70,7 +76,10 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           </div>
           <div className="button-row">
             <Link className="secondary-button compact-button" to="/table">
-              Back to table
+              <span className="button-content">
+                <History className="button-icon" strokeWidth={1.9} />
+                <span>Back to table</span>
+              </span>
             </Link>
           </div>
         </SectionCard>

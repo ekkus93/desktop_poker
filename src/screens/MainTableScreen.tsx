@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { History, PanelRight, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   getTableView,
@@ -175,16 +176,25 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               onClick={() => setShowSidePanel((current) => !current)}
               type="button"
             >
-              {showSidePanel ? "Hide table details" : "Table details"}
+              <span className="button-content">
+                <PanelRight className="button-icon" strokeWidth={1.9} />
+                <span>{showSidePanel ? "Hide table details" : "Table details"}</span>
+              </span>
             </button>
           </div>
           <div className="button-row">
             <Link className="secondary-button compact-button" to="/history">
-              Hand history
+              <span className="button-content">
+                <History className="button-icon" strokeWidth={1.9} />
+                <span>Hand history</span>
+              </span>
             </Link>
             {tableView?.phaseLabel.toLowerCase().includes("complete") ? (
               <Link className="secondary-button compact-button" to="/complete">
-                Tournament complete
+                <span className="button-content">
+                  <Trophy className="button-icon" strokeWidth={1.9} />
+                  <span>Tournament complete</span>
+                </span>
               </Link>
             ) : null}
           </div>
@@ -507,10 +517,21 @@ function PlayingCard({ card, placeholderLabel, size }: PlayingCardProps) {
     return <div className={`card-slot ${size}`}>{placeholderLabel ?? "Waiting"}</div>;
   }
 
+  const cornerRank = card.compactLabel.replace(card.suitSymbol, "");
+
   return (
     <div className={`playing-card ${size} ${card.tone}`} aria-label={card.label}>
-      <span>{card.compactLabel}</span>
-      <small>{card.label}</small>
+      <div className="playing-card-corner top-left">
+        <span>{card.compactLabel}</span>
+        <small>{card.suitSymbol}</small>
+      </div>
+      <div className="playing-card-center" aria-hidden="true">
+        <span>{card.suitSymbol}</span>
+      </div>
+      <div className="playing-card-corner bottom-right">
+        <span>{cornerRank}</span>
+        <small>{card.suitSymbol}</small>
+      </div>
     </div>
   );
 }

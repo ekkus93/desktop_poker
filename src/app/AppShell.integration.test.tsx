@@ -140,7 +140,7 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Paste payload"), {
+    fireEvent.change(screen.getByLabelText("Paste invite"), {
       target: { value: "pkr1_good" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
@@ -202,7 +202,7 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Paste payload"), {
+    fireEvent.change(screen.getByLabelText("Paste invite"), {
       target: { value: "pkr1_restart" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));
@@ -413,7 +413,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Paste payload"), {
+    fireEvent.change(screen.getByLabelText("Paste invite"), {
       target: { value: "pkr1_bad" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Review invite" }));

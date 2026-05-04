@@ -73,20 +73,20 @@ Status legend:
 	- [x] Remove or heavily demote "This device"
 	- [x] Remove or heavily demote "Join payload status"
 	- [x] Demote saved-state details into a small resume area
-- [ ] Rebuild home around two actions only
-	- [ ] Host Tournament
-	- [ ] Join Tournament
-- [ ] Design a proper resume section
-	- [ ] Show recent session recovery only when it matters
-	- [ ] Show recent payload reuse only when it helps the next step
-	- [ ] Show hand-history shortcut only when saved history exists
-- [ ] Tighten copy on the home screen
-	- [ ] Replace explanation-heavy paragraphs with short action copy
-	- [ ] Remove implementation-specific terminology
-	- [ ] Keep labels voice-first and task-first
-- [ ] Validate the home decision moment
-	- [ ] User can choose Host vs Join immediately
-	- [ ] User does not need to scan multiple support cards before acting
+- [x] Rebuild home around two actions only
+	- [x] Host Tournament
+	- [x] Join Tournament
+- [x] Design a proper resume section
+	- [x] Show recent session recovery only when it matters
+	- [x] Show recent payload reuse only when it helps the next step
+	- [x] Show hand-history shortcut only when saved history exists
+- [x] Tighten copy on the home screen
+	- [x] Replace explanation-heavy paragraphs with short action copy
+	- [x] Remove implementation-specific terminology
+	- [x] Keep labels voice-first and task-first
+- [x] Validate the home decision moment
+	- [x] User can choose Host vs Join immediately
+	- [x] User does not need to scan multiple support cards before acting
 
 ## 5. Make host setup feel like one clean setup flow
 
@@ -126,10 +126,10 @@ Status legend:
 	- [x] Shorten how recent items are presented
 	- [x] Make tapping one feel like a direct reuse action
 	- [x] Keep clear/remove actions secondary
-- [ ] Validate join usability
-	- [ ] A user knows what to paste
-	- [ ] A user knows whether the payload is valid
-	- [ ] A user knows when they can continue
+- [x] Validate join usability
+	- [x] A user knows what to paste
+	- [x] A user knows whether the payload is valid
+	- [x] A user knows when they can continue
 
 ## 7. Make the lobby feel like a table waiting room, not a control panel
 
@@ -268,57 +268,66 @@ Status legend:
 
 ## 14. Simplify copy across the whole app
 
-- [ ] Create a hard copy rule set
-	- [ ] Titles under 5 words when possible
-	- [ ] Helper text one sentence max by default
-	- [ ] Prefer verbs over explanation
-	- [ ] Prefer direct instructions over implementation notes
-- [ ] Audit and shorten every screen lead
-	- [ ] Home
-	- [ ] Host
-	- [ ] Join
-	- [ ] Lobby
-	- [ ] Table
-	- [ ] History
-	- [ ] Complete
-	- [ ] Errors
-- [ ] Remove explanatory duplication
-	- [ ] Do not say the same thing in title, lead, card header, and hint text
-	- [ ] Do not explain visible state more than once
+- [x] Create a hard copy rule set
+	- [x] Titles under 5 words when possible
+	- [x] Helper text one sentence max by default
+	- [x] Prefer verbs over explanation
+	- [x] Prefer direct instructions over implementation notes
+
+Phase 5 copy rules:
+
+- [x] Keep titles under five words unless poker terminology would become unclear.
+- [x] Keep helper text to one sentence by default.
+- [x] Lead with the next action, not the implementation.
+- [x] Say invite instead of payload on player-facing screens.
+- [x] Reserve technical wording for debug-only or internal-review surfaces.
+
+- [x] Audit and shorten every screen lead
+	- [x] Home
+	- [x] Host
+	- [x] Join
+	- [x] Lobby
+	- [x] Table
+	- [x] History
+	- [x] Complete
+	- [x] Errors
+- [x] Remove explanatory duplication
+	- [x] Do not say the same thing in title, lead, card header, and hint text
+	- [x] Do not explain visible state more than once
 
 ## 15. Improve controls, affordances, and interaction density
 
-- [ ] Tighten button hierarchy
-	- [ ] One primary button style used for real primary actions only
-	- [ ] Ghost and secondary buttons reserved for lower-priority actions
-	- [ ] Disabled primary buttons must always have a visible reason nearby
-- [ ] Reduce too many buttons in one row
-	- [ ] Home
-	- [ ] Host
-	- [ ] Table
-	- [ ] Error states
-- [ ] Improve form ergonomics
-	- [ ] Inputs align cleanly
-	- [ ] Labels stay short
-	- [ ] Validation states are local and immediate
-	- [ ] Advanced settings stay collapsed until requested
+- [x] Tighten button hierarchy
+	- [x] One primary button style used for real primary actions only
+	- [x] Ghost and secondary buttons reserved for lower-priority actions
+	- [x] Disabled primary buttons must always have a visible reason nearby
+- [x] Reduce too many buttons in one row
+	- [x] Home
+	- [x] Host
+	- [x] Table
+	- [x] Error states
+- [x] Improve form ergonomics
+	- [x] Inputs align cleanly
+	- [x] Labels stay short
+	- [x] Validation states are local and immediate
+	- [x] Advanced settings stay collapsed until requested
 
 ## 16. Improve visual design so it feels like a game product
 
-- [ ] Refine overall look and feel
-	- [ ] Make the shell feel less like a dashboard
-	- [ ] Increase table presence relative to navigation chrome
-	- [ ] Reduce visual weight of secondary panels
-- [ ] Refine typography
-	- [ ] Clear scale for page title, section title, body, helper text
-	- [ ] Reduce amount of small, low-contrast copy used for real decisions
-- [ ] Refine spacing and grouping
-	- [ ] More breathing room around primary actions
-	- [ ] Tighter grouping of related controls
-	- [ ] Clear separation between primary gameplay and supporting info
-- [ ] Refine state color usage
-	- [ ] Success, waiting, warning, error each get one consistent meaning
-	- [ ] Active-turn emphasis should be visually stronger than generic badge color
+- [x] Refine overall look and feel
+	- [x] Make the shell feel less like a dashboard
+	- [x] Increase table presence relative to navigation chrome
+	- [x] Reduce visual weight of secondary panels
+- [x] Refine typography
+	- [x] Clear scale for page title, section title, body, helper text
+	- [x] Reduce amount of small, low-contrast copy used for real decisions
+- [x] Refine spacing and grouping
+	- [x] More breathing room around primary actions
+	- [x] Tighter grouping of related controls
+	- [x] Clear separation between primary gameplay and supporting info
+- [x] Refine state color usage
+	- [x] Success, waiting, warning, error each get one consistent meaning
+	- [x] Active-turn emphasis should be visually stronger than generic badge color
 
 ## 16A. Create a real art direction and asset system
 
@@ -552,7 +561,7 @@ Icon governance rules:
 	- [x] Define compact-card treatment for seat widgets
 	- [x] Define board-card treatment for the center table
 	- [x] Define hidden-card treatment so it looks intentional, not like a placeholder
-	- [ ] Replace text-only card rectangles with actual card art assets or polished vector card components
+	- [x] Replace text-only card rectangles with actual card art assets or polished vector card components
 
 Classic casino card direction:
 
@@ -608,7 +617,7 @@ Chosen table-surface rules:
 - [ ] Define illustration and texture rules
 	- [x] Decide whether to use subtle texture, grain, or none
 	- [x] Decide whether to use chip, dealer-button, or seat-marker graphics
-	- [ ] Avoid gimmicky graphics that reduce clarity
+	- [x] Avoid gimmicky graphics that reduce clarity
 
 Classic casino texture rules:
 
@@ -752,11 +761,11 @@ Screen-level mockup brief stance:
 	- [x] History
 	- [x] Complete
 	- [x] Errors
-- [ ] Phase 5: Polish visual system and copy
-	- [ ] Copy pass
-	- [ ] spacing pass
-	- [ ] button hierarchy pass
-	- [ ] responsive pass
+- [x] Phase 5: Polish visual system and copy
+	- [x] Copy pass
+	- [x] spacing pass
+	- [x] button hierarchy pass
+	- [x] responsive pass
 - [ ] Phase 6: Validate and harden
 	- [ ] UI tests
 	- [ ] manual UX review

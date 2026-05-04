@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, Clock3, LogOut, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { buildParticipantShell } from "../app/shell";
@@ -62,6 +63,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     <span>{seat.label}</span>
                   </div>
                   <span className={`status-badge ${seat.kind === "open" ? "info" : seat.ready ? "success" : "warning"}`}>
+                    {seat.kind === "open" ? <Clock3 className="button-icon" strokeWidth={1.9} /> : seat.ready ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
                     {seatState}
                   </span>
                 </div>
@@ -91,11 +93,17 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           <div className="button-row">
             {canStart ? (
               <Link className="primary-button" to="/table">
-                Start tournament
+                <span className="button-content">
+                  <Play className="button-icon" strokeWidth={1.9} />
+                  <span>Start tournament</span>
+                </span>
               </Link>
             ) : (
               <button className="primary-button" disabled type="button">
-                Start tournament
+                <span className="button-content">
+                  <Play className="button-icon" strokeWidth={1.9} />
+                  <span>Start tournament</span>
+                </span>
               </button>
             )}
             <button
@@ -105,7 +113,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               }}
               type="button"
             >
-              Leave table
+              <span className="button-content">
+                <LogOut className="button-icon" strokeWidth={1.9} />
+                <span>Leave table</span>
+              </span>
             </button>
           </div>
           {!canStart ? (

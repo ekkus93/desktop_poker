@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Flag, History, LogIn, Settings, Wrench } from "lucide-react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -9,6 +10,8 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
     useDesktopShell();
   const hasSavedProgress = recentJoinPayloads.length > 0 || persistedHandHistoryCount > 0;
   const hasLaunchPayload = Boolean(bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError);
+  const hasSavedHistory = persistedHandHistoryCount > 0;
+  const hasSavedInvites = recentJoinPayloads.length > 0 || hasLaunchPayload;
 
   return (
     <ScreenShell
@@ -20,14 +23,23 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
         <SectionCard kicker="Start here" title="Pick your path">
           <div className="button-row">
             <Link className="primary-button" to="/host">
-              Host Tournament
+              <span className="button-content">
+                <Flag className="button-icon" strokeWidth={1.9} />
+                <span>Host Tournament</span>
+              </span>
             </Link>
             <Link className="primary-button ghost-primary-button" to="/join">
-              Join Tournament
+              <span className="button-content">
+                <LogIn className="button-icon" strokeWidth={1.9} />
+                <span>Join Tournament</span>
+              </span>
             </Link>
             {bootstrap.debugToolsEnabled ? (
               <Link className="secondary-button" to="/debug">
-                Internal Tools
+                <span className="button-content">
+                  <Wrench className="button-icon" strokeWidth={1.9} />
+                  <span>Internal Tools</span>
+                </span>
               </Link>
             ) : null}
           </div>
@@ -39,8 +51,8 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
             </article>
             <article className="choice-card">
               <p className="kicker">Join</p>
-              <h3>Paste a payload and sit down</h3>
-              <p>Use a <code>pkr1_</code> payload, confirm the destination, then continue into the lobby.</p>
+              <h3>Paste an invite and sit down</h3>
+              <p>Paste the invite you were given, confirm the table, then continue into the lobby.</p>
             </article>
           </div>
         </SectionCard>
@@ -54,20 +66,38 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                   <p className="field-hint">Saved host draft: {hostDraft.tournamentName}</p>
                 </div>
               </article>
-              <article className="list-panel">
-                <div>
-                  <strong>{persistedHandHistoryCount} saved hand summaries</strong>
-                  <p className="field-hint">Open saved results or jump back into a remembered invite.</p>
-                </div>
-                <div className="button-row">
-                  <Link className="secondary-button" to="/history">
-                    Open Hand History
-                  </Link>
-                  <Link className="secondary-button" to="/join">
-                    Open Join Screen
-                  </Link>
-                </div>
-              </article>
+              {hasSavedHistory ? (
+                <article className="list-panel">
+                  <div>
+                    <strong>{persistedHandHistoryCount} saved hand summaries</strong>
+                    <p className="field-hint">Review the last settled hands from this device.</p>
+                  </div>
+                  <div className="button-row">
+                    <Link className="secondary-button" to="/history">
+                      <span className="button-content">
+                        <History className="button-icon" strokeWidth={1.9} />
+                        <span>Open Hand History</span>
+                      </span>
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
+              {hasSavedInvites ? (
+                <article className="list-panel">
+                  <div>
+                    <strong>Saved invites</strong>
+                    <p className="field-hint">Jump back into a remembered invite or review the latest one.</p>
+                  </div>
+                  <div className="button-row">
+                    <Link className="secondary-button" to="/join">
+                      <span className="button-content">
+                        <LogIn className="button-icon" strokeWidth={1.9} />
+                        <span>Open Join Screen</span>
+                      </span>
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
               {hasLaunchPayload ? (
                 <article className="list-panel">
                   <div>
@@ -80,7 +110,10 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                   </div>
                   <div className="button-row">
                     <Link className="secondary-button" to="/join">
-                      Review Invite
+                      <span className="button-content">
+                        <LogIn className="button-icon" strokeWidth={1.9} />
+                        <span>Review Invite</span>
+                      </span>
                     </Link>
                   </div>
                 </article>
@@ -91,7 +124,10 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
           )}
           <div className="button-row">
             <Link className="secondary-button" to="/rules">
-              Rules and Settings
+              <span className="button-content">
+                <Settings className="button-icon" strokeWidth={1.9} />
+                <span>Rules and Settings</span>
+              </span>
             </Link>
           </div>
         </SectionCard>

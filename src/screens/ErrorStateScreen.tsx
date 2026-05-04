@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { House, RefreshCw, RotateCcw, TriangleAlert, WifiOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { resolveHostLanAddress } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -11,7 +12,7 @@ type ErrorScenario =
   | "reconnect-success"
   | "reconnect-failed"
   | "host-lost"
-  | "invalid-payload"
+  | "invalid-invite"
   | "invalid-lan-ip"
   | "join-failed";
 
@@ -20,7 +21,7 @@ const SCENARIO_LABELS: Record<ErrorScenario, string> = {
   "reconnect-success": "Reconnected",
   "reconnect-failed": "Reconnect failed",
   "host-lost": "Table unavailable",
-  "invalid-payload": "Invalid payload",
+  "invalid-invite": "Invalid invite",
   "invalid-lan-ip": "Host setup blocked",
   "join-failed": "Join failed",
 };
@@ -29,7 +30,7 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
   const { joinPayloadDraft } = useDesktopShell();
   const [hostLanError, setHostLanError] = useState<string | null>(null);
   const [scenario, setScenario] = useState<ErrorScenario>(
-    bootstrap.launchJoinPayloadError ? "invalid-payload" : "reconnecting",
+    bootstrap.launchJoinPayloadError ? "invalid-invite" : "reconnecting",
   );
 
   useEffect(() => {
@@ -68,13 +69,13 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
       "The app could not restore the same session. Rejoin if the game is still available.",
     "host-lost":
       "The host is gone or the table closed. You cannot keep playing from this screen.",
-    "invalid-payload": bootstrap.launchJoinPayloadError
-      ? `The launch payload failed validation: ${bootstrap.launchJoinPayloadError}`
-      : "The payload could not be decoded. Check it and try again.",
+    "invalid-invite": bootstrap.launchJoinPayloadError
+      ? `The shared invite could not be opened: ${bootstrap.launchJoinPayloadError}`
+      : "The invite could not be opened. Check it and try again.",
     "invalid-lan-ip": hostLanError ?? "Hosting requires a reachable LAN IP address.",
     "join-failed": joinPayloadDraft.trim()
-      ? "The payload decoded, but the host did not accept the connection."
-      : "Join failed because there was no valid payload to use.",
+      ? "The invite looked valid, but the host did not accept the connection."
+      : "Join failed because there was no valid invite to use.",
   };
 
   const scenarioAction = {
@@ -82,10 +83,11 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
     "reconnect-success": { primaryLabel: "Open table", primaryTo: "/table", secondaryLabel: "Open history", secondaryTo: "/history" },
     "reconnect-failed": { primaryLabel: "Join tournament", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
     "host-lost": { primaryLabel: "Open history", primaryTo: "/history", secondaryLabel: "Return home", secondaryTo: "/" },
-    "invalid-payload": { primaryLabel: "Fix payload", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
+    "invalid-invite": { primaryLabel: "Fix invite", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
     "invalid-lan-ip": { primaryLabel: "Open host setup", primaryTo: "/host", secondaryLabel: "Return home", secondaryTo: "/" },
     "join-failed": { primaryLabel: "Try joining again", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
   }[scenario];
+  const PrimaryIcon = scenario === "reconnecting" || scenario === "reconnect-success" ? RefreshCw : scenario === "host-lost" ? WifiOff : scenario === "invalid-invite" || scenario === "invalid-lan-ip" ? TriangleAlert : RotateCcw;
 
   return (
     <ScreenShell
@@ -108,10 +110,16 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
           </p>
           <div className="button-row">
             <Link className="primary-button" to={scenarioAction.primaryTo}>
-              {scenarioAction.primaryLabel}
+              <span className="button-content">
+                <PrimaryIcon className="button-icon" strokeWidth={1.9} />
+                <span>{scenarioAction.primaryLabel}</span>
+              </span>
             </Link>
             <Link className="secondary-button" to={scenarioAction.secondaryTo}>
-              {scenarioAction.secondaryLabel}
+              <span className="button-content">
+                <House className="button-icon" strokeWidth={1.9} />
+                <span>{scenarioAction.secondaryLabel}</span>
+              </span>
             </Link>
           </div>
         </SectionCard>
