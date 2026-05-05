@@ -127,4 +127,15 @@ describe("Layout contracts", () => {
     expect(wideBlock).not.toContain(".recovery-grid");
     expect(wideBlock).not.toContain(".help-grid");
   });
+
+  it("keeps the landing topbar and screen header horizontal until the narrower breakpoint", () => {
+    expect(appCss).toMatch(/@media \(max-width: 920px\)\s*\{[\s\S]*?\.topbar\s*\{[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\}[\s\S]*?\.topbar-nav\s*\{[\s\S]*?justify-content:\s*start;[\s\S]*?\}[\s\S]*?\.topbar-meta\s*\{[\s\S]*?justify-items:\s*start;[\s\S]*?\}[\s\S]*?\.screen-header\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?\}[\s\S]*?\}/);
+
+    const wideBreakpointBlock = appCss.match(/@media \(max-width: 1280px\)\s*\{([\s\S]*?)\n\}/);
+    const wideBlock = wideBreakpointBlock?.[1] ?? "";
+    expect(wideBlock).not.toContain(".topbar {");
+    expect(wideBlock).not.toContain(".topbar-nav {");
+    expect(wideBlock).not.toContain(".topbar-meta {");
+    expect(wideBlock).not.toContain(".screen-header {");
+  });
 });

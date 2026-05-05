@@ -129,9 +129,17 @@ button:disabled {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 1.2rem 1.5rem 0;
+  padding: 0.95rem 1.25rem 0;
   height: 100%;
   overflow: hidden;
+}
+
+.landing-frame .screen-copy .kicker {
+  display: none;
+}
+
+.landing-frame .screen-copy {
+  gap: 0.2rem;
 }
 
 .topbar {
@@ -1427,28 +1435,6 @@ code {
     border-bottom: 1px solid rgba(231, 220, 200, 0.16);
   }
 
-  .topbar {
-    grid-template-columns: 1fr;
-    justify-items: start;
-  }
-
-  .topbar-nav {
-    justify-content: start;
-  }
-
-  .topbar-meta {
-    justify-items: start;
-  }
-
-  .landing-frame .content {
-    width: 100%;
-    padding-top: 1.5rem;
-  }
-
-  .screen-header {
-    flex-direction: column;
-  }
-
   .seat-grid,
   .community-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1481,6 +1467,23 @@ code {
 @media (max-width: 920px) {
   .content {
     padding: 1rem;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .topbar-nav {
+    justify-content: start;
+  }
+
+  .topbar-meta {
+    justify-items: start;
+  }
+
+  .screen-header {
+    flex-direction: column;
   }
 
   .pregame-hero-card {
