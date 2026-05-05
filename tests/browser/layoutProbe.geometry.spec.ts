@@ -186,6 +186,27 @@ test.describe("layout probe browser geometry", () => {
     expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight);
   });
 
+  test("keeps the dense 10-seat main table inside the viewport without scroll", async ({ page }) => {
+    await openProbe(page, "table-dense");
+    await expect(page.getByRole("heading", { level: 2, name: "Main Table" })).toBeVisible();
+    await expect(page.locator(".enhanced-seat-grid > :last-child")).toContainText("Seat 10");
+
+    const metrics = await page.evaluate(() => {
+      const tableShell = document.querySelector(".table-screen-shell")?.getBoundingClientRect();
+      const lastSeat = document.querySelector(".enhanced-seat-grid > :last-child")?.getBoundingClientRect();
+      return {
+        viewportHeight: window.innerHeight,
+        scrollHeight: document.documentElement.scrollHeight,
+        tableBottom: tableShell?.bottom ?? 0,
+        lastSeatBottom: lastSeat?.bottom ?? 0,
+      };
+    });
+
+    expect(metrics.lastSeatBottom).toBeLessThanOrEqual(metrics.viewportHeight - 12);
+    expect(metrics.tableBottom).toBeLessThanOrEqual(metrics.viewportHeight);
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight);
+  });
+
   test("keeps the host setup card inside the desktop viewport", async ({ page }) => {
     await openProbe(page, "host");
 

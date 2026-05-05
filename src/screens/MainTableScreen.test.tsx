@@ -34,22 +34,9 @@ describe("MainTableScreen", () => {
     mockedSubmitTableAction.mockReset();
   });
 
-  it("enables the action tray only for the acting local player and keeps observer preview in debug only", async () => {
+  it("enables the action tray only for the acting local player without exposing observer preview controls", async () => {
     const localView = createTableView();
-    const observerView = createTableView({
-      viewerMode: "observer",
-      observerBanner:
-        "Observer mode uses the public projector only: no private hole cards and no actions.",
-      actionTray: null,
-      actionOwnerLabel: "Maya",
-      seats: createTableView().seats.map((seat) =>
-        seat.isLocal ? { ...seat, cardsHidden: true } : seat,
-      ),
-    });
-
-    mockedGetTableView.mockImplementation((viewerMode: TableViewerMode) =>
-      Promise.resolve(viewerMode === "observer" ? observerView : localView),
-    );
+    mockedGetTableView.mockResolvedValue(localView);
 
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     const firstRender = renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
@@ -66,23 +53,28 @@ describe("MainTableScreen", () => {
 
     expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
     firstRender.unmount();
+  });
 
-    const debugBootstrap = createBootstrap({ debugToolsEnabled: true });
-    renderWithProviders(<MainTableScreen bootstrap={debugBootstrap} />, {
-      bootstrap: debugBootstrap,
-    });
+  it("shows an honest pre-start table state instead of fake board cards", async () => {
+    mockedGetTableView.mockResolvedValue(
+      createTableView({
+        phaseLabel: "Ready check",
+        streetLabel: "Waiting",
+        currentHandNumber: null,
+        boardCards: [],
+        actionTray: null,
+        potTotal: 0,
+        actionOwnerLabel: "Waiting for the tournament to start",
+      }),
+    );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Observer preview" }));
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
-    expect(
-      await screen.findByText(/observer mode uses the public projector only/i),
-    ).toBeTruthy();
-    await waitFor(() => {
-      expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
-    });
-    expect(
-      screen.getByText(/public table only/i),
-    ).toBeTruthy();
+    expect(await screen.findByText("Tournament has not started")).toBeTruthy();
+    expect(screen.getByText(/return to the lobby to confirm the table and start the first hand/i)).toBeTruthy();
+    expect(screen.queryByLabelText("Community cards")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
   });
 
   it("reflects public events, history, and standings after settlement", async () => {

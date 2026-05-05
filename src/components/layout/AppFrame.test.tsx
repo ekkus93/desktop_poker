@@ -63,7 +63,7 @@ describe("AppFrame", () => {
     expect(getByRole("link", { name: "Help" })).toBeTruthy();
     expect(getByRole("link", { name: "Settings" })).toBeTruthy();
     expect(getByRole("link", { name: "Lobby" })).toBeTruthy();
-    expect(getByRole("link", { name: "Main Table" })).toBeTruthy();
+    expect(queryByText("Main Table")).toBeNull();
     expect(queryByText("Complete")).toBeNull();
     expect(queryByText("Host")).toBeNull();
     expect(queryByText("Join")).toBeNull();

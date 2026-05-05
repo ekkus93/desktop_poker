@@ -136,7 +136,7 @@ describe("AppShell integration", () => {
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
   });
 
-  it("runs a join-to-table flow through lobby, table, and history", async () => {
+  it("keeps a join flow in the lobby until a real table is running", async () => {
     renderAppShell("/join");
 
     expect(
@@ -163,25 +163,8 @@ describe("AppShell integration", () => {
     expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark seat 2 ready" }));
-
-    expect(
-      screen.getByRole("link", { name: "Start tournament" }),
-    ).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("link", { name: "Start tournament" }));
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
-    ).toBeTruthy();
-    expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("link", { name: "Hand history" }));
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "Hand History" }),
-    ).toBeTruthy();
-    expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
   });
 
   it("keeps host setup blocked until the LAN address resolves", async () => {
@@ -269,13 +252,15 @@ describe("AppShell integration", () => {
       }),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
-    fireEvent.click(screen.getByRole("button", { name: "Mark seat 2 ready" }));
-    fireEvent.click(screen.getByRole("link", { name: "Start tournament" }));
+
+    firstRender.unmount();
+
+    renderAppShell("/table", bootstrap);
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("link", { name: "Tournament complete" }));
+    fireEvent.click(await screen.findByRole("link", { name: "Tournament complete" }));
 
     expect(
       await screen.findByRole("heading", {
@@ -300,13 +285,13 @@ describe("AppShell integration", () => {
     expect(
       screen.getByText(/saved on this device/i),
     ).toBeTruthy();
-    expect(screen.getByText(/host won 210 chip\(s\)\./i)).toBeTruthy();
+    expect(screen.getAllByText(/host won 210 chip\(s\)\./i).length).toBeGreaterThan(0);
     expect(
       Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
     ).toBe(false);
   });
 
-  it("keeps observer preview behind debug mode while preserving table routing", async () => {
+  it("keeps table routing while hiding observer preview controls", async () => {
     const firstRender = renderAppShell(
       "/table",
       createAppBootstrap({ debugToolsEnabled: false }),
@@ -324,12 +309,7 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Observer preview" }));
-
-    expect(
-      await screen.findByText(/observer mode uses the public projector only/i),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: "Hand history" }));
     expect(
@@ -361,7 +341,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
-    expect(await screen.findByText("120 chips")).toBeTruthy();
+    expect(await screen.findByText("Pot 120")).toBeTruthy();
     expect(
       screen.getAllByText(
         (_, element) =>
@@ -439,7 +419,7 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
-    expect(await screen.findByText("120 chips")).toBeTruthy();
+    expect(await screen.findByText("Pot 120")).toBeTruthy();
     expect(
       screen.getAllByText(
         (_, element) =>

@@ -18,15 +18,15 @@ import type { ScreenProps } from "./types";
 const BOARD_SLOT_COUNT = 5;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
+  void bootstrap;
   const { displayName, persistHandHistory } = useDesktopShell();
-  const [viewerMode, setViewerMode] = useState<TableViewerMode>("local");
+  const viewerMode: TableViewerMode = "local";
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(false);
-  const [openSeatIndex, setOpenSeatIndex] = useState<number | null>(null);
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
   const [confirmation, setConfirmation] = useState<
     { actionKind: "betOrRaise" | "allIn"; label: string } | null
@@ -92,7 +92,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   }, [tableView]);
 
   const quickSizes = useMemo(() => buildQuickSizes(tableView?.actionTray), [tableView]);
-  const activeViewerMode = tableView?.viewerMode ?? viewerMode;
+  const handStarted = tableView?.currentHandNumber !== null;
+  const denseSeatMap = (tableView?.seats.length ?? 0) > 6;
 
   const submitAction = async (
     actionKind: DesktopTableActionKind,
@@ -147,30 +148,12 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Main Table"
-      badges={[tableView?.blindLevelLabel ?? "Loading table"]}
+      badges={[handStarted ? tableView?.blindLevelLabel ?? "Loading table" : tableView?.phaseLabel ?? "Loading table"]}
       className="table-screen-layout"
     >
-      <div className="table-screen-shell">
+      <div className={`table-screen-shell ${denseSeatMap ? "dense-table-screen-shell" : ""}`}>
         <div className="table-top-row">
           <div className="button-row">
-            {bootstrap.debugToolsEnabled ? (
-              <>
-                <button
-                  className={viewerMode === "local" ? "primary-button compact-button" : "secondary-button compact-button"}
-                  onClick={() => setViewerMode("local")}
-                  type="button"
-                >
-                  Player preview
-                </button>
-                <button
-                  className={viewerMode === "observer" ? "primary-button compact-button" : "secondary-button compact-button"}
-                  onClick={() => setViewerMode("observer")}
-                  type="button"
-                >
-                  Observer preview
-                </button>
-              </>
-            ) : null}
             <button
               className="secondary-button compact-button"
               onClick={() => setShowSidePanel((current) => !current)}
@@ -222,16 +205,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
         {tableView ? (
           <div className={`desktop-table-layout ${showSidePanel ? "with-side-panel" : ""}`}>
-            <div className="table-main-column">
-              <section className="table-surface enhanced-table-surface">
+            <div className={`table-main-column ${denseSeatMap ? "dense-table-main-column" : ""}`}>
+              <section className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}>
                 <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
-                  <p className="kicker">{activeViewerMode === "observer" ? "Observing" : tableView.actionTray ? "Your move" : "Waiting"}</p>
+                  <p className="kicker">{handStarted ? (tableView.actionTray ? "Your move" : "Waiting") : "Not started"}</p>
                   <h3>
-                    {activeViewerMode === "observer"
-                      ? "Public table"
-                      : tableView.actionTray
+                    {handStarted
+                      ? tableView.actionTray
                         ? `${tableView.actionTray.ownerLabel} to act`
-                        : tableView.actionOwnerLabel}
+                        : tableView.actionOwnerLabel
+                      : "Tournament has not started"}
                   </h3>
                 </div>
 
@@ -257,31 +240,44 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   </div>
                 ) : null}
 
-                <div className="table-summary-row">
-                  <div className="pot-summary-card">
-                    <span className="surface-label">Pot</span>
-                    <strong>{tableView.potTotal} chips</strong>
-                  </div>
-                  <div className="pot-summary-card action-owner-card">
-                    <span className="surface-label">Action</span>
-                    <strong>{tableView.actionOwnerLabel}</strong>
-                  </div>
-                  <div className="pot-summary-card elimination-card">
-                    <span className="surface-label">Table note</span>
-                    <strong>{tableView.eliminationSummary}</strong>
-                  </div>
-                </div>
+                {handStarted ? (
+                  <>
+                    {denseSeatMap ? (
+                      <p className="field-hint dense-table-note">
+                        Action: {tableView.actionOwnerLabel}. {tableView.eliminationSummary}
+                      </p>
+                    ) : (
+                      <div className="table-summary-row">
+                        <div className="pot-summary-card">
+                          <span className="surface-label">Pot</span>
+                          <strong>{tableView.potTotal} chips</strong>
+                        </div>
+                        <div className="pot-summary-card action-owner-card">
+                          <span className="surface-label">Action</span>
+                          <strong>{tableView.actionOwnerLabel}</strong>
+                        </div>
+                        <div className="pot-summary-card elimination-card">
+                          <span className="surface-label">Table note</span>
+                          <strong>{tableView.eliminationSummary}</strong>
+                        </div>
+                      </div>
+                    )}
 
-                <div className="community-cards centered-community-cards" aria-label="Community cards">
-                  {boardCards.map((card, index) => (
-                    <PlayingCard key={index} card={card} placeholderLabel={`Board ${index + 1}`} size="board" />
-                  ))}
-                </div>
+                    <div className="community-cards centered-community-cards" aria-label="Community cards">
+                      {boardCards.map((card, index) => (
+                        <PlayingCard key={index} card={card} placeholderLabel={`Board ${index + 1}`} size="board" />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <SectionCard title="Before the first hand">
+                    <p>Return to the Lobby to confirm the table and start the first hand. This page represents the live hand view once cards are actually in play.</p>
+                  </SectionCard>
+                )}
 
                 <div className="seat-grid enhanced-seat-grid">
                   {tableView.seats.map((seat) => {
-                    const seatLabel = seat.isLocal && activeViewerMode === "local" ? `${displayName} (you)` : seat.displayName;
-                    const isOpen = openSeatIndex === seat.seatIndex;
+                    const seatLabel = seat.isLocal ? `${displayName} (you)` : seat.displayName;
                     return (
                       <article
                         key={seat.seatIndex}
@@ -315,22 +311,13 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                             </div>
                           )}
                         </div>
-                        <button
-                          className="secondary-button compact-button"
-                          onClick={() => setOpenSeatIndex(isOpen ? null : seat.seatIndex)}
-                          type="button"
-                        >
-                          {isOpen ? "Hide" : "Seat notes"}
-                        </button>
-                        {isOpen ? (
-                          <div className="seat-popover" role="note">
-                            {seat.detailLines.map((line) => (
-                              <p key={line} className="field-hint">
-                                {line}
-                              </p>
-                            ))}
-                          </div>
-                        ) : null}
+                        <div className="seat-notes-inline" role="note">
+                          {seat.detailLines.slice(0, 1).map((line) => (
+                            <p key={line} className="field-hint">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
                       </article>
                     );
                   })}
@@ -434,9 +421,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               ) : (
                 <SectionCard kicker="Action" title="Waiting" className="table-action-card">
                   <p>
-                    {activeViewerMode === "observer"
-                      ? "Public table only."
-                      : "Waiting for the next action from the host."}
+                    {handStarted
+                      ? "Waiting for the next action from the host."
+                      : "No hand is running yet."}
                   </p>
                 </SectionCard>
               )}
@@ -450,7 +437,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       <article key={`${entry.rank}-${entry.displayName}`} className="list-panel standings-row">
                         <div>
                           <strong>
-                            #{entry.rank} {entry.isLocal && activeViewerMode === "local" ? `${displayName} (you)` : entry.displayName}
+                            #{entry.rank} {entry.isLocal ? `${displayName} (you)` : entry.displayName}
                           </strong>
                           <p className="field-hint">
                             {entry.chipCount ?? 0} chips · {entry.statusLabel}

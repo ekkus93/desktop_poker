@@ -8,9 +8,11 @@ use std::{
 use dirs::data_local_dir;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+use crate::engine::Deck;
+
 use crate::{
     crypto, domain, engine,
-    engine::Deck,
     interop, networking, protocol, storage, tournament,
     tournament::{ActionRequest, RegisteredPlayer, TournamentController},
 };
@@ -20,8 +22,7 @@ pub const JOIN_PAYLOAD_ENV_VAR: &str = "DESKTOP_POKER_JOIN_PAYLOAD";
 const INSTANCE_ID_ARG: &str = "--instance-id";
 const JOIN_PAYLOAD_ARG: &str = "--join-payload";
 const LOCAL_PLAYER_ID: &str = "local-player";
-const OBSERVER_DISPLAY_NAME: &str = "Riley";
-const OBSERVER_SEAT_INDEX: u8 = 5;
+const RESERVED_PLAYER_ID: &str = "reserved-player";
 const DEFAULT_INSTANCE_LABEL: &str = "default";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -533,12 +534,7 @@ struct DesktopTableRuntime {
 
 impl DesktopTableRuntime {
     fn new() -> Result<Self, String> {
-        let mut controller = demo_controller().map_err(|error| error.to_string())?;
-        let demo_deck = stacked_demo_deck().map_err(|error| error.to_string())?;
-        controller.set_next_deck(demo_deck);
-        controller
-            .start_tournament(1)
-            .map_err(|error| error.to_string())?;
+        let controller = demo_controller().map_err(|error| error.to_string())?;
 
         let mut runtime = Self {
             controller,
@@ -554,7 +550,6 @@ impl DesktopTableRuntime {
             "runtime",
             "Desktop table runtime initialized from the Rust tournament controller.",
         );
-        runtime.drive_to_interesting_local_turn()?;
         runtime.sync_log_markers();
         Ok(runtime)
     }
@@ -593,9 +588,30 @@ impl DesktopTableRuntime {
             "Observer mode uses the public projector only: no private hole cards and no actions."
                 .to_string()
         });
-        let elimination_summary = format!(
-            "{OBSERVER_DISPLAY_NAME} busted on hand 8 and now remains at the table as a public-only observer."
-        );
+        let elimination_summary = if public_state.phase == domain::TournamentPhase::WaitingForPlayers
+        {
+            "Waiting for the first real hand to start.".to_string()
+        } else if public_state.phase == domain::TournamentPhase::ReadyCheck {
+            "Waiting for every seated player to be ready.".to_string()
+        } else {
+            self.controller
+                .state()
+                .hand_results
+                .last()
+                .map(|result| {
+                    format!(
+                        "{} won {} chip(s).",
+                        display_names_for_state(self.controller.state(), &result.winning_player_ids)
+                            .join(", "),
+                        result
+                            .pot_summaries
+                            .iter()
+                            .map(|summary| summary.amount)
+                            .sum::<u32>()
+                    )
+                })
+                .unwrap_or_else(|| "Table state is live.".to_string())
+        };
 
         Ok(TableViewSnapshot {
             viewer_mode,
@@ -749,29 +765,6 @@ impl DesktopTableRuntime {
         })
     }
 
-    fn drive_to_interesting_local_turn(&mut self) -> Result<(), String> {
-        for _ in 0..24 {
-            self.sync_log_markers();
-            let current_hand = self
-                .controller
-                .state()
-                .current_hand
-                .as_ref()
-                .ok_or_else(|| "current hand missing".to_string())?;
-            if current_hand.board_cards.len() >= 3
-                && current_hand
-                    .action_window
-                    .as_ref()
-                    .is_some_and(|window| window.player_id == LOCAL_PLAYER_ID)
-            {
-                return Ok(());
-            }
-            self.auto_play_single_actor()?;
-        }
-
-        Ok(())
-    }
-
     fn auto_play_opponents(&mut self) -> Result<(), String> {
         for _ in 0..48 {
             self.sync_log_markers();
@@ -855,34 +848,11 @@ impl DesktopTableRuntime {
             .iter()
             .map(|seat| {
                 if seat.occupancy == domain::SeatOccupancyState::Empty {
-                    if seat.seat_index == OBSERVER_SEAT_INDEX {
-                        return Ok(TableSeatView {
-                            seat_index: seat.seat_index + 1,
-                            display_name: OBSERVER_DISPLAY_NAME.to_string(),
-                            chip_count: Some(0),
-                            status_label: "Eliminated observer".to_string(),
-                            marker_label: Some("Observer".to_string()),
-                            contribution: 0,
-                            is_local: false,
-                            is_acting: false,
-                            is_observer: true,
-                            is_eliminated: true,
-                            is_compact: true,
-                            cards_hidden: true,
-                            hole_cards: Vec::new(),
-                            detail_lines: vec![
-                                "Busted on hand 8 after finishing 4th.".to_string(),
-                                "Observer seats remain public-only and never regain action authority."
-                                    .to_string(),
-                            ],
-                        });
-                    }
-
                     return Ok(TableSeatView {
                         seat_index: seat.seat_index + 1,
                         display_name: "Open seat".to_string(),
                         chip_count: None,
-                        status_label: "Waiting for a LAN participant".to_string(),
+                        status_label: "Open".to_string(),
                         marker_label: None,
                         contribution: 0,
                         is_local: false,
@@ -892,7 +862,7 @@ impl DesktopTableRuntime {
                         is_compact: true,
                         cards_hidden: true,
                         hole_cards: Vec::new(),
-                        detail_lines: vec!["Available for a real join payload or reconnect path.".to_string()],
+                        detail_lines: vec!["Available for another player to join.".to_string()],
                     });
                 }
 
@@ -925,6 +895,27 @@ impl DesktopTableRuntime {
                     .participants
                     .get(player_id)
                     .ok_or_else(|| "participant missing from registry".to_string())?;
+
+                if player_id == RESERVED_PLAYER_ID {
+                    return Ok(TableSeatView {
+                        seat_index: seat.seat_index + 1,
+                        display_name: "Waiting for player".to_string(),
+                        chip_count: None,
+                        status_label: "Reserved".to_string(),
+                        marker_label: None,
+                        contribution: 0,
+                        is_local: false,
+                        is_acting: false,
+                        is_observer: false,
+                        is_eliminated: false,
+                        is_compact: true,
+                        cards_hidden: true,
+                        hole_cards: Vec::new(),
+                        detail_lines: vec![
+                            "Placeholder seat until another real player joins.".to_string(),
+                        ],
+                    });
+                }
 
                 Ok(TableSeatView {
                     seat_index: seat.seat_index + 1,
@@ -965,7 +956,10 @@ impl DesktopTableRuntime {
             .state()
             .seats
             .iter()
-            .filter(|seat| seat.occupancy == domain::SeatOccupancyState::Occupied)
+            .filter(|seat| {
+                seat.occupancy == domain::SeatOccupancyState::Occupied
+                    && seat.participant_id.as_deref() != Some(RESERVED_PLAYER_ID)
+            })
             .map(|seat| TableStandingView {
                 rank: 0,
                 display_name: seat
@@ -979,15 +973,6 @@ impl DesktopTableRuntime {
                 is_observer: false,
             })
             .collect::<Vec<_>>();
-        standings.push(TableStandingView {
-            rank: 0,
-            display_name: OBSERVER_DISPLAY_NAME.to_string(),
-            chip_count: Some(0),
-            status_label: "Eliminated observer".to_string(),
-            note: Some("Busted on hand 8".to_string()),
-            is_local: false,
-            is_observer: true,
-        });
         standings.sort_by(|left, right| {
             right
                 .chip_count
@@ -1170,9 +1155,8 @@ fn demo_controller() -> Result<TournamentController, tournament::TournamentError
             },
         },
         vec![
-            registered_player("host-player", "Host", 0, true),
-            registered_player(LOCAL_PLAYER_ID, "You", 1, false),
-            registered_player("guest-player", "Maya", 2, false),
+            registered_player(LOCAL_PLAYER_ID, "You", 0, true),
+            registered_player(RESERVED_PLAYER_ID, "Reserved seat", 1, false),
         ],
     )
 }
@@ -1197,6 +1181,7 @@ fn registered_player(
     }
 }
 
+#[cfg(test)]
 fn stacked_demo_deck() -> Result<Deck, engine::EngineError> {
     let prefix = vec![
         card(domain::Rank::King, domain::Suit::Hearts),
@@ -1222,6 +1207,7 @@ fn stacked_demo_deck() -> Result<Deck, engine::EngineError> {
     Deck::from_cards(cards)
 }
 
+#[cfg(test)]
 fn card(rank: domain::Rank, suit: domain::Suit) -> domain::Card {
     domain::Card { rank, suit }
 }
@@ -1502,9 +1488,11 @@ mod tests {
             .table_view(TableViewerMode::Observer)
             .expect("observer view");
 
-        assert!(local_view.action_tray.is_some());
+        assert!(local_view.action_tray.is_none());
         assert!(observer_view.action_tray.is_none());
         assert!(observer_view.observer_banner.is_some());
+        assert_eq!(local_view.phase_label, "Ready check");
+        assert!(local_view.board_cards.is_empty());
         assert!(local_view
             .seats
             .iter()
@@ -1515,6 +1503,7 @@ mod tests {
             .iter()
             .find(|seat| seat.is_local)
             .is_some_and(|seat| seat.cards_hidden));
+        assert!(local_view.seats.iter().all(|seat| seat.display_name != "Riley"));
     }
 
     #[test]
@@ -1526,20 +1515,15 @@ mod tests {
             .hand_history
             .len();
 
-        for _ in 0..3 {
-            state
-                .submit_table_action(
-                    TableViewerMode::Local,
-                    DesktopTableActionKind::CheckOrCall,
-                    None,
-                )
-                .expect("check or call should succeed");
-        }
+        let result = state.submit_table_action(
+            TableViewerMode::Local,
+            DesktopTableActionKind::CheckOrCall,
+            None,
+        );
 
-        let updated_view = state
-            .table_view(TableViewerMode::Local)
-            .expect("updated view");
-        assert!(updated_view.hand_history.len() > initial_history_len);
+        assert!(result.is_err());
+        let updated_view = state.table_view(TableViewerMode::Local).expect("updated view");
+        assert_eq!(updated_view.hand_history.len(), initial_history_len);
         assert!(!updated_view.event_feed.is_empty());
     }
 

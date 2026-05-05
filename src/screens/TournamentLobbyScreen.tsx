@@ -16,12 +16,14 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     readySeats,
     recentJoinPayloads,
   );
-  const activeSeats = participants.filter((seat) => seat.kind !== "open");
-  const canStart = activeSeats.length >= 2 && activeSeats.every((seat) => seat.ready);
+  const activeSeats = participants.filter((seat) => seat.kind === "host");
+  const canStart = false;
   const localSeat = participants.find((seat) => seat.isLocal);
   const localSeatReady = localSeat?.ready ?? false;
   const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
   const openSeatCount = hostDraft.maxPlayers - activeSeats.length;
+  const leaveTitle = localSeat?.kind === "host" ? "Close this table?" : "Leave this table?";
+  const leaveActionLabel = localSeat?.kind === "host" ? "Close table" : "Leave table";
 
   return (
     <ScreenShell
@@ -85,7 +87,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <LogOut className="button-icon" strokeWidth={1.9} />
-                    <span>Leave table</span>
+                    <span>{leaveActionLabel}</span>
                   </span>
                 </button>
               </div>
@@ -93,9 +95,6 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             <div className="seat-grid lobby-seat-grid">
               {participants.map((seat) => {
                 const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
-                const seatReadyButtonLabel = seat.ready
-                  ? `Mark seat ${seat.seatIndex} not ready`
-                  : `Mark seat ${seat.seatIndex} ready`;
 
                 return (
                   <article
@@ -113,17 +112,6 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                       </span>
                     </div>
                     {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
-                    {seat.isLocal ? null : seat.kind !== "open" && bootstrap.debugToolsEnabled ? (
-                      <button
-                        className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
-                        onClick={() => {
-                          toggleSeatReady(seat.seatIndex);
-                        }}
-                        type="button"
-                      >
-                        {seatReadyButtonLabel}
-                      </button>
-                    ) : null}
                   </article>
                 );
               })}
@@ -133,11 +121,11 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       </div>
       {showLeaveFlow ? (
         <section className="dialog-card">
-          <p className="kicker">Leave</p>
-          <h3>Leave this lobby?</h3>
+          <p className="kicker">{localSeat?.kind === "host" ? "Close" : "Leave"}</p>
+          <h3>{leaveTitle}</h3>
           <div className="button-row">
             <Link className="primary-button" to="/">
-              Leave table
+              {leaveActionLabel}
             </Link>
             <button
               className="secondary-button"
@@ -146,7 +134,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               }}
               type="button"
             >
-              Stay in lobby
+              Stay here
             </button>
           </div>
         </section>

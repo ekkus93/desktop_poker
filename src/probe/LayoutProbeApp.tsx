@@ -26,6 +26,7 @@ type ProbeSurface =
   | "join"
   | "lobby"
   | "table"
+  | "table-dense"
   | "history"
   | "help"
   | "settings"
@@ -181,9 +182,96 @@ function createProbeTableView(): TableViewSnapshot {
   };
 }
 
-function installBrowserMocks(bootstrap: DesktopBootstrapState) {
+function createDenseProbeTableView(): TableViewSnapshot {
+  const seats = Array.from({ length: 10 }, (_, index) => {
+    const seatIndex = index + 1;
+    const isLocal = seatIndex === 1;
+    const compactCards = isLocal
+      ? [
+          { label: "Ace of spades", compactLabel: "A♠", suitSymbol: "♠", tone: "dark" as const },
+          { label: "Queen of spades", compactLabel: "Q♠", suitSymbol: "♠", tone: "dark" as const },
+        ]
+      : [];
+
+    return {
+      seatIndex,
+      displayName: isLocal ? "You" : `Seat ${seatIndex}`,
+      chipCount: 1200 + (10 - seatIndex) * 25,
+      statusLabel: seatIndex === 4 ? "All-in" : "Active",
+      markerLabel: seatIndex === 1 ? "Dealer" : seatIndex === 2 ? "Small blind" : seatIndex === 3 ? "Big blind" : null,
+      contribution: seatIndex <= 4 ? 20 * seatIndex : 0,
+      isLocal,
+      isActing: isLocal,
+      isObserver: false,
+      isEliminated: false,
+      isCompact: !isLocal,
+      cardsHidden: !isLocal,
+      holeCards: compactCards,
+      detailLines: [isLocal ? "Probe local player" : `Remote player ${seatIndex}`],
+    };
+  });
+
+  return {
+    viewerMode: "local",
+    tournamentName: "Desktop Sit 'n Go layout-probe",
+    tableName: "Main Table",
+    tableId: "layout-probe-table-dense",
+    phaseLabel: "Running",
+    streetLabel: "Turn",
+    blindLevelLabel: "Level 3 · 50 / 100",
+    currentHandNumber: 18,
+    boardCards: [
+      { label: "Ace of hearts", compactLabel: "A♥", suitSymbol: "♥", tone: "red" },
+      { label: "King of clubs", compactLabel: "K♣", suitSymbol: "♣", tone: "dark" },
+      { label: "Ten of diamonds", compactLabel: "10♦", suitSymbol: "♦", tone: "red" },
+      { label: "Five of spades", compactLabel: "5♠", suitSymbol: "♠", tone: "dark" },
+    ],
+    potTotal: 860,
+    actionOwnerLabel: "You",
+    eliminationSummary: "Ten seats active. One player is all-in.",
+    observerBanner: null,
+    seats,
+    standings: seats.map((seat, index) => ({
+      rank: index + 1,
+      displayName: seat.displayName,
+      chipCount: seat.chipCount,
+      statusLabel: seat.statusLabel,
+      note: null,
+      isLocal: seat.isLocal,
+      isObserver: false,
+    })),
+    handHistory: [
+      {
+        handNumber: 17,
+        summary: "You won 860 chip(s).",
+        potTotal: 860,
+        winningPlayers: ["You"],
+        eliminatedPlayers: [],
+        boardCards: [],
+      },
+    ],
+    eventFeed: [
+      { sequence: 38, kind: "public-event", message: "The turn was published to every seat and observer." },
+      { sequence: 39, kind: "public-event", message: "Seat 4 is all-in for 315 chips." },
+    ],
+    actionTray: {
+      ownerLabel: "You",
+      checkOrCallLabel: "Call 100",
+      betOrRaiseLabel: "Raise",
+      callAmount: 100,
+      currentBet: 100,
+      potTotal: 860,
+      minRaiseTo: 200,
+      maxRaiseTo: 600,
+      deadlineEpochMs: Date.now() + 60_000,
+      legalActions: ["fold", "checkOrCall", "betOrRaise", "allIn"],
+    },
+  };
+}
+
+function installBrowserMocks(bootstrap: DesktopBootstrapState, surface: ProbeSurface) {
   const joinPayload = createProbeJoinPayload();
-  const tableView = createProbeTableView();
+  const tableView = surface === "table-dense" ? createDenseProbeTableView() : createProbeTableView();
   const noopUnsubscribe = async () => () => {};
 
   window.__DESKTOP_POKER_BROWSER_MOCKS__ = {
@@ -236,6 +324,7 @@ function renderProbeSurface(surface: ProbeSurface, bootstrap: DesktopBootstrapSt
     case "lobby":
       return <TournamentLobbyScreen bootstrap={bootstrap} />;
     case "table":
+    case "table-dense":
       return <MainTableScreen bootstrap={bootstrap} />;
     case "history":
       return <HandHistoryScreen bootstrap={bootstrap} />;
@@ -254,7 +343,7 @@ function renderProbeSurface(surface: ProbeSurface, bootstrap: DesktopBootstrapSt
 
 export function LayoutProbeApp({ surface }: { surface: string }) {
   const bootstrap = createProbeBootstrap();
-  installBrowserMocks(bootstrap);
+  installBrowserMocks(bootstrap, surface as ProbeSurface);
   if (surface !== "home-empty") {
     seedProbeShellState(
       bootstrap,
