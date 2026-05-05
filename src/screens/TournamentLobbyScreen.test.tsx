@@ -15,11 +15,12 @@ describe("TournamentLobbyScreen", () => {
 
     expect(screen.queryByText("2/2 ready")).toBeNull();
     expect(screen.getByText("0/2 ready")).toBeTruthy();
-    expect(screen.getByText(/mark players ready\. start when everyone you need is ready\./i)).toBeTruthy();
+    expect(screen.getByText(/this page is only for confirming who is playing, marking yourself ready, and starting the first hand\./i)).toBeTruthy();
     expect(screen.getByText("You: Waiting")).toBeTruthy();
     expect(screen.getByText("2 waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark ready" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Host marks ready" })).toBeNull();
+    expect(screen.getByText(/your ready button is in the action panel\./i)).toBeTruthy();
     expect(screen.getByText(/waiting on player readiness/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
   });
@@ -35,12 +36,12 @@ describe("TournamentLobbyScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
     fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
 
-    expect(screen.getByText(/pending seats use host-controlled ready toggles in debug mode/i)).toBeTruthy();
+    expect(screen.getByText(/debug mode can mark the other seated players ready from the roster/i)).toBeTruthy();
 
-    expect(screen.getByText("Ready to start")).toBeTruthy();
+    expect(screen.getByText("Everyone seated is ready. Start the first hand whenever you want.")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Start tournament" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Leave table" })).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 3, name: "Players at the table" })).toBeTruthy();
+    expect(screen.getByText("Players at the table")).toBeTruthy();
   });
 
   it("tracks the local ready badge without relying on display text matching", () => {

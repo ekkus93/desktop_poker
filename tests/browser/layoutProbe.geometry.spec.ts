@@ -190,15 +190,15 @@ test.describe("layout probe browser geometry", () => {
 
     await openProbe(page, "lobby");
 
-    const lobbyBrief = await getRect(page.locator(".lobby-brief-card"));
-    const lobbyRoster = await getRect(page.locator(".lobby-roster-card"));
-    expectRightColumn(lobbyBrief, lobbyRoster);
+    const lobbyActions = await getRect(page.locator(".lobby-stage-grid > :first-child"));
+    const lobbyRoster = await getRect(page.locator(".lobby-stage-grid > :nth-child(2)"));
+    expectRightColumn(lobbyActions, lobbyRoster);
 
     const lobbyMetrics = await page.evaluate(() => ({
       viewportHeight: window.innerHeight,
       scrollHeight: document.documentElement.scrollHeight,
       cardBottom:
-        document.querySelector(".workstation-main-card")?.getBoundingClientRect().bottom ?? 0,
+        document.querySelector(".lobby-stage-card")?.getBoundingClientRect().bottom ?? 0,
     }));
 
     expect(lobbyMetrics.cardBottom).toBeLessThanOrEqual(lobbyMetrics.viewportHeight - 16);

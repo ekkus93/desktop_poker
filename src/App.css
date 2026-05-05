@@ -728,13 +728,8 @@ dt {
   gap: 0.65rem;
 }
 
-.lobby-content-grid {
-  align-items: start;
-  grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
-}
-
-.lobby-brief-card,
-.lobby-roster-card {
+.lobby-shell-grid,
+.lobby-stage-card {
   align-content: start;
 }
 
@@ -743,18 +738,31 @@ dt {
   font-size: 1rem;
 }
 
-.lobby-summary-grid {
+.lobby-stage-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.8rem;
 }
 
-.compact-lobby-progress {
-  align-content: start;
-  min-height: 0;
+.compact-lobby-list {
+  gap: 0.65rem;
 }
 
-.compact-lobby-list {
+.lobby-action-panel,
+.lobby-roster-panel {
+  align-content: start;
+}
+
+.lobby-roster-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.lobby-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.65rem;
 }
 
@@ -771,8 +779,8 @@ dt {
   gap: 0.5rem;
 }
 
-.setup-grid-row-full {
-  grid-template-columns: 1fr;
+.setup-grid-field-span-2 {
+  grid-column: 1 / -1;
 }
 
 .workstation-actions > .primary-button,
@@ -1520,7 +1528,8 @@ code {
 
 @media (max-width: 1100px) {
   .home-stage.has-recovery,
-  .lobby-content-grid,
+  .lobby-stage-grid,
+  .lobby-roster-grid,
   .history-station-layout,
   .complete-grid,
   .recovery-grid,
@@ -1537,7 +1546,20 @@ code {
 
   .setup-grid-row,
   .host-summary-grid,
-  .lobby-summary-grid {
+  .lobby-roster-head {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-roster-head {
+    display: grid;
+  }
+
+  .lobby-stage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-roster-grid,
+  .host-summary-grid {
     grid-template-columns: 1fr;
   }
 

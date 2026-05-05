@@ -65,6 +65,20 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!copyState) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCopyState(null);
+    }, 2400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [copyState]);
+
   const shareText = buildHostShareText(
     bootstrap,
     hostDraft,
@@ -116,8 +130,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         >
           <div className="workstation-grid">
             <div className="host-setup-form">
-              <div className="setup-grid-row setup-grid-row-full">
-                <label className="field">
+              <div className="setup-grid-row">
+                <label className="field setup-grid-field-span-2">
                   Tournament name
                   <input
                     onChange={handleTextField("tournamentName")}
@@ -163,8 +177,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 </label>
               </div>
 
-              <div className="setup-grid-row compact-advanced-panel setup-grid-row-full">
-                <label className="field">
+              <div className="setup-grid-row compact-advanced-panel">
+                <label className="field setup-grid-field-span-2">
                   Blind preset
                   <select
                     onChange={(event) => {
@@ -178,9 +192,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                       </option>
                     ))}
                   </select>
-                  <span className="field-hint">
-                    {describeBlindOpening(blindPreset.firstLevel)}.
-                  </span>
                 </label>
               </div>
 
