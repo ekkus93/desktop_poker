@@ -65,7 +65,7 @@ Recovery and reconnect states appear only when needed, and debug or multi-instan
 ### Required toolchains
 
 - Rust stable toolchain
-- Node.js 22+ and npm
+- Node.js 24 and npm
 - Tauri CLI (installed through the project `devDependencies`)
 
 ### Linux prerequisites for Tauri
@@ -97,6 +97,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -
 cargo test --manifest-path src-tauri/Cargo.toml
 npm run lint
 npm run test
+npm run test:geometry
 npm run tauri dev
 ```
 

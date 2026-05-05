@@ -1,6 +1,37 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
+type DesktopBrowserMocks = {
+  fetchBootstrapState?: () => Promise<DesktopBootstrapState>;
+  subscribeBootstrap?: (
+    onBootstrap: (bootstrap: DesktopBootstrapState) => void,
+  ) => Promise<() => void>;
+  validateJoinPayloadInput?: (payload: string) => Promise<JoinPayload>;
+  resolveHostLanAddress?: () => Promise<string>;
+  getTableView?: (viewerMode: TableViewerMode) => Promise<TableViewSnapshot>;
+  submitTableAction?: (
+    viewerMode: TableViewerMode,
+    actionKind: DesktopTableActionKind,
+    raiseToAmount?: number,
+  ) => Promise<TableViewSnapshot>;
+  getDebugState?: (viewerMode: TableViewerMode) => Promise<DebugInspectorState>;
+  launchAdditionalClientInstance?: (joinPayload?: string | null) => Promise<string>;
+};
+
+declare global {
+  interface Window {
+    __DESKTOP_POKER_BROWSER_MOCKS__?: DesktopBrowserMocks;
+  }
+}
+
+function getBrowserMocks() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return window.__DESKTOP_POKER_BROWSER_MOCKS__;
+}
+
 export type BackendModuleDescriptor = {
   name: string;
   responsibility: string;
@@ -152,26 +183,51 @@ export type DebugInspectorState = {
 const BOOTSTRAP_EVENT = "desktop://bootstrap";
 
 export function fetchBootstrapState() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.fetchBootstrapState) {
+    return browserMocks.fetchBootstrapState();
+  }
+
   return invoke<DesktopBootstrapState>("get_bootstrap_state");
 }
 
 export function subscribeBootstrap(
   onBootstrap: (bootstrap: DesktopBootstrapState) => void,
 ) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.subscribeBootstrap) {
+    return browserMocks.subscribeBootstrap(onBootstrap);
+  }
+
   return listen<DesktopBootstrapState>(BOOTSTRAP_EVENT, (event) => {
     onBootstrap(event.payload);
   });
 }
 
 export function validateJoinPayloadInput(payload: string) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.validateJoinPayloadInput) {
+    return browserMocks.validateJoinPayloadInput(payload);
+  }
+
   return invoke<JoinPayload>("validate_join_payload_input", { payload });
 }
 
 export function resolveHostLanAddress() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.resolveHostLanAddress) {
+    return browserMocks.resolveHostLanAddress();
+  }
+
   return invoke<string>("resolve_host_lan_address");
 }
 
 export function getTableView(viewerMode: TableViewerMode) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.getTableView) {
+    return browserMocks.getTableView(viewerMode);
+  }
+
   return invoke<TableViewSnapshot>("get_table_view", { viewerMode });
 }
 
@@ -180,6 +236,15 @@ export function submitTableAction(
   actionKind: DesktopTableActionKind,
   raiseToAmount?: number,
 ) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.submitTableAction) {
+    return browserMocks.submitTableAction(
+      viewerMode,
+      actionKind,
+      raiseToAmount,
+    );
+  }
+
   return invoke<TableViewSnapshot>("submit_table_action", {
     viewerMode,
     actionKind,
@@ -188,10 +253,20 @@ export function submitTableAction(
 }
 
 export function getDebugState(viewerMode: TableViewerMode) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.getDebugState) {
+    return browserMocks.getDebugState(viewerMode);
+  }
+
   return invoke<DebugInspectorState>("get_debug_state", { viewerMode });
 }
 
 export function launchAdditionalClientInstance(joinPayload?: string | null) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.launchAdditionalClientInstance) {
+    return browserMocks.launchAdditionalClientInstance(joinPayload);
+  }
+
   return invoke<string>("launch_additional_client_instance", {
     joinPayload: joinPayload ?? null,
   });

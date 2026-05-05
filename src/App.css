@@ -850,7 +850,7 @@ dt,
 
 .host-station-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--surface-gap);
   align-items: stretch;
   min-height: 0;
@@ -858,7 +858,7 @@ dt,
 
 .join-station-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(20rem, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--surface-gap);
   align-items: stretch;
   min-height: 0;
@@ -1445,16 +1445,6 @@ code {
     padding-top: 1.5rem;
   }
 
-  .home-stage.has-recovery,
-  .workstation-grid,
-  .lobby-workstation-grid,
-  .history-station-layout,
-  .complete-grid,
-  .recovery-grid,
-  .help-grid {
-    grid-template-columns: 1fr;
-  }
-
   .screen-header {
     flex-direction: column;
   }
@@ -1473,6 +1463,18 @@ code {
 
   .centered-community-cards {
     grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-stage.has-recovery,
+  .lobby-workstation-grid,
+  .history-station-layout,
+  .complete-grid,
+  .recovery-grid,
+  .help-grid,
+  .workstation-grid {
+    grid-template-columns: 1fr;
   }
 }
 

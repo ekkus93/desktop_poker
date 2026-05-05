@@ -25,5 +25,6 @@ node_modules
 dist
 .vite
 coverage
+test-results
 src-tauri/target
 run_copilot.sh

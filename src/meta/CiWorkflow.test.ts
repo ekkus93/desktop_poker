@@ -10,6 +10,8 @@ describe("CI workflow smoke coverage", () => {
     expect(workflow).toContain("- name: Test Rust");
     expect(workflow).toContain("- name: Lint frontend");
     expect(workflow).toContain("- name: Test frontend");
+    expect(workflow).toContain("- name: Install Playwright browser");
+    expect(workflow).toContain("- name: Test browser geometry");
     expect(workflow).toContain("- name: Build frontend");
   });
 
