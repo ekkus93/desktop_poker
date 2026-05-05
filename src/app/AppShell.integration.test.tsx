@@ -116,7 +116,7 @@ describe("AppShell integration", () => {
       target: { value: "Friday Finals" },
     });
 
-    expect(screen.getByLabelText(/copy invite details/i)).toBeTruthy();
+    expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
     expect(screen.getByText("Friday Finals")).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
 

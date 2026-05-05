@@ -594,13 +594,16 @@ dt {
 }
 
 .home-hero-card {
-  max-width: 60rem;
-  justify-self: center;
+  max-width: none;
+  justify-self: stretch;
   width: 100%;
+  align-content: start;
+  border-color: rgba(231, 220, 200, 0.08);
+  box-shadow: none;
 }
 
 .pregame-hero-card {
-  align-content: center;
+  align-content: start;
   min-height: 0;
 }
 
@@ -806,6 +809,17 @@ dt,
   min-height: 0;
 }
 
+.host-setup-form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.setup-grid-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
 .workstation-side-panel {
   display: grid;
   align-content: start;
@@ -823,6 +837,21 @@ dt,
   border-radius: 0.9rem;
   border: 1px solid rgba(231, 220, 200, 0.12);
   background: rgba(38, 27, 21, 0.68);
+}
+
+.host-summary-panel {
+  gap: 0.55rem;
+}
+
+.host-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.host-summary-grid div {
+  display: grid;
+  gap: 0.15rem;
 }
 
 .workstation-actions {
@@ -1467,6 +1496,11 @@ code {
 @media (max-width: 920px) {
   .content {
     padding: 1rem;
+  }
+
+  .setup-grid-row,
+  .host-summary-grid {
+    grid-template-columns: 1fr;
   }
 
   .topbar {

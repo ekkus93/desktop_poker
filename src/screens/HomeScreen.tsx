@@ -20,7 +20,7 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
       className="pregame-screen-shell home-screen-shell"
     >
       <div className={`home-stage${hasSavedProgress ? " has-recovery" : ""}`}>
-        <SectionCard kicker="Tonight's game" title="Host or join" className="home-hero-card pregame-hero-card">
+        <SectionCard title="Host or join" className="home-hero-card pregame-hero-card">
           <div className="button-row">
             <Link className="primary-button" to="/host">
               <span className="button-content">

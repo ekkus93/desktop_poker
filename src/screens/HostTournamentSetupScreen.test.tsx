@@ -1,4 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveHostLanAddress } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
@@ -37,10 +38,10 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.getByLabelText(/blind preset/i)).toBeTruthy();
     expect(screen.getByLabelText(/turn timer/i)).toBeTruthy();
     expect(screen.getByLabelText(/host port/i)).toBeTruthy();
-    expect(screen.getByText(/click the invite card or use the copy button below/i)).toBeTruthy();
+    expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
   });
 
-  it("copies invite details when the invite card is clicked", async () => {
+  it("copies invite details when the copy button is clicked", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -53,16 +54,16 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    const inviteCard = await screen.findByRole("button", { name: /copy invite details/i });
-    fireEvent.click(inviteCard);
+    fireEvent.click(await screen.findByRole("button", { name: /copy invite/i }));
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Host endpoint:"));
     expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
   });
 
-  it("supports keyboard activation on the invite card", async () => {
+  it("supports keyboard activation on the copy button", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     const writeText = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText },
@@ -73,9 +74,9 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    const inviteCard = await screen.findByRole("button", { name: /copy invite details/i });
-    inviteCard.focus();
-    fireEvent.keyDown(inviteCard, { key: "Enter" });
+    const copyButton = await screen.findByRole("button", { name: /copy invite/i });
+    copyButton.focus();
+    await user.keyboard("[Enter]");
 
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Host endpoint:"));
     expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
@@ -149,7 +150,7 @@ describe("HostTournamentSetupScreen", () => {
     expect(await screen.findByRole("button", { name: /copy invite/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /continue to lobby/i })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Host Tournament Setup" })).toBeTruthy();
-    expect(screen.getByLabelText(/copy invite details/i)).toBeTruthy();
+    expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
   });
 });

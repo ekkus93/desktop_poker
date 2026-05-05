@@ -21,6 +21,7 @@ import { TournamentLobbyScreen } from "../screens/TournamentLobbyScreen";
 
 type ProbeSurface =
   | "home"
+  | "home-empty"
   | "host"
   | "join"
   | "lobby"
@@ -235,6 +236,7 @@ function renderProbeSurface(surface: ProbeSurface, bootstrap: DesktopBootstrapSt
     case "complete":
       return <TournamentCompleteScreen />;
     case "home":
+    case "home-empty":
     default:
       return <HomeScreen bootstrap={bootstrap} />;
   }
@@ -243,7 +245,9 @@ function renderProbeSurface(surface: ProbeSurface, bootstrap: DesktopBootstrapSt
 export function LayoutProbeApp({ surface }: { surface: string }) {
   const bootstrap = createProbeBootstrap();
   installBrowserMocks(bootstrap);
-  seedProbeShellState(bootstrap);
+  if (surface !== "home-empty") {
+    seedProbeShellState(bootstrap);
+  }
 
   return (
     <MemoryRouter initialEntries={["/"]}>

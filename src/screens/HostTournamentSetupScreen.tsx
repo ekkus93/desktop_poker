@@ -27,7 +27,6 @@ function clampPort(value: string, fallbackPort: number) {
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const { hostDraft, updateHostDraft } = useDesktopShell();
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
-  const [isResolvingLan, setIsResolvingLan] = useState(true);
   const [lanError, setLanError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -35,7 +34,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
   useEffect(() => {
     let active = true;
-    setIsResolvingLan(true);
 
     void resolveHostLanAddress()
       .then((ipAddress) => {
@@ -45,7 +43,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
         setResolvedHostIp(ipAddress);
         setLanError(null);
-        setIsResolvingLan(false);
       })
       .catch((error: unknown) => {
         if (!active) {
@@ -56,7 +53,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         setLanError(
           error instanceof Error ? error.message : "Unable to resolve a LAN host address.",
         );
-        setIsResolvingLan(false);
       });
 
     return () => {
@@ -104,7 +100,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Host Tournament Setup"
-      badges={[`Port ${hostDraft.hostPort}`]}
+      badges={[]}
       className="pregame-screen-shell"
     >
       <div className="pregame-workstation host-station-layout">
@@ -114,8 +110,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           className="workstation-main-card"
         >
           <div className="workstation-grid">
-            <div className="form-grid compact-form-grid">
-              <div className="form-grid two-column-grid compact-form-grid">
+            <div className="host-setup-form">
+              <div className="setup-grid-row">
                 <label className="field">
                   Tournament name
                   <input
@@ -142,7 +138,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 </label>
               </div>
 
-              <div className="form-grid compact-advanced-panel">
+              <div className="setup-grid-row compact-advanced-panel">
                 <label className="field">
                   Starting stack
                   <select
@@ -175,6 +171,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="setup-grid-row compact-advanced-panel">
                 <label className="field">
                   Turn timer
                   <select
@@ -208,15 +207,12 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     value={hostDraft.hostPort}
                   />
                 </label>
-                <div>
-                  <strong>Resolved LAN IP:</strong> {isResolvingLan ? "Looking up LAN address..." : resolvedHostIp ?? "Unavailable"}
-                </div>
-                {lanError ? <p className="inline-banner error">{lanError}</p> : null}
               </div>
+              {lanError ? <p className="inline-banner error">{lanError}</p> : null}
             </div>
 
             <div className="workstation-side-panel">
-              <section className="compact-status-panel">
+              <section className="compact-status-panel host-summary-panel" aria-label="Host share summary">
                 <div className="status-row">
                   <div
                     className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}
@@ -233,57 +229,25 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                         : "Checking LAN address"}
                   </div>
                 </div>
-              </section>
-
-              {inviteReady ? (
-                <section
-                  className="invite-card compact-invite-card"
-                  aria-label="Copy invite details"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    void handleCopy(shareText, "Copied host share details.");
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      void handleCopy(shareText, "Copied host share details.");
-                    }
-                  }}
-                >
-                  <p className="kicker">Ready to share</p>
-                  <p className="invite-lead">
-                    Click the invite card or use the copy button below.
-                  </p>
-                  <h4>{hostDraft.tournamentName}</h4>
-                  <div className="invite-stat-grid compact-invite-stat-grid">
-                    <div>
-                      <span className="invite-stat-label">Join</span>
-                      <strong>
-                        {resolvedHostIp}:{hostDraft.hostPort}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="invite-stat-label">Seats</span>
-                      <strong>{hostDraft.maxPlayers} players</strong>
-                    </div>
-                    <div>
-                      <span className="invite-stat-label">Stack</span>
-                      <strong>{hostDraft.startingStack} chips</strong>
-                    </div>
-                    <div>
-                      <span className="invite-stat-label">Blinds</span>
-                      <strong>
-                        {blindPreset.label} · {blindPreset.firstLevel}
-                      </strong>
-                    </div>
+                <div className="host-summary-grid">
+                  <div>
+                    <span className="invite-stat-label">Table</span>
+                    <strong>{hostDraft.tournamentName}</strong>
                   </div>
-                </section>
-              ) : (
-                <p className={`inline-banner ${lanError ? "error" : "info"}`}>
-                  {shareText}
-                </p>
-              )}
+                  <div>
+                    <span className="invite-stat-label">Players</span>
+                    <strong>{hostDraft.maxPlayers} max</strong>
+                  </div>
+                  <div>
+                    <span className="invite-stat-label">Host</span>
+                    <strong>{resolvedHostIp ? `${resolvedHostIp}:${hostDraft.hostPort}` : "Waiting for LAN"}</strong>
+                  </div>
+                  <div>
+                    <span className="invite-stat-label">Blinds</span>
+                    <strong>{blindPreset.firstLevel}</strong>
+                  </div>
+                </div>
+              </section>
 
               <div className="button-row workstation-actions">
                 <button
