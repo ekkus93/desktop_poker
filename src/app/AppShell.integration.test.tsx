@@ -1,9 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchBootstrapState,
+  getDebugState,
   getTableView,
+  launchAdditionalClientInstance,
   resolveHostLanAddress,
   submitTableAction,
   subscribeBootstrap,
@@ -14,6 +16,7 @@ import {
   createParsedJoinPayload,
   createTableViewSnapshot,
 } from "../test/appIntegrationFixtures";
+import { storageKey } from "./shell";
 import { DesktopBootstrapProvider } from "./DesktopBootstrapProvider";
 import { AppShell } from "./AppShell";
 
@@ -26,6 +29,8 @@ vi.mock("../api/desktop", async () => {
     ...actual,
     fetchBootstrapState: vi.fn(),
     subscribeBootstrap: vi.fn(),
+    getDebugState: vi.fn(),
+    launchAdditionalClientInstance: vi.fn(),
     resolveHostLanAddress: vi.fn(),
     validateJoinPayloadInput: vi.fn(),
     getTableView: vi.fn(),
@@ -35,14 +40,25 @@ vi.mock("../api/desktop", async () => {
 
 const mockedFetchBootstrapState = vi.mocked(fetchBootstrapState);
 const mockedSubscribeBootstrap = vi.mocked(subscribeBootstrap);
+const mockedGetDebugState = vi.mocked(getDebugState);
+const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
 const mockedSubmitTableAction = vi.mocked(submitTableAction);
+const clipboardWriteText = vi.fn();
+let bootstrapSubscriptionHandler:
+  | ((bootstrap: ReturnType<typeof createAppBootstrap>) => void)
+  | undefined;
 
 function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) {
   mockedFetchBootstrapState.mockResolvedValue(bootstrap);
-  mockedSubscribeBootstrap.mockResolvedValue(() => {});
+  mockedSubscribeBootstrap.mockImplementation(async (onBootstrap) => {
+    bootstrapSubscriptionHandler = onBootstrap;
+    return () => {
+      bootstrapSubscriptionHandler = undefined;
+    };
+  });
 
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -56,14 +72,28 @@ function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) 
 describe("AppShell integration", () => {
   beforeEach(() => {
     localStorage.clear();
+    bootstrapSubscriptionHandler = undefined;
     mockedFetchBootstrapState.mockReset();
     mockedSubscribeBootstrap.mockReset();
+    mockedGetDebugState.mockReset();
+    mockedLaunchAdditionalClientInstance.mockReset();
     mockedResolveHostLanAddress.mockReset();
     mockedValidateJoinPayloadInput.mockReset();
     mockedGetTableView.mockReset();
     mockedSubmitTableAction.mockReset();
+    clipboardWriteText.mockReset();
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedValidateJoinPayloadInput.mockResolvedValue(createParsedJoinPayload());
+    mockedGetDebugState.mockResolvedValue({
+      protocolLog: [],
+      snapshotJson: "{}",
+      currentSequence: 17,
+      currentHandNumber: 9,
+      actionWindowSummary: "You · check or bet · min 60 · max 1520 · legal Fold, Check, Bet",
+      launchHint:
+        "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
+    });
+    mockedLaunchAdditionalClientInstance.mockResolvedValue("debug-child-1");
     mockedGetTableView.mockImplementation(async (viewerMode) =>
       createTableViewSnapshot({
         viewerMode,
@@ -94,6 +124,12 @@ describe("AppShell integration", () => {
         ],
       }),
     );
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: clipboardWriteText,
+      },
+    });
   });
 
   it("moves from home to host setup and keeps the edited host draft in the lobby shell", async () => {
@@ -220,6 +256,110 @@ describe("AppShell integration", () => {
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     expect(await screen.findByText("You: Ready")).toBeTruthy();
+  });
+
+  it("renders the real ready-room route and only unlocks start after all visible participants are ready", async () => {
+    renderAppShell("/ready-room", createAppBootstrap({ debugToolsEnabled: true }));
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Ready Room" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Turn timer 30s")).toBeTruthy();
+    expect(screen.getByText("2 participants")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Not ready" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Host marks ready" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Not ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
+
+    expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Start tournament" }).getAttribute("href")).toBe("/table");
+  });
+
+  it("keeps remote readiness passive outside debug mode and preserves state across the ready-room leave flow", async () => {
+    renderAppShell("/ready-room", createAppBootstrap({ debugToolsEnabled: false }));
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Ready Room" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Host marks ready" })).toBeNull();
+    expect(screen.getByText("Waiting on player readiness.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Not ready" }));
+    expect(screen.getByRole("button", { name: "Ready" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
+    expect(screen.getByText("Leave before start?")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Stay ready" }));
+    expect(screen.queryByText("Leave before start?")).toBeNull();
+    expect(screen.getByRole("button", { name: "Ready" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
+    fireEvent.click(screen.getByRole("link", { name: "Leave table" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+  });
+
+  it("applies bootstrap subscription updates and reroutes away from routes removed by the new catalog", async () => {
+    renderAppShell("/table");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+
+    await act(async () => {
+      bootstrapSubscriptionHandler?.(
+        createAppBootstrap({
+          screens: [
+            { id: "home", title: "Home", route: "/", surface: "primary" },
+            { id: "join", title: "Join", route: "/join", surface: "primary" },
+          ],
+        }),
+      );
+    });
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Lobby" })).toBeNull();
+  });
+
+  it("recovers a launch-attached invite after a bootstrap update without a full remount", async () => {
+    const bootstrap = createAppBootstrap({
+      launchJoinPayload: "pkr1_launch",
+      launchJoinPayloadError: "Invite signature mismatch",
+      parsedLaunchJoinPayload: null,
+    });
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:join-draft`,
+      JSON.stringify("pkr1_launch"),
+    );
+
+    renderAppShell("/join", bootstrap);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+    expect(await screen.findByText("Invite signature mismatch")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Continue to lobby" })).toBeNull();
+
+    await act(async () => {
+      bootstrapSubscriptionHandler?.(
+        createAppBootstrap({
+          launchJoinPayload: "pkr1_launch",
+          launchJoinPayloadError: null,
+          parsedLaunchJoinPayload: createParsedJoinPayload(),
+        }),
+      );
+    });
+
+    expect(await screen.findByText(/invite already attached to this launch/i)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("persists shell state and cached hand history across a restart-like remount", async () => {
@@ -439,6 +579,391 @@ describe("AppShell integration", () => {
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(screen.getByText("Maya")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
+  });
+
+  it("keeps the live table snapshot stable when an action fails and recovers on the next successful retry", async () => {
+    mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
+    mockedSubmitTableAction
+      .mockRejectedValueOnce(new Error("Action window expired."))
+      .mockResolvedValueOnce(
+        createTableViewSnapshot({
+          streetLabel: "Turn",
+          potTotal: 240,
+          actionOwnerLabel: "Maya",
+          eventFeed: [
+            {
+              sequence: 19,
+              kind: "public-event",
+              message: "Maya called and the turn was published to every seat and observer.",
+            },
+          ],
+          handHistory: [
+            {
+              handNumber: 9,
+              summary: "Maya won 240 chip(s).",
+              potTotal: 240,
+              winningPlayers: ["Maya"],
+              eliminatedPlayers: [],
+              boardCards: [],
+            },
+            ...createTableViewSnapshot().handHistory,
+          ],
+          actionTray: null,
+        }),
+      );
+
+    renderAppShell("/table");
+
+    expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
+    expect((await screen.findAllByText(/Pot 120/)).length).toBeGreaterThan(0);
+    expect(await screen.findByLabelText("Ace of spades")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Fold" }));
+
+    expect(await screen.findByText("Action window expired.")).toBeTruthy();
+    expect(screen.getByText("Pot 120")).toBeTruthy();
+    expect(screen.getByLabelText("Ace of spades")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Check" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Check" }));
+
+    expect((await screen.findAllByText(/Pot 240/)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
+    expect(screen.getByText(/maya called and the turn was published to every seat and observer/i)).toBeTruthy();
+    expect(screen.queryByText("Action window expired.")).toBeNull();
+  });
+
+  it("shows a truthful waiting table state when no local action window is open", async () => {
+    mockedGetTableView.mockResolvedValue(
+      createTableViewSnapshot({
+        actionOwnerLabel: "Maya",
+        actionTray: null,
+      }),
+    );
+
+    renderAppShell("/table");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Check" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /bet \/ raise/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "All-in" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
+    expect(screen.getAllByText("Maya").length).toBeGreaterThan(0);
+  });
+
+  it("keeps action failures scoped to the acting shell instance", async () => {
+    const aliceBootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:acting-shell-a",
+      instanceId: "acting-shell-a",
+      instanceLabel: "Acting Shell A",
+    });
+    const bobBootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:acting-shell-b",
+      instanceId: "acting-shell-b",
+      instanceLabel: "Acting Shell B",
+    });
+
+    mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
+    mockedSubmitTableAction.mockRejectedValueOnce(new Error("Action window expired."));
+
+    const aliceRender = renderAppShell("/table", aliceBootstrap);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Fold" }));
+    expect(await screen.findByText("Action window expired.")).toBeTruthy();
+    aliceRender.unmount();
+
+    renderAppShell("/table", bobBootstrap);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Action window expired.")).toBeNull();
+    expect((await screen.findAllByText(/Pot 120/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/player acting shell b \(you\)/i).length).toBeGreaterThan(0);
+  });
+
+  it("ignores reconnect metadata at boot when a live table snapshot is still available", async () => {
+    const bootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:reconnect-live",
+      instanceId: "reconnect-live",
+      instanceLabel: "Reconnect Live",
+      reconnectNamespace: "desktop-reconnect:reconnect-live",
+    });
+    localStorage.setItem(
+      bootstrap.reconnectNamespace,
+      JSON.stringify({ tableId: "old-table", token: "stale-token" }),
+    );
+
+    mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
+
+    renderAppShell("/table", bootstrap);
+
+    expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
+    expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
+    expect(localStorage.getItem(bootstrap.reconnectNamespace)).toContain("stale-token");
+  });
+
+  it("ignores stale reconnect metadata and falls back to the normal table-unavailable surface", async () => {
+    const bootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:reconnect-stale",
+      instanceId: "reconnect-stale",
+      instanceLabel: "Reconnect Stale",
+      reconnectNamespace: "desktop-reconnect:reconnect-stale",
+    });
+    localStorage.setItem(
+      bootstrap.reconnectNamespace,
+      JSON.stringify({ tableId: "old-table", token: "stale-token" }),
+    );
+
+    mockedGetTableView.mockRejectedValueOnce(
+      new Error("Host connection lost. Reopen the lobby or rejoin."),
+    );
+
+    renderAppShell("/table", bootstrap);
+
+    expect(
+      await screen.findByText("Host connection lost. Reopen the lobby or rejoin."),
+    ).toBeTruthy();
+    expect(screen.getByText("Table unavailable")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Return to lobby" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open history" })).toBeTruthy();
+    expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
+  });
+
+  it("keeps reconnect metadata isolated per instance and leaves history restarts on the cached-history surface", async () => {
+    const firstBootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:reconnect-a",
+      instanceId: "reconnect-a",
+      instanceLabel: "Reconnect A",
+      reconnectNamespace: "desktop-reconnect:reconnect-a",
+    });
+    const secondBootstrap = createAppBootstrap({
+      storageNamespace: "desktop-poker:reconnect-b",
+      instanceId: "reconnect-b",
+      instanceLabel: "Reconnect B",
+      reconnectNamespace: "desktop-reconnect:reconnect-b",
+    });
+
+    localStorage.setItem(
+      firstBootstrap.reconnectNamespace,
+      JSON.stringify({ tableId: "first-table", token: "first-token" }),
+    );
+    localStorage.setItem(
+      secondBootstrap.reconnectNamespace,
+      JSON.stringify({ tableId: "second-table", token: "second-token" }),
+    );
+    localStorage.setItem(
+      storageKey(secondBootstrap.storageNamespace, "hand-history-summaries"),
+      JSON.stringify({
+        updatedAtMs: 1,
+        entries: [
+          {
+            handNumber: 14,
+            summary: "Reconnect B won 300 chip(s).",
+            potTotal: 300,
+            winningPlayers: ["Reconnect B"],
+            eliminatedPlayers: [],
+            boardCards: [],
+          },
+        ],
+      }),
+    );
+
+    mockedGetTableView.mockRejectedValueOnce(new Error("offline"));
+
+    renderAppShell("/history", secondBootstrap);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Hand History" }),
+    ).toBeTruthy();
+    expect(await screen.findByText("offline")).toBeTruthy();
+    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
+    expect(screen.getByText(/reconnect b won 300 chip\(s\)\./i)).toBeTruthy();
+    expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
+    expect(localStorage.getItem(firstBootstrap.reconnectNamespace)).toContain("first-token");
+    expect(localStorage.getItem(secondBootstrap.reconnectNamespace)).toContain("second-token");
+  });
+
+  it("enters the real debug surface and reflects a payload-free child launch without corrupting the current shell state", async () => {
+    const bootstrap = createAppBootstrap({
+      debugToolsEnabled: true,
+      storageNamespace: "desktop-poker:debug-parent",
+      instanceId: "debug-parent",
+      instanceLabel: "Debug Parent",
+      launchJoinPayload: null,
+    });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({
+        tournamentName: "Night Debug",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        hostPort: 43818,
+      }),
+    );
+
+    renderAppShell("/debug", bootstrap);
+
+    expect(await screen.findByText("Debug Parent")).toBeTruthy();
+    expect(await screen.findByText(/Spawn another debug client/i)).toBeTruthy();
+    expect(
+      screen.getAllByText((_, element) =>
+        element?.textContent?.includes("Host draft: Night Debug") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, element) =>
+        element?.textContent?.includes("Current sequence: 17") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Launch extra client" }));
+
+    expect(await screen.findByText("Launched debug-child-1")).toBeTruthy();
+    expect(mockedLaunchAdditionalClientInstance).toHaveBeenCalledWith(null);
+    expect(clipboardWriteText).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Launch extra client" })).toBeTruthy();
+    expect(
+      screen.getAllByText((_, element) =>
+        element?.textContent?.includes("Host draft: Night Debug") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps a payload-attached debug launch on the current debug route and state", async () => {
+    const bootstrap = createAppBootstrap({
+      debugToolsEnabled: true,
+      storageNamespace: "desktop-poker:debug-payload",
+      instanceId: "debug-payload",
+      instanceLabel: "Debug Payload",
+      launchJoinPayload: "pkr1_attached_payload",
+    });
+
+    renderAppShell("/debug", bootstrap);
+
+    expect(await screen.findByDisplayValue("pkr1_attached_payload")).toBeTruthy();
+    expect(await screen.findByText(/legal Fold, Check, Bet/i)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Launch extra client with payload" }),
+      );
+    });
+
+    expect(
+      await screen.findByText(
+        "Launched debug-child-1 with the copied join payload attached.",
+      ),
+    ).toBeTruthy();
+    expect(clipboardWriteText).toHaveBeenCalledWith("pkr1_attached_payload");
+    expect(mockedLaunchAdditionalClientInstance).toHaveBeenCalledWith(
+      "pkr1_attached_payload",
+    );
+    expect(
+      screen.getAllByText((_, element) =>
+        element?.textContent?.includes("Current sequence: 17") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Launch extra client with payload" })).toBeTruthy();
+  });
+
+  it("keeps launch-driven namespace continuity isolated across parent and child shell instances", async () => {
+    const parentBootstrap = createAppBootstrap({
+      debugToolsEnabled: true,
+      storageNamespace: "desktop-poker:launch-parent",
+      instanceId: "launch-parent",
+      instanceLabel: "Launch Parent",
+    });
+    const childBootstrap = createAppBootstrap({
+      debugToolsEnabled: true,
+      storageNamespace: "desktop-poker:launch-child",
+      instanceId: "launch-child",
+      instanceLabel: "Launch Child",
+    });
+
+    localStorage.setItem(
+      storageKey(parentBootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({
+        tournamentName: "Parent Room",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        hostPort: 43818,
+      }),
+    );
+    localStorage.setItem(
+      storageKey(parentBootstrap.storageNamespace, "ready-seats"),
+      JSON.stringify([2]),
+    );
+    localStorage.setItem(
+      storageKey(childBootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({
+        tournamentName: "Child Room",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        hostPort: 43818,
+      }),
+    );
+    localStorage.setItem(
+      storageKey(childBootstrap.storageNamespace, "ready-seats"),
+      JSON.stringify([1]),
+    );
+    localStorage.setItem(
+      storageKey(childBootstrap.storageNamespace, "hand-history-summaries"),
+      JSON.stringify({
+        updatedAtMs: 1,
+        entries: [
+          {
+            handNumber: 22,
+            summary: "Launch Child won 440 chip(s).",
+            potTotal: 440,
+            winningPlayers: ["Launch Child"],
+            eliminatedPlayers: [],
+            boardCards: [],
+          },
+        ],
+      }),
+    );
+
+    const parentRender = renderAppShell("/debug", parentBootstrap);
+
+    expect(await screen.findByText("Launch Parent")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Launch extra client" }));
+    expect(await screen.findByText("Launched debug-child-1")).toBeTruthy();
+    expect(localStorage.getItem(storageKey(parentBootstrap.storageNamespace, "ready-seats"))).toBe("[2]");
+    expect(localStorage.getItem(storageKey(childBootstrap.storageNamespace, "ready-seats"))).toBe("[1]");
+    parentRender.unmount();
+
+    const childDebugRender = renderAppShell("/debug", childBootstrap);
+
+    expect(await screen.findByText("Launch Child")).toBeTruthy();
+    expect(await screen.findByText(/Spawn another debug client/i)).toBeTruthy();
+    expect(
+      screen.getAllByText((_, element) =>
+        element?.textContent?.includes("Host draft: Child Room") ?? false,
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("Parent Room")).toBeNull();
+    childDebugRender.unmount();
+
+    mockedGetTableView.mockRejectedValueOnce(new Error("offline"));
+
+    renderAppShell("/history", childBootstrap);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Hand History" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/launch child won 440 chip\(s\)\./i)).toBeTruthy();
+    expect(screen.queryByText(/parent room/i)).toBeNull();
   });
 
   it("keeps join and table failures inside explicit shell states instead of stranding navigation", async () => {

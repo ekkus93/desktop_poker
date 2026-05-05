@@ -10,6 +10,12 @@ export const DEFAULT_SCREEN_CATALOG: DesktopBootstrapState["screens"] = [
   { id: "host", title: "Host", route: "/host", surface: "primary" },
   { id: "join", title: "Join", route: "/join", surface: "primary" },
   { id: "lobby", title: "Lobby", route: "/lobby", surface: "secondary" },
+  {
+    id: "ready-room",
+    title: "Ready Room",
+    route: "/ready-room",
+    surface: "secondary",
+  },
   { id: "table", title: "Table", route: "/table", surface: "primary" },
   { id: "history", title: "History", route: "/history", surface: "secondary" },
   {

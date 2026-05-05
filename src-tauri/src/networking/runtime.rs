@@ -1443,9 +1443,11 @@ fn reconnect_after_disconnect(
         match read_snapshot_response(crypto_provider, &mut stream, join_payload) {
             Ok(snapshot) => return Ok((stream, snapshot)),
             Err(error)
-                if error.to_string().contains("participant is already connected")
-                    && attempt < MAX_ALREADY_CONNECTED_RETRIES =>
+                if error.to_string().contains("participant is already connected") =>
             {
+                if attempt == MAX_ALREADY_CONNECTED_RETRIES {
+                    break;
+                }
                 thread::sleep(Duration::from_millis(20));
             }
             Err(error) => return Err(error),
@@ -1653,7 +1655,8 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        handle_reconnect_request, handle_resync_request, now_epoch_ms, validate_production_host_ip,
+        connect_and_join, handle_reconnect_request, handle_resync_request, now_epoch_ms,
+        reconnect_after_disconnect, validate_production_host_ip, ClientReconnectIdentity,
     };
     use crate::{
         crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider},
@@ -2536,6 +2539,130 @@ mod tests {
             .expect_err("reconnect should fail")
             .to_string()
             .contains("reconnect token mismatch"));
+    }
+
+    #[test]
+    fn reconnect_after_disconnect_retries_until_prior_connection_cleans_up() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-reconnect-race", 31);
+        let join_payload = crate::protocol::decode_join_payload(host.encoded_join_payload())
+            .expect("join payload should decode");
+        let reconnect_identity = Arc::new(Mutex::new(ClientReconnectIdentity {
+            signing_keys: Some(provider.generate_signing_keypair()),
+            encryption_keys: Some(provider.generate_encryption_keypair()),
+        }));
+        let (original_stream, snapshot) = connect_and_join(
+            &provider,
+            &join_payload,
+            "player-race",
+            "Race",
+            &reconnect_identity,
+        )
+        .expect("client should join");
+        let reconnect_token = snapshot
+            .payload
+            .reconnect_token
+            .clone()
+            .expect("reconnect token");
+
+        wait_for_host_participant_state(
+            &host,
+            "player-race",
+            ParticipantState::Admitted,
+            ConnectionState::Connected,
+        );
+
+        let mut next_counter = 2;
+        let (reconnected_stream, reconnected_snapshot) = thread::scope(|scope| {
+            scope.spawn(|| {
+                thread::sleep(Duration::from_millis(60));
+                original_stream
+                    .shutdown(Shutdown::Both)
+                    .expect("shutdown original stream");
+            });
+
+            reconnect_after_disconnect(
+                &provider,
+                &join_payload,
+                "player-race",
+                &reconnect_identity,
+                Some(reconnect_token.as_str()),
+                snapshot.server_sequence.unwrap_or(0),
+                &mut next_counter,
+            )
+        })
+        .expect("reconnect should succeed after cleanup");
+
+        assert_eq!(reconnected_snapshot.payload.local_player_id, "player-race");
+        wait_for_host_participant_state(
+            &host,
+            "player-race",
+            ParticipantState::Admitted,
+            ConnectionState::Connected,
+        );
+        let state = host.authoritative_state().expect("authoritative state");
+        let participant = state.participants.get("player-race").expect("participant");
+        assert!(participant.reconnect_expiry_ms.is_none());
+        assert_eq!(host.clients.lock().expect("client registry").len(), 1);
+        let _ = reconnected_stream.shutdown(Shutdown::Both);
+    }
+
+    #[test]
+    fn reconnect_after_disconnect_reports_retry_exhaustion_without_creating_a_duplicate_session() {
+        let provider = DefaultCryptoProvider;
+        let host = bind_test_host(&provider, "table-reconnect-exhausted", 31);
+        let join_payload = crate::protocol::decode_join_payload(host.encoded_join_payload())
+            .expect("join payload should decode");
+        let reconnect_identity = Arc::new(Mutex::new(ClientReconnectIdentity {
+            signing_keys: Some(provider.generate_signing_keypair()),
+            encryption_keys: Some(provider.generate_encryption_keypair()),
+        }));
+        let (original_stream, snapshot) = connect_and_join(
+            &provider,
+            &join_payload,
+            "player-exhausted",
+            "Exhausted",
+            &reconnect_identity,
+        )
+        .expect("client should join");
+        let reconnect_token = snapshot
+            .payload
+            .reconnect_token
+            .clone()
+            .expect("reconnect token");
+
+        wait_for_host_participant_state(
+            &host,
+            "player-exhausted",
+            ParticipantState::Admitted,
+            ConnectionState::Connected,
+        );
+
+        let mut next_counter = 2;
+        let error = reconnect_after_disconnect(
+            &provider,
+            &join_payload,
+            "player-exhausted",
+            &reconnect_identity,
+            Some(reconnect_token.as_str()),
+            snapshot.server_sequence.unwrap_or(0),
+            &mut next_counter,
+        )
+        .expect_err("reconnect should exhaust retries while the original stream stays connected");
+
+        assert_eq!(
+            error.to_string(),
+            "reconnect retries exhausted while waiting for prior connection cleanup"
+        );
+        let state = host.authoritative_state().expect("authoritative state");
+        let participant = state
+            .participants
+            .get("player-exhausted")
+            .expect("participant");
+        assert_eq!(participant.connection_state, ConnectionState::Connected);
+        assert_eq!(participant.state, ParticipantState::Admitted);
+        assert_eq!(host.clients.lock().expect("client registry").len(), 1);
+        let _ = original_stream.shutdown(Shutdown::Both);
     }
 
     #[test]

@@ -9,10 +9,18 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { HostTournamentSetupScreen } from "../screens/HostTournamentSetupScreen";
 import { JoinTournamentScreen } from "../screens/JoinTournamentScreen";
 import { MainTableScreen } from "../screens/MainTableScreen";
+import { ReadyRoomScreen } from "../screens/ReadyRoomScreen";
 import { RulesHelpScreen } from "../screens/RulesHelpScreen";
 import { TournamentCompleteScreen } from "../screens/TournamentCompleteScreen";
 import { TournamentLobbyScreen } from "../screens/TournamentLobbyScreen";
 import { useDesktopBootstrap } from "./useDesktopBootstrap";
+
+function hasScreenRoute(
+  bootstrap: NonNullable<ReturnType<typeof useDesktopBootstrap>["bootstrap"]>,
+  route: string,
+) {
+  return bootstrap.screens.some((screen) => screen.route === route);
+}
 
 export function AppShell() {
   const { bootstrap, error, loading } = useDesktopBootstrap();
@@ -47,6 +55,14 @@ export function AppShell() {
   const routeTitles = new Map(
     bootstrap.screens.map((screen) => [screen.route, screen.title]),
   );
+  const homeRouteAvailable = hasScreenRoute(bootstrap, "/");
+  const hostRouteAvailable = hasScreenRoute(bootstrap, "/host");
+  const joinRouteAvailable = hasScreenRoute(bootstrap, "/join");
+  const lobbyRouteAvailable = hasScreenRoute(bootstrap, "/lobby");
+  const readyRoomRouteAvailable = hasScreenRoute(bootstrap, "/ready-room");
+  const tableRouteAvailable = hasScreenRoute(bootstrap, "/table");
+  const completeRouteAvailable = hasScreenRoute(bootstrap, "/complete");
+  const historyRouteAvailable = hasScreenRoute(bootstrap, "/history");
   const navigation = [
     { to: "/", label: routeTitles.get("/") ?? "Home" },
     { to: "/host", label: routeTitles.get("/host") ?? "Host" },
@@ -63,33 +79,49 @@ export function AppShell() {
     <DesktopShellProvider bootstrap={bootstrap}>
       <AppFrame bootstrap={bootstrap} navigation={navigation}>
         <Routes>
-          <Route path="/" element={<HomeScreen bootstrap={bootstrap} />} />
-          <Route
-            path="/host"
-            element={<HostTournamentSetupScreen bootstrap={bootstrap} />}
-          />
-          <Route
-            path="/join"
-            element={<JoinTournamentScreen bootstrap={bootstrap} />}
-          />
-          <Route
-            path="/lobby"
-            element={<TournamentLobbyScreen bootstrap={bootstrap} />}
-          />
-          <Route
-            path="/ready-room"
-            element={<Navigate replace to="/lobby" />}
-          />
-          <Route path="/table" element={<MainTableScreen bootstrap={bootstrap} />} />
-          <Route
-            path="/history"
-            element={<HandHistoryScreen bootstrap={bootstrap} />}
-          />
+          {homeRouteAvailable ? (
+            <Route path="/" element={<HomeScreen bootstrap={bootstrap} />} />
+          ) : null}
+          {hostRouteAvailable ? (
+            <Route
+              path="/host"
+              element={<HostTournamentSetupScreen bootstrap={bootstrap} />}
+            />
+          ) : null}
+          {joinRouteAvailable ? (
+            <Route
+              path="/join"
+              element={<JoinTournamentScreen bootstrap={bootstrap} />}
+            />
+          ) : null}
+          {lobbyRouteAvailable ? (
+            <Route
+              path="/lobby"
+              element={<TournamentLobbyScreen bootstrap={bootstrap} />}
+            />
+          ) : null}
+          {readyRoomRouteAvailable ? (
+            <Route
+              path="/ready-room"
+              element={<ReadyRoomScreen bootstrap={bootstrap} />}
+            />
+          ) : null}
+          {tableRouteAvailable ? (
+            <Route path="/table" element={<MainTableScreen bootstrap={bootstrap} />} />
+          ) : null}
+          {historyRouteAvailable ? (
+            <Route
+              path="/history"
+              element={<HandHistoryScreen bootstrap={bootstrap} />}
+            />
+          ) : null}
           <Route path="/settings" element={<DeviceSettingsScreen />} />
-          <Route
-            path="/complete"
-            element={<TournamentCompleteScreen />}
-          />
+          {completeRouteAvailable ? (
+            <Route
+              path="/complete"
+              element={<TournamentCompleteScreen />}
+            />
+          ) : null}
           <Route path="/rules" element={<RulesHelpScreen />} />
           <Route path="/errors" element={<ErrorStateScreen bootstrap={bootstrap} />} />
           {bootstrap.debugToolsEnabled ? (
@@ -98,7 +130,10 @@ export function AppShell() {
               element={<DebugPanel bootstrap={bootstrap} asScreen />}
             />
           ) : null}
-          <Route path="*" element={<Navigate replace to="/" />} />
+          <Route
+            path="*"
+            element={<Navigate replace to={homeRouteAvailable ? "/" : "/settings"} />}
+          />
         </Routes>
       </AppFrame>
     </DesktopShellProvider>

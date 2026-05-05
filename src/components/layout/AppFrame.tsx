@@ -39,7 +39,7 @@ export function AppFrame({
 }) {
   const { displayName } = useDesktopShell();
   const location = useLocation();
-  const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
+  const inTournament = ["/lobby", "/ready-room", "/table", "/complete"].includes(location.pathname);
   const supportRoutes = new Set(["/history", "/rules", "/settings"]);
   const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
   const tournamentPlayRoutes = new Set(["/", "/lobby"]);

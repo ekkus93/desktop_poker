@@ -1958,6 +1958,113 @@ mod tests {
     }
 
     #[test]
+    fn action_window_authority_advances_without_leaking_to_the_prior_actor() {
+        let mut controller = TournamentController::new(
+            "table-action-authority",
+            1,
+            sample_config(1_000),
+            vec![player("p1", 0), player("p2", 1), player("p3", 2)],
+        )
+        .expect("controller should build");
+        controller
+            .start_tournament(0)
+            .expect("tournament should start");
+
+        let first_window = action_window(&controller);
+        let first_action_type = if first_window.legal_actions.contains(&ActionType::Check) {
+            ActionType::Check
+        } else {
+            ActionType::Call
+        };
+        controller
+            .submit_action(
+                ActionRequest {
+                    player_id: first_window.player_id.clone(),
+                    action_window_id: first_window.action_window_id.clone(),
+                    action_type: first_action_type,
+                    raise_to_amount: None,
+                },
+                1,
+            )
+            .expect("first actor should be able to act");
+
+        let second_window = action_window(&controller);
+        assert_ne!(second_window.player_id, first_window.player_id);
+
+        let stale_attempt = controller.submit_action(
+            ActionRequest {
+                player_id: first_window.player_id.clone(),
+                action_window_id: second_window.action_window_id.clone(),
+                action_type: if second_window.legal_actions.contains(&ActionType::Check) {
+                    ActionType::Check
+                } else {
+                    ActionType::Call
+                },
+                raise_to_amount: None,
+            },
+            2,
+        );
+
+        assert!(stale_attempt.is_err());
+        assert!(stale_attempt
+            .expect_err("prior actor should lose the action window")
+            .to_string()
+            .contains("does not own the action window"));
+        assert_eq!(action_window(&controller).player_id, second_window.player_id);
+        assert_eq!(
+            action_window(&controller).action_window_id,
+            second_window.action_window_id
+        );
+    }
+
+    #[test]
+    fn eliminated_observer_cannot_submit_actions_or_mutate_authoritative_state() {
+        let mut controller = TournamentController::new(
+            "table-observer-rejection",
+            1,
+            sample_config(1_000),
+            vec![player("p1", 0), player("p2", 1), player("p3", 2)],
+        )
+        .expect("controller should build");
+        controller
+            .start_tournament(0)
+            .expect("tournament should start");
+        controller
+            .set_player_stack("p3", 0)
+            .expect("stack override should apply");
+
+        let eliminated = controller.process_eliminations(7);
+        assert_eq!(eliminated, vec!["p3".to_string()]);
+
+        let live_window = action_window(&controller);
+        let state_before = controller.state().clone();
+        let observer_attempt = controller.submit_action(
+            ActionRequest {
+                player_id: "p3".to_string(),
+                action_window_id: live_window.action_window_id.clone(),
+                action_type: if live_window.legal_actions.contains(&ActionType::Check) {
+                    ActionType::Check
+                } else {
+                    ActionType::Call
+                },
+                raise_to_amount: None,
+            },
+            8,
+        );
+
+        assert!(observer_attempt.is_err());
+        assert!(observer_attempt
+            .expect_err("observer action should be rejected")
+            .to_string()
+            .contains("does not own the action window"));
+        let participant = controller.state().participants.get("p3").expect("participant");
+        assert_eq!(participant.state, ParticipantState::EliminatedObserver);
+        assert_eq!(participant.connection_state, ConnectionState::Connected);
+        assert_eq!(controller.state().current_hand, state_before.current_hand);
+        assert_eq!(controller.state().hand_results, state_before.hand_results);
+    }
+
+    #[test]
     fn simultaneous_eliminations_follow_seat_order_for_placements() {
         let mut controller = TournamentController::new(
             "table-placement",

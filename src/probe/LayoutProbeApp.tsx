@@ -58,8 +58,23 @@ function createProbeBootstrap(): DesktopBootstrapState {
       { id: "home", title: "Home", route: "/", surface: "primary" },
       { id: "host", title: "Host", route: "/host", surface: "primary" },
       { id: "join", title: "Join", route: "/join", surface: "primary" },
+      { id: "lobby", title: "Lobby", route: "/lobby", surface: "secondary" },
+      {
+        id: "ready-room",
+        title: "Ready Room",
+        route: "/ready-room",
+        surface: "secondary",
+      },
+      { id: "table", title: "Table", route: "/table", surface: "primary" },
       { id: "history", title: "History", route: "/history", surface: "support" },
+      {
+        id: "complete",
+        title: "Complete",
+        route: "/complete",
+        surface: "secondary",
+      },
       { id: "rules", title: "Help", route: "/rules", surface: "support" },
+      { id: "settings", title: "Settings", route: "/settings", surface: "support" },
     ],
   };
 }
