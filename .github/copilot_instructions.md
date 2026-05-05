@@ -134,6 +134,9 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
   - `app_state`
 - Reuse helpers and shared abstractions instead of duplicating protocol or projection logic.
 - Add tests for any protocol, crypto, reconnect, replay-protection, projection, or poker-rule change.
+- Do **not** create mock-only tests that fail to execute meaningful production code. If a test only proves that fabricated doubles behave as configured, it does not count as validation and should not be added.
+- Mocks are allowed only to isolate external boundaries while the test still executes real production behavior in the actual unit under test.
+- Any critical behavior or regression must have at least one test that exercises the real production code path responsible for that behavior.
 - When implementing a compatibility-sensitive behavior, cite the Android source/test being mirrored in comments or PR notes if the behavior is non-obvious.
 
 ## What to avoid
@@ -143,6 +146,7 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 - Do not expose unfinished room-code discovery as if it is production-ready.
 - Do not leak private hole-card data into public or observer projections.
 - Do not invent desktop-only protocol changes without explicitly versioning and coordinating them with Android.
+- Do not present mock-only tests as evidence that product behavior is correct.
 
 ## Memory file
 - You have access to a persistent memory file, memory.md, that stores context about the project, previous interactions, and user preferences.

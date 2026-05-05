@@ -167,6 +167,14 @@ describe("AppShell integration", () => {
     expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
   });
 
+  it("redirects unknown routes back to the real home screen", async () => {
+    renderAppShell("/does-not-exist");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+  });
+
   it("keeps host setup blocked until the LAN address resolves", async () => {
     mockedResolveHostLanAddress.mockRejectedValueOnce(
       new Error("No reachable LAN IP"),

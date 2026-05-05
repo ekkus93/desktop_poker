@@ -1404,7 +1404,6 @@ fn reconnect_after_disconnect(
 ) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {
     let reconnect_token = reconnect_token
         .ok_or_else(|| NetworkingError::new("reconnect token is unavailable for this session"))?;
-    let mut stream = connect_to_host(join_payload)?;
     let identity = reconnect_identity
         .lock()
         .map_err(|_| NetworkingError::new("client reconnect identity lock poisoned"))?;
@@ -1435,10 +1434,27 @@ fn reconnect_after_disconnect(
     *next_counter += 1;
     drop(identity);
 
-    write_json_frame(&mut stream, &reconnect_envelope)?;
-    let snapshot = read_snapshot_response(crypto_provider, &mut stream, join_payload)?;
+    const MAX_ALREADY_CONNECTED_RETRIES: u8 = 10;
 
-    Ok((stream, snapshot))
+    for attempt in 0..=MAX_ALREADY_CONNECTED_RETRIES {
+        let mut stream = connect_to_host(join_payload)?;
+        write_json_frame(&mut stream, &reconnect_envelope)?;
+
+        match read_snapshot_response(crypto_provider, &mut stream, join_payload) {
+            Ok(snapshot) => return Ok((stream, snapshot)),
+            Err(error)
+                if error.to_string().contains("participant is already connected")
+                    && attempt < MAX_ALREADY_CONNECTED_RETRIES =>
+            {
+                thread::sleep(Duration::from_millis(20));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    Err(NetworkingError::new(
+        "reconnect retries exhausted while waiting for prior connection cleanup",
+    ))
 }
 
 fn request_resync_snapshot(

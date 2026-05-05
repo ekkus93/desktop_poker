@@ -8,9 +8,6 @@ use std::{
 use dirs::data_local_dir;
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-use crate::engine::Deck;
-
 use crate::{
     crypto, domain, engine,
     interop, networking, protocol, storage, tournament,
@@ -296,25 +293,19 @@ impl DesktopAppState {
             .lock()
             .map_err(|_| "launch counter lock poisoned".to_string())?;
         *launch_counter += 1;
-        let instance_id = build_debug_child_instance_id(
+        let (instance_id, launch_args) = build_debug_child_launch_args(
             &self.bootstrap.instance_id,
             std::process::id(),
             *launch_counter,
+            join_payload.as_deref(),
         );
         let current_executable = env::current_exe().map_err(|error| error.to_string())?;
         let current_directory = env::current_dir().map_err(|error| error.to_string())?;
 
         let mut command = Command::new(current_executable);
-        command
-            .arg(INSTANCE_ID_ARG)
-            .arg(&instance_id)
-            .current_dir(current_directory);
-        if let Some(payload) = join_payload
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
-            command.arg(JOIN_PAYLOAD_ARG).arg(payload);
+        command.current_dir(current_directory);
+        for arg in launch_args {
+            command.arg(arg);
         }
         command.spawn().map_err(|error| error.to_string())?;
 
@@ -509,6 +500,23 @@ fn build_debug_child_instance_id(
     launch_counter: u32,
 ) -> String {
     format!("{parent_profile_id}-p{process_id}-client-{launch_counter}")
+}
+
+fn build_debug_child_launch_args(
+    parent_profile_id: &str,
+    process_id: u32,
+    launch_counter: u32,
+    join_payload: Option<&str>,
+) -> (String, Vec<String>) {
+    let instance_id = build_debug_child_instance_id(parent_profile_id, process_id, launch_counter);
+    let mut args = vec![INSTANCE_ID_ARG.to_string(), instance_id.clone()];
+
+    if let Some(payload) = join_payload.map(str::trim).filter(|value| !value.is_empty()) {
+        args.push(JOIN_PAYLOAD_ARG.to_string());
+        args.push(payload.to_string());
+    }
+
+    (instance_id, args)
 }
 
 fn detect_profile_directory(instance_id: &str) -> PathBuf {
@@ -1181,37 +1189,6 @@ fn registered_player(
     }
 }
 
-#[cfg(test)]
-fn stacked_demo_deck() -> Result<Deck, engine::EngineError> {
-    let prefix = vec![
-        card(domain::Rank::King, domain::Suit::Hearts),
-        card(domain::Rank::Ace, domain::Suit::Spades),
-        card(domain::Rank::Queen, domain::Suit::Clubs),
-        card(domain::Rank::Ten, domain::Suit::Hearts),
-        card(domain::Rank::Ace, domain::Suit::Diamonds),
-        card(domain::Rank::Queen, domain::Suit::Diamonds),
-        card(domain::Rank::Two, domain::Suit::Clubs),
-        card(domain::Rank::Jack, domain::Suit::Spades),
-        card(domain::Rank::Nine, domain::Suit::Hearts),
-        card(domain::Rank::Three, domain::Suit::Clubs),
-        card(domain::Rank::Four, domain::Suit::Spades),
-    ];
-    let mut cards = prefix.clone();
-    cards.extend(
-        Deck::standard_52()
-            .cards()
-            .iter()
-            .copied()
-            .filter(|card| !prefix.contains(card)),
-    );
-    Deck::from_cards(cards)
-}
-
-#[cfg(test)]
-fn card(rank: domain::Rank, suit: domain::Suit) -> domain::Card {
-    domain::Card { rank, suit }
-}
-
 fn resolve_action_request(
     window: &domain::ActionWindow,
     action_kind: DesktopTableActionKind,
@@ -1410,10 +1387,37 @@ fn format_action(action: domain::ActionType) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_debug_child_instance_id, demo_controller, derive_instance_profile,
-        detect_profile_directory, screen_catalog, stacked_demo_deck, DesktopAppState,
-        DesktopTableActionKind, TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
+        build_debug_child_instance_id, build_debug_child_launch_args, derive_instance_profile,
+        detect_profile_directory, ensure_legal, format_marker, format_phase, format_street,
+        resolve_action_request, screen_catalog, DesktopAppState, DesktopTableActionKind,
+        TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
     };
+    use crate::domain::{ActionType, ActionWindow, SeatMarker, StreetPhase, TournamentPhase};
+
+    fn sample_action_window(legal_actions: Vec<ActionType>) -> ActionWindow {
+        ActionWindow {
+            action_window_id: "window-1".to_string(),
+            player_id: super::LOCAL_PLAYER_ID.to_string(),
+            seat_index: 0,
+            legal_actions,
+            call_amount: 40,
+            min_raise_to: Some(80),
+            max_raise_to: Some(200),
+            deadline_epoch_ms: 123_456,
+        }
+    }
+
+    fn start_live_table_state() -> DesktopAppState {
+        let state = DesktopAppState::detect();
+        state
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .controller
+            .start_tournament(1)
+            .expect("start tournament");
+        state
+    }
 
     #[test]
     fn detect_uses_android_compatible_defaults() {
@@ -1479,65 +1483,183 @@ mod tests {
     }
 
     #[test]
-    fn demo_runtime_exposes_local_and_observer_views() {
-        let state = DesktopAppState::detect();
-        let local_view = state
-            .table_view(TableViewerMode::Local)
-            .expect("local view");
-        let observer_view = state
-            .table_view(TableViewerMode::Observer)
-            .expect("observer view");
+    fn local_table_view_is_truthful_before_the_first_hand_starts() {
+        std::env::remove_var(INSTANCE_ID_ENV_VAR);
+        std::env::remove_var(JOIN_PAYLOAD_ENV_VAR);
 
-        assert!(local_view.action_tray.is_none());
-        assert!(observer_view.action_tray.is_none());
-        assert!(observer_view.observer_banner.is_some());
-        assert_eq!(local_view.phase_label, "Ready check");
-        assert!(local_view.board_cards.is_empty());
-        assert!(local_view
-            .seats
+        let table_view = DesktopAppState::detect()
+            .table_view(TableViewerMode::Local)
+            .expect("local table view");
+
+        assert_eq!(table_view.viewer_mode, TableViewerMode::Local);
+        assert_eq!(table_view.current_hand_number, None);
+        assert!(table_view.board_cards.is_empty());
+        assert!(table_view.action_tray.is_none());
+        assert_eq!(table_view.seats[0].display_name, "You");
+        assert_eq!(table_view.seats[1].display_name, "Waiting for player");
+        assert_eq!(table_view.seats[1].status_label, "Reserved");
+        assert!(table_view
+            .standings
             .iter()
-            .find(|seat| seat.is_local)
-            .is_some_and(|seat| !seat.cards_hidden));
-        assert!(observer_view
-            .seats
-            .iter()
-            .find(|seat| seat.is_local)
-            .is_some_and(|seat| seat.cards_hidden));
-        assert!(local_view.seats.iter().all(|seat| seat.display_name != "Riley"));
+            .all(|entry| entry.display_name != "Reserved seat"));
     }
 
     #[test]
-    fn demo_runtime_actions_append_history() {
-        let state = DesktopAppState::detect();
-        let initial_history_len = state
+    fn local_actions_advance_runtime_and_invalid_paths_fail_cleanly() {
+        let state = start_live_table_state();
+        let before_action = state
             .table_view(TableViewerMode::Local)
-            .expect("initial view")
-            .hand_history
-            .len();
+            .expect("table view before action");
 
-        let result = state.submit_table_action(
-            TableViewerMode::Local,
-            DesktopTableActionKind::CheckOrCall,
-            None,
+        assert_eq!(before_action.current_hand_number, Some(1));
+        assert!(before_action.action_tray.is_some());
+
+        assert_eq!(
+            state
+                .submit_table_action(
+                    TableViewerMode::Observer,
+                    DesktopTableActionKind::Fold,
+                    None,
+                )
+                .expect_err("observer action should fail"),
+            "observer mode cannot submit actions"
         );
 
-        assert!(result.is_err());
-        let updated_view = state.table_view(TableViewerMode::Local).expect("updated view");
-        assert_eq!(updated_view.hand_history.len(), initial_history_len);
-        assert!(!updated_view.event_feed.is_empty());
+        let invalid_raise_state = start_live_table_state();
+        assert!(invalid_raise_state
+            .submit_table_action(
+                TableViewerMode::Local,
+                DesktopTableActionKind::BetOrRaise,
+                Some(1),
+            )
+            .expect_err("invalid raise should fail")
+            .contains("minimum full raise sizing"));
+
+        let after_action = state
+            .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::CheckOrCall, None)
+            .expect("check/call should succeed");
+
+        assert_eq!(after_action.current_hand_number, Some(1));
+        assert!(!after_action.event_feed.is_empty());
+        assert!(after_action
+            .event_feed
+            .iter()
+            .any(|entry| entry.message.contains("You selected")));
     }
 
     #[test]
-    fn demo_controller_uses_deterministic_deck() {
-        let mut controller = demo_controller().expect("demo controller");
-        controller.set_next_deck(stacked_demo_deck().expect("stacked deck"));
-        controller.start_tournament(1).expect("start tournament");
-        let local_cards = controller
-            .state()
-            .current_hand
-            .as_ref()
-            .and_then(|hand| hand.hole_cards_by_player_id.get("local-player"))
-            .expect("local cards");
-        assert_eq!(local_cards.len(), 2);
+    fn debug_state_tracks_runtime_sequence_and_action_window_presence() {
+        let idle_debug_state = DesktopAppState::detect()
+            .debug_state(TableViewerMode::Local)
+            .expect("idle debug state");
+        assert_eq!(idle_debug_state.current_hand_number, None);
+        assert!(idle_debug_state.action_window_summary.is_none());
+
+        let state = start_live_table_state();
+        let running_debug_state = state
+            .debug_state(TableViewerMode::Local)
+            .expect("running debug state");
+        assert_eq!(running_debug_state.current_hand_number, Some(1));
+        assert!(running_debug_state.current_sequence >= 1);
+        assert!(running_debug_state
+            .action_window_summary
+            .as_deref()
+            .is_some_and(|summary| summary.contains("You")));
+
+        state
+            .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::CheckOrCall, None)
+            .expect("local action");
+        let updated_debug_state = state
+            .debug_state(TableViewerMode::Local)
+            .expect("updated debug state");
+        assert!(updated_debug_state.current_sequence > running_debug_state.current_sequence);
+        assert!(!updated_debug_state.protocol_log.is_empty());
+    }
+
+    #[test]
+    fn debug_child_launch_args_keep_instance_scope_and_optional_join_payload() {
+        let (instance_id, args) =
+            build_debug_child_launch_args("host-a", 9001, 2, Some("  pkr1_join  "));
+        let (instance_id_without_payload, args_without_payload) =
+            build_debug_child_launch_args("host-a", 9001, 3, Some("   "));
+
+        assert_eq!(instance_id, "host-a-p9001-client-2");
+        assert_eq!(
+            args,
+            vec![
+                "--instance-id".to_string(),
+                "host-a-p9001-client-2".to_string(),
+                "--join-payload".to_string(),
+                "pkr1_join".to_string(),
+            ],
+        );
+        assert_eq!(instance_id_without_payload, "host-a-p9001-client-3");
+        assert_eq!(
+            args_without_payload,
+            vec![
+                "--instance-id".to_string(),
+                "host-a-p9001-client-3".to_string(),
+            ],
+        );
+    }
+
+    #[test]
+    fn resolve_action_request_covers_fold_check_call_bet_raise_and_all_in_paths() {
+        let check_window = sample_action_window(vec![ActionType::Check, ActionType::Bet]);
+        let call_window = sample_action_window(vec![ActionType::Call, ActionType::Raise]);
+        let all_in_window = sample_action_window(vec![ActionType::Fold, ActionType::AllIn]);
+
+        assert_eq!(
+            resolve_action_request(&all_in_window, DesktopTableActionKind::Fold, None)
+                .expect("fold should resolve"),
+            (ActionType::Fold, None, "Fold"),
+        );
+        assert_eq!(
+            resolve_action_request(&check_window, DesktopTableActionKind::CheckOrCall, None)
+                .expect("check should resolve"),
+            (ActionType::Check, None, "Check"),
+        );
+        assert_eq!(
+            resolve_action_request(&call_window, DesktopTableActionKind::CheckOrCall, None)
+                .expect("call should resolve"),
+            (ActionType::Call, None, "Call"),
+        );
+        assert_eq!(
+            resolve_action_request(&check_window, DesktopTableActionKind::BetOrRaise, Some(120))
+                .expect("bet should resolve"),
+            (ActionType::Bet, Some(120), "Bet"),
+        );
+        assert_eq!(
+            resolve_action_request(&call_window, DesktopTableActionKind::BetOrRaise, Some(120))
+                .expect("raise should resolve"),
+            (ActionType::Raise, Some(120), "Raise"),
+        );
+        assert_eq!(
+            resolve_action_request(&all_in_window, DesktopTableActionKind::AllIn, None)
+                .expect("all-in should resolve"),
+            (ActionType::AllIn, None, "All-in"),
+        );
+        assert_eq!(
+            resolve_action_request(&call_window, DesktopTableActionKind::BetOrRaise, None)
+                .expect_err("missing raise amount should fail"),
+            "raise amount is required for bet / raise"
+        );
+    }
+
+    #[test]
+    fn ensure_legal_and_format_helpers_return_expected_contract_strings() {
+        let window = sample_action_window(vec![ActionType::Call, ActionType::Raise]);
+
+        assert!(ensure_legal(&window, ActionType::Raise).is_ok());
+        assert_eq!(
+            ensure_legal(&window, ActionType::Fold).expect_err("fold should be illegal"),
+            "Fold is not legal in the current action window"
+        );
+        assert_eq!(format_phase(TournamentPhase::WaitingForPlayers), "Waiting for players");
+        assert_eq!(format_phase(TournamentPhase::Running), "Running");
+        assert_eq!(format_street(StreetPhase::Preflop), "Preflop");
+        assert_eq!(format_street(StreetPhase::River), "River");
+        assert_eq!(format_marker(SeatMarker::Dealer), "Dealer");
+        assert_eq!(format_marker(SeatMarker::BigBlind), "Big blind");
     }
 }

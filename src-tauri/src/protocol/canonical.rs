@@ -62,3 +62,68 @@ fn normalize_value(value: Value) -> Value {
         primitive => primitive,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{canonical_json_bytes, canonical_json_bytes_without_signature};
+
+    #[test]
+    fn canonical_json_sorts_keys_and_omits_null_object_fields() {
+        let value = json!({
+            "z": 1,
+            "a": {
+                "c": 3,
+                "b": 2,
+                "drop": null
+            },
+            "drop": null
+        });
+
+        let bytes = canonical_json_bytes(&value).expect("canonical bytes");
+
+        assert_eq!(
+            String::from_utf8(bytes).expect("utf8"),
+            r#"{"a":{"b":2,"c":3},"z":1}"#,
+        );
+    }
+
+    #[test]
+    fn canonical_json_preserves_array_order_and_primitives() {
+        let value = json!({
+            "items": [
+                { "b": 2, "a": 1 },
+                "alpha",
+                7,
+                true
+            ]
+        });
+
+        let bytes = canonical_json_bytes(&value).expect("canonical bytes");
+
+        assert_eq!(
+            String::from_utf8(bytes).expect("utf8"),
+            r#"{"items":[{"a":1,"b":2},"alpha",7,true]}"#,
+        );
+    }
+
+    #[test]
+    fn canonical_json_without_signature_removes_only_the_top_level_signature() {
+        let value = json!({
+            "signature": "outer-signature",
+            "payload": {
+                "signature": "inner-signature",
+                "value": 7
+            }
+        });
+
+        let bytes = canonical_json_bytes_without_signature(&value)
+            .expect("canonical bytes without signature");
+
+        assert_eq!(
+            String::from_utf8(bytes).expect("utf8"),
+            r#"{"payload":{"signature":"inner-signature","value":7}}"#,
+        );
+    }
+}

@@ -124,3 +124,32 @@
 ## 2026-05-04T14:16:23-07:00 - GPT-5.4 - Fix host setup visibility and persisted state recovery
 - Commit `8f1bb14e0e9a18b27ada8d6b779cbeb0babaaba2` fixed host setup visibility issues caused by hidden advanced options and legacy persisted collapsed host state.
 - The host setup now recovers from older saved `hostDraft` values that left critical controls hidden.
+
+## 2026-05-05T11:15:42Z - GPT-5.4 - Ban mock-only tests in repo instructions
+- Added an explicit rule to `.github/copilot_instructions.md` forbidding mock-only tests that do not execute meaningful production code.
+- Clarified that mocks are allowed only for external boundaries while critical behavior must still have at least one real-code test.
+
+## 2026-05-05T11:20:23Z - GPT-5.4 - Audit tests for mock-only coverage
+- Audited the current frontend test suite for pure mock-only tests.
+- Removed `src/app/AppShell.test.tsx` as the weakest hook-mocking shell test and replaced its route-redirect coverage in `src/app/AppShell.integration.test.tsx`, which exercises the real bootstrap provider and routing path.
+- After the audit, no other current frontend test files were judged pure mock-only under the stricter rule; remaining mocked tests still execute real components or real logic while isolating external boundaries.
+
+## 2026-05-05T11:28:45Z - GPT-5.4 - Audit Rust tests for demo-only assumptions
+- Audited the Rust-side test suite for fake/demo-only assumptions.
+- Found the main risk concentrated in `src-tauri/src/app_state/mod.rs`, where three tests are coupled to `demo_controller()` and demo-only identifiers/state rather than production runtime behavior.
+- The rest of the Rust suite in `engine`, `tournament`, `domain`, `protocol`, `crypto`, and `networking` was assessed as real-code or fixture-backed meaningful coverage rather than demo-only testing.
+
+## 2026-05-05T11:31:38Z - GPT-5.4 - Replace demo-coupled Rust tests with real controller contract test
+- Removed the three demo-coupled `app_state` tests that depended on `demo_controller()` and demo-only identifiers.
+- Added a real `TournamentController` contract test in `src-tauri/src/tournament/mod.rs` that verifies custom deck sequencing without using the demo runtime.
+- Removed dead demo-only test helpers from `src-tauri/src/app_state/mod.rs` after the replacement and revalidated with focused Rust tests plus `cargo clippy -D warnings`.
+
+## 2026-05-05T11:37:13Z - GPT-5.4 - Add second unit-test backlog document
+- Added `docs/UNIT_TEST2_TODO.md` with the next comprehensive unit-test backlog after the mock-only and demo-coupled test audit.
+- Prioritized direct coverage for `src/app/shell.ts`, `src/api/desktop.ts`, `src-tauri/src/commands.rs`, `src-tauri/src/networking/framing.rs`, and additional non-demo `src-tauri/src/app_state/mod.rs` contract tests.
+
+## 2026-05-05T05:11:49-07:00 - GPT-5.4 - Complete second unit-test expansion wave
+- Added direct frontend test coverage for shell helpers, the Tauri desktop bridge, hook/provider behavior, `ScreenShell`, and `ReadyRoomScreen` while explicitly deferring low-value prop-to-markup component tests.
+- Added Rust regression coverage for command wrappers, framing, join-payload helpers, canonical serialization, protocol models, and non-demo `DesktopAppState` runtime behavior.
+- Fixed a real reconnect race in `src-tauri/src/networking/runtime.rs` by retrying transient `participant is already connected` reconnect responses during cleanup.
+- Closed out `docs/UNIT_TEST2_TODO.md` with all tasks marked complete or explicitly deferred, then revalidated with `npm run lint`, `npm run test`, `npm run test:geometry`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`.

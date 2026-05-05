@@ -1526,6 +1526,55 @@ mod tests {
     }
 
     #[test]
+    fn custom_deck_sequences_drive_real_controller_hole_cards() {
+        let mut controller = TournamentController::new(
+            "table-deck-contract",
+            1,
+            sample_config(1_000),
+            vec![player("p1", 0), player("p2", 1)],
+        )
+        .expect("controller should build");
+        controller.set_next_deck(stacked_deck(vec![
+            card(Rank::Ace, Suit::Spades),
+            card(Rank::King, Suit::Hearts),
+            card(Rank::Queen, Suit::Clubs),
+            card(Rank::Jack, Suit::Diamonds),
+            card(Rank::Ten, Suit::Spades),
+            card(Rank::Nine, Suit::Hearts),
+            card(Rank::Eight, Suit::Clubs),
+            card(Rank::Seven, Suit::Diamonds),
+            card(Rank::Six, Suit::Spades),
+        ]));
+
+        controller
+            .start_tournament(0)
+            .expect("tournament should start");
+
+        let hand = controller
+            .state()
+            .current_hand
+            .as_ref()
+            .expect("current hand should exist");
+
+        assert_eq!(hand.board_cards.len(), 0);
+        assert_eq!(hand.hole_cards_by_player_id.len(), 2);
+        assert_eq!(
+            hand.hole_cards_by_player_id
+                .get("p1")
+                .expect("p1 should have hole cards")
+                .len(),
+            2
+        );
+        assert_eq!(
+            hand.hole_cards_by_player_id
+                .get("p2")
+                .expect("p2 should have hole cards")
+                .len(),
+            2
+        );
+    }
+
+    #[test]
     fn hand_progresses_from_start_to_completion() {
         let mut controller = TournamentController::new(
             "table-1",
