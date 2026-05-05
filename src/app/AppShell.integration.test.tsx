@@ -130,6 +130,7 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
+    expect(screen.getByText("Friday Finals")).toBeTruthy();
     expect(screen.getByText("Seat 1")).toBeTruthy();
     expect(screen.getByText("Seat 6")).toBeTruthy();
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
@@ -161,8 +162,8 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
-    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark seat 2 ready" }));
 
     expect(
       screen.getByRole("link", { name: "Start tournament" }),
@@ -225,7 +226,7 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(screen.getByText("You: Waiting")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     expect(await screen.findByText("You: Ready")).toBeTruthy();
   });
@@ -267,8 +268,8 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Mark ready" }));
-    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark seat 2 ready" }));
     fireEvent.click(screen.getByRole("link", { name: "Start tournament" }));
 
     expect(

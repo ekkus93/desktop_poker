@@ -8,7 +8,7 @@ import type {
 } from "../api/desktop";
 import { DesktopShellProvider } from "../app/DesktopShellProvider";
 import { persistHandHistory } from "../app/persistence";
-import { storageKey } from "../app/shell";
+import { storageKey, type HostDraft } from "../app/shell";
 import { DeviceSettingsScreen } from "../screens/DeviceSettingsScreen";
 import { HandHistoryScreen } from "../screens/HandHistoryScreen";
 import { HomeScreen } from "../screens/HomeScreen";
@@ -209,7 +209,17 @@ function installBrowserMocks(bootstrap: DesktopBootstrapState) {
   };
 }
 
-function seedProbeShellState(bootstrap: DesktopBootstrapState) {
+function seedProbeShellState(
+  bootstrap: DesktopBootstrapState,
+  hostDraftOverrides?: Partial<HostDraft>,
+) {
+  if (hostDraftOverrides) {
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify(hostDraftOverrides),
+    );
+  }
+
   localStorage.setItem(
     storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
     JSON.stringify([createProbeJoinPayload().joinToken]),
@@ -246,7 +256,12 @@ export function LayoutProbeApp({ surface }: { surface: string }) {
   const bootstrap = createProbeBootstrap();
   installBrowserMocks(bootstrap);
   if (surface !== "home-empty") {
-    seedProbeShellState(bootstrap);
+    seedProbeShellState(
+      bootstrap,
+      surface === "lobby"
+        ? { tournamentName: "Friday Finals", maxPlayers: 10 }
+        : undefined,
+    );
   }
 
   return (

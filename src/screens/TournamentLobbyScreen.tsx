@@ -26,97 +26,108 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Lobby"
-      badges={[hostDraft.tournamentName, canStart ? "Ready to deal" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
+      badges={[canStart ? "Ready to deal" : `${activeSeats.length}/${hostDraft.maxPlayers} seated`]}
     >
       <div className="content-grid lobby-shell-grid">
         <section className="section-card lobby-stage-card">
-          <div className="lobby-status-row">
-            <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
-              {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-              {localSeatReady ? "You: Ready" : "You: Waiting"}
-            </span>
-            <span className={`status-badge ${canStart ? "success" : "info"}`}>
-              {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-              {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
-            </span>
-            <span className="status-badge accent">
-              {openSeatCount > 0 ? `${openSeatCount} open seats` : "Table full"}
-            </span>
-          </div>
-          <div className="button-row lobby-primary-actions workstation-actions compact-workstation-actions">
-            {canStart ? (
-              <Link className="primary-button compact-button" to="/table">
-                <span className="button-content">
-                  <Play className="button-icon" strokeWidth={1.9} />
-                  <span>Start tournament</span>
+          <div className="lobby-stage-layout">
+            <div className="lobby-stage-summary">
+              <div className="lobby-table-meta">
+                <strong className="lobby-table-name">{hostDraft.tournamentName}</strong>
+                <span className="field-hint">{hostDraft.maxPlayers} seats</span>
+              </div>
+              <div className="lobby-status-row">
+                <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
+                  {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                  {localSeatReady ? "You: Ready" : "You: Waiting"}
                 </span>
-              </Link>
-            ) : (
-              <button className="primary-button compact-button" disabled type="button">
-                <span className="button-content">
-                  <Play className="button-icon" strokeWidth={1.9} />
-                  <span>Start tournament</span>
+                <span className={`status-badge ${canStart ? "success" : "info"}`}>
+                  {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                  {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
                 </span>
-              </button>
-            )}
-            <button
-              className="secondary-button compact-button"
-              onClick={() => {
-                setShowLeaveFlow(true);
-              }}
-              type="button"
-            >
-              <span className="button-content">
-                <LogOut className="button-icon" strokeWidth={1.9} />
-                <span>Leave table</span>
-              </span>
-            </button>
-          </div>
-          <div className="seat-grid lobby-seat-grid">
-            {participants.map((seat) => {
-              const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
-              const readyButtonLabel = seat.ready ? "Host marked ready" : "Host marks ready";
-
-              return (
-                <article
-                  key={seat.seatIndex}
-                  className={`seat-card lobby-seat-card ${seat.kind === "open" ? "lobby-seat-open" : "lobby-seat-filled"} ${seat.isLocal ? "lobby-seat-local" : ""} ${seat.ready ? "lobby-seat-ready" : ""}`}
-                >
-                  <div className="seat-card-header">
-                    <div>
-                      <strong>Seat {seat.seatIndex}</strong>
-                      <span>{seat.label}</span>
-                    </div>
-                    <span className={`status-badge ${seat.kind === "open" ? "accent" : seat.ready ? "success" : "info"}`}>
-                      {seat.kind === "open" ? null : seat.ready ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                      {seatState}
+                <span className="status-badge accent">
+                  {openSeatCount > 0 ? `${openSeatCount} open seats` : "Table full"}
+                </span>
+              </div>
+              <div className="button-row lobby-primary-actions workstation-actions compact-workstation-actions">
+                {localSeat ? (
+                  <button
+                    className={localSeatReady ? "primary-button compact-button" : "secondary-button compact-button"}
+                    onClick={() => {
+                      toggleSeatReady(localSeat.seatIndex);
+                    }}
+                    type="button"
+                  >
+                    {localSeatReady ? "Undo ready" : "I'm ready"}
+                  </button>
+                ) : null}
+                {canStart ? (
+                  <Link className="primary-button compact-button" to="/table">
+                    <span className="button-content">
+                      <Play className="button-icon" strokeWidth={1.9} />
+                      <span>Start tournament</span>
                     </span>
-                  </div>
-                  {seat.detail ? <p className="seat-detail">{seat.detail}</p> : <p className="seat-detail">Available for another player.</p>}
-                  {seat.isLocal ? (
-                    <button
-                      className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
-                      onClick={() => {
-                        toggleSeatReady(seat.seatIndex);
-                      }}
-                      type="button"
-                    >
-                      {seat.ready ? "Ready" : "Mark ready"}
-                    </button>
-                  ) : seat.kind !== "open" && bootstrap.debugToolsEnabled ? (
-                    <button
-                      className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
-                      onClick={() => {
-                        toggleSeatReady(seat.seatIndex);
-                      }}
-                      type="button"
-                    >
-                      {readyButtonLabel}
-                    </button>
-                  ) : null}
-                </article>
-              );
-            })}
+                  </Link>
+                ) : (
+                  <button className="primary-button compact-button" disabled type="button">
+                    <span className="button-content">
+                      <Play className="button-icon" strokeWidth={1.9} />
+                      <span>Start tournament</span>
+                    </span>
+                  </button>
+                )}
+                <button
+                  className="secondary-button compact-button"
+                  onClick={() => {
+                    setShowLeaveFlow(true);
+                  }}
+                  type="button"
+                >
+                  <span className="button-content">
+                    <LogOut className="button-icon" strokeWidth={1.9} />
+                    <span>Leave table</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div className="seat-grid lobby-seat-grid">
+              {participants.map((seat) => {
+                const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
+                const seatReadyButtonLabel = seat.ready
+                  ? `Mark seat ${seat.seatIndex} not ready`
+                  : `Mark seat ${seat.seatIndex} ready`;
+
+                return (
+                  <article
+                    key={seat.seatIndex}
+                    className={`seat-card lobby-seat-card ${seat.kind === "open" ? "lobby-seat-open" : "lobby-seat-filled"} ${seat.isLocal ? "lobby-seat-local" : ""} ${seat.ready ? "lobby-seat-ready" : ""}`}
+                  >
+                    <div className="seat-card-header">
+                      <div>
+                        <strong>Seat {seat.seatIndex}</strong>
+                        <span>{seat.label}</span>
+                      </div>
+                      <span className={`status-badge ${seat.kind === "open" ? "accent" : seat.ready ? "success" : "info"}`}>
+                        {seat.kind === "open" ? null : seat.ready ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                        {seatState}
+                      </span>
+                    </div>
+                    {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
+                    {seat.isLocal ? null : seat.kind !== "open" && bootstrap.debugToolsEnabled ? (
+                      <button
+                        className={seat.ready ? "primary-button compact-button" : "secondary-button compact-button"}
+                        onClick={() => {
+                          toggleSeatReady(seat.seatIndex);
+                        }}
+                        type="button"
+                      >
+                        {seatReadyButtonLabel}
+                      </button>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </section>
       </div>

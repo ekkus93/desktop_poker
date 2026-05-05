@@ -20,8 +20,11 @@ async function openProbe(page: Page, surface: string) {
   await page.goto(`/?layout-probe=${surface}`);
 }
 
-async function installRoutedShellMocks(page: Page) {
-  await page.addInitScript(() => {
+async function installRoutedShellMocks(
+  page: Page,
+  options?: { tournamentName?: string; maxPlayers?: number },
+) {
+  await page.addInitScript((initOptions?: { tournamentName?: string; maxPlayers?: number }) => {
     const bootstrap = {
       appName: "Desktop Poker",
       protocolVersion: 1,
@@ -119,9 +122,16 @@ async function installRoutedShellMocks(page: Page) {
     };
 
     const prefix = `${bootstrap.storageNamespace}:`;
+    localStorage.setItem(
+      `${prefix}host-draft`,
+      JSON.stringify({
+        tournamentName: initOptions?.tournamentName ?? "Desktop Sit 'n Go playwright-routed-host",
+        maxPlayers: initOptions?.maxPlayers ?? 6,
+      }),
+    );
     localStorage.setItem(`${prefix}recent-join-payloads`, JSON.stringify([joinPayload.joinToken]));
     localStorage.setItem(`${prefix}hand-history`, JSON.stringify(tableView.handHistory));
-  });
+  }, options);
 }
 
 function expectRightColumn(main: Rect, side: Rect) {
@@ -149,6 +159,30 @@ test.describe("layout probe browser geometry", () => {
 
     expect(metrics.workstationTop).toBeGreaterThan(0);
     expect(metrics.workstationBottom).toBeLessThanOrEqual(metrics.viewportHeight);
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight);
+  });
+
+  test("keeps the routed 10-seat lobby inside the viewport and shows the tournament name", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await installRoutedShellMocks(page, {
+      tournamentName: "Friday Finals",
+      maxPlayers: 10,
+    });
+    await page.goto("/#/lobby");
+    await expect(page.getByRole("heading", { level: 2, name: "Lobby" })).toBeVisible();
+    await expect(page.getByText("Friday Finals")).toBeVisible();
+    await expect(page.getByText("Seat 10")).toBeVisible();
+
+    const metrics = await page.evaluate(() => {
+      const lastSeat = document.querySelector(".lobby-seat-grid > :last-child")?.getBoundingClientRect();
+      return {
+        viewportHeight: window.innerHeight,
+        scrollHeight: document.documentElement.scrollHeight,
+        lastSeatBottom: lastSeat?.bottom ?? 0,
+      };
+    });
+
+    expect(metrics.lastSeatBottom).toBeLessThanOrEqual(metrics.viewportHeight - 16);
     expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight);
   });
 

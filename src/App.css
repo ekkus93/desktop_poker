@@ -126,6 +126,8 @@ button:disabled {
 
 .tournament-topbar {
   grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  padding: 0.48rem 0.85rem;
 }
 
 .tournament-play-nav {
@@ -403,10 +405,19 @@ dt {
   padding: var(--shell-page-padding);
 }
 
+.tournament-frame .content {
+  gap: 0.6rem;
+  padding: 0.52rem 0.82rem 0.64rem;
+}
+
 .screen-shell {
   display: grid;
   min-height: 0;
   gap: var(--shell-gap);
+}
+
+.tournament-frame .screen-shell {
+  gap: 0.55rem;
 }
 
 .pregame-screen-shell {
@@ -432,6 +443,14 @@ dt {
 .screen-copy {
   display: grid;
   gap: 0.4rem;
+}
+
+.tournament-frame .screen-copy {
+  gap: 0.18rem;
+}
+
+.tournament-frame .screen-copy .kicker {
+  display: none;
 }
 
 .primary-button,
@@ -756,8 +775,34 @@ dt {
 }
 
 .lobby-stage-card {
-  gap: 0.5rem;
-  padding: 0.78rem 0.82rem;
+  gap: 0.35rem;
+  padding: 0.6rem 0.66rem;
+}
+
+.lobby-table-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.lobby-table-name {
+  color: #f8efe2;
+  font-size: 1rem;
+}
+
+.lobby-stage-layout {
+  display: grid;
+  grid-template-columns: minmax(12.5rem, 15rem) minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: start;
+}
+
+.lobby-stage-summary {
+  display: grid;
+  gap: 0.42rem;
+  align-content: start;
 }
 
 .lobby-primary-actions {
@@ -765,19 +810,20 @@ dt {
 }
 
 .lobby-seat-grid {
-  grid-template-columns: repeat(auto-fit, minmax(9.2rem, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
 .lobby-seat-card {
   align-content: start;
   min-height: 0;
-  gap: 0.32rem;
-  padding: 0.58rem 0.62rem;
+  gap: 0.22rem;
+  padding: 0.4rem 0.46rem;
 }
 
 .lobby-seat-card .seat-detail {
-  font-size: 0.86rem;
+  font-size: 0.8rem;
+  line-height: 1.1;
 }
 
 .compact-workstation-actions {
@@ -1540,6 +1586,14 @@ code {
   .workstation-grid {
     grid-template-columns: 1fr;
   }
+
+  .lobby-seat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lobby-stage-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 920px) {
@@ -1574,6 +1628,16 @@ code {
 
   .screen-header {
     flex-direction: column;
+  }
+
+  .lobby-seat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .lobby-seat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .pregame-hero-card {
