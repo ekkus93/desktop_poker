@@ -181,7 +181,7 @@ test.describe("layout probe browser geometry", () => {
     expectRightColumn(joinMain, joinSide);
   });
 
-  test("keeps home resume and lobby ready-room content in usable desktop rows", async ({ page }) => {
+  test("keeps home resume and lobby ready-room content in usable desktop columns", async ({ page }) => {
     await openProbe(page, "home");
 
     const heroCard = await getRect(page.locator(".home-stage > :first-child"));
@@ -190,13 +190,9 @@ test.describe("layout probe browser geometry", () => {
 
     await openProbe(page, "lobby");
 
-    const lobbyProgress = await getRect(page.locator(".lobby-progress-card"));
-    const lobbyActionRail = await getRect(page.locator(".lobby-action-rail"));
-    expectRightColumn(lobbyProgress, lobbyActionRail);
-
-    const lobbyOverview = await getRect(page.locator(".lobby-overview-stack"));
-    const lobbySeatArea = await getRect(page.locator(".lobby-seat-grid"));
-    expect(lobbySeatArea.y).toBeGreaterThanOrEqual(lobbyOverview.y + lobbyOverview.height - 8);
+    const lobbyBrief = await getRect(page.locator(".lobby-brief-card"));
+    const lobbyRoster = await getRect(page.locator(".lobby-roster-card"));
+    expectRightColumn(lobbyBrief, lobbyRoster);
 
     const lobbyMetrics = await page.evaluate(() => ({
       viewportHeight: window.innerHeight,

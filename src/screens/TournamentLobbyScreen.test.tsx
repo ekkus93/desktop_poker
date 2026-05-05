@@ -15,6 +15,7 @@ describe("TournamentLobbyScreen", () => {
 
     expect(screen.queryByText("2/2 ready")).toBeNull();
     expect(screen.getByText("0/2 ready")).toBeTruthy();
+    expect(screen.getByText(/mark players ready\. start when everyone you need is ready\./i)).toBeTruthy();
     expect(screen.getByText("You: Waiting")).toBeTruthy();
     expect(screen.getByText("2 waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark ready" })).toBeTruthy();
@@ -39,6 +40,7 @@ describe("TournamentLobbyScreen", () => {
     expect(screen.getByText("Ready to start")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Start tournament" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Leave table" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 3, name: "Players at the table" })).toBeTruthy();
   });
 
   it("tracks the local ready badge without relying on display text matching", () => {

@@ -15,6 +15,11 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
+function describeBlindOpening(firstLevel: string) {
+  const [smallBlind, bigBlind] = firstLevel.split("/").map((value) => value.trim());
+  return `Small blind ${smallBlind} · big blind ${bigBlind}`;
+}
+
 function clampPort(value: string, fallbackPort: number) {
   const parsedValue = Number.parseInt(value, 10);
   if (Number.isNaN(parsedValue)) {
@@ -111,7 +116,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         >
           <div className="workstation-grid">
             <div className="host-setup-form">
-              <div className="setup-grid-row">
+              <div className="setup-grid-row setup-grid-row-full">
                 <label className="field">
                   Tournament name
                   <input
@@ -119,6 +124,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     value={hostDraft.tournamentName}
                   />
                 </label>
+              </div>
+
+              <div className="setup-grid-row compact-advanced-panel">
                 <label className="field">
                   Max players
                   <select
@@ -136,9 +144,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     ))}
                   </select>
                 </label>
-              </div>
-
-              <div className="setup-grid-row compact-advanced-panel">
                 <label className="field">
                   Starting stack
                   <select
@@ -169,12 +174,12 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   >
                     {BLIND_PRESETS.map((preset) => (
                       <option key={preset.id} value={preset.id}>
-                        {preset.label} · {preset.summary}
+                        {preset.label} · {describeBlindOpening(preset.firstLevel)} · {preset.summary}
                       </option>
                     ))}
                   </select>
                   <span className="field-hint">
-                    Opens at {blindPreset.firstLevel}.
+                    {describeBlindOpening(blindPreset.firstLevel)}.
                   </span>
                 </label>
               </div>
@@ -292,7 +297,6 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 <p className="field-hint">{blockedProgressMessage}</p>
               ) : null}
 
-              {copyState ? <p className="inline-banner success">{copyState}</p> : null}
               {copyError ? <p className="inline-banner error">{copyError}</p> : null}
               {showFallbackShareDetails ? (
                 <label className="field">
@@ -308,6 +312,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
             </div>
           </div>
         </SectionCard>
+        {copyState ? <p className="toast-banner success">{copyState}</p> : null}
       </div>
     </ScreenShell>
   );
