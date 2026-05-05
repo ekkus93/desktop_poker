@@ -92,7 +92,7 @@ describe("Layout contracts", () => {
     });
     expect(await screen.findByRole("heading", { name: "Lobby" })).toBeTruthy();
     expect(lobbyRender.container.querySelector(".lobby-shell-grid")?.children.length).toBe(1);
-    expect(lobbyRender.container.querySelector(".lobby-stage-grid")?.children.length).toBe(2);
+    expect(lobbyRender.container.querySelector(".lobby-seat-grid")?.children.length).toBe(6);
     lobbyRender.unmount();
 
     const tableRender = renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
@@ -117,13 +117,11 @@ describe("Layout contracts", () => {
   });
 
   it("keeps the desktop multi-panel support and lobby grids intact until the narrower breakpoint", () => {
-    expect(appCss).toMatch(/@media \(max-width: 1100px\)\s*\{[\s\S]*?\.home-stage\.has-recovery,[\s\S]*?\.lobby-stage-grid,[\s\S]*?\.lobby-roster-grid,[\s\S]*?\.history-station-layout,[\s\S]*?\.complete-grid,[\s\S]*?\.recovery-grid,[\s\S]*?\.help-grid,[\s\S]*?\.workstation-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\}[\s\S]*?\}/);
+    expect(appCss).toMatch(/@media \(max-width: 1100px\)\s*\{[\s\S]*?\.home-stage\.has-recovery,[\s\S]*?\.history-station-layout,[\s\S]*?\.complete-grid,[\s\S]*?\.recovery-grid,[\s\S]*?\.help-grid,[\s\S]*?\.workstation-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\}[\s\S]*?\}/);
 
     const wideBreakpointBlock = appCss.match(/@media \(max-width: 1280px\)\s*\{([\s\S]*?)\n\}/);
     const wideBlock = wideBreakpointBlock?.[1] ?? "";
     expect(wideBlock).not.toContain(".home-stage.has-recovery");
-    expect(wideBlock).not.toContain(".lobby-stage-grid");
-    expect(wideBlock).not.toContain(".lobby-roster-grid");
     expect(wideBlock).not.toContain(".history-station-layout");
     expect(wideBlock).not.toContain(".complete-grid");
     expect(wideBlock).not.toContain(".recovery-grid");

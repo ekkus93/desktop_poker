@@ -41,7 +41,9 @@ export function AppFrame({
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
   const supportRoutes = new Set(["/history", "/rules", "/settings"]);
-  const primaryNavigation = navigation.filter((item) => !supportRoutes.has(item.to));
+  const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
+  const tournamentPlayRoutes = new Set(["/", "/lobby", "/table", "/complete"]);
+  const tournamentNavigation = navigation.filter((item) => tournamentPlayRoutes.has(item.to));
   const currentSurfaceRoute = navigation.find((item) => item.to === location.pathname);
 
   if (!inTournament) {
@@ -85,20 +87,39 @@ export function AppFrame({
 
   return (
     <div className="app-frame tournament-frame" style={{ height: "100dvh", overflow: "hidden" }}>
-      <aside className="sidebar">
-        <header className="brand">
+      <header className="topbar tournament-topbar">
+        <div className="topbar-brand">
           <p className="kicker">Desktop Poker</p>
           <h1>{bootstrap.appName}</h1>
-        </header>
+        </div>
 
-        <section className="sidebar-group">
-          <p className="sidebar-section-label">Play</p>
-          <nav aria-label="Desktop poker navigation">
-            {primaryNavigation.map((item) => (
+        <nav aria-label="Desktop poker navigation" className="topbar-nav tournament-play-nav">
+          {tournamentNavigation.map((item) => (
+            <NavLink
+              key={item.to}
+              className={({ isActive }) =>
+                isActive ? "nav-link topbar-link active" : "nav-link topbar-link"
+              }
+              to={item.to}
+            >
+              <span className="button-content">
+                {(() => {
+                  const Icon = getNavigationIcon(item.label);
+                  return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                })()}
+                <span>{item.label}</span>
+              </span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="topbar-meta tournament-topbar-meta">
+          <nav aria-label="Desktop poker support navigation" className="topbar-support-links">
+            {supportNavigation.map((item) => (
               <NavLink
                 key={item.to}
                 className={({ isActive }) =>
-                  isActive ? "nav-link active" : "nav-link"
+                  isActive ? "nav-link support-link active" : "nav-link support-link"
                 }
                 to={item.to}
               >
@@ -112,14 +133,9 @@ export function AppFrame({
               </NavLink>
             ))}
           </nav>
-        </section>
-
-        <footer className="sidebar-footer">
-          <p className="sidebar-note">
-            Player <strong>{displayName}</strong>
-          </p>
-        </footer>
-      </aside>
+          <p className="player-pill">Playing as {displayName}</p>
+        </div>
+      </header>
 
       <main className="content" style={{ height: "100%", overflow: "hidden" }}>{children}</main>
     </div>

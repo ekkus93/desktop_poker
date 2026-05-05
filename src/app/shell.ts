@@ -50,7 +50,7 @@ export const BLIND_PRESETS: BlindPreset[] = [
   },
 ];
 
-export const MAX_PLAYER_OPTIONS = [2, 4, 6, 8, 10];
+export const MAX_PLAYER_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const STARTING_STACK_OPTIONS = [1000, 1500, 3000, 5000];
 export const TURN_TIMER_OPTIONS = [15, 30, 45, 60];
 

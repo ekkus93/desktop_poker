@@ -130,7 +130,8 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/this page is only for confirming who is playing, marking yourself ready, and starting the first hand\./i)).toBeTruthy();
+    expect(screen.getByText("Seat 1")).toBeTruthy();
+    expect(screen.getByText("Seat 6")).toBeTruthy();
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
   });
 

@@ -36,7 +36,7 @@ describe("AppFrame", () => {
   it("drops the support rail from the in-tournament shell and narrows the play frame", () => {
     const bootstrap = { appName: "Test App", screens: [] } as DesktopBootstrapState;
 
-    const { container, queryByLabelText } = render(
+    const { container, getByLabelText, getByRole, queryByText } = render(
       <MemoryRouter initialEntries={["/lobby"]}>
         <AppFrame
           bootstrap={bootstrap}
@@ -44,6 +44,9 @@ describe("AppFrame", () => {
             { to: "/", label: "Home" },
             { to: "/host", label: "Host" },
             { to: "/join", label: "Join" },
+            { to: "/lobby", label: "Lobby" },
+            { to: "/table", label: "Main Table" },
+            { to: "/complete", label: "Complete" },
             { to: "/history", label: "History" },
             { to: "/rules", label: "Help" },
             { to: "/settings", label: "Settings" },
@@ -55,6 +58,13 @@ describe("AppFrame", () => {
     );
 
     expect(container.querySelector(".tournament-frame")).toBeTruthy();
-    expect(queryByLabelText("Desktop poker support navigation")).toBeNull();
+    expect(getByLabelText("Desktop poker support navigation")).toBeTruthy();
+    expect(getByRole("link", { name: "History" })).toBeTruthy();
+    expect(getByRole("link", { name: "Help" })).toBeTruthy();
+    expect(getByRole("link", { name: "Settings" })).toBeTruthy();
+    expect(getByRole("link", { name: "Lobby" })).toBeTruthy();
+    expect(getByRole("link", { name: "Main Table" })).toBeTruthy();
+    expect(queryByText("Host")).toBeNull();
+    expect(queryByText("Join")).toBeNull();
   });
 });
