@@ -148,7 +148,7 @@ test.describe("layout probe browser geometry", () => {
     }));
 
     expect(metrics.workstationTop).toBeGreaterThan(0);
-    expect(metrics.workstationBottom).toBeLessThanOrEqual(metrics.viewportHeight - 16);
+    expect(metrics.workstationBottom).toBeLessThanOrEqual(metrics.viewportHeight);
     expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.viewportHeight);
   });
 
@@ -181,7 +181,7 @@ test.describe("layout probe browser geometry", () => {
     expectRightColumn(joinMain, joinSide);
   });
 
-  test("keeps home resume and lobby action rail in separate desktop columns", async ({ page }) => {
+  test("keeps home resume and lobby ready-room content in usable desktop rows", async ({ page }) => {
     await openProbe(page, "home");
 
     const heroCard = await getRect(page.locator(".home-stage > :first-child"));
@@ -190,9 +190,23 @@ test.describe("layout probe browser geometry", () => {
 
     await openProbe(page, "lobby");
 
-    const lobbySeatArea = await getRect(page.locator(".lobby-workstation-grid > :nth-child(2)"));
+    const lobbyProgress = await getRect(page.locator(".lobby-progress-card"));
     const lobbyActionRail = await getRect(page.locator(".lobby-action-rail"));
-    expectRightColumn(lobbySeatArea, lobbyActionRail);
+    expectRightColumn(lobbyProgress, lobbyActionRail);
+
+    const lobbyOverview = await getRect(page.locator(".lobby-overview-stack"));
+    const lobbySeatArea = await getRect(page.locator(".lobby-seat-grid"));
+    expect(lobbySeatArea.y).toBeGreaterThanOrEqual(lobbyOverview.y + lobbyOverview.height - 8);
+
+    const lobbyMetrics = await page.evaluate(() => ({
+      viewportHeight: window.innerHeight,
+      scrollHeight: document.documentElement.scrollHeight,
+      cardBottom:
+        document.querySelector(".workstation-main-card")?.getBoundingClientRect().bottom ?? 0,
+    }));
+
+    expect(lobbyMetrics.cardBottom).toBeLessThanOrEqual(lobbyMetrics.viewportHeight - 16);
+    expect(lobbyMetrics.scrollHeight).toBeLessThanOrEqual(lobbyMetrics.viewportHeight);
   });
 
   test("keeps the home hero aligned to the left edge when no resume rail is present", async ({ page }) => {

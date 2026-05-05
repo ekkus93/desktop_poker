@@ -156,6 +156,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     ))}
                   </select>
                 </label>
+              </div>
+
+              <div className="setup-grid-row compact-advanced-panel setup-grid-row-full">
                 <label className="field">
                   Blind preset
                   <select
@@ -170,6 +173,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                       </option>
                     ))}
                   </select>
+                  <span className="field-hint">
+                    Opens at {blindPreset.firstLevel}.
+                  </span>
                 </label>
               </div>
 
@@ -251,7 +257,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
               <div className="button-row workstation-actions">
                 <button
-                  className="secondary-button"
+                  className="secondary-button compact-button"
                   disabled={!inviteReady}
                   onClick={() => {
                     void handleCopy(shareText, "Copied host share details.");
@@ -264,14 +270,14 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </span>
                 </button>
                 {canContinueToLobby ? (
-                  <Link className="primary-button" to="/lobby">
+                  <Link className="primary-button compact-button" to="/lobby">
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
                       <span>Continue to lobby</span>
                     </span>
                   </Link>
                 ) : (
-                  <button className="primary-button" disabled type="button">
+                  <button className="primary-button compact-button" disabled type="button">
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
                       <span>Continue to lobby</span>

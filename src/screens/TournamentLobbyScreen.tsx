@@ -34,22 +34,57 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       <div className="pregame-workstation lobby-station-layout">
         <SectionCard kicker="Table" title="Ready room" className="workstation-main-card">
           <div className="lobby-workstation-grid">
-            <article className="lobby-progress-card compact-lobby-progress">
-              <strong>{canStart ? "Ready to start" : `${readySeatCount}/${activeSeats.length} ready`}</strong>
-              <div className="lobby-status-row">
-                <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
-                  {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                  {localSeatReady ? "You: Ready" : "You: Waiting"}
-                </span>
-                <span className={`status-badge ${canStart ? "success" : "info"}`}>
-                  {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                  {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
-                </span>
-              </div>
-              {showsHostControlledSeats ? (
-                <p className="field-hint">Pending seats use host-controlled ready toggles in debug mode.</p>
-              ) : null}
-            </article>
+            <div className="lobby-overview-stack">
+              <article className="lobby-progress-card compact-lobby-progress compact-status-panel">
+                <strong>{canStart ? "Ready to start" : `${readySeatCount}/${activeSeats.length} ready`}</strong>
+                <div className="lobby-status-row">
+                  <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
+                    {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                    {localSeatReady ? "You: Ready" : "You: Waiting"}
+                  </span>
+                  <span className={`status-badge ${canStart ? "success" : "info"}`}>
+                    {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                    {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
+                  </span>
+                </div>
+                {showsHostControlledSeats ? (
+                  <p className="field-hint">Pending seats use host-controlled ready toggles in debug mode.</p>
+                ) : null}
+              </article>
+
+              <section className="lobby-action-rail compact-status-panel">
+                <strong>{canStart ? "Start when ready" : "Need 2 ready players"}</strong>
+                <div className="button-row workstation-actions compact-workstation-actions">
+                  {canStart ? (
+                    <Link className="primary-button compact-button" to="/table">
+                      <span className="button-content">
+                        <Play className="button-icon" strokeWidth={1.9} />
+                        <span>Start tournament</span>
+                      </span>
+                    </Link>
+                  ) : (
+                    <button className="primary-button compact-button" disabled type="button">
+                      <span className="button-content">
+                        <Play className="button-icon" strokeWidth={1.9} />
+                        <span>Start tournament</span>
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    className="secondary-button compact-button"
+                    onClick={() => {
+                      setShowLeaveFlow(true);
+                    }}
+                    type="button"
+                  >
+                    <span className="button-content">
+                      <LogOut className="button-icon" strokeWidth={1.9} />
+                      <span>Leave table</span>
+                    </span>
+                  </button>
+                </div>
+              </section>
+            </div>
 
             <div className="seat-grid lobby-seat-grid compact-lobby-seat-grid">
             {participants.map((seat) => {
@@ -96,39 +131,6 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               </article>
             );})}
             </div>
-
-            <section className="lobby-action-rail compact-status-panel">
-              <strong>{canStart ? "Start when ready" : "Need 2 ready players"}</strong>
-              <div className="button-row workstation-actions">
-                {canStart ? (
-                  <Link className="primary-button" to="/table">
-                    <span className="button-content">
-                      <Play className="button-icon" strokeWidth={1.9} />
-                      <span>Start tournament</span>
-                    </span>
-                  </Link>
-                ) : (
-                  <button className="primary-button" disabled type="button">
-                    <span className="button-content">
-                      <Play className="button-icon" strokeWidth={1.9} />
-                      <span>Start tournament</span>
-                    </span>
-                  </button>
-                )}
-                <button
-                  className="secondary-button compact-button"
-                  onClick={() => {
-                    setShowLeaveFlow(true);
-                  }}
-                  type="button"
-                >
-                  <span className="button-content">
-                    <LogOut className="button-icon" strokeWidth={1.9} />
-                    <span>Leave table</span>
-                  </span>
-                </button>
-              </div>
-            </section>
           </div>
         </SectionCard>
       </div>

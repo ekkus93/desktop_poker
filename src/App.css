@@ -725,9 +725,16 @@ dt {
 
 .lobby-workstation-grid {
   display: grid;
-  grid-template-columns: minmax(15rem, 0.9fr) minmax(0, 1.45fr) minmax(15rem, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.8rem;
   align-items: start;
+}
+
+.lobby-overview-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  align-content: start;
 }
 
 .compact-lobby-progress {
@@ -737,20 +744,43 @@ dt {
 
 .compact-lobby-seat-grid {
   grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
-  gap: 0.65rem;
+  gap: 0.55rem;
 }
 
 .lobby-seat-card {
   min-height: 0;
-  padding: 0.7rem 0.75rem;
+  padding: 0.58rem 0.62rem;
 }
 
 .lobby-seat-card .seat-detail {
   margin: 0;
+  font-size: 0.92rem;
 }
 
 .lobby-action-rail {
   align-content: start;
+}
+
+.compact-workstation-actions {
+  gap: 0.5rem;
+}
+
+.setup-grid-row-full {
+  grid-template-columns: 1fr;
+}
+
+.workstation-actions > .primary-button,
+.workstation-actions > .secondary-button {
+  padding-block: 0.52rem;
+}
+
+.workstation-actions {
+  align-items: flex-start;
+  align-content: flex-start;
+}
+
+.workstation-actions > * {
+  flex: 1 1 12rem;
 }
 
 .home-support-row {
@@ -811,13 +841,13 @@ dt,
 
 .host-setup-form {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.6rem;
 }
 
 .setup-grid-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
+  gap: 0.6rem;
 }
 
 .workstation-side-panel {
@@ -840,13 +870,14 @@ dt,
 }
 
 .host-summary-panel {
+  padding: 0.72rem;
   gap: 0.55rem;
 }
 
 .host-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .host-summary-grid div {
@@ -1499,7 +1530,8 @@ code {
   }
 
   .setup-grid-row,
-  .host-summary-grid {
+  .host-summary-grid,
+  .lobby-overview-stack {
     grid-template-columns: 1fr;
   }
 
