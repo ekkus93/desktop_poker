@@ -62,10 +62,46 @@ describe("AppFrame", () => {
     expect(getByRole("link", { name: "History" })).toBeTruthy();
     expect(getByRole("link", { name: "Help" })).toBeTruthy();
     expect(getByRole("link", { name: "Settings" })).toBeTruthy();
-    expect(getByRole("link", { name: "Lobby" })).toBeTruthy();
+    expect(queryByText("Lobby")).toBeNull();
     expect(queryByText("Main Table")).toBeNull();
     expect(queryByText("Complete")).toBeNull();
     expect(queryByText("Host")).toBeNull();
     expect(queryByText("Join")).toBeNull();
+  });
+
+  it("hides current-page host and lobby navigation buttons", () => {
+    const bootstrap = { appName: "Test App", screens: [] } as DesktopBootstrapState;
+    const navigation = [
+      { to: "/", label: "Home" },
+      { to: "/host", label: "Host" },
+      { to: "/join", label: "Join" },
+      { to: "/lobby", label: "Lobby" },
+      { to: "/history", label: "History" },
+      { to: "/rules", label: "Help" },
+      { to: "/settings", label: "Settings" },
+    ];
+
+    const hostRender = render(
+      <MemoryRouter initialEntries={["/host"]}>
+        <AppFrame bootstrap={bootstrap} navigation={navigation}>
+          <div>Host content</div>
+        </AppFrame>
+      </MemoryRouter>,
+    );
+
+    expect(hostRender.queryByRole("link", { name: "Host" })).toBeNull();
+    expect(hostRender.getByText("Host")).toBeTruthy();
+    hostRender.unmount();
+
+    const lobbyRender = render(
+      <MemoryRouter initialEntries={["/lobby"]}>
+        <AppFrame bootstrap={bootstrap} navigation={navigation}>
+          <div>Lobby content</div>
+        </AppFrame>
+      </MemoryRouter>,
+    );
+
+    expect(lobbyRender.queryByRole("link", { name: "Lobby" })).toBeNull();
+    expect(lobbyRender.getByText("Lobby content")).toBeTruthy();
   });
 });

@@ -43,8 +43,13 @@ export function AppFrame({
   const supportRoutes = new Set(["/history", "/rules", "/settings"]);
   const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
   const tournamentPlayRoutes = new Set(["/", "/lobby"]);
-  const tournamentNavigation = navigation.filter((item) => tournamentPlayRoutes.has(item.to));
+  const tournamentNavigation = navigation.filter(
+    (item) => tournamentPlayRoutes.has(item.to) && item.to !== location.pathname,
+  );
   const currentSurfaceRoute = navigation.find((item) => item.to === location.pathname);
+  const landingNavigation = navigation.filter(
+    (item) => item.to === "/host" && item.to !== location.pathname,
+  );
 
   if (!inTournament) {
     return (
@@ -63,6 +68,17 @@ export function AppFrame({
                   <span>Back home</span>
                 </span>
               </NavLink>
+              {landingNavigation.map((item) => (
+                <NavLink key={item.to} className="nav-link topbar-link" to={item.to}>
+                  <span className="button-content">
+                    {(() => {
+                      const Icon = getNavigationIcon(item.label);
+                      return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                    })()}
+                    <span>{item.label}</span>
+                  </span>
+                </NavLink>
+              ))}
               {currentSurfaceRoute ? (
                 <span className="topbar-current-surface">
                   {(() => {
