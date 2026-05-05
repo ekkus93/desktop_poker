@@ -119,6 +119,10 @@ button:disabled {
   overflow: hidden;
 }
 
+.tournament-frame {
+  grid-template-columns: 12.5rem 1fr;
+}
+
 .landing-frame {
   grid-template-columns: 1fr;
   grid-template-rows: auto minmax(0, 1fr);

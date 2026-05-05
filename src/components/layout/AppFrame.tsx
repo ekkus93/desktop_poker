@@ -41,7 +41,6 @@ export function AppFrame({
   const location = useLocation();
   const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
   const supportRoutes = new Set(["/history", "/rules", "/settings"]);
-  const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
   const primaryNavigation = navigation.filter((item) => !supportRoutes.has(item.to));
   const currentSurfaceRoute = navigation.find((item) => item.to === location.pathname);
 
@@ -85,7 +84,7 @@ export function AppFrame({
   }
 
   return (
-    <div className="app-frame" style={{ height: "100dvh", overflow: "hidden" }}>
+    <div className="app-frame tournament-frame" style={{ height: "100dvh", overflow: "hidden" }}>
       <aside className="sidebar">
         <header className="brand">
           <p className="kicker">Desktop Poker</p>
@@ -96,29 +95,6 @@ export function AppFrame({
           <p className="sidebar-section-label">Play</p>
           <nav aria-label="Desktop poker navigation">
             {primaryNavigation.map((item) => (
-              <NavLink
-                key={item.to}
-                className={({ isActive }) =>
-                  isActive ? "nav-link active" : "nav-link"
-                }
-                to={item.to}
-              >
-                <span className="button-content">
-                  {(() => {
-                    const Icon = getNavigationIcon(item.label);
-                    return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
-                  })()}
-                  <span>{item.label}</span>
-                </span>
-              </NavLink>
-            ))}
-          </nav>
-        </section>
-
-        <section className="sidebar-group">
-          <p className="sidebar-section-label">Support</p>
-          <nav aria-label="Desktop poker support navigation">
-            {supportNavigation.map((item) => (
               <NavLink
                 key={item.to}
                 className={({ isActive }) =>
