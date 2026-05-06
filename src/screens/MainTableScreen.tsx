@@ -16,6 +16,7 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 const BOARD_SLOT_COUNT = 5;
+const TABLE_REFRESH_INTERVAL_MS = 800;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
@@ -34,31 +35,40 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setActionError(null);
-    setConfirmation(null);
+    const loadTableView = async (background: boolean) => {
+      if (!background) {
+        setLoading(true);
+        setError(null);
+        setActionError(null);
+        setConfirmation(null);
+      }
 
-    void getTableView(viewerMode)
-      .then((snapshot) => {
+      try {
+        const snapshot = await getTableView(viewerMode);
         if (!cancelled) {
           setTableView(snapshot);
+          setError(null);
         }
-      })
-      .catch((caughtError: unknown) => {
-        if (!cancelled) {
+      } catch (caughtError: unknown) {
+        if (!cancelled && !background) {
           setError(getErrorMessage(caughtError));
           setTableView(null);
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
+      } finally {
+        if (!cancelled && !background) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    void loadTableView(false);
+    const intervalId = window.setInterval(() => {
+      void loadTableView(true);
+    }, TABLE_REFRESH_INTERVAL_MS);
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
     };
   }, [viewerMode]);
 

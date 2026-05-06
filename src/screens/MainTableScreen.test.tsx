@@ -33,6 +33,7 @@ describe("MainTableScreen", () => {
   beforeEach(() => {
     mockedGetTableView.mockReset();
     mockedSubmitTableAction.mockReset();
+    vi.useRealTimers();
   });
 
   it("enables the action tray only for the acting local player without exposing observer preview controls", async () => {
@@ -153,6 +154,49 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(
       screen.getByText(/waiting for the next action from the host/i),
+    ).toBeTruthy();
+  });
+
+  it("refreshes the live table view so passive seats observe remote actions", async () => {
+    const initialView = createTableView({
+      actionOwnerLabel: "Maya",
+      potTotal: 120,
+      actionTray: null,
+    });
+    const refreshedView = createTableView({
+      streetLabel: "Turn",
+      potTotal: 240,
+      actionOwnerLabel: "Host",
+      actionTray: null,
+      eventFeed: [
+        {
+          sequence: 19,
+          kind: "public-event",
+          message: "Host called and the turn was published to every seat and observer.",
+        },
+      ],
+    });
+    mockedGetTableView
+      .mockResolvedValueOnce(initialView)
+      .mockResolvedValue(refreshedView);
+
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+    expect(await screen.findByText("Pot 120")).toBeTruthy();
+
+    await waitFor(() => {
+      expect(screen.getByText("Pot 240")).toBeTruthy();
+    }, { timeout: 2000 });
+    await waitFor(() => {
+      expect(mockedGetTableView).toHaveBeenCalledTimes(2);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Table details" }));
+    expect(
+      screen.getByText(/host called and the turn was published to every seat and observer/i),
     ).toBeTruthy();
   });
 

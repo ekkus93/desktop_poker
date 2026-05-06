@@ -11,8 +11,8 @@ The work in this file is done only when all of the following are true:
 - [x] A host instance can create a real networked tournament session from the desktop UI
 - [x] A second desktop instance can join that session using a real compact `pkr1_` invite
 - [x] Host and client both see the same authoritative lobby state
-- [ ] Seat assignment, ready state, tournament start, and table progression are synchronized across instances
-- [ ] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state
+- [x] Seat assignment, ready state, tournament start, and table progression are synchronized across instances
+- [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state
 - [ ] Disconnect, reconnect, and resync work through the live runtime path
 - [ ] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
 - [ ] The release app no longer boots or depends on demo-only controller/runtime code in the player flow
@@ -81,7 +81,7 @@ The work in this file is done only when all of the following are true:
 ### 3.3 Session event and projection commands
 - [ ] Add commands to fetch the current authoritative/projection snapshot for the active session
 - [x] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority
-- [ ] Add commands to submit live table actions through the real tournament/runtime path
+- [x] Add commands to submit live table actions through the real tournament/runtime path
 - [ ] Add commands or event subscriptions for reconnecting, disconnected, fatal error, and resync-required states
 - [ ] Ensure command responses are typed and structured so the frontend can render exact causes instead of generic failure text
 
@@ -167,14 +167,14 @@ The work in this file is done only when all of the following are true:
 ### 7.1 Table projection replacement
 - [x] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state
 - [x] Ensure the local player sees only allowed private information while all participants share the same public state
-- [ ] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority
+- [x] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority
 - [ ] Remove any fake sample hand/feed/history data from release table routes
 
 ### 7.2 Table action submission
-- [ ] Route fold, call, check, bet, raise, and any other supported actions through Rust-owned validation and mutation
-- [ ] Ensure invalid or stale actions are rejected by Rust and surfaced clearly in the UI
-- [ ] Ensure successful actions produce synchronized updates across host and all clients
-- [ ] Ensure the host does not get a special fake shortcut path that bypasses the same authority used by clients
+- [x] Route fold, call, check, bet, raise, and any other supported actions through Rust-owned validation and mutation
+- [x] Ensure invalid or stale actions are rejected by Rust and surfaced clearly in the UI
+- [x] Ensure successful actions produce synchronized updates across host and all clients
+- [x] Ensure the host does not get a special fake shortcut path that bypasses the same authority used by clients
 
 ### 7.3 Event application and refresh model
 - [ ] Decide whether the frontend will poll snapshots, subscribe to Tauri events, or use a hybrid model for session updates
@@ -295,7 +295,7 @@ The work in this file is done only when all of the following are true:
 - [x] Host can create a tournament from the UI and obtain a real invite from the running session
 - [x] Client can join from the UI using that invite and enter the same authoritative lobby
 - [x] Ready/start works across instances
-- [ ] Main table play is synchronized across instances
+- [x] Main table play is synchronized across instances
 - [ ] Reconnect/resync works or fails safely according to documented behavior
 - [ ] Demo-backed release player flow has been removed
 

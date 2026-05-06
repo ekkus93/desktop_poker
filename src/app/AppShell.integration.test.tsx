@@ -887,7 +887,7 @@ describe("AppShell integration", () => {
     });
 
     mockedGetTableView.mockReset();
-    mockedGetTableView.mockResolvedValueOnce(
+    mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
         actionOwnerLabel: "You",
       }),
@@ -911,7 +911,7 @@ describe("AppShell integration", () => {
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
     aliceRender.unmount();
 
-    mockedGetTableView.mockResolvedValueOnce(
+    mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
         actionOwnerLabel: "Maya",
         seats: [
@@ -1128,7 +1128,7 @@ describe("AppShell integration", () => {
       JSON.stringify({ tableId: "old-table", token: "stale-token" }),
     );
 
-    mockedGetTableView.mockRejectedValueOnce(
+    mockedGetTableView.mockRejectedValue(
       new Error("Host connection lost. Reopen the lobby or rejoin."),
     );
 
@@ -1182,7 +1182,7 @@ describe("AppShell integration", () => {
       }),
     );
 
-    mockedGetTableView.mockRejectedValueOnce(new Error("offline"));
+    mockedGetTableView.mockRejectedValue(new Error("offline"));
 
     renderAppShell("/history", secondBootstrap);
 
@@ -1395,7 +1395,7 @@ describe("AppShell integration", () => {
       screen.getByRole("button", { name: "Continue to lobby" }).hasAttribute("disabled"),
     ).toBe(true);
 
-    mockedGetTableView.mockRejectedValueOnce(
+    mockedGetTableView.mockRejectedValue(
       new Error("Host connection lost. Reopen the lobby or rejoin."),
     );
 
@@ -1413,7 +1413,7 @@ describe("AppShell integration", () => {
   });
 
   it("transitions an eliminated player into observer-only state after a live table action", async () => {
-    mockedGetTableView.mockResolvedValueOnce(createTableViewSnapshot());
+    mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
     mockedSubmitTableAction.mockResolvedValueOnce(
       createTableViewSnapshot({
         actionOwnerLabel: "Maya",
