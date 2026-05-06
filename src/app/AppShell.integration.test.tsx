@@ -518,7 +518,42 @@ describe("AppShell integration", () => {
     await waitFor(() => {
       expect(mockedHostStartTournament).toHaveBeenCalledTimes(1);
     });
-    expect(await screen.findByText("Tournament live")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
+  });
+
+  it("moves a joined client from the lobby to the table when the live session starts", async () => {
+    currentClientSession = buildClientSessionStatus();
+    syncLiveSessions(
+      [
+        {
+          playerId: "local-player",
+          displayName: "Host Alpha",
+          seatIndex: 0,
+          isHost: true,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "active",
+        },
+        {
+          playerId: "player-test-instance",
+          displayName: "Player test-instance",
+          seatIndex: 1,
+          isHost: false,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "active",
+        },
+      ],
+      "running",
+    );
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeTruthy();
   });
 
   it("creates, copies, and joins a tournament invite across host and join flows", async () => {

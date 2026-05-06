@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Clock3, LogOut, Play } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { buildParticipantShell } from "../app/shell";
 import {
@@ -64,6 +64,7 @@ function buildLiveSeats(
 }
 
 export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
+  const navigate = useNavigate();
   const { hostDraft, readySeats, recentJoinPayloads, toggleSeatReady } =
     useDesktopShell();
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
@@ -112,13 +113,12 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const participants = liveSession
     ? buildLiveSeats(liveSession)
     : buildParticipantShell(
-    bootstrap,
-    hostDraft,
-    readySeats,
-    recentJoinPayloads,
+        bootstrap,
+        hostDraft,
+        readySeats,
+        recentJoinPayloads,
     );
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
-  const canStart = false;
   const localSeat = participants.find((seat) => seat.isLocal);
   const localSeatReady = localSeat?.ready ?? false;
   const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
@@ -129,8 +129,21 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const totalSeats = liveSession
     ? liveSession.activeSeatCount + liveSession.openSeatCount
     : hostDraft.maxPlayers;
+  const shellReadyCheck = !liveSession && activeSeats.length >= 2 && seatsStillWaiting === 0;
   const liveCanStart = Boolean(hostSession && liveSession?.phase === "readyCheck" && liveLocalParticipant?.isHost);
   const liveLobbyActionsEnabled = Boolean(liveSession && liveSession.phase !== "running");
+  const tableReady = liveSession?.phase === "running" || liveCanStart || shellReadyCheck;
+  const lobbyBadge = liveSession?.phase === "running"
+    ? "Table live"
+    : tableReady
+      ? "Ready to deal"
+      : `${activeSeats.length}/${totalSeats} connected`;
+
+  useEffect(() => {
+    if (liveSession?.phase === "running") {
+      navigate("/table", { replace: true });
+    }
+  }, [liveSession?.phase, navigate]);
 
   const claimLiveSeat = async (seatIndex: number) => {
     setSubmitting(true);
@@ -182,7 +195,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Lobby"
-      badges={[canStart ? "Ready to deal" : `${activeSeats.length}/${totalSeats} connected`]}
+      badges={[lobbyBadge]}
     >
       <div className="content-grid lobby-shell-grid">
         <section className="section-card lobby-stage-card">
@@ -197,9 +210,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
                   {localSeatReady ? "You: Ready" : "You: Waiting"}
                 </span>
-                <span className={`status-badge ${canStart ? "success" : "info"}`}>
-                  {canStart ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
-                  {canStart ? "Table: Ready" : `${seatsStillWaiting} waiting`}
+                <span className={`status-badge ${tableReady ? "success" : "info"}`}>
+                  {tableReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                  {tableReady ? "Table: Ready" : `${seatsStillWaiting} waiting`}
                 </span>
                 <span className="status-badge accent">
                   {openSeatCount > 0 ? `${openSeatCount} open seats` : "Table full"}
@@ -229,14 +242,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     {localSeatReady ? "Undo ready" : "I'm ready"}
                   </button>
                 ) : null}
-                {canStart ? (
-                  <Link className="primary-button compact-button" to="/table">
-                    <span className="button-content">
-                      <Play className="button-icon" strokeWidth={1.9} />
-                      <span>Start tournament</span>
-                    </span>
-                  </Link>
-                ) : liveCanStart ? (
+                {liveCanStart ? (
                   <button
                     className="primary-button compact-button"
                     disabled={submitting}
@@ -254,7 +260,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   <button className="primary-button compact-button" disabled type="button">
                     <span className="button-content">
                       <Play className="button-icon" strokeWidth={1.9} />
-                      <span>{liveSession?.phase === "running" ? "Tournament live" : "Start tournament"}</span>
+                      <span>{liveSession?.phase === "running" ? "Tournament live" : shellReadyCheck ? "Live session required" : "Start tournament"}</span>
                     </span>
                   </button>
                 )}

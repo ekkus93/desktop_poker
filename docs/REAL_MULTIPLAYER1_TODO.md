@@ -129,7 +129,7 @@ The work in this file is done only when all of the following are true:
 - [x] Replace shell-local client lobby state with real session projections from Rust
 - [x] Show the client’s actual admission, seat, ready, and connection status
 - [x] Reflect host and peer participant changes in near real time
-- [ ] Route to the table only when the live session transitions, not when local UI assumptions say it should
+- [x] Route to the table only when the live session transitions, not when local UI assumptions say it should
 - [x] Ensure a failed join cannot leave partial client session state behind
 
 ### 5.3 Client disconnect and retry UX
@@ -151,12 +151,12 @@ The work in this file is done only when all of the following are true:
 ### 6.2 Ready-state flow
 - [x] Route ready toggles through Rust-owned validation and session mutation
 - [x] Broadcast ready-state changes to all participants via the live runtime path
-- [ ] Remove the hardcoded nonfunctional lobby start path such as `canStart = false`
+- [x] Remove the hardcoded nonfunctional lobby start path such as `canStart = false`
 - [x] Define and enforce the exact rules for when the host may start the tournament
 
 ### 6.3 Tournament start cutover
 - [x] Implement a real host start-tournament action that advances the authoritative session out of waiting/ready-check into live play
-- [ ] Ensure both host and clients transition from lobby to main table based on the same runtime event/snapshot
+- [x] Ensure both host and clients transition from lobby to main table based on the same runtime event/snapshot
 - [x] Ensure any late/duplicate start requests are rejected safely
 - [x] Ensure start failure rolls back cleanly or leaves the lobby in a consistent state with a real error
 
@@ -165,8 +165,8 @@ The work in this file is done only when all of the following are true:
 ## 7. Drive the main table from the live runtime
 
 ### 7.1 Table projection replacement
-- [ ] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state
-- [ ] Ensure the local player sees only allowed private information while all participants share the same public state
+- [x] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state
+- [x] Ensure the local player sees only allowed private information while all participants share the same public state
 - [ ] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority
 - [ ] Remove any fake sample hand/feed/history data from release table routes
 
@@ -251,13 +251,13 @@ The work in this file is done only when all of the following are true:
 ## 11. Expand automated coverage for real multiplayer behavior
 
 ### 11.1 Rust runtime/session tests
-- [ ] Add or update Rust tests to cover the new app-state session container and state transitions
+- [x] Add or update Rust tests to cover the new app-state session container and state transitions
 - [ ] Add host lifecycle tests for start, stop, bind failure, and host recovery
 - [ ] Add client lifecycle tests for join, disconnect, reconnect, and teardown
 - [x] Add tests proving lobby mutations and start flow update the authoritative state correctly
 
 ### 11.2 Frontend integration tests
-- [ ] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx)
+- [x] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx)
 - [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
 - [x] Add tests for real lobby ready/start propagation across host and client UI projections
 - [ ] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
