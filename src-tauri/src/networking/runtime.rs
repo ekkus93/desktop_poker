@@ -2646,18 +2646,33 @@ mod tests {
         client: &ClientRuntime,
         expected_message_type: ProtocolMessageType,
     ) -> serde_json::Value {
-        match client
-            .next_event(Duration::from_secs(2))
-            .expect("public event")
-        {
-            ClientRuntimeEvent::PublicEvent {
-                message_type,
-                payload,
-            } => {
-                assert_eq!(message_type, expected_message_type);
-                payload
+        let deadline = Instant::now() + Duration::from_secs(2);
+
+        loop {
+            match client
+                .next_event(Duration::from_millis(200))
+                .expect("public event")
+            {
+                ClientRuntimeEvent::PublicEvent {
+                    message_type,
+                    payload,
+                } => {
+                    assert_eq!(message_type, expected_message_type);
+                    return payload;
+                }
+                ClientRuntimeEvent::Snapshot(_) => {}
+                ClientRuntimeEvent::Reconnecting { .. } => {}
+                ClientRuntimeEvent::Disconnected { .. } => {}
+                ClientRuntimeEvent::ResyncRequested { .. } => {}
+                ClientRuntimeEvent::PrivateHoleCards(other) => {
+                    panic!("expected public event, got private hole cards: {other:?}");
+                }
+                ClientRuntimeEvent::SafeError { message, .. } => {
+                    panic!("expected public event, got safe error: {message}");
+                }
             }
-            other => panic!("expected public event, got {other:?}"),
+
+            assert!(Instant::now() < deadline, "expected public event before timeout");
         }
     }
 

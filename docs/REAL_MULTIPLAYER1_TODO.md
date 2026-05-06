@@ -168,7 +168,7 @@ The work in this file is done only when all of the following are true:
 - [x] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state
 - [x] Ensure the local player sees only allowed private information while all participants share the same public state
 - [x] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority
-- [ ] Remove any fake sample hand/feed/history data from release table routes
+- [x] Remove any fake sample hand/feed/history data from release table routes
 
 ### 7.2 Table action submission
 - [x] Route fold, call, check, bet, raise, and any other supported actions through Rust-owned validation and mutation
@@ -273,7 +273,7 @@ The work in this file is done only when all of the following are true:
 ### 11.4 Regression coverage for demo removal
 - [ ] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths
 - [ ] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority
-- [ ] Add tests that fail if the table view can be constructed without an active session container
+- [x] Add tests that fail if the table view can be constructed without an active session container
 
 ---
 

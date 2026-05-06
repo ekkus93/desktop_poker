@@ -13,8 +13,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
     crypto::{self, ProtocolCryptoProvider},
     domain, engine, interop, networking, protocol, storage, tournament,
-    tournament::{ActionRequest, RegisteredPlayer, TournamentController},
+    tournament::{RegisteredPlayer, TournamentController},
 };
+
+#[cfg(test)]
+use crate::tournament::ActionRequest;
 
 pub const INSTANCE_ID_ENV_VAR: &str = "DESKTOP_POKER_INSTANCE_ID";
 pub const JOIN_PAYLOAD_ENV_VAR: &str = "DESKTOP_POKER_JOIN_PAYLOAD";
@@ -681,10 +684,8 @@ impl DesktopAppState {
             return Ok(table_view);
         }
 
-        self.table_runtime
-            .lock()
-            .map_err(|_| "table runtime lock poisoned".to_string())?
-            .view(viewer_mode)
+        let _ = viewer_mode;
+        Err("no active live session is available for the table view".to_string())
     }
 
     pub fn submit_table_action(
@@ -715,10 +716,8 @@ impl DesktopAppState {
             return Ok(table_view);
         }
 
-        self.table_runtime
-            .lock()
-            .map_err(|_| "table runtime lock poisoned".to_string())?
-            .submit_action(viewer_mode, action_kind, raise_to_amount)
+        let _ = (viewer_mode, action_kind, raise_to_amount);
+        Err("no active live session is available for table actions".to_string())
     }
 
     pub fn debug_state(&self, viewer_mode: TableViewerMode) -> Result<DebugInspectorState, String> {
@@ -1463,6 +1462,7 @@ fn detect_profile_directory(instance_id: &str) -> PathBuf {
 struct DesktopTableRuntime {
     controller: TournamentController,
     protocol_log: Vec<TableEventView>,
+    #[cfg(test)]
     now_ms: u64,
     next_sequence: u64,
     last_board_count: usize,
@@ -1478,6 +1478,7 @@ impl DesktopTableRuntime {
         let mut runtime = Self {
             controller,
             protocol_log: Vec::new(),
+            #[cfg(test)]
             now_ms: 1,
             next_sequence: 1,
             last_board_count: 0,
@@ -1503,6 +1504,7 @@ impl DesktopTableRuntime {
         )
     }
 
+    #[cfg(test)]
     fn submit_action(
         &mut self,
         viewer_mode: TableViewerMode,
@@ -1592,6 +1594,7 @@ impl DesktopTableRuntime {
         })
     }
 
+    #[cfg(test)]
     fn auto_play_opponents(&mut self) -> Result<(), String> {
         for _ in 0..48 {
             self.sync_log_markers();
@@ -1614,6 +1617,7 @@ impl DesktopTableRuntime {
         Ok(())
     }
 
+    #[cfg(test)]
     fn auto_play_single_actor(&mut self) -> Result<(), String> {
         let maybe_window = self
             .controller
@@ -1756,6 +1760,7 @@ impl DesktopTableRuntime {
         self.next_sequence += 1;
     }
 
+    #[cfg(test)]
     fn bump_clock(&mut self, delta_ms: u64) -> u64 {
         self.now_ms += delta_ms;
         self.now_ms
@@ -1845,6 +1850,7 @@ fn resolve_action_request(
     }
 }
 
+#[cfg(test)]
 fn scripted_action_for_window(
     window: &domain::ActionWindow,
 ) -> Result<(domain::ActionType, Option<u32>, &'static str), String> {
@@ -2435,32 +2441,36 @@ mod tests {
     }
 
     #[test]
-    fn local_table_view_is_truthful_before_the_first_hand_starts() {
+    fn table_view_requires_an_active_live_session() {
         std::env::remove_var(INSTANCE_ID_ENV_VAR);
         std::env::remove_var(JOIN_PAYLOAD_ENV_VAR);
 
-        let table_view = DesktopAppState::detect()
-            .table_view(TableViewerMode::Local)
-            .expect("local table view");
+        assert_eq!(
+            DesktopAppState::detect()
+                .table_view(TableViewerMode::Local)
+                .expect_err("table view should require an active live session"),
+            "no active live session is available for the table view"
+        );
+    }
 
-        assert_eq!(table_view.viewer_mode, TableViewerMode::Local);
-        assert_eq!(table_view.current_hand_number, None);
-        assert!(table_view.board_cards.is_empty());
-        assert!(table_view.action_tray.is_none());
-        assert_eq!(table_view.seats[0].display_name, "You");
-        assert_eq!(table_view.seats[1].display_name, "Waiting for player");
-        assert_eq!(table_view.seats[1].status_label, "Reserved");
-        assert!(table_view
-            .standings
-            .iter()
-            .all(|entry| entry.display_name != "Reserved seat"));
+    #[test]
+    fn table_actions_require_an_active_live_session() {
+        assert_eq!(
+            DesktopAppState::detect()
+                .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::Fold, None)
+                .expect_err("table actions should require an active live session"),
+            "no active live session is available for table actions"
+        );
     }
 
     #[test]
     fn local_actions_advance_runtime_and_invalid_paths_fail_cleanly() {
         let state = start_live_table_state();
         let before_action = state
-            .table_view(TableViewerMode::Local)
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .view(TableViewerMode::Local)
             .expect("table view before action");
 
         assert_eq!(before_action.current_hand_number, Some(1));
@@ -2468,7 +2478,10 @@ mod tests {
 
         assert_eq!(
             state
-                .submit_table_action(
+                .table_runtime
+                .lock()
+                .expect("table runtime")
+                .submit_action(
                     TableViewerMode::Observer,
                     DesktopTableActionKind::Fold,
                     None,
@@ -2479,7 +2492,10 @@ mod tests {
 
         let invalid_raise_state = start_live_table_state();
         assert!(invalid_raise_state
-            .submit_table_action(
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::BetOrRaise,
                 Some(1),
@@ -2488,7 +2504,10 @@ mod tests {
             .contains("minimum full raise sizing"));
 
         let after_action = state
-            .submit_table_action(
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::CheckOrCall,
                 None,
@@ -2523,7 +2542,10 @@ mod tests {
             .is_some_and(|summary| summary.contains("You")));
 
         state
-            .submit_table_action(
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::CheckOrCall,
                 None,
@@ -2690,19 +2712,18 @@ mod tests {
                 let next_view = host_state
                     .table_view(TableViewerMode::Local)
                     .expect("host live table view");
-                if next_view.phase_label == "Running" && next_view.action_tray.is_some() {
+                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
                     Some(next_view)
                 } else {
                     std::thread::sleep(std::time::Duration::from_millis(20));
                     None
                 }
             })
-            .expect("host live table view should expose a running action window");
+            .expect("host live table view should expose the running snapshot");
         assert_eq!(host_table_view.tournament_name, "Friday Finals");
         assert_eq!(host_table_view.table_id, host_status.table_id);
         assert_eq!(host_table_view.phase_label, "Running");
         assert_eq!(host_table_view.current_hand_number, Some(1));
-        assert!(host_table_view.action_tray.is_some());
         assert!(host_table_view
             .seats
             .iter()
@@ -2764,25 +2785,29 @@ mod tests {
             .host_start_tournament()
             .expect("host should start the live tournament");
 
-        let (acting_state, observing_state, acting_view_before) = (0..20)
-            .find_map(|_| {
-                let next_host_view = host_state
-                    .table_view(TableViewerMode::Local)
-                    .expect("host table view before live action");
-                let next_client_view = client_state
-                    .table_view(TableViewerMode::Local)
-                    .expect("client table view before live action");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let (acting_state, observing_state, acting_view_before) = loop {
+            let next_host_view = host_state
+                .table_view(TableViewerMode::Local)
+                .expect("host table view before live action");
+            let next_client_view = client_state
+                .table_view(TableViewerMode::Local)
+                .expect("client table view before live action");
 
-                if next_host_view.action_tray.is_some() {
-                    Some((&host_state, &client_state, next_host_view))
-                } else if next_client_view.action_tray.is_some() {
-                    Some((&client_state, &host_state, next_client_view))
-                } else {
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                    None
-                }
-            })
-            .expect("one live session should observe an open action window");
+            if next_host_view.action_tray.is_some() {
+                break (&host_state, &client_state, next_host_view);
+            }
+
+            if next_client_view.action_tray.is_some() {
+                break (&client_state, &host_state, next_client_view);
+            }
+
+            assert!(
+                std::time::Instant::now() < deadline,
+                "one live session should observe an open action window"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
         assert_eq!(acting_view_before.phase_label, "Running");
 
         let acting_after_action = acting_state
@@ -2798,19 +2823,21 @@ mod tests {
             acting_view_before.action_owner_label
         );
 
-        let observer_after_action = (0..20)
-            .find_map(|_| {
-                let next_view = observing_state
-                    .table_view(TableViewerMode::Local)
-                    .expect("observer table view after live action");
-                if next_view.action_owner_label == acting_after_action.action_owner_label {
-                    Some(next_view)
-                } else {
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                    None
-                }
-            })
-            .expect("observer should observe the live action update");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let observer_after_action = loop {
+            let next_view = observing_state
+                .table_view(TableViewerMode::Local)
+                .expect("observer table view after live action");
+            if next_view.action_owner_label == acting_after_action.action_owner_label {
+                break next_view;
+            }
+
+            assert!(
+                std::time::Instant::now() < deadline,
+                "observer should observe the live action update"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
         assert_eq!(
             observer_after_action.action_owner_label,
             acting_after_action.action_owner_label
