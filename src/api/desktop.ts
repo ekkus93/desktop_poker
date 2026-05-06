@@ -9,9 +9,14 @@ type DesktopBrowserMocks = {
   startHostSession?: (request: StartHostSessionRequest) => Promise<HostSessionStatus>;
   getHostSessionStatus?: () => Promise<HostSessionStatus | null>;
   stopHostSession?: () => Promise<void>;
+  hostClaimLobbySeat?: (request: ClaimLobbySeatRequest) => Promise<HostSessionStatus>;
+  hostSetLobbyReadyState?: (request: SetLobbyReadyStateRequest) => Promise<HostSessionStatus>;
+  hostStartTournament?: () => Promise<HostSessionStatus>;
   joinHostSession?: (request: JoinHostSessionRequest) => Promise<ClientSessionStatus>;
   getClientSessionStatus?: () => Promise<ClientSessionStatus | null>;
   leaveClientSession?: () => Promise<void>;
+  clientClaimLobbySeat?: (request: ClaimLobbySeatRequest) => Promise<ClientSessionStatus>;
+  clientSetLobbyReadyState?: (request: SetLobbyReadyStateRequest) => Promise<ClientSessionStatus>;
   createHostInvite?: (request: HostInviteRequest) => Promise<string>;
   validateJoinPayloadInput?: (payload: string) => Promise<JoinPayload>;
   resolveHostLanAddress?: () => Promise<string>;
@@ -107,6 +112,14 @@ export type HostSessionStatus = {
 export type JoinHostSessionRequest = {
   joinPayload: string;
   displayName: string;
+};
+
+export type ClaimLobbySeatRequest = {
+  seatIndex: number;
+};
+
+export type SetLobbyReadyStateRequest = {
+  isReady: boolean;
 };
 
 export type ClientSessionStatus = {
@@ -318,6 +331,33 @@ export function stopHostSession() {
   return invoke<void>("stop_host_session");
 }
 
+export function hostClaimLobbySeat(request: ClaimLobbySeatRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.hostClaimLobbySeat) {
+    return browserMocks.hostClaimLobbySeat(request);
+  }
+
+  return invoke<HostSessionStatus>("host_claim_lobby_seat", { request });
+}
+
+export function hostSetLobbyReadyState(request: SetLobbyReadyStateRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.hostSetLobbyReadyState) {
+    return browserMocks.hostSetLobbyReadyState(request);
+  }
+
+  return invoke<HostSessionStatus>("host_set_lobby_ready_state", { request });
+}
+
+export function hostStartTournament() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.hostStartTournament) {
+    return browserMocks.hostStartTournament();
+  }
+
+  return invoke<HostSessionStatus>("host_start_tournament");
+}
+
 export function joinHostSession(request: JoinHostSessionRequest) {
   const browserMocks = getBrowserMocks();
   if (browserMocks?.joinHostSession) {
@@ -343,6 +383,24 @@ export function leaveClientSession() {
   }
 
   return invoke<void>("leave_client_session");
+}
+
+export function clientClaimLobbySeat(request: ClaimLobbySeatRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.clientClaimLobbySeat) {
+    return browserMocks.clientClaimLobbySeat(request);
+  }
+
+  return invoke<ClientSessionStatus>("client_claim_lobby_seat", { request });
+}
+
+export function clientSetLobbyReadyState(request: SetLobbyReadyStateRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.clientSetLobbyReadyState) {
+    return browserMocks.clientSetLobbyReadyState(request);
+  }
+
+  return invoke<ClientSessionStatus>("client_set_lobby_ready_state", { request });
 }
 
 export function resolveHostLanAddress() {

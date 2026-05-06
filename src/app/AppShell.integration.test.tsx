@@ -2,11 +2,16 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  clientClaimLobbySeat,
+  clientSetLobbyReadyState,
   getClientSessionStatus,
   fetchBootstrapState,
   getHostSessionStatus,
   getDebugState,
   getTableView,
+  hostClaimLobbySeat,
+  hostSetLobbyReadyState,
+  hostStartTournament,
   joinHostSession,
   launchAdditionalClientInstance,
   resolveHostLanAddress,
@@ -32,10 +37,15 @@ vi.mock("../api/desktop", async () => {
   return {
     ...actual,
     fetchBootstrapState: vi.fn(),
+    clientClaimLobbySeat: vi.fn(),
+    clientSetLobbyReadyState: vi.fn(),
     getClientSessionStatus: vi.fn(),
     getHostSessionStatus: vi.fn(),
     subscribeBootstrap: vi.fn(),
     getDebugState: vi.fn(),
+    hostClaimLobbySeat: vi.fn(),
+    hostSetLobbyReadyState: vi.fn(),
+    hostStartTournament: vi.fn(),
     joinHostSession: vi.fn(),
     launchAdditionalClientInstance: vi.fn(),
     resolveHostLanAddress: vi.fn(),
@@ -47,10 +57,15 @@ vi.mock("../api/desktop", async () => {
 });
 
 const mockedFetchBootstrapState = vi.mocked(fetchBootstrapState);
+const mockedClientClaimLobbySeat = vi.mocked(clientClaimLobbySeat);
+const mockedClientSetLobbyReadyState = vi.mocked(clientSetLobbyReadyState);
 const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedSubscribeBootstrap = vi.mocked(subscribeBootstrap);
 const mockedGetDebugState = vi.mocked(getDebugState);
+const mockedHostClaimLobbySeat = vi.mocked(hostClaimLobbySeat);
+const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
+const mockedHostStartTournament = vi.mocked(hostStartTournament);
 const mockedJoinHostSession = vi.mocked(joinHostSession);
 const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
@@ -134,6 +149,43 @@ function buildClientSessionStatus() {
   };
 }
 
+function syncLiveSessions(participants: NonNullable<typeof currentHostSession>["participants"], forcedPhase?: string) {
+  const totalSeats = currentHostSession
+    ? currentHostSession.activeSeatCount + currentHostSession.openSeatCount
+    : currentClientSession
+      ? currentClientSession.activeSeatCount + currentClientSession.openSeatCount
+      : 6;
+  const activeSeatCount = participants.filter((participant) => participant.seatIndex !== null).length;
+  const phase = forcedPhase
+    ?? (activeSeatCount >= 2
+      && participants
+        .filter((participant) => participant.seatIndex !== null)
+        .every((participant) => participant.isReady)
+      ? "readyCheck"
+      : "waitingForPlayers");
+
+  if (currentHostSession) {
+    currentHostSession = {
+      ...currentHostSession,
+      participants,
+      activeSeatCount,
+      openSeatCount: totalSeats - activeSeatCount,
+      phase,
+    };
+  }
+
+  if (currentClientSession) {
+    currentClientSession = {
+      ...currentClientSession,
+      tournamentName: currentHostSession?.tournamentName ?? currentClientSession.tournamentName,
+      participants,
+      activeSeatCount,
+      openSeatCount: totalSeats - activeSeatCount,
+      phase,
+    };
+  }
+}
+
 function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) {
   mockedFetchBootstrapState.mockResolvedValue(bootstrap);
   mockedSubscribeBootstrap.mockImplementation(async (onBootstrap) => {
@@ -159,10 +211,15 @@ describe("AppShell integration", () => {
     currentHostSession = null;
     currentClientSession = null;
     mockedFetchBootstrapState.mockReset();
+    mockedClientClaimLobbySeat.mockReset();
+    mockedClientSetLobbyReadyState.mockReset();
     mockedGetClientSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockReset();
     mockedSubscribeBootstrap.mockReset();
     mockedGetDebugState.mockReset();
+    mockedHostClaimLobbySeat.mockReset();
+    mockedHostSetLobbyReadyState.mockReset();
+    mockedHostStartTournament.mockReset();
     mockedJoinHostSession.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
     mockedResolveHostLanAddress.mockReset();
@@ -184,11 +241,78 @@ describe("AppShell integration", () => {
     mockedJoinHostSession.mockImplementation(async () => {
       currentClientSession = buildClientSessionStatus();
       if (currentHostSession) {
-        currentHostSession = {
-          ...currentHostSession,
-          participants: currentClientSession.participants,
-        };
+        syncLiveSessions(currentClientSession.participants);
       }
+      return currentClientSession;
+    });
+    mockedHostClaimLobbySeat.mockImplementation(async (request) => {
+      if (!currentHostSession) {
+        throw new Error("No active host session");
+      }
+
+      const nextParticipants = currentHostSession.participants.map((participant) =>
+        participant.playerId === "local-player"
+          ? {
+              ...participant,
+              seatIndex: request.seatIndex,
+              isReady: false,
+              participantState: "seated",
+            }
+          : participant,
+      );
+      syncLiveSessions(nextParticipants);
+      return currentHostSession;
+    });
+    mockedHostSetLobbyReadyState.mockImplementation(async (request) => {
+      if (!currentHostSession) {
+        throw new Error("No active host session");
+      }
+
+      const nextParticipants = currentHostSession.participants.map((participant) =>
+        participant.playerId === "local-player"
+          ? { ...participant, isReady: request.isReady, participantState: "seated" }
+          : participant,
+      );
+      syncLiveSessions(nextParticipants);
+      return currentHostSession;
+    });
+    mockedHostStartTournament.mockImplementation(async () => {
+      if (!currentHostSession) {
+        throw new Error("No active host session");
+      }
+
+      syncLiveSessions(currentHostSession.participants, "running");
+      return currentHostSession;
+    });
+    mockedClientClaimLobbySeat.mockImplementation(async (request) => {
+      if (!currentClientSession) {
+        throw new Error("No active client session");
+      }
+
+      const nextParticipants = currentClientSession.participants.map((participant) =>
+        participant.playerId === "player-test-instance"
+          ? {
+              ...participant,
+              seatIndex: request.seatIndex,
+              isReady: false,
+              participantState: "seated",
+            }
+          : participant,
+      );
+      syncLiveSessions(nextParticipants);
+      return currentClientSession;
+    });
+    mockedClientSetLobbyReadyState.mockImplementation(async (request) => {
+      if (!currentClientSession) {
+        throw new Error("No active client session");
+      }
+
+      const nextParticipants = currentClientSession.participants.map((participant) =>
+        participant.playerId === "player-test-instance"
+          ? { ...participant, isReady: request.isReady, participantState: "seated" }
+          : participant,
+      );
+      syncLiveSessions(nextParticipants);
       return currentClientSession;
     });
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
@@ -314,6 +438,87 @@ describe("AppShell integration", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "I'm ready" })).toBeNull();
     });
+  });
+
+  it("lets a joined client claim a live seat and toggle ready through the lobby runtime", async () => {
+    renderAppShell("/join");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_good" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to lobby" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Lobby",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "Take seat" }))[0]);
+
+    await waitFor(() => {
+      expect(mockedClientClaimLobbySeat).toHaveBeenCalledWith({ seatIndex: 2 });
+    });
+    expect(await screen.findByRole("button", { name: "I'm ready" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
+
+    await waitFor(() => {
+      expect(mockedClientSetLobbyReadyState).toHaveBeenCalledWith({ isReady: true });
+    });
+    expect(screen.getByText("You: Ready")).toBeTruthy();
+  });
+
+  it("enables the host start control only when the live lobby is authoritatively ready", async () => {
+    currentHostSession = buildHostSessionStatus({
+      tournamentName: "Friday Night",
+      displayName: "Host Alpha",
+    });
+    syncLiveSessions(
+      [
+        {
+          playerId: "local-player",
+          displayName: "Host Alpha",
+          seatIndex: 0,
+          isHost: true,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+        {
+          playerId: "player-test-instance",
+          displayName: "Player test-instance",
+          seatIndex: 1,
+          isHost: false,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+      ],
+      "readyCheck",
+    );
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(false);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start tournament" }));
+
+    await waitFor(() => {
+      expect(mockedHostStartTournament).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText("Tournament live")).toBeTruthy();
   });
 
   it("creates, copies, and joins a tournament invite across host and join flows", async () => {

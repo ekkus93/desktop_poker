@@ -9,8 +9,9 @@ use tauri::State;
 
 use crate::{
     app_state::{
-        ClientSessionStatus, DebugInspectorState, DesktopAppState, DesktopBootstrapState,
-        DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest, ScreenDescriptor,
+        ClaimLobbySeatRequest, ClientSessionStatus, DebugInspectorState, DesktopAppState,
+        DesktopBootstrapState, DesktopTableActionKind, HostSessionStatus,
+        JoinHostSessionRequest, ScreenDescriptor, SetLobbyReadyStateRequest,
         StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
     },
     domain::JoinPayload,
@@ -77,6 +78,29 @@ pub fn stop_host_session(state: State<'_, DesktopAppState>) -> Result<(), String
 }
 
 #[tauri::command]
+pub fn host_claim_lobby_seat(
+    state: State<'_, DesktopAppState>,
+    request: ClaimLobbySeatRequest,
+) -> Result<HostSessionStatus, String> {
+    state.host_claim_lobby_seat(request)
+}
+
+#[tauri::command]
+pub fn host_set_lobby_ready_state(
+    state: State<'_, DesktopAppState>,
+    request: SetLobbyReadyStateRequest,
+) -> Result<HostSessionStatus, String> {
+    state.host_set_lobby_ready_state(request)
+}
+
+#[tauri::command]
+pub fn host_start_tournament(
+    state: State<'_, DesktopAppState>,
+) -> Result<HostSessionStatus, String> {
+    state.host_start_tournament()
+}
+
+#[tauri::command]
 pub fn join_host_session(
     state: State<'_, DesktopAppState>,
     request: JoinHostSessionRequest,
@@ -94,6 +118,22 @@ pub fn get_client_session_status(
 #[tauri::command]
 pub fn leave_client_session(state: State<'_, DesktopAppState>) -> Result<(), String> {
     state.leave_client_session()
+}
+
+#[tauri::command]
+pub fn client_claim_lobby_seat(
+    state: State<'_, DesktopAppState>,
+    request: ClaimLobbySeatRequest,
+) -> Result<ClientSessionStatus, String> {
+    state.client_claim_lobby_seat(request)
+}
+
+#[tauri::command]
+pub fn client_set_lobby_ready_state(
+    state: State<'_, DesktopAppState>,
+    request: SetLobbyReadyStateRequest,
+) -> Result<ClientSessionStatus, String> {
+    state.client_set_lobby_ready_state(request)
 }
 
 #[tauri::command]

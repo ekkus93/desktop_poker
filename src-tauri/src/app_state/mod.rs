@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::{Arc, Mutex},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use dirs::data_local_dir;
@@ -248,6 +248,18 @@ pub struct JoinHostSessionRequest {
     pub display_name: String,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaimLobbySeatRequest {
+    pub seat_index: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SetLobbyReadyStateRequest {
+    pub is_ready: bool,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientSessionStatus {
@@ -348,26 +360,109 @@ impl DesktopClientSession {
                 Err(_) => break,
             };
 
-            match event {
-                networking::ClientRuntimeEvent::Snapshot(snapshot) => {
-                    self.latest_snapshot = snapshot.state.clone();
-                    self.reconnecting = false;
-                    self.last_error = None;
-                }
-                networking::ClientRuntimeEvent::Reconnecting { .. } => {
-                    self.reconnecting = true;
-                }
-                networking::ClientRuntimeEvent::SafeError { message, .. } => {
-                    self.reconnecting = false;
-                    self.last_error = Some(message);
-                }
-                networking::ClientRuntimeEvent::Disconnected { .. } => {
-                    self.reconnecting = false;
-                    self.last_error = Some("Disconnected from host".to_string());
-                }
-                networking::ClientRuntimeEvent::ResyncRequested { .. }
-                | networking::ClientRuntimeEvent::PublicEvent { .. }
-                | networking::ClientRuntimeEvent::PrivateHoleCards(_) => {}
+            self.apply_event(event);
+        }
+    }
+
+    fn apply_event(&mut self, event: networking::ClientRuntimeEvent) {
+        match event {
+            networking::ClientRuntimeEvent::Snapshot(snapshot) => {
+                self.latest_snapshot = snapshot.state.clone();
+                self.reconnecting = false;
+                self.last_error = None;
+            }
+            networking::ClientRuntimeEvent::Reconnecting { .. } => {
+                self.reconnecting = true;
+            }
+            networking::ClientRuntimeEvent::SafeError { message, .. } => {
+                self.reconnecting = false;
+                self.last_error = Some(message);
+            }
+            networking::ClientRuntimeEvent::Disconnected { .. } => {
+                self.reconnecting = false;
+                self.last_error = Some("Disconnected from host".to_string());
+            }
+            networking::ClientRuntimeEvent::ResyncRequested { .. }
+            | networking::ClientRuntimeEvent::PublicEvent { .. }
+            | networking::ClientRuntimeEvent::PrivateHoleCards(_) => {}
+        }
+    }
+
+    fn claim_lobby_seat(&mut self, request: ClaimLobbySeatRequest) -> Result<ClientSessionStatus, String> {
+        self.last_error = None;
+        self.runtime
+            .claim_seat(request.seat_index)
+            .map_err(|error| error.to_string())?;
+        self.await_condition(Duration::from_secs(1), |session| {
+            session.last_error.is_some()
+                || session
+                    .latest_snapshot
+                    .state
+                    .participants
+                    .get(&session.latest_snapshot.local_player_id)
+                    .and_then(|participant| participant.seat_index)
+                    == Some(request.seat_index)
+        });
+
+        if let Some(error) = self.last_error.clone() {
+            return Err(error);
+        }
+
+        Ok(self.status())
+    }
+
+    fn set_lobby_ready_state(
+        &mut self,
+        request: SetLobbyReadyStateRequest,
+    ) -> Result<ClientSessionStatus, String> {
+        self.last_error = None;
+        self.runtime
+            .set_ready_state(request.is_ready)
+            .map_err(|error| error.to_string())?;
+        self.await_condition(Duration::from_secs(1), |session| {
+            session.last_error.is_some()
+                || session
+                    .latest_snapshot
+                    .state
+                    .participants
+                    .get(&session.latest_snapshot.local_player_id)
+                    .and_then(|participant| participant.seat_index)
+                    .and_then(|seat_index| {
+                        session
+                            .latest_snapshot
+                            .state
+                            .seats
+                            .get(seat_index as usize)
+                            .map(|seat| seat.is_ready)
+                    })
+                    == Some(request.is_ready)
+        });
+
+        if let Some(error) = self.last_error.clone() {
+            return Err(error);
+        }
+
+        Ok(self.status())
+    }
+
+    fn await_condition(
+        &mut self,
+        timeout: Duration,
+        predicate: impl Fn(&Self) -> bool,
+    ) {
+        let deadline = Instant::now() + timeout;
+        while Instant::now() < deadline {
+            self.refresh();
+            if predicate(self) {
+                return;
+            }
+
+            if let Ok(event) = self.runtime.next_event(Duration::from_millis(50)) {
+                self.apply_event(event);
+            }
+
+            if predicate(self) {
+                return;
             }
         }
     }
@@ -483,6 +578,57 @@ impl DesktopAppState {
         Ok(())
     }
 
+    pub fn host_claim_lobby_seat(
+        &self,
+        request: ClaimLobbySeatRequest,
+    ) -> Result<HostSessionStatus, String> {
+        let mut host_session = self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?;
+        let session = host_session
+            .as_mut()
+            .ok_or_else(|| "no active host session".to_string())?;
+        session
+            .host_server
+            .claim_seat(LOCAL_PLAYER_ID, request.seat_index)
+            .map_err(|error| error.to_string())?;
+        session.status()
+    }
+
+    pub fn host_set_lobby_ready_state(
+        &self,
+        request: SetLobbyReadyStateRequest,
+    ) -> Result<HostSessionStatus, String> {
+        let mut host_session = self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?;
+        let session = host_session
+            .as_mut()
+            .ok_or_else(|| "no active host session".to_string())?;
+        session
+            .host_server
+            .set_ready_state(LOCAL_PLAYER_ID, request.is_ready)
+            .map_err(|error| error.to_string())?;
+        session.status()
+    }
+
+    pub fn host_start_tournament(&self) -> Result<HostSessionStatus, String> {
+        let mut host_session = self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?;
+        let session = host_session
+            .as_mut()
+            .ok_or_else(|| "no active host session".to_string())?;
+        session
+            .host_server
+            .start_tournament()
+            .map_err(|error| error.to_string())?;
+        session.status()
+    }
+
     pub fn join_host_session(
         &self,
         request: JoinHostSessionRequest,
@@ -509,6 +655,30 @@ impl DesktopAppState {
             .map_err(|_| "client session lock poisoned".to_string())?
             .take();
         Ok(())
+    }
+
+    pub fn client_claim_lobby_seat(
+        &self,
+        request: ClaimLobbySeatRequest,
+    ) -> Result<ClientSessionStatus, String> {
+        self.client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .as_mut()
+            .ok_or_else(|| "no active client session".to_string())?
+            .claim_lobby_seat(request)
+    }
+
+    pub fn client_set_lobby_ready_state(
+        &self,
+        request: SetLobbyReadyStateRequest,
+    ) -> Result<ClientSessionStatus, String> {
+        self.client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .as_mut()
+            .ok_or_else(|| "no active client session".to_string())?
+            .set_lobby_ready_state(request)
     }
 
     pub fn launch_additional_client_instance(

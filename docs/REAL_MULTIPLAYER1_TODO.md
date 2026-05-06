@@ -10,7 +10,7 @@ The work in this file is done only when all of the following are true:
 
 - [x] A host instance can create a real networked tournament session from the desktop UI
 - [x] A second desktop instance can join that session using a real compact `pkr1_` invite
-- [ ] Host and client both see the same authoritative lobby state
+- [x] Host and client both see the same authoritative lobby state
 - [ ] Seat assignment, ready state, tournament start, and table progression are synchronized across instances
 - [ ] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state
 - [ ] Disconnect, reconnect, and resync work through the live runtime path
@@ -80,7 +80,7 @@ The work in this file is done only when all of the following are true:
 
 ### 3.3 Session event and projection commands
 - [ ] Add commands to fetch the current authoritative/projection snapshot for the active session
-- [ ] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority
+- [x] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority
 - [ ] Add commands to submit live table actions through the real tournament/runtime path
 - [ ] Add commands or event subscriptions for reconnecting, disconnected, fatal error, and resync-required states
 - [ ] Ensure command responses are typed and structured so the frontend can render exact causes instead of generic failure text
@@ -105,7 +105,7 @@ The work in this file is done only when all of the following are true:
 ### 4.2 Host lobby behavior
 - [x] Replace shell-local participant rendering with live participant/session projection data from Rust
 - [x] Replace any fake ready/seat status with real participant admission, seat assignment, and ready state from the session
-- [ ] Enable the host-only start control only when the authoritative runtime says starting is allowed
+- [x] Enable the host-only start control only when the authoritative runtime says starting is allowed
 - [x] Show host-visible connection state for joined players, including disconnect/reconnect eligibility
 - [x] Ensure host lobby updates without requiring screen reloads or route resets
 
@@ -143,22 +143,22 @@ The work in this file is done only when all of the following are true:
 ## 6. Implement real lobby actions and transitions
 
 ### 6.1 Admission and seat selection
-- [ ] Decide whether admission is automatic on join or requires explicit host approval in v1, then implement only that real rule
-- [ ] Replace local seat toggles with Rust-owned seat selection/assignment commands
+- [x] Decide whether admission is automatic on join or requires explicit host approval in v1, then implement only that real rule
+- [x] Replace local seat toggles with Rust-owned seat selection/assignment commands
 - [ ] Enforce seat conflicts, seat release, and host/client visibility through the authoritative state model
 - [ ] Ensure observers, eliminated players, and active participants are represented distinctly in the lobby and session state
 
 ### 6.2 Ready-state flow
-- [ ] Route ready toggles through Rust-owned validation and session mutation
-- [ ] Broadcast ready-state changes to all participants via the live runtime path
+- [x] Route ready toggles through Rust-owned validation and session mutation
+- [x] Broadcast ready-state changes to all participants via the live runtime path
 - [ ] Remove the hardcoded nonfunctional lobby start path such as `canStart = false`
-- [ ] Define and enforce the exact rules for when the host may start the tournament
+- [x] Define and enforce the exact rules for when the host may start the tournament
 
 ### 6.3 Tournament start cutover
-- [ ] Implement a real host start-tournament action that advances the authoritative session out of waiting/ready-check into live play
+- [x] Implement a real host start-tournament action that advances the authoritative session out of waiting/ready-check into live play
 - [ ] Ensure both host and clients transition from lobby to main table based on the same runtime event/snapshot
-- [ ] Ensure any late/duplicate start requests are rejected safely
-- [ ] Ensure start failure rolls back cleanly or leaves the lobby in a consistent state with a real error
+- [x] Ensure any late/duplicate start requests are rejected safely
+- [x] Ensure start failure rolls back cleanly or leaves the lobby in a consistent state with a real error
 
 ---
 
@@ -254,12 +254,12 @@ The work in this file is done only when all of the following are true:
 - [ ] Add or update Rust tests to cover the new app-state session container and state transitions
 - [ ] Add host lifecycle tests for start, stop, bind failure, and host recovery
 - [ ] Add client lifecycle tests for join, disconnect, reconnect, and teardown
-- [ ] Add tests proving lobby mutations and start flow update the authoritative state correctly
+- [x] Add tests proving lobby mutations and start flow update the authoritative state correctly
 
 ### 11.2 Frontend integration tests
 - [ ] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx)
 - [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
-- [ ] Add tests for real lobby ready/start propagation across host and client UI projections
+- [x] Add tests for real lobby ready/start propagation across host and client UI projections
 - [ ] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
 - [ ] Add tests proving the UI cannot reach lobby/table routes without a valid live session state
 
@@ -294,7 +294,7 @@ The work in this file is done only when all of the following are true:
 ### 12.3 Final acceptance checklist
 - [x] Host can create a tournament from the UI and obtain a real invite from the running session
 - [x] Client can join from the UI using that invite and enter the same authoritative lobby
-- [ ] Ready/start works across instances
+- [x] Ready/start works across instances
 - [ ] Main table play is synchronized across instances
 - [ ] Reconnect/resync works or fails safely according to documented behavior
 - [ ] Demo-backed release player flow has been removed

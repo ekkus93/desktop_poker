@@ -4,8 +4,13 @@ import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { buildParticipantShell } from "../app/shell";
 import {
+  clientClaimLobbySeat,
+  clientSetLobbyReadyState,
   getClientSessionStatus,
   getHostSessionStatus,
+  hostClaimLobbySeat,
+  hostSetLobbyReadyState,
+  hostStartTournament,
   type ClientSessionStatus,
   type HostSessionStatus,
 } from "../api/desktop";
@@ -64,6 +69,8 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
   const [hostSession, setHostSession] = useState<HostSessionStatus | null>(null);
   const [clientSession, setClientSession] = useState<ClientSessionStatus | null>(null);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -98,6 +105,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   }, []);
 
   const liveSession = hostSession ?? clientSession;
+  const liveLocalPlayerId = hostSession ? "local-player" : clientSession?.localPlayerId ?? null;
+  const liveLocalParticipant = liveSession?.participants.find(
+    (participant) => participant.playerId === liveLocalPlayerId,
+  ) ?? null;
   const participants = liveSession
     ? buildLiveSeats(liveSession)
     : buildParticipantShell(
@@ -118,6 +129,55 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const totalSeats = liveSession
     ? liveSession.activeSeatCount + liveSession.openSeatCount
     : hostDraft.maxPlayers;
+  const liveCanStart = Boolean(hostSession && liveSession?.phase === "readyCheck" && liveLocalParticipant?.isHost);
+  const liveLobbyActionsEnabled = Boolean(liveSession && liveSession.phase !== "running");
+
+  const claimLiveSeat = async (seatIndex: number) => {
+    setSubmitting(true);
+    setLobbyError(null);
+
+    try {
+      if (hostSession) {
+        setHostSession(await hostClaimLobbySeat({ seatIndex }));
+      } else if (clientSession) {
+        setClientSession(await clientClaimLobbySeat({ seatIndex }));
+      }
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "Unable to claim that seat.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleLiveReadyState = async () => {
+    setSubmitting(true);
+    setLobbyError(null);
+
+    try {
+      if (hostSession) {
+        setHostSession(await hostSetLobbyReadyState({ isReady: !localSeatReady }));
+      } else if (clientSession) {
+        setClientSession(await clientSetLobbyReadyState({ isReady: !localSeatReady }));
+      }
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "Unable to change ready state.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const startLiveTournament = async () => {
+    setSubmitting(true);
+    setLobbyError(null);
+
+    try {
+      setHostSession(await hostStartTournament());
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "Unable to start the tournament.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <ScreenShell
@@ -157,6 +217,18 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     {localSeatReady ? "Undo ready" : "I'm ready"}
                   </button>
                 ) : null}
+                {liveSession && liveLobbyActionsEnabled && liveLocalParticipant?.seatIndex !== null ? (
+                  <button
+                    className={localSeatReady ? "primary-button compact-button" : "secondary-button compact-button"}
+                    disabled={submitting}
+                    onClick={() => {
+                      void toggleLiveReadyState();
+                    }}
+                    type="button"
+                  >
+                    {localSeatReady ? "Undo ready" : "I'm ready"}
+                  </button>
+                ) : null}
                 {canStart ? (
                   <Link className="primary-button compact-button" to="/table">
                     <span className="button-content">
@@ -164,11 +236,25 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                       <span>Start tournament</span>
                     </span>
                   </Link>
+                ) : liveCanStart ? (
+                  <button
+                    className="primary-button compact-button"
+                    disabled={submitting}
+                    onClick={() => {
+                      void startLiveTournament();
+                    }}
+                    type="button"
+                  >
+                    <span className="button-content">
+                      <Play className="button-icon" strokeWidth={1.9} />
+                      <span>Start tournament</span>
+                    </span>
+                  </button>
                 ) : (
                   <button className="primary-button compact-button" disabled type="button">
                     <span className="button-content">
                       <Play className="button-icon" strokeWidth={1.9} />
-                      <span>Start tournament</span>
+                      <span>{liveSession?.phase === "running" ? "Tournament live" : "Start tournament"}</span>
                     </span>
                   </button>
                 )}
@@ -185,6 +271,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   </span>
                 </button>
               </div>
+                {lobbyError ? <p className="inline-banner error">{lobbyError}</p> : null}
             </div>
             <div className="seat-grid lobby-seat-grid">
               {participants.map((seat) => {
@@ -206,6 +293,18 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                       </span>
                     </div>
                     {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
+                      {liveSession && liveLobbyActionsEnabled && seat.kind === "open" ? (
+                        <button
+                          className="secondary-button compact-button"
+                          disabled={submitting}
+                          onClick={() => {
+                            void claimLiveSeat(seat.seatIndex - 1);
+                          }}
+                          type="button"
+                        >
+                          Take seat
+                        </button>
+                      ) : null}
                   </article>
                 );
               })}
