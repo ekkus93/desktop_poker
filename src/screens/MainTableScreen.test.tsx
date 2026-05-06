@@ -5,6 +5,7 @@ import {
   getTableView,
   submitTableAction,
   type DesktopTableActionKind,
+  type TableViewSnapshot,
   type TableViewerMode,
 } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
@@ -196,15 +197,15 @@ describe("MainTableScreen", () => {
   it("explains locked raise actions and shows a submission banner while waiting", async () => {
     const initialView = createTableView({
       actionTray: {
-        ...createTableView().actionTray,
+        ...createTableView().actionTray!,
         maxRaiseTo: null,
       },
     });
-    let resolveAction: ((value: ReturnType<typeof createTableView>) => void) | null = null;
+    let resolveAction!: (value: TableViewSnapshot) => void;
     mockedGetTableView.mockResolvedValue(initialView);
     mockedSubmitTableAction.mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise<TableViewSnapshot>((resolve) => {
           resolveAction = resolve;
         }),
     );
@@ -213,12 +214,12 @@ describe("MainTableScreen", () => {
     renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(await screen.findByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
-  expect(screen.getByRole("button", { name: /bet \/ raise/i }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /bet \/ raise/i }).hasAttribute("disabled")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Fold" }));
     expect(await screen.findByText(/sending your action to the host/i)).toBeTruthy();
 
-    resolveAction?.(createTableView({ actionTray: null, actionOwnerLabel: "Maya" }));
+    resolveAction(createTableView({ actionTray: null, actionOwnerLabel: "Maya" }));
 
     await waitFor(() => {
       expect(screen.queryByText(/sending your action to the host/i)).toBeNull();

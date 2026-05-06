@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
-import type { DesktopBootstrapState } from "../../api/desktop";
+import { createBootstrap } from "../../test/fixtures";
 import { AppFrame } from "./AppFrame";
 
 vi.mock("../../app/useDesktopShell", () => ({
@@ -10,7 +10,7 @@ vi.mock("../../app/useDesktopShell", () => ({
 
 describe("AppFrame", () => {
   it("locks the outer shell to the viewport and allows only inner content scrolling", () => {
-    const bootstrap = { appName: "Test App", screens: [] } as DesktopBootstrapState;
+    const bootstrap = createBootstrap({ appName: "Test App", screens: [] });
 
     const { container } = render(
       <MemoryRouter initialEntries={["/"]}>
@@ -34,7 +34,7 @@ describe("AppFrame", () => {
   });
 
   it("drops the support rail from the in-tournament shell and narrows the play frame", () => {
-    const bootstrap = { appName: "Test App", screens: [] } as DesktopBootstrapState;
+    const bootstrap = createBootstrap({ appName: "Test App", screens: [] });
 
     const { container, getByLabelText, getByRole, queryByText } = render(
       <MemoryRouter initialEntries={["/lobby"]}>
@@ -70,7 +70,7 @@ describe("AppFrame", () => {
   });
 
   it("hides current-page host and lobby navigation buttons", () => {
-    const bootstrap = { appName: "Test App", screens: [] } as DesktopBootstrapState;
+    const bootstrap = createBootstrap({ appName: "Test App", screens: [] });
     const navigation = [
       { to: "/", label: "Home" },
       { to: "/host", label: "Host" },

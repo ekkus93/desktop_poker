@@ -129,7 +129,11 @@ describe("desktop API bridge", () => {
       const bootstrap = createBootstrap({ instanceId: "event-host" });
       const onBootstrap = vi.fn();
       mockedListen.mockImplementation(async (_eventName, handler) => {
-        handler({ payload: bootstrap } as { payload: DesktopBootstrapState });
+        handler({
+          event: "desktop://bootstrap",
+          id: 1,
+          payload: bootstrap,
+        } as { event: string; id: number; payload: DesktopBootstrapState });
         return unsubscribe;
       });
 

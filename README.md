@@ -140,24 +140,34 @@ You can also run a packaged Linux build directly, for example:
 
 ## Running multiple instances locally
 
-The desktop app is intentionally designed for multiple concurrent instances. Use an explicit instance id so each launch gets its own storage namespace, session identity, and reconnect namespace:
+The desktop app is intentionally designed for multiple concurrent instances. Use an explicit instance id so each launch gets its own storage namespace, session identity, and reconnect namespace.
 
-```bash
-DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev
-DESKTOP_POKER_INSTANCE_ID=client-b npm run tauri dev
-```
-
-You can also pass the instance id on the app command line:
-
-```bash
-npm run tauri dev -- -- --instance-id client-c
-```
-
-Production binaries can also be launched multiple times with distinct ids:
+For production or compiled binaries, you can launch as many instances as you want directly:
 
 ```bash
 ./src-tauri/target/release/desktop-poker --instance-id host-a
 ./src-tauri/target/release/desktop-poker --instance-id client-b
+```
+
+For local development, do not run `npm run tauri dev` twice. The first `tauri dev` process starts the shared Vite dev server on port `1420`, and a second `tauri dev` will fail when it tries to start that same port again.
+
+Use this workflow instead:
+
+```bash
+DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev
+```
+
+Keep that first terminal running. Then launch each additional development instance against the already-running dev server by starting the Rust app directly:
+
+```bash
+DESKTOP_POKER_INSTANCE_ID=client-b cargo run --manifest-path src-tauri/Cargo.toml --no-default-features --
+DESKTOP_POKER_INSTANCE_ID=client-c cargo run --manifest-path src-tauri/Cargo.toml --no-default-features --
+```
+
+You can also pass the instance id on the app command line for those extra development launches:
+
+```bash
+cargo run --manifest-path src-tauri/Cargo.toml --no-default-features -- --instance-id client-c
 ```
 
 The desktop shell also persists per-instance display name, host draft, recent direct-join payloads, saved hand-history summaries, and Tauri window state so repeated local sessions do not stomp one another.
@@ -180,12 +190,12 @@ The CLI form and env var are both surfaced through the Rust bootstrap state and 
 
 ## Local multi-instance host/join flow
 
-1. Launch a host instance with its own id, for example `DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev`.
+1. Launch the shared frontend dev server and the host instance with its own id, for example `DESKTOP_POKER_INSTANCE_ID=host-a npm run tauri dev`.
 2. Copy the current `pkr1_...` payload from the host flow or from the hidden debug route in debug builds.
-3. Launch a second instance with a different id and either paste the payload on the Join screen or pass it on the command line:
+3. Launch a second development instance with a different id by running the Rust app directly against the already-running dev server, then either paste the payload on the Join screen or pass it on the command line:
 
 ```bash
-DESKTOP_POKER_INSTANCE_ID=client-b npm run tauri dev -- -- --join-payload 'pkr1_...'
+DESKTOP_POKER_INSTANCE_ID=client-b cargo run --manifest-path src-tauri/Cargo.toml --no-default-features -- --join-payload 'pkr1_...'
 ```
 
 Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local LAN flows use the same payload path once a connectable host IP is available. In debug builds, the hidden debug route can copy the payload directly and launch another instance with the payload already attached.

@@ -27,11 +27,7 @@ vi.mock("../api/desktop", async () => {
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
-
-const appCss = fs.readFileSync(
-  path.resolve(import.meta.dirname, "../App.css"),
-  "utf8",
-);
+const appCss = fs.readFileSync(path.resolve(process.cwd(), "src/App.css"), "utf8");
 
 describe("Layout contracts", () => {
   beforeEach(() => {
