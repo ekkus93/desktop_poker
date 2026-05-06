@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BadgeCheck, Clipboard, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
+  joinHostSession,
   type JoinPayload,
   validateJoinPayloadInput,
 } from "../api/desktop";
@@ -17,12 +17,21 @@ type ValidationState =
   | { status: "valid"; payload: JoinPayload }
   | { status: "invalid"; message: string };
 
+function extractCompactInvite(value: string) {
+  return value.match(/\bpkr1_[A-Za-z0-9_-]+\b/)?.[0] ?? null;
+}
+
+function looksLikeHostShareDetails(value: string) {
+  return value.includes("Tournament:") && value.includes("Host endpoint:");
+}
+
 function normaliseError(error: unknown) {
   return error instanceof Error ? error.message : "The invite could not be checked.";
 }
 
 export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const {
+    displayName,
     joinPayloadDraft,
     recentJoinPayloads,
     rememberJoinPayload,
@@ -30,10 +39,13 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     clearRecentJoinPayloads,
   } = useDesktopShell();
   const location = useLocation();
+  const navigate = useNavigate();
   const [validationState, setValidationState] = useState<ValidationState>({
     status: "idle",
   });
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -110,12 +122,24 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       return bootstrap.parsedLaunchJoinPayload;
     }
 
+    const compactInvite = extractCompactInvite(trimmedPayload);
+    if (!compactInvite && looksLikeHostShareDetails(trimmedPayload)) {
+      setValidationState({
+        status: "invalid",
+        message:
+          "That pasted text is host share details, not a compact pkr1_ invite. Copy a real pkr1_ invite before checking it.",
+      });
+      setInviteBanner(null);
+      return null;
+    }
+
     setValidationState({ status: "validating" });
 
     try {
-      const parsedPayload = await validateJoinPayloadInput(trimmedPayload);
+      const parsedPayload = await validateJoinPayloadInput(compactInvite ?? trimmedPayload);
       setValidationState({ status: "valid", payload: parsedPayload });
-      rememberJoinPayload(trimmedPayload);
+      rememberJoinPayload(compactInvite ?? trimmedPayload);
+      setJoinError(null);
       setInviteBanner(
         `Ready: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`,
       );
@@ -142,12 +166,35 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const canContinueToLobby = validationState.status === "valid";
   const canCheckInvite = joinPayloadDraft.trim().length > 0 && validationState.status !== "validating";
   const continueHint = canContinueToLobby
-    ? "Invite checked. Continue when ready."
+    ? joining
+      ? "Joining the live host session..."
+      : "Invite checked. Join when ready."
     : validationState.status === "validating"
       ? "Continue unlocks after the invite check finishes."
       : validationState.status === "invalid"
         ? "Fix the invite above before continuing to the lobby."
         : "Paste an invite, then check it to continue.";
+
+  const continueToLobby = async () => {
+    if (validationState.status !== "valid") {
+      return;
+    }
+
+    setJoining(true);
+    setJoinError(null);
+
+    try {
+      await joinHostSession({
+        joinPayload: joinPayloadDraft.trim(),
+        displayName,
+      });
+      navigate("/lobby");
+    } catch (error) {
+      setJoinError(normaliseError(error));
+    } finally {
+      setJoining(false);
+    }
+  };
 
   return (
     <ScreenShell
@@ -187,12 +234,19 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   </span>
                 </button>
                 {canContinueToLobby ? (
-                  <Link className="primary-button ghost-primary-button" to="/lobby">
+                  <button
+                    className="primary-button ghost-primary-button"
+                    disabled={joining}
+                    onClick={() => {
+                      void continueToLobby();
+                    }}
+                    type="button"
+                  >
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
-                      <span>Continue to lobby</span>
+                      <span>{joining ? "Joining lobby" : "Continue to lobby"}</span>
                     </span>
-                  </Link>
+                  </button>
                 ) : (
                   <button className="primary-button ghost-primary-button" disabled type="button">
                     <span className="button-content">
@@ -208,6 +262,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               ) : null}
               {validationState.status === "invalid" ? (
                 <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
+              ) : null}
+              {joinError ? (
+                <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{joinError}</p>
               ) : null}
               {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
             </div>

@@ -233,8 +233,8 @@ mod tests {
         };
         let mut writer = FailingWriter::new(FailingWriterMode::Body);
 
-        let error = write_json_frame_to_writer(&mut writer, &payload)
-            .expect_err("body write should fail");
+        let error =
+            write_json_frame_to_writer(&mut writer, &payload).expect_err("body write should fail");
 
         assert!(error.to_string().contains("failed to write frame body"));
     }
@@ -246,8 +246,8 @@ mod tests {
         };
         let mut writer = FailingWriter::new(FailingWriterMode::Flush);
 
-        let error = write_json_frame_to_writer(&mut writer, &payload)
-            .expect_err("flush should fail");
+        let error =
+            write_json_frame_to_writer(&mut writer, &payload).expect_err("flush should fail");
 
         assert!(error.to_string().contains("failed to flush frame"));
     }

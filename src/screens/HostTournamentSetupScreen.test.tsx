@@ -1,7 +1,11 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveHostLanAddress } from "../api/desktop";
+import {
+  getHostSessionStatus,
+  resolveHostLanAddress,
+  startHostSession,
+} from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { createDefaultHostDraft, storageKey } from "../app/shell";
 import { HostTournamentSetupScreen } from "./HostTournamentSetupScreen";
@@ -13,16 +17,50 @@ vi.mock("../api/desktop", async () => {
 
   return {
     ...actual,
+    getHostSessionStatus: vi.fn(),
     resolveHostLanAddress: vi.fn(),
+    startHostSession: vi.fn(),
   };
 });
 
+const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
+const mockedStartHostSession = vi.mocked(startHostSession);
+
+function sampleHostSessionStatus() {
+  return {
+    tournamentName: "Desktop Sit 'n Go test-instance",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    advertisedHost: "192.168.1.10",
+    hostPort: 43818,
+    invite: "pkr1_generated_invite",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: 5,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: "Player test-instance",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+    ],
+  };
+}
 
 describe("HostTournamentSetupScreen", () => {
   beforeEach(() => {
+    mockedGetHostSessionStatus.mockReset();
+    mockedGetHostSessionStatus.mockResolvedValue(null);
     mockedResolveHostLanAddress.mockReset();
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
+    mockedStartHostSession.mockReset();
+    mockedStartHostSession.mockResolvedValue(sampleHostSessionStatus());
   });
 
   it("shows all host game options by default and keeps them visible", async () => {
@@ -41,7 +79,7 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
   });
 
-  it("copies invite details when the copy button is clicked", async () => {
+  it("starts hosting and copies the live invite when requested", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -54,10 +92,26 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: /copy invite/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled")).toBe(false);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /copy invite/i }));
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Host endpoint:"));
-    expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedStartHostSession).toHaveBeenCalledWith({
+        hostAddress: "192.168.1.10",
+        hostPort: 43818,
+        tournamentName: "Desktop Sit 'n Go test-instance",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        displayName: "Player test-instance",
+      });
+      expect(writeText).toHaveBeenCalledWith("pkr1_generated_invite");
+    });
+    expect(await screen.findByText(/copied invite\./i)).toBeTruthy();
   });
 
   it("supports keyboard activation on the copy button", async () => {
@@ -74,12 +128,18 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    const copyButton = await screen.findByRole("button", { name: /copy invite/i });
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled")).toBe(false);
+    });
+    const copyButton = screen.getByRole("button", { name: /copy invite/i });
     copyButton.focus();
     await user.keyboard("[Enter]");
 
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Host endpoint:"));
-    expect(await screen.findByText(/copied host share details\./i)).toBeTruthy();
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("pkr1_generated_invite");
+    });
+    expect(await screen.findByText(/copied invite\./i)).toBeTruthy();
   });
 
   it("blocks lobby continuation until hosting is ready", async () => {
@@ -111,10 +171,14 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: /copy invite/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled")).toBe(false);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /copy invite/i }));
 
-    expect(await screen.findByText(/copy failed\. share the invite details manually\./i)).toBeTruthy();
-    expect(screen.getByDisplayValue(/host endpoint: 192\.168\.1\.10:43818/i)).toBeTruthy();
+    expect(await screen.findByText(/copy failed\. share the invite manually\./i)).toBeTruthy();
+    expect(screen.getByDisplayValue("pkr1_generated_invite")).toBeTruthy();
   });
 
   it("keeps critical setup options visible for legacy persisted host drafts", async () => {
@@ -147,8 +211,14 @@ describe("HostTournamentSetupScreen", () => {
       initialEntries: ["/host"],
     });
 
-    expect(await screen.findByRole("button", { name: /copy invite/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /continue to lobby/i })).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled")).toBe(false);
+    });
+
+    expect(screen.getByRole("button", { name: /copy invite/i })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: /continue to lobby/i })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 2, name: "Host Tournament Setup" })).toBeTruthy();
     expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();

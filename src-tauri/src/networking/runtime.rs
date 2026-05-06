@@ -1443,7 +1443,9 @@ fn reconnect_after_disconnect(
         match read_snapshot_response(crypto_provider, &mut stream, join_payload) {
             Ok(snapshot) => return Ok((stream, snapshot)),
             Err(error)
-                if error.to_string().contains("participant is already connected") =>
+                if error
+                    .to_string()
+                    .contains("participant is already connected") =>
             {
                 if attempt == MAX_ALREADY_CONNECTED_RETRIES {
                     break;

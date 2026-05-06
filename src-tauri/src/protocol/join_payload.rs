@@ -191,7 +191,10 @@ mod tests {
         let encoded = encode_join_payload(&payload).expect("payload should encode");
 
         assert!(encoded.starts_with("pkr1_"));
-        assert_eq!(decode_join_payload(&encoded).expect("payload should decode"), payload);
+        assert_eq!(
+            decode_join_payload(&encoded).expect("payload should decode"),
+            payload
+        );
     }
 
     #[test]
@@ -199,13 +202,16 @@ mod tests {
         let payload = sample_payload();
         let raw_json = serde_json::to_string(&payload).expect("payload JSON");
 
-        assert_eq!(decode_join_payload(&raw_json).expect("legacy payload should decode"), payload);
+        assert_eq!(
+            decode_join_payload(&raw_json).expect("legacy payload should decode"),
+            payload
+        );
     }
 
     #[test]
     fn invalid_base64_compact_payloads_return_the_expected_error() {
-        let error = decode_join_payload("pkr1_***invalid***")
-            .expect_err("base64 payload should fail");
+        let error =
+            decode_join_payload("pkr1_***invalid***").expect_err("base64 payload should fail");
 
         assert!(error.to_string().contains("invalid compact join payload"));
     }
@@ -241,7 +247,9 @@ mod tests {
         };
         let canonical_json = serde_json::to_vec(&invalid_payload).expect("payload bytes");
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        encoder.write_all(&canonical_json).expect("write payload bytes");
+        encoder
+            .write_all(&canonical_json)
+            .expect("write payload bytes");
         let compressed = encoder.finish().expect("finish gzip");
         let encoded = format!("pkr1_{}", URL_SAFE_NO_PAD.encode(compressed));
 

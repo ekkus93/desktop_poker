@@ -15,9 +15,9 @@ describe("TournamentLobbyScreen", () => {
     });
 
     expect(screen.getByText("Desktop Sit 'n Go test-instance")).toBeTruthy();
-    expect(screen.getByText("5 open seats")).toBeTruthy();
+    expect(screen.getByText("4 open seats")).toBeTruthy();
     expect(screen.getByText("You: Waiting")).toBeTruthy();
-    expect(screen.getByText("1 waiting")).toBeTruthy();
+    expect(screen.getByText("2 waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "I'm ready" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
     expect(screen.getByText("Seat 1")).toBeTruthy();
@@ -72,7 +72,7 @@ describe("TournamentLobbyScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     expect(screen.getByText("You: Ready")).toBeTruthy();
-    expect(screen.getByText("0 waiting")).toBeTruthy();
+    expect(screen.getByText("1 waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Undo ready" })).toBeTruthy();
   });
 
@@ -96,6 +96,6 @@ describe("TournamentLobbyScreen", () => {
     await user.keyboard("[Enter]");
 
     expect(screen.getByText("You: Ready")).toBeTruthy();
-    expect(screen.getByText("0 waiting")).toBeTruthy();
+    expect(screen.getByText("1 waiting")).toBeTruthy();
   });
 });

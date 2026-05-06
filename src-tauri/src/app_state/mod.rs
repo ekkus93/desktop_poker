@@ -1,16 +1,18 @@
 use std::{
+    collections::BTreeMap,
     env,
     path::{Path, PathBuf},
     process::Command,
-    sync::Mutex,
+    sync::{Arc, Mutex},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use dirs::data_local_dir;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    crypto, domain, engine,
-    interop, networking, protocol, storage, tournament,
+    crypto::{self, ProtocolCryptoProvider},
+    domain, engine, interop, networking, protocol, storage, tournament,
     tournament::{ActionRequest, RegisteredPlayer, TournamentController},
 };
 
@@ -198,9 +200,184 @@ pub struct DebugInspectorState {
     pub launch_hint: String,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct StartHostSessionRequest {
+    pub host_address: String,
+    pub host_port: u16,
+    pub tournament_name: String,
+    pub max_players: u8,
+    pub starting_stack: u32,
+    pub blind_preset_id: String,
+    pub turn_timer_seconds: u32,
+    pub display_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HostSessionParticipantView {
+    pub player_id: String,
+    pub display_name: String,
+    pub seat_index: Option<u8>,
+    pub is_host: bool,
+    pub is_ready: bool,
+    pub connection_state: String,
+    pub participant_state: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct HostSessionStatus {
+    pub tournament_name: String,
+    pub table_name: String,
+    pub table_id: String,
+    pub session_epoch: u64,
+    pub advertised_host: String,
+    pub host_port: u16,
+    pub invite: String,
+    pub phase: String,
+    pub active_seat_count: u8,
+    pub open_seat_count: u8,
+    pub participants: Vec<HostSessionParticipantView>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinHostSessionRequest {
+    pub join_payload: String,
+    pub display_name: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientSessionStatus {
+    pub tournament_name: String,
+    pub table_name: String,
+    pub table_id: String,
+    pub session_epoch: u64,
+    pub host_address: String,
+    pub host_port: u16,
+    pub local_player_id: String,
+    pub phase: String,
+    pub active_seat_count: u8,
+    pub open_seat_count: u8,
+    pub reconnecting: bool,
+    pub last_error: Option<String>,
+    pub participants: Vec<HostSessionParticipantView>,
+}
+
+struct DesktopHostSession {
+    host_server: networking::HostServer,
+    config: domain::TournamentConfig,
+    advertised_host: String,
+}
+
+impl DesktopHostSession {
+    fn status(&self) -> Result<HostSessionStatus, String> {
+        let authoritative_state = self
+            .host_server
+            .authoritative_state()
+            .map_err(|error| error.to_string())?;
+        let active_seat_count = active_seat_count_for_state(&authoritative_state);
+        let participants = build_session_participants(&authoritative_state);
+
+        Ok(HostSessionStatus {
+            tournament_name: self.config.tournament_name.clone(),
+            table_name: self
+                .config
+                .table_name
+                .clone()
+                .unwrap_or_else(|| "Main Table".to_string()),
+            table_id: authoritative_state.table_id,
+            session_epoch: authoritative_state.session_epoch,
+            advertised_host: self.advertised_host.clone(),
+            host_port: self.host_server.listener_addr().port(),
+            invite: self.host_server.encoded_join_payload().to_string(),
+            phase: format_tournament_phase_value(authoritative_state.phase),
+            active_seat_count,
+            open_seat_count: self.config.max_players.saturating_sub(active_seat_count),
+            participants,
+        })
+    }
+}
+
+struct DesktopClientSession {
+    runtime: networking::ClientRuntime,
+    join_payload: domain::JoinPayload,
+    latest_snapshot: domain::SnapshotState,
+    reconnecting: bool,
+    last_error: Option<String>,
+}
+
+impl DesktopClientSession {
+    fn status(&mut self) -> ClientSessionStatus {
+        self.refresh();
+
+        let authoritative_state = &self.latest_snapshot.state;
+        let active_seat_count = active_seat_count_for_state(authoritative_state);
+
+        ClientSessionStatus {
+            tournament_name: authoritative_state.config.tournament_name.clone(),
+            table_name: authoritative_state
+                .config
+                .table_name
+                .clone()
+                .unwrap_or_else(|| "Main Table".to_string()),
+            table_id: authoritative_state.table_id.clone(),
+            session_epoch: authoritative_state.session_epoch,
+            host_address: self.join_payload.host_address.clone(),
+            host_port: self.join_payload.host_port,
+            local_player_id: self.latest_snapshot.local_player_id.clone(),
+            phase: format_tournament_phase_value(authoritative_state.phase),
+            active_seat_count,
+            open_seat_count: authoritative_state
+                .config
+                .max_players
+                .saturating_sub(active_seat_count),
+            reconnecting: self.reconnecting,
+            last_error: self.last_error.clone(),
+            participants: build_session_participants(authoritative_state),
+        }
+    }
+
+    fn refresh(&mut self) {
+        loop {
+            let next_event = self.runtime.next_event(Duration::from_millis(1));
+            let event = match next_event {
+                Ok(event) => event,
+                Err(_) => break,
+            };
+
+            match event {
+                networking::ClientRuntimeEvent::Snapshot(snapshot) => {
+                    self.latest_snapshot = snapshot.state.clone();
+                    self.reconnecting = false;
+                    self.last_error = None;
+                }
+                networking::ClientRuntimeEvent::Reconnecting { .. } => {
+                    self.reconnecting = true;
+                }
+                networking::ClientRuntimeEvent::SafeError { message, .. } => {
+                    self.reconnecting = false;
+                    self.last_error = Some(message);
+                }
+                networking::ClientRuntimeEvent::Disconnected { .. } => {
+                    self.reconnecting = false;
+                    self.last_error = Some("Disconnected from host".to_string());
+                }
+                networking::ClientRuntimeEvent::ResyncRequested { .. }
+                | networking::ClientRuntimeEvent::PublicEvent { .. }
+                | networking::ClientRuntimeEvent::PrivateHoleCards(_) => {}
+            }
+        }
+    }
+}
+
 pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
     table_runtime: Mutex<DesktopTableRuntime>,
+    host_session: Mutex<Option<DesktopHostSession>>,
+    client_session: Mutex<Option<DesktopClientSession>>,
     launched_instances: Mutex<u32>,
 }
 
@@ -240,6 +417,8 @@ impl DesktopAppState {
             table_runtime: Mutex::new(
                 DesktopTableRuntime::new().expect("desktop table runtime should initialize"),
             ),
+            host_session: Mutex::new(None),
+            client_session: Mutex::new(None),
             launched_instances: Mutex::new(0),
         }
     }
@@ -280,6 +459,58 @@ impl DesktopAppState {
             .debug_state(viewer_mode)
     }
 
+    pub fn start_host_session(
+        &self,
+        request: StartHostSessionRequest,
+    ) -> Result<HostSessionStatus, String> {
+        self.start_host_session_with_mode(request, networking::HostRuntimeMode::Production)
+    }
+
+    pub fn host_session_status(&self) -> Result<Option<HostSessionStatus>, String> {
+        self.host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?
+            .as_ref()
+            .map(DesktopHostSession::status)
+            .transpose()
+    }
+
+    pub fn stop_host_session(&self) -> Result<(), String> {
+        self.host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?
+            .take();
+        Ok(())
+    }
+
+    pub fn join_host_session(
+        &self,
+        request: JoinHostSessionRequest,
+    ) -> Result<ClientSessionStatus, String> {
+        self.join_host_session_with_player_id(
+            request,
+            format!("player-{}", self.bootstrap.instance_id),
+        )
+    }
+
+    pub fn client_session_status(&self) -> Result<Option<ClientSessionStatus>, String> {
+        self.client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .as_mut()
+            .map(DesktopClientSession::status)
+            .map(Ok)
+            .transpose()
+    }
+
+    pub fn leave_client_session(&self) -> Result<(), String> {
+        self.client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .take();
+        Ok(())
+    }
+
     pub fn launch_additional_client_instance(
         &self,
         join_payload: Option<String>,
@@ -311,6 +542,359 @@ impl DesktopAppState {
 
         Ok(instance_id)
     }
+
+    fn start_host_session_with_mode(
+        &self,
+        request: StartHostSessionRequest,
+        runtime_mode: networking::HostRuntimeMode,
+    ) -> Result<HostSessionStatus, String> {
+        let host_address = request.host_address.trim();
+        let tournament_name = request.tournament_name.trim();
+        let display_name = request.display_name.trim();
+
+        if host_address.is_empty() {
+            return Err("hostAddress must be non-blank".to_string());
+        }
+
+        if self
+            .client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .is_some()
+        {
+            return Err("leave the active client session before hosting".to_string());
+        }
+
+        if tournament_name.is_empty() {
+            return Err("tournamentName must be non-blank".to_string());
+        }
+
+        if display_name.is_empty() {
+            return Err("displayName must be non-blank".to_string());
+        }
+
+        if !(2..=10).contains(&request.max_players) {
+            return Err("maxPlayers must be between 2 and 10".to_string());
+        }
+
+        if request.starting_stack == 0 {
+            return Err("startingStack must be greater than zero".to_string());
+        }
+
+        if request.turn_timer_seconds == 0 {
+            return Err("turnTimerSeconds must be greater than zero".to_string());
+        }
+
+        let provider = crypto::DefaultCryptoProvider;
+        let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let session_epoch = now_epoch_ms().max(1);
+        let table_id = format!("table-{}-{session_epoch}", self.bootstrap.instance_id);
+        let config = build_host_tournament_config(&request)?;
+        let snapshot_state = build_initial_host_state(
+            &config,
+            display_name,
+            &table_id,
+            session_epoch,
+            &host_signing_keys,
+            &host_encryption_keys,
+        )?;
+        let host_server = networking::HostServer::bind(networking::HostRuntimeConfig {
+            bind_addr: format!("0.0.0.0:{}", request.host_port)
+                .parse()
+                .map_err(|error| format!("invalid host port: {error}"))?,
+            advertised_host: host_address.to_string(),
+            session_epoch,
+            table_id,
+            table_name: Some(config.tournament_name.clone()),
+            join_token: format!(
+                "join-token:{}:{}",
+                self.bootstrap.reconnect_namespace, session_epoch
+            ),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state,
+            runtime_mode,
+        })
+        .map_err(|error| error.to_string())?;
+
+        let mut host_session = self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?;
+        *host_session = Some(DesktopHostSession {
+            host_server,
+            config,
+            advertised_host: host_address.to_string(),
+        });
+
+        host_session
+            .as_ref()
+            .expect("host session was just inserted")
+            .status()
+    }
+
+    fn join_host_session_with_player_id(
+        &self,
+        request: JoinHostSessionRequest,
+        player_id: String,
+    ) -> Result<ClientSessionStatus, String> {
+        let payload = request.join_payload.trim();
+        let display_name = request.display_name.trim();
+
+        if payload.is_empty() {
+            return Err("joinPayload must be non-blank".to_string());
+        }
+
+        if display_name.is_empty() {
+            return Err("displayName must be non-blank".to_string());
+        }
+
+        if self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?
+            .is_some()
+        {
+            return Err("stop the active host session before joining another table".to_string());
+        }
+
+        let join_payload = protocol::decode_join_payload(payload).map_err(|error| error.to_string())?;
+        let provider = crypto::DefaultCryptoProvider;
+        let runtime = networking::ClientRuntime::connect(networking::ClientRuntimeConfig {
+            join_payload: payload.to_string(),
+            player_id,
+            display_name: display_name.to_string(),
+            signing_keys: provider.generate_signing_keypair(),
+            encryption_keys: provider.generate_encryption_keypair(),
+        })
+        .map_err(|error| error.to_string())?;
+
+        let latest_snapshot = match runtime.next_event(Duration::from_secs(1)) {
+            Ok(networking::ClientRuntimeEvent::Snapshot(snapshot)) => snapshot.state.clone(),
+            Ok(other) => {
+                return Err(format!(
+                    "expected an initial snapshot event after join, got {other:?}"
+                ));
+            }
+            Err(error) => return Err(error.to_string()),
+        };
+
+        let mut client_session = self
+            .client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?;
+        *client_session = Some(DesktopClientSession {
+            runtime,
+            join_payload,
+            latest_snapshot,
+            reconnecting: false,
+            last_error: None,
+        });
+
+        Ok(client_session
+            .as_mut()
+            .expect("client session was just inserted")
+            .status())
+    }
+}
+
+fn now_epoch_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(1)
+}
+
+fn build_host_tournament_config(
+    request: &StartHostSessionRequest,
+) -> Result<domain::TournamentConfig, String> {
+    let blind_schedule = blind_schedule_for_preset(&request.blind_preset_id)?;
+
+    Ok(domain::TournamentConfig {
+        tournament_name: request.tournament_name.trim().to_string(),
+        table_name: Some("Main Table".to_string()),
+        max_players: request.max_players,
+        starting_stack: request.starting_stack,
+        turn_timer_seconds: request.turn_timer_seconds,
+        blind_schedule,
+    })
+}
+
+fn blind_schedule_for_preset(blind_preset_id: &str) -> Result<domain::BlindSchedule, String> {
+    let (first_small_blind, duration_seconds) = match blind_preset_id.trim() {
+        "standard" => (10, 8 * 60),
+        "turbo" => (15, 5 * 60),
+        "deep-stack" => (10, 10 * 60),
+        other => {
+            return Err(format!("unsupported blindPresetId: {other}"));
+        }
+    };
+
+    Ok(domain::BlindSchedule {
+        levels: vec![
+            domain::BlindLevel {
+                level_index: 1,
+                label: "Level 1".to_string(),
+                small_blind: first_small_blind,
+                big_blind: first_small_blind * 2,
+                ante: 0,
+                duration_seconds,
+            },
+            domain::BlindLevel {
+                level_index: 2,
+                label: "Level 2".to_string(),
+                small_blind: first_small_blind * 2,
+                big_blind: first_small_blind * 4,
+                ante: 0,
+                duration_seconds,
+            },
+            domain::BlindLevel {
+                level_index: 3,
+                label: "Level 3".to_string(),
+                small_blind: first_small_blind * 4,
+                big_blind: first_small_blind * 8,
+                ante: 0,
+                duration_seconds,
+            },
+        ],
+    })
+}
+
+fn build_initial_host_state(
+    config: &domain::TournamentConfig,
+    display_name: &str,
+    table_id: &str,
+    session_epoch: u64,
+    host_signing_keys: &Arc<crypto::SigningKeyMaterial>,
+    host_encryption_keys: &Arc<Mutex<crypto::EncryptionKeyMaterial>>,
+) -> Result<domain::TournamentState, String> {
+    let host_encryption_public_key = host_encryption_keys
+        .lock()
+        .map_err(|_| "host encryption key lock poisoned".to_string())?
+        .public_key_base64();
+
+    let mut participants = BTreeMap::new();
+    participants.insert(
+        LOCAL_PLAYER_ID.to_string(),
+        domain::ParticipantRegistryEntry {
+            identity: domain::PlayerIdentity {
+                player_id: LOCAL_PLAYER_ID.to_string(),
+                display_name: display_name.to_string(),
+                signing_public_key: host_signing_keys.public_key_base64(),
+                encryption_public_key: host_encryption_public_key,
+                signing_key_fingerprint: host_signing_keys.key_id(),
+            },
+            state: domain::ParticipantState::Seated,
+            connection_state: domain::ConnectionState::Connected,
+            seat_index: Some(0),
+            admitted_at_ms: session_epoch,
+            reconnect_token: None,
+            reconnect_expiry_ms: None,
+            is_host: true,
+        },
+    );
+
+    let seats = (0..config.max_players)
+        .map(|seat_index| {
+            if seat_index == 0 {
+                domain::SeatState {
+                    seat_index,
+                    occupancy: domain::SeatOccupancyState::Occupied,
+                    tournament_state: domain::TournamentSeatState::Lobby,
+                    participant_id: Some(LOCAL_PLAYER_ID.to_string()),
+                    display_name: Some(display_name.to_string()),
+                    chip_count: None,
+                    is_ready: false,
+                    marker: None,
+                }
+            } else {
+                domain::SeatState {
+                    seat_index,
+                    occupancy: domain::SeatOccupancyState::Empty,
+                    tournament_state: domain::TournamentSeatState::Open,
+                    participant_id: None,
+                    display_name: None,
+                    chip_count: None,
+                    is_ready: false,
+                    marker: None,
+                }
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(domain::TournamentState {
+        table_id: table_id.to_string(),
+        session_epoch,
+        phase: domain::TournamentPhase::WaitingForPlayers,
+        config: config.clone(),
+        blind_schedule: config.blind_schedule.clone(),
+        blind_level_index: 0,
+        participants,
+        seats,
+        current_hand: None,
+        hand_results: Vec::new(),
+        placements: Vec::new(),
+    })
+}
+
+fn format_connection_state_value(connection_state: domain::ConnectionState) -> String {
+    match connection_state {
+        domain::ConnectionState::Connected => "connected".to_string(),
+        domain::ConnectionState::Disconnected => "disconnected".to_string(),
+        domain::ConnectionState::Reconnecting => "reconnecting".to_string(),
+    }
+}
+
+fn format_participant_state_value(participant_state: domain::ParticipantState) -> String {
+    match participant_state {
+        domain::ParticipantState::Admitted => "admitted".to_string(),
+        domain::ParticipantState::Seated => "seated".to_string(),
+        domain::ParticipantState::Active => "active".to_string(),
+        domain::ParticipantState::Reconnecting => "reconnecting".to_string(),
+        domain::ParticipantState::EliminatedObserver => "eliminatedObserver".to_string(),
+        domain::ParticipantState::Removed => "removed".to_string(),
+    }
+}
+
+fn format_tournament_phase_value(phase: domain::TournamentPhase) -> String {
+    match phase {
+        domain::TournamentPhase::WaitingForPlayers => "waitingForPlayers".to_string(),
+        domain::TournamentPhase::ReadyCheck => "readyCheck".to_string(),
+        domain::TournamentPhase::Running => "running".to_string(),
+        domain::TournamentPhase::Complete => "complete".to_string(),
+        domain::TournamentPhase::Cancelled => "cancelled".to_string(),
+    }
+}
+
+fn active_seat_count_for_state(authoritative_state: &domain::TournamentState) -> u8 {
+    authoritative_state
+        .seats
+        .iter()
+        .filter(|seat| seat.occupancy == domain::SeatOccupancyState::Occupied)
+        .count() as u8
+}
+
+fn build_session_participants(
+    authoritative_state: &domain::TournamentState,
+) -> Vec<HostSessionParticipantView> {
+    authoritative_state
+        .participants
+        .values()
+        .map(|participant| HostSessionParticipantView {
+            player_id: participant.identity.player_id.clone(),
+            display_name: participant.identity.display_name.clone(),
+            seat_index: participant.seat_index,
+            is_host: participant.is_host,
+            is_ready: participant
+                .seat_index
+                .and_then(|seat_index| authoritative_state.seats.get(seat_index as usize))
+                .map(|seat| seat.is_ready)
+                .unwrap_or(false),
+            connection_state: format_connection_state_value(participant.connection_state),
+            participant_state: format_participant_state_value(participant.state),
+        })
+        .collect()
 }
 
 #[must_use]
@@ -511,7 +1095,10 @@ fn build_debug_child_launch_args(
     let instance_id = build_debug_child_instance_id(parent_profile_id, process_id, launch_counter);
     let mut args = vec![INSTANCE_ID_ARG.to_string(), instance_id.clone()];
 
-    if let Some(payload) = join_payload.map(str::trim).filter(|value| !value.is_empty()) {
+    if let Some(payload) = join_payload
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         args.push(JOIN_PAYLOAD_ARG.to_string());
         args.push(payload.to_string());
     }
@@ -596,30 +1183,33 @@ impl DesktopTableRuntime {
             "Observer mode uses the public projector only: no private hole cards and no actions."
                 .to_string()
         });
-        let elimination_summary = if public_state.phase == domain::TournamentPhase::WaitingForPlayers
-        {
-            "Waiting for the first real hand to start.".to_string()
-        } else if public_state.phase == domain::TournamentPhase::ReadyCheck {
-            "Waiting for every seated player to be ready.".to_string()
-        } else {
-            self.controller
-                .state()
-                .hand_results
-                .last()
-                .map(|result| {
-                    format!(
-                        "{} won {} chip(s).",
-                        display_names_for_state(self.controller.state(), &result.winning_player_ids)
+        let elimination_summary =
+            if public_state.phase == domain::TournamentPhase::WaitingForPlayers {
+                "Waiting for the first real hand to start.".to_string()
+            } else if public_state.phase == domain::TournamentPhase::ReadyCheck {
+                "Waiting for every seated player to be ready.".to_string()
+            } else {
+                self.controller
+                    .state()
+                    .hand_results
+                    .last()
+                    .map(|result| {
+                        format!(
+                            "{} won {} chip(s).",
+                            display_names_for_state(
+                                self.controller.state(),
+                                &result.winning_player_ids
+                            )
                             .join(", "),
-                        result
-                            .pot_summaries
-                            .iter()
-                            .map(|summary| summary.amount)
-                            .sum::<u32>()
-                    )
-                })
-                .unwrap_or_else(|| "Table state is live.".to_string())
-        };
+                            result
+                                .pot_summaries
+                                .iter()
+                                .map(|summary| summary.amount)
+                                .sum::<u32>()
+                        )
+                    })
+                    .unwrap_or_else(|| "Table state is live.".to_string())
+            };
 
         Ok(TableViewSnapshot {
             viewer_mode,
@@ -920,7 +1510,7 @@ impl DesktopTableRuntime {
                         cards_hidden: true,
                         hole_cards: Vec::new(),
                         detail_lines: vec![
-                            "Placeholder seat until another real player joins.".to_string(),
+                            "Placeholder seat until another real player joins.".to_string()
                         ],
                     });
                 }
@@ -947,7 +1537,10 @@ impl DesktopTableRuntime {
                             "Connection: {}",
                             format_connection_state(participant.connection_state)
                         ),
-                        format!("Seat state: {}", format_tournament_seat_state(seat.tournament_state)),
+                        format!(
+                            "Seat state: {}",
+                            format_tournament_seat_state(seat.tournament_state)
+                        ),
                         format!("Contribution: {contribution}"),
                     ],
                 })
@@ -1390,9 +1983,34 @@ mod tests {
         build_debug_child_instance_id, build_debug_child_launch_args, derive_instance_profile,
         detect_profile_directory, ensure_legal, format_marker, format_phase, format_street,
         resolve_action_request, screen_catalog, DesktopAppState, DesktopTableActionKind,
-        TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
+        JoinHostSessionRequest, StartHostSessionRequest, TableViewerMode, INSTANCE_ID_ENV_VAR,
+        JOIN_PAYLOAD_ENV_VAR,
     };
-    use crate::domain::{ActionType, ActionWindow, SeatMarker, StreetPhase, TournamentPhase};
+    use crate::{
+        domain::{ActionType, ActionWindow, SeatMarker, StreetPhase, TournamentPhase},
+        networking::HostRuntimeMode,
+        protocol::decode_join_payload,
+    };
+
+    fn sample_host_session_request(host_address: &str) -> StartHostSessionRequest {
+        StartHostSessionRequest {
+            host_address: host_address.to_string(),
+            host_port: 0,
+            tournament_name: "Friday Finals".to_string(),
+            max_players: 6,
+            starting_stack: 1_500,
+            blind_preset_id: "standard".to_string(),
+            turn_timer_seconds: 30,
+            display_name: "Host Alpha".to_string(),
+        }
+    }
+
+    fn sample_join_host_session_request(join_payload: &str) -> JoinHostSessionRequest {
+        JoinHostSessionRequest {
+            join_payload: join_payload.to_string(),
+            display_name: "Client Bravo".to_string(),
+        }
+    }
 
     fn sample_action_window(legal_actions: Vec<ActionType>) -> ActionWindow {
         ActionWindow {
@@ -1536,7 +2154,11 @@ mod tests {
             .contains("minimum full raise sizing"));
 
         let after_action = state
-            .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::CheckOrCall, None)
+            .submit_table_action(
+                TableViewerMode::Local,
+                DesktopTableActionKind::CheckOrCall,
+                None,
+            )
             .expect("check/call should succeed");
 
         assert_eq!(after_action.current_hand_number, Some(1));
@@ -1567,7 +2189,11 @@ mod tests {
             .is_some_and(|summary| summary.contains("You")));
 
         state
-            .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::CheckOrCall, None)
+            .submit_table_action(
+                TableViewerMode::Local,
+                DesktopTableActionKind::CheckOrCall,
+                None,
+            )
             .expect("local action");
         let updated_debug_state = state
             .debug_state(TableViewerMode::Local)
@@ -1601,6 +2227,100 @@ mod tests {
                 "host-a-p9001-client-3".to_string(),
             ],
         );
+    }
+
+    #[test]
+    fn start_host_session_returns_a_live_invite_from_the_running_host() {
+        let state = DesktopAppState::detect();
+
+        let status = state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("host session should start");
+
+        assert_eq!(status.tournament_name, "Friday Finals");
+        assert_eq!(status.table_name, "Main Table");
+        assert_eq!(status.advertised_host, "127.0.0.1");
+        assert_eq!(status.phase, "waitingForPlayers");
+        assert_eq!(status.active_seat_count, 1);
+        assert_eq!(status.open_seat_count, 5);
+        assert_eq!(status.participants.len(), 1);
+        assert_eq!(status.participants[0].display_name, "Host Alpha");
+        assert_eq!(status.participants[0].connection_state, "connected");
+        assert!(status.invite.starts_with("pkr1_"));
+
+        let decoded = decode_join_payload(&status.invite).expect("invite should decode");
+        assert_eq!(decoded.host_address, "127.0.0.1");
+        assert_eq!(decoded.host_port, status.host_port);
+        assert_eq!(decoded.table_name.as_deref(), Some("Friday Finals"));
+        assert_eq!(decoded.table_id, status.table_id);
+        assert_eq!(decoded.session_epoch, status.session_epoch);
+
+        let active_status = state
+            .host_session_status()
+            .expect("host session status should resolve")
+            .expect("host session should remain active");
+        assert_eq!(active_status.invite, status.invite);
+    }
+
+    #[test]
+    fn stop_host_session_clears_active_host_status() {
+        let state = DesktopAppState::detect();
+
+        state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("host session should start");
+        state.stop_host_session().expect("host session should stop");
+
+        assert!(state
+            .host_session_status()
+            .expect("host session status should resolve")
+            .is_none());
+    }
+
+    #[test]
+    fn join_host_session_returns_the_initial_live_snapshot() {
+        let host_state = DesktopAppState::detect();
+        let host_status = host_state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("host session should start");
+
+        let client_state = DesktopAppState::detect();
+        let client_status = client_state
+            .join_host_session(sample_join_host_session_request(&host_status.invite))
+            .expect("client should join live host");
+
+        assert_eq!(client_status.host_address, "127.0.0.1");
+        assert_eq!(client_status.host_port, host_status.host_port);
+        assert_eq!(client_status.phase, "waitingForPlayers");
+        assert_eq!(client_status.active_seat_count, 1);
+        assert_eq!(client_status.open_seat_count, 5);
+        assert_eq!(client_status.tournament_name, "Friday Finals");
+        assert!(client_status
+            .participants
+            .iter()
+            .any(|participant| participant.is_host && participant.display_name == "Host Alpha"));
+        assert!(client_status
+            .participants
+            .iter()
+            .any(|participant| participant.display_name == "Client Bravo"));
+
+        let refreshed_host_status = host_state
+            .host_session_status()
+            .expect("host session status should resolve")
+            .expect("host session should remain active");
+        assert!(refreshed_host_status
+            .participants
+            .iter()
+            .any(|participant| participant.display_name == "Client Bravo"));
     }
 
     #[test]
@@ -1655,7 +2375,10 @@ mod tests {
             ensure_legal(&window, ActionType::Fold).expect_err("fold should be illegal"),
             "Fold is not legal in the current action window"
         );
-        assert_eq!(format_phase(TournamentPhase::WaitingForPlayers), "Waiting for players");
+        assert_eq!(
+            format_phase(TournamentPhase::WaitingForPlayers),
+            "Waiting for players"
+        );
         assert_eq!(format_phase(TournamentPhase::Running), "Running");
         assert_eq!(format_street(StreetPhase::Preflop), "Preflop");
         assert_eq!(format_street(StreetPhase::River), "River");

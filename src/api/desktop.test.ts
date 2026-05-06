@@ -1,16 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createHostInvite,
   fetchBootstrapState,
+  getClientSessionStatus,
+  getHostSessionStatus,
   getDebugState,
   getTableView,
+  joinHostSession,
   launchAdditionalClientInstance,
+  leaveClientSession,
   resolveHostLanAddress,
+  startHostSession,
+  stopHostSession,
   submitTableAction,
   subscribeBootstrap,
   validateJoinPayloadInput,
   type DebugInspectorState,
   type DesktopBootstrapState,
+  type ClientSessionStatus,
+  type HostSessionStatus,
+  type HostInviteRequest,
+  type JoinHostSessionRequest,
   type JoinPayload,
+  type StartHostSessionRequest,
   type TableViewSnapshot,
 } from "./desktop";
 import { createBootstrap } from "../test/fixtures";
@@ -85,6 +97,78 @@ function sampleJoinPayload(): JoinPayload {
   };
 }
 
+function sampleHostInviteRequest(): HostInviteRequest {
+  return {
+    hostAddress: "192.168.1.10",
+    hostPort: 43818,
+    tableName: "Friday Night",
+  };
+}
+
+function sampleStartHostSessionRequest(): StartHostSessionRequest {
+  return {
+    hostAddress: "192.168.1.10",
+    hostPort: 43818,
+    tournamentName: "Friday Night",
+    maxPlayers: 6,
+    startingStack: 1500,
+    blindPresetId: "standard",
+    turnTimerSeconds: 30,
+    displayName: "Host Alpha",
+  };
+}
+
+function sampleHostSessionStatus(): HostSessionStatus {
+  return {
+    tournamentName: "Friday Night",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    advertisedHost: "192.168.1.10",
+    hostPort: 43818,
+    invite: "pkr1_live",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: 5,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: "Host Alpha",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+    ],
+  };
+}
+
+function sampleJoinHostSessionRequest(): JoinHostSessionRequest {
+  return {
+    joinPayload: "pkr1_live",
+    displayName: "Client Bravo",
+  };
+}
+
+function sampleClientSessionStatus(): ClientSessionStatus {
+  return {
+    tournamentName: "Friday Night",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    hostAddress: "192.168.1.10",
+    hostPort: 43818,
+    localPlayerId: "player-client-b",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: 5,
+    reconnecting: false,
+    lastError: null,
+    participants: sampleHostSessionStatus().participants,
+  };
+}
+
 describe("desktop API bridge", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
@@ -147,6 +231,51 @@ describe("desktop API bridge", () => {
   });
 
   describe("join and host utility commands", () => {
+    it("invokes start_host_session with the live host setup request", async () => {
+      const request = sampleStartHostSessionRequest();
+      const status = sampleHostSessionStatus();
+      mockedInvoke.mockResolvedValue(status);
+
+      await expect(startHostSession(request)).resolves.toEqual(status);
+      expect(mockedInvoke).toHaveBeenCalledWith("start_host_session", { request });
+    });
+
+    it("invokes get_host_session_status and stop_host_session", async () => {
+      const status = sampleHostSessionStatus();
+      mockedInvoke.mockResolvedValueOnce(status).mockResolvedValueOnce(undefined);
+
+      await expect(getHostSessionStatus()).resolves.toEqual(status);
+      await expect(stopHostSession()).resolves.toBeUndefined();
+
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "get_host_session_status");
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "stop_host_session");
+    });
+
+    it("invokes join_host_session, get_client_session_status, and leave_client_session", async () => {
+      const request = sampleJoinHostSessionRequest();
+      const status = sampleClientSessionStatus();
+      mockedInvoke
+        .mockResolvedValueOnce(status)
+        .mockResolvedValueOnce(status)
+        .mockResolvedValueOnce(undefined);
+
+      await expect(joinHostSession(request)).resolves.toEqual(status);
+      await expect(getClientSessionStatus()).resolves.toEqual(status);
+      await expect(leaveClientSession()).resolves.toBeUndefined();
+
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "join_host_session", { request });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "get_client_session_status");
+      expect(mockedInvoke).toHaveBeenNthCalledWith(3, "leave_client_session");
+    });
+
+    it("invokes create_host_invite with the current host details", async () => {
+      const request = sampleHostInviteRequest();
+      mockedInvoke.mockResolvedValue("pkr1_generated");
+
+      await expect(createHostInvite(request)).resolves.toBe("pkr1_generated");
+      expect(mockedInvoke).toHaveBeenCalledWith("create_host_invite", { request });
+    });
+
     it("invokes validate_join_payload_input with the raw payload string", async () => {
       const payload = sampleJoinPayload();
       mockedInvoke.mockResolvedValue(payload);
@@ -165,16 +294,44 @@ describe("desktop API bridge", () => {
     });
 
     it("lets browser mocks override join and host utility commands", async () => {
+      const startHostMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
+      const getHostStatusMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
+      const stopHostMock = vi.fn().mockResolvedValue(undefined);
+      const joinHostMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
+      const getClientStatusMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
+      const leaveClientMock = vi.fn().mockResolvedValue(undefined);
+      const createInviteMock = vi.fn().mockResolvedValue("pkr1_mock");
       const validateMock = vi.fn().mockResolvedValue(sampleJoinPayload());
       const hostIpMock = vi.fn().mockResolvedValue("10.0.0.4");
       setBrowserMocks({
+        startHostSession: startHostMock,
+        getHostSessionStatus: getHostStatusMock,
+        stopHostSession: stopHostMock,
+        joinHostSession: joinHostMock,
+        getClientSessionStatus: getClientStatusMock,
+        leaveClientSession: leaveClientMock,
+        createHostInvite: createInviteMock,
         validateJoinPayloadInput: validateMock,
         resolveHostLanAddress: hostIpMock,
       });
 
+      await startHostSession(sampleStartHostSessionRequest());
+      await getHostSessionStatus();
+      await stopHostSession();
+      await joinHostSession(sampleJoinHostSessionRequest());
+      await getClientSessionStatus();
+      await leaveClientSession();
+      await createHostInvite(sampleHostInviteRequest());
       await validateJoinPayloadInput("pkr1_mock");
       await resolveHostLanAddress();
 
+      expect(startHostMock).toHaveBeenCalledWith(sampleStartHostSessionRequest());
+      expect(getHostStatusMock).toHaveBeenCalledTimes(1);
+      expect(stopHostMock).toHaveBeenCalledTimes(1);
+      expect(joinHostMock).toHaveBeenCalledWith(sampleJoinHostSessionRequest());
+      expect(getClientStatusMock).toHaveBeenCalledTimes(1);
+      expect(leaveClientMock).toHaveBeenCalledTimes(1);
+      expect(createInviteMock).toHaveBeenCalledWith(sampleHostInviteRequest());
       expect(validateMock).toHaveBeenCalledWith("pkr1_mock");
       expect(hostIpMock).toHaveBeenCalledTimes(1);
       expect(mockedInvoke).not.toHaveBeenCalled();

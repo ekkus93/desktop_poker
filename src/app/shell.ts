@@ -188,8 +188,10 @@ export function buildHostShareText(
     `Capacity: ${hostDraft.maxPlayers} players · ${hostDraft.startingStack} starting chips`,
     `Blind preset: ${getBlindPreset(hostDraft.blindPresetId).label} (${getBlindPreset(hostDraft.blindPresetId).firstLevel} start)`,
     `Turn timer: ${hostDraft.turnTimerSeconds}s`,
-    "Share these table details with the next player so they can join from the Join screen.",
-    bootstrap.launchJoinPayload ? "An invite is already attached to this launch." : "No invite is attached to this launch.",
+    "Share these host details with the next player.",
+    bootstrap.launchJoinPayload
+      ? "This launch already has a compact pkr1_ invite attached."
+      : "This text is not a compact pkr1_ invite.",
   ].join("\n");
 }
 

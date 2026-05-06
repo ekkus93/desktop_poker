@@ -1,16 +1,30 @@
-use std::{fmt::Display, net::IpAddr};
+use std::{
+    fmt::Display,
+    net::IpAddr,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use serde::Deserialize;
 use tauri::State;
 
 use crate::{
     app_state::{
-        DebugInspectorState, DesktopAppState, DesktopBootstrapState, DesktopTableActionKind,
-        ScreenDescriptor, TableViewSnapshot, TableViewerMode,
+        ClientSessionStatus, DebugInspectorState, DesktopAppState, DesktopBootstrapState,
+        DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest, ScreenDescriptor,
+        StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
     },
     domain::JoinPayload,
     networking::resolve_connectable_host_ip,
-    protocol::decode_join_payload,
+    protocol::{decode_join_payload, encode_join_payload},
 };
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateHostInviteRequest {
+    pub host_address: String,
+    pub host_port: u16,
+    pub table_name: String,
+}
 
 #[tauri::command]
 pub fn get_bootstrap_state(state: State<'_, DesktopAppState>) -> DesktopBootstrapState {
@@ -27,6 +41,59 @@ pub fn validate_join_payload_input(payload: String) -> Result<JoinPayload, Strin
     validate_join_payload_input_inner(&payload, |trimmed_payload| {
         decode_join_payload(trimmed_payload).map_err(|error| error.to_string())
     })
+}
+
+#[tauri::command]
+pub fn create_host_invite(
+    state: State<'_, DesktopAppState>,
+    request: CreateHostInviteRequest,
+) -> Result<String, String> {
+    create_host_invite_inner(state.bootstrap(), request, || {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_millis() as u64)
+            .unwrap_or(1)
+    })
+}
+
+#[tauri::command]
+pub fn start_host_session(
+    state: State<'_, DesktopAppState>,
+    request: StartHostSessionRequest,
+) -> Result<HostSessionStatus, String> {
+    state.start_host_session(request)
+}
+
+#[tauri::command]
+pub fn get_host_session_status(
+    state: State<'_, DesktopAppState>,
+) -> Result<Option<HostSessionStatus>, String> {
+    state.host_session_status()
+}
+
+#[tauri::command]
+pub fn stop_host_session(state: State<'_, DesktopAppState>) -> Result<(), String> {
+    state.stop_host_session()
+}
+
+#[tauri::command]
+pub fn join_host_session(
+    state: State<'_, DesktopAppState>,
+    request: JoinHostSessionRequest,
+) -> Result<ClientSessionStatus, String> {
+    state.join_host_session(request)
+}
+
+#[tauri::command]
+pub fn get_client_session_status(
+    state: State<'_, DesktopAppState>,
+) -> Result<Option<ClientSessionStatus>, String> {
+    state.client_session_status()
+}
+
+#[tauri::command]
+pub fn leave_client_session(state: State<'_, DesktopAppState>) -> Result<(), String> {
+    state.leave_client_session()
 }
 
 #[tauri::command]
@@ -56,11 +123,7 @@ pub fn submit_table_action(
         action_kind,
         raise_to_amount,
         |next_viewer_mode, next_action_kind, next_raise_to_amount| {
-            state.submit_table_action(
-                next_viewer_mode,
-                next_action_kind,
-                next_raise_to_amount,
-            )
+            state.submit_table_action(next_viewer_mode, next_action_kind, next_raise_to_amount)
         },
     )
 }
@@ -104,10 +167,44 @@ fn validate_join_payload_input_inner(
     decode(payload.trim())
 }
 
+fn create_host_invite_inner(
+    bootstrap: DesktopBootstrapState,
+    request: CreateHostInviteRequest,
+    now_ms: impl FnOnce() -> u64,
+) -> Result<String, String> {
+    let host_address = request.host_address.trim();
+    let table_name = request.table_name.trim();
+
+    if host_address.is_empty() {
+        return Err("hostAddress must be non-blank".to_string());
+    }
+
+    if table_name.is_empty() {
+        return Err("tableName must be non-blank".to_string());
+    }
+
+    let generated_at_ms = now_ms().max(1);
+    let payload = JoinPayload {
+        payload_version: bootstrap.protocol_version,
+        host_address: host_address.to_string(),
+        host_port: request.host_port,
+        table_id: format!("table-{}", bootstrap.instance_id),
+        session_epoch: generated_at_ms,
+        host_signing_public_key: format!("host-signing-key:{}", bootstrap.session_identity),
+        join_token: format!("join-token:{}", bootstrap.reconnect_namespace),
+        generated_at_ms,
+        table_name: Some(table_name.to_string()),
+    };
+
+    encode_join_payload(&payload).map_err(|error| error.to_string())
+}
+
 fn resolve_host_lan_address_inner<E: Display>(
     resolve: impl FnOnce() -> Result<IpAddr, E>,
 ) -> Result<String, String> {
-    resolve().map(|ip| ip.to_string()).map_err(|error| error.to_string())
+    resolve()
+        .map(|ip| ip.to_string())
+        .map_err(|error| error.to_string())
 }
 
 fn get_table_view_inner(
@@ -151,7 +248,7 @@ mod tests {
     use super::*;
     use crate::{
         app_state::{DesktopBootstrapState, ModuleDescriptor, ScreenDescriptor},
-        protocol::{encode_join_payload, PROTOCOL_VERSION},
+        protocol::{decode_join_payload, encode_join_payload, PROTOCOL_VERSION},
     };
 
     fn sample_bootstrap() -> DesktopBootstrapState {
@@ -238,8 +335,7 @@ mod tests {
         let encoded = encode_join_payload(&payload).expect("payload should encode");
 
         assert_eq!(
-            validate_join_payload_input(format!("  {encoded}  "))
-                .expect("payload should decode"),
+            validate_join_payload_input(format!("  {encoded}  ")).expect("payload should decode"),
             payload
         );
     }
@@ -251,6 +347,58 @@ mod tests {
         });
 
         assert_eq!(result.expect_err("payload should fail"), "decode failed");
+    }
+
+    #[test]
+    fn create_host_invite_inner_builds_a_valid_compact_payload() {
+        let bootstrap = sample_bootstrap();
+
+        let encoded = create_host_invite_inner(
+            bootstrap.clone(),
+            CreateHostInviteRequest {
+                host_address: "192.168.1.20".to_string(),
+                host_port: 43_818,
+                table_name: "Friday Night".to_string(),
+            },
+            || 42,
+        )
+        .expect("invite should encode");
+
+        let decoded = decode_join_payload(&encoded).expect("invite should decode");
+        assert_eq!(decoded.payload_version, bootstrap.protocol_version);
+        assert_eq!(decoded.host_address, "192.168.1.20");
+        assert_eq!(decoded.host_port, 43_818);
+        assert_eq!(decoded.table_id, "table-instance-a");
+        assert_eq!(decoded.session_epoch, 42);
+        assert_eq!(decoded.generated_at_ms, 42);
+        assert_eq!(decoded.table_name.as_deref(), Some("Friday Night"));
+    }
+
+    #[test]
+    fn create_host_invite_inner_rejects_blank_host_fields() {
+        let host_error = create_host_invite_inner(
+            sample_bootstrap(),
+            CreateHostInviteRequest {
+                host_address: "   ".to_string(),
+                host_port: 43_818,
+                table_name: "Friday Night".to_string(),
+            },
+            || 1,
+        )
+        .expect_err("blank host should fail");
+        let table_error = create_host_invite_inner(
+            sample_bootstrap(),
+            CreateHostInviteRequest {
+                host_address: "192.168.1.20".to_string(),
+                host_port: 43_818,
+                table_name: "  ".to_string(),
+            },
+            || 1,
+        )
+        .expect_err("blank table should fail");
+
+        assert_eq!(host_error, "hostAddress must be non-blank");
+        assert_eq!(table_error, "tableName must be non-blank");
     }
 
     #[test]
@@ -266,20 +414,14 @@ mod tests {
     fn get_bootstrap_state_inner_returns_the_bootstrap_contract() {
         let bootstrap = sample_bootstrap();
 
-        assert_eq!(
-            get_bootstrap_state_inner(|| bootstrap.clone()),
-            bootstrap,
-        );
+        assert_eq!(get_bootstrap_state_inner(|| bootstrap.clone()), bootstrap,);
     }
 
     #[test]
     fn list_screen_catalog_inner_returns_the_catalog_unchanged() {
         let screens = sample_bootstrap().screens;
 
-        assert_eq!(
-            list_screen_catalog_inner(|| screens.clone()),
-            screens,
-        );
+        assert_eq!(list_screen_catalog_inner(|| screens.clone()), screens,);
     }
 
     #[test]
@@ -357,6 +499,9 @@ mod tests {
             table_view_error.expect_err("table view should fail"),
             "observer mode is read-only"
         );
-        assert_eq!(submit_error.expect_err("submit should fail"), "invalid action");
+        assert_eq!(
+            submit_error.expect_err("submit should fail"),
+            "invalid action"
+        );
     }
 }

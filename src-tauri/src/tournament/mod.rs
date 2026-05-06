@@ -2010,7 +2010,10 @@ mod tests {
             .expect_err("prior actor should lose the action window")
             .to_string()
             .contains("does not own the action window"));
-        assert_eq!(action_window(&controller).player_id, second_window.player_id);
+        assert_eq!(
+            action_window(&controller).player_id,
+            second_window.player_id
+        );
         assert_eq!(
             action_window(&controller).action_window_id,
             second_window.action_window_id
@@ -2057,7 +2060,11 @@ mod tests {
             .expect_err("observer action should be rejected")
             .to_string()
             .contains("does not own the action window"));
-        let participant = controller.state().participants.get("p3").expect("participant");
+        let participant = controller
+            .state()
+            .participants
+            .get("p3")
+            .expect("participant");
         assert_eq!(participant.state, ParticipantState::EliminatedObserver);
         assert_eq!(participant.connection_state, ConnectionState::Connected);
         assert_eq!(controller.state().current_hand, state_before.current_hand);

@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
-import { ArrowRight, Copy, TriangleAlert, Wifi } from "lucide-react";
+import { ArrowRight, Copy, Radio, TriangleAlert, Wifi } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
   BLIND_PRESETS,
-  buildHostShareText,
   MAX_PLAYER_OPTIONS,
   STARTING_STACK_OPTIONS,
   TURN_TIMER_OPTIONS,
 } from "../app/shell";
-import { resolveHostLanAddress } from "../api/desktop";
+import {
+  getHostSessionStatus,
+  resolveHostLanAddress,
+  startHostSession,
+} from "../api/desktop";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
@@ -30,15 +33,33 @@ function clampPort(value: string, fallbackPort: number) {
 }
 
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
-  const { hostDraft, updateHostDraft } = useDesktopShell();
+  const { displayName, hostDraft, updateHostDraft } = useDesktopShell();
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
   const [lanError, setLanError] = useState<string | null>(null);
+  const [hostSession, setHostSession] = useState<Awaited<ReturnType<typeof getHostSessionStatus>>>(null);
+  const [hostError, setHostError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [showFallbackShareDetails, setShowFallbackShareDetails] = useState(false);
+  const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+
+    void getHostSessionStatus()
+      .then((status) => {
+        if (!active) {
+          return;
+        }
+
+        setHostSession(status);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setHostSession(null);
+      });
 
     void resolveHostLanAddress()
       .then((ipAddress) => {
@@ -79,34 +100,80 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     };
   }, [copyState]);
 
-  const shareText = buildHostShareText(
-    bootstrap,
-    hostDraft,
-    resolvedHostIp,
-    lanError,
-  );
   const blindPreset =
     BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ??
     BLIND_PRESETS[0];
-  const inviteReady = Boolean(resolvedHostIp && !lanError);
-  const canContinueToLobby = inviteReady;
+  const inviteReady = Boolean(hostSession);
+  const canContinueToLobby = Boolean(hostSession);
   const blockedProgressMessage = lanError
     ? "Resolve the LAN address before continuing to the lobby."
-    : "Still checking this computer's LAN address. Copy and continue unlock when the address is ready.";
+    : "Start hosting before continuing to the lobby.";
   const copyBlockedMessage = lanError
     ? "Invite copy is unavailable until the LAN address issue is fixed."
-    : "Invite copy unlocks after the LAN address check finishes.";
+    : "Start hosting before copying the live invite.";
+  const summaryTournamentName = hostSession?.tournamentName ?? hostDraft.tournamentName;
+  const summaryHostAddress = hostSession
+    ? `${hostSession.advertisedHost}:${hostSession.hostPort}`
+    : resolvedHostIp
+      ? `${resolvedHostIp}:${hostDraft.hostPort}`
+      : "Waiting for LAN";
+  const summaryMaxPlayers = hostSession
+    ? hostSession.activeSeatCount + hostSession.openSeatCount
+    : hostDraft.maxPlayers;
+
+  const handleStartHosting = async () => {
+    if (!resolvedHostIp) {
+      return;
+    }
+
+    try {
+      const status = await startHostSession({
+        hostAddress: resolvedHostIp,
+        hostPort: hostDraft.hostPort,
+        tournamentName: hostDraft.tournamentName,
+        maxPlayers: hostDraft.maxPlayers,
+        startingStack: hostDraft.startingStack,
+        blindPresetId: hostDraft.blindPresetId,
+        turnTimerSeconds: hostDraft.turnTimerSeconds,
+        displayName,
+      });
+      setHostSession(status);
+      setHostError(null);
+      setCopyError(null);
+    } catch (error) {
+      setHostError(
+        error instanceof Error ? error.message : "Unable to start hosting.",
+      );
+      setHostSession(null);
+    }
+  };
 
   const handleCopy = async (value: string, message: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setCopyState(message);
       setCopyError(null);
-      setShowFallbackShareDetails(false);
+      setFallbackInvite(null);
     } catch {
       setCopyState(null);
-      setCopyError("Copy failed. Share the invite details manually.");
-      setShowFallbackShareDetails(true);
+      setCopyError("Copy failed. Share the invite manually.");
+      setFallbackInvite(value);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!hostSession) {
+      return;
+    }
+
+    try {
+      await handleCopy(hostSession.invite, "Copied invite.");
+    } catch (error) {
+      setCopyState(null);
+      setFallbackInvite(null);
+      setCopyError(
+        error instanceof Error ? error.message : "Unable to generate an invite.",
+      );
     }
   };
 
@@ -237,32 +304,36 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               <section className="compact-status-panel host-summary-panel" aria-label="Host share summary">
                 <div className="status-row">
                   <div
-                    className={`status-pill ${lanError ? "danger" : resolvedHostIp ? "success" : "info"}`}
+                    className={`status-pill ${lanError ? "danger" : hostSession ? "success" : resolvedHostIp ? "info" : "info"}`}
                   >
                     {lanError ? (
                       <TriangleAlert className="button-icon" strokeWidth={1.9} />
+                    ) : hostSession ? (
+                      <Radio className="button-icon" strokeWidth={1.9} />
                     ) : (
                       <Wifi className="button-icon" strokeWidth={1.9} />
                     )}
                     {lanError
                       ? "Hosting is blocked"
-                      : resolvedHostIp
-                        ? `Ready on ${resolvedHostIp}`
+                      : hostSession
+                        ? `Live on ${hostSession.advertisedHost}`
+                        : resolvedHostIp
+                          ? `Ready on ${resolvedHostIp}`
                         : "Checking LAN address"}
                   </div>
                 </div>
                 <div className="host-summary-grid">
                   <div>
                     <span className="invite-stat-label">Table</span>
-                    <strong>{hostDraft.tournamentName}</strong>
+                    <strong>{summaryTournamentName}</strong>
                   </div>
                   <div>
                     <span className="invite-stat-label">Players</span>
-                    <strong>{hostDraft.maxPlayers} max</strong>
+                    <strong>{summaryMaxPlayers} max</strong>
                   </div>
                   <div>
                     <span className="invite-stat-label">Host</span>
-                    <strong>{resolvedHostIp ? `${resolvedHostIp}:${hostDraft.hostPort}` : "Waiting for LAN"}</strong>
+                    <strong>{summaryHostAddress}</strong>
                   </div>
                   <div>
                     <span className="invite-stat-label">Blinds</span>
@@ -273,10 +344,23 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
               <div className="button-row workstation-actions">
                 <button
+                  className="primary-button compact-button"
+                  disabled={!resolvedHostIp || Boolean(lanError)}
+                  onClick={() => {
+                    void handleStartHosting();
+                  }}
+                  type="button"
+                >
+                  <span className="button-content">
+                    <Radio className="button-icon" strokeWidth={1.9} />
+                    <span>{hostSession ? "Restart hosting" : "Start hosting"}</span>
+                  </span>
+                </button>
+                <button
                   className="secondary-button compact-button"
                   disabled={!inviteReady}
                   onClick={() => {
-                    void handleCopy(shareText, "Copied host share details.");
+                    void handleCopyInvite();
                   }}
                   type="button"
                 >
@@ -301,6 +385,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </button>
                 )}
               </div>
+              {hostError ? <p className="inline-banner error">{hostError}</p> : null}
               {!inviteReady ? (
                 <p className="field-hint">{copyBlockedMessage}</p>
               ) : null}
@@ -309,14 +394,14 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               ) : null}
 
               {copyError ? <p className="inline-banner error">{copyError}</p> : null}
-              {showFallbackShareDetails ? (
+              {fallbackInvite ? (
                 <label className="field">
-                  Invite details
+                  Invite
                   <textarea
                     className="compact-invite-textarea"
                     readOnly
                     rows={6}
-                    value={shareText}
+                    value={fallbackInvite}
                   />
                 </label>
               ) : null}

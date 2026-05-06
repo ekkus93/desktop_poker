@@ -274,7 +274,7 @@ describe("shell helpers", () => {
       expect(text).toContain("Capacity: 8 players · 5000 starting chips");
       expect(text).toContain("Blind preset: Turbo (15 / 30 start)");
       expect(text).toContain("Turn timer: 45s");
-      expect(text).toContain("No invite is attached to this launch.");
+      expect(text).toContain("This text is not a compact pkr1_ invite.");
     });
 
     it("notes when an invite is already attached to this launch", () => {
@@ -285,7 +285,7 @@ describe("shell helpers", () => {
           "192.168.1.42",
           null,
         ),
-      ).toContain("An invite is already attached to this launch.");
+      ).toContain("This launch already has a compact pkr1_ invite attached.");
     });
   });
 

@@ -6,6 +6,13 @@ type DesktopBrowserMocks = {
   subscribeBootstrap?: (
     onBootstrap: (bootstrap: DesktopBootstrapState) => void,
   ) => Promise<() => void>;
+  startHostSession?: (request: StartHostSessionRequest) => Promise<HostSessionStatus>;
+  getHostSessionStatus?: () => Promise<HostSessionStatus | null>;
+  stopHostSession?: () => Promise<void>;
+  joinHostSession?: (request: JoinHostSessionRequest) => Promise<ClientSessionStatus>;
+  getClientSessionStatus?: () => Promise<ClientSessionStatus | null>;
+  leaveClientSession?: () => Promise<void>;
+  createHostInvite?: (request: HostInviteRequest) => Promise<string>;
   validateJoinPayloadInput?: (payload: string) => Promise<JoinPayload>;
   resolveHostLanAddress?: () => Promise<string>;
   getTableView?: (viewerMode: TableViewerMode) => Promise<TableViewSnapshot>;
@@ -54,6 +61,68 @@ export type JoinPayload = {
   joinToken: string;
   generatedAtMs: number;
   tableName: string | null;
+};
+
+export type HostInviteRequest = {
+  hostAddress: string;
+  hostPort: number;
+  tableName: string;
+};
+
+export type StartHostSessionRequest = {
+  hostAddress: string;
+  hostPort: number;
+  tournamentName: string;
+  maxPlayers: number;
+  startingStack: number;
+  blindPresetId: string;
+  turnTimerSeconds: number;
+  displayName: string;
+};
+
+export type HostSessionParticipantView = {
+  playerId: string;
+  displayName: string;
+  seatIndex: number | null;
+  isHost: boolean;
+  isReady: boolean;
+  connectionState: string;
+  participantState: string;
+};
+
+export type HostSessionStatus = {
+  tournamentName: string;
+  tableName: string;
+  tableId: string;
+  sessionEpoch: number;
+  advertisedHost: string;
+  hostPort: number;
+  invite: string;
+  phase: string;
+  activeSeatCount: number;
+  openSeatCount: number;
+  participants: HostSessionParticipantView[];
+};
+
+export type JoinHostSessionRequest = {
+  joinPayload: string;
+  displayName: string;
+};
+
+export type ClientSessionStatus = {
+  tournamentName: string;
+  tableName: string;
+  tableId: string;
+  sessionEpoch: number;
+  hostAddress: string;
+  hostPort: number;
+  localPlayerId: string;
+  phase: string;
+  activeSeatCount: number;
+  openSeatCount: number;
+  reconnecting: boolean;
+  lastError: string | null;
+  participants: HostSessionParticipantView[];
 };
 
 export type DesktopBootstrapState = {
@@ -211,6 +280,69 @@ export function validateJoinPayloadInput(payload: string) {
   }
 
   return invoke<JoinPayload>("validate_join_payload_input", { payload });
+}
+
+export function createHostInvite(request: HostInviteRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.createHostInvite) {
+    return browserMocks.createHostInvite(request);
+  }
+
+  return invoke<string>("create_host_invite", { request });
+}
+
+export function startHostSession(request: StartHostSessionRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.startHostSession) {
+    return browserMocks.startHostSession(request);
+  }
+
+  return invoke<HostSessionStatus>("start_host_session", { request });
+}
+
+export function getHostSessionStatus() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.getHostSessionStatus) {
+    return browserMocks.getHostSessionStatus();
+  }
+
+  return invoke<HostSessionStatus | null>("get_host_session_status");
+}
+
+export function stopHostSession() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.stopHostSession) {
+    return browserMocks.stopHostSession();
+  }
+
+  return invoke<void>("stop_host_session");
+}
+
+export function joinHostSession(request: JoinHostSessionRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.joinHostSession) {
+    return browserMocks.joinHostSession(request);
+  }
+
+  return invoke<ClientSessionStatus>("join_host_session", { request });
+}
+
+export function getClientSessionStatus() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.getClientSessionStatus) {
+    return browserMocks.getClientSessionStatus();
+  }
+
+  return invoke<ClientSessionStatus | null>("get_client_session_status");
+}
+
+export function leaveClientSession() {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.leaveClientSession) {
+    return browserMocks.leaveClientSession();
+  }
+
+  return invoke<void>("leave_client_session");
 }
 
 export function resolveHostLanAddress() {

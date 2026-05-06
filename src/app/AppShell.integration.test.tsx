@@ -1,12 +1,16 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  getClientSessionStatus,
   fetchBootstrapState,
+  getHostSessionStatus,
   getDebugState,
   getTableView,
+  joinHostSession,
   launchAdditionalClientInstance,
   resolveHostLanAddress,
+  startHostSession,
   submitTableAction,
   subscribeBootstrap,
   validateJoinPayloadInput,
@@ -28,10 +32,14 @@ vi.mock("../api/desktop", async () => {
   return {
     ...actual,
     fetchBootstrapState: vi.fn(),
+    getClientSessionStatus: vi.fn(),
+    getHostSessionStatus: vi.fn(),
     subscribeBootstrap: vi.fn(),
     getDebugState: vi.fn(),
+    joinHostSession: vi.fn(),
     launchAdditionalClientInstance: vi.fn(),
     resolveHostLanAddress: vi.fn(),
+    startHostSession: vi.fn(),
     validateJoinPayloadInput: vi.fn(),
     getTableView: vi.fn(),
     submitTableAction: vi.fn(),
@@ -39,10 +47,14 @@ vi.mock("../api/desktop", async () => {
 });
 
 const mockedFetchBootstrapState = vi.mocked(fetchBootstrapState);
+const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
+const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedSubscribeBootstrap = vi.mocked(subscribeBootstrap);
 const mockedGetDebugState = vi.mocked(getDebugState);
+const mockedJoinHostSession = vi.mocked(joinHostSession);
 const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
+const mockedStartHostSession = vi.mocked(startHostSession);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
 const mockedSubmitTableAction = vi.mocked(submitTableAction);
@@ -50,6 +62,77 @@ const clipboardWriteText = vi.fn();
 let bootstrapSubscriptionHandler:
   | ((bootstrap: ReturnType<typeof createAppBootstrap>) => void)
   | undefined;
+let currentHostSession: Awaited<ReturnType<typeof startHostSession>> | null;
+let currentClientSession: Awaited<ReturnType<typeof joinHostSession>> | null;
+
+function buildHostSessionStatus(request: {
+  tournamentName: string;
+  maxPlayers?: number;
+  displayName?: string;
+}) {
+  const maxPlayers = request.maxPlayers ?? 6;
+
+  return {
+    tournamentName: request.tournamentName,
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    advertisedHost: "192.168.1.10",
+    hostPort: 43818,
+    invite: "pkr1_host_invite",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: maxPlayers - 1,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: request.displayName ?? "Player test-instance",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+    ],
+  };
+}
+
+function buildClientSessionStatus() {
+  return {
+    tournamentName: currentHostSession?.tournamentName ?? "Friday Night",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    hostAddress: "192.168.1.10",
+    hostPort: 43818,
+    localPlayerId: "player-test-instance",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: 5,
+    reconnecting: false,
+    lastError: null,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: currentHostSession?.participants[0]?.displayName ?? "Host Alpha",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+      {
+        playerId: "player-test-instance",
+        displayName: "Player test-instance",
+        seatIndex: null,
+        isHost: false,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "admitted",
+      },
+    ],
+  };
+}
 
 function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) {
   mockedFetchBootstrapState.mockResolvedValue(bootstrap);
@@ -73,15 +156,41 @@ describe("AppShell integration", () => {
   beforeEach(() => {
     localStorage.clear();
     bootstrapSubscriptionHandler = undefined;
+    currentHostSession = null;
+    currentClientSession = null;
     mockedFetchBootstrapState.mockReset();
+    mockedGetClientSessionStatus.mockReset();
+    mockedGetHostSessionStatus.mockReset();
     mockedSubscribeBootstrap.mockReset();
     mockedGetDebugState.mockReset();
+    mockedJoinHostSession.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
     mockedResolveHostLanAddress.mockReset();
+    mockedStartHostSession.mockReset();
     mockedValidateJoinPayloadInput.mockReset();
     mockedGetTableView.mockReset();
     mockedSubmitTableAction.mockReset();
     clipboardWriteText.mockReset();
+    mockedGetClientSessionStatus.mockImplementation(async () => currentClientSession);
+    mockedGetHostSessionStatus.mockImplementation(async () => currentHostSession);
+    mockedStartHostSession.mockImplementation(async (request) => {
+      currentHostSession = buildHostSessionStatus({
+        tournamentName: request.tournamentName,
+        maxPlayers: request.maxPlayers,
+        displayName: request.displayName,
+      });
+      return currentHostSession;
+    });
+    mockedJoinHostSession.mockImplementation(async () => {
+      currentClientSession = buildClientSessionStatus();
+      if (currentHostSession) {
+        currentHostSession = {
+          ...currentHostSession,
+          participants: currentClientSession.participants,
+        };
+      }
+      return currentClientSession;
+    });
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedValidateJoinPayloadInput.mockResolvedValue(createParsedJoinPayload());
     mockedGetDebugState.mockResolvedValue({
@@ -156,6 +265,10 @@ describe("AppShell integration", () => {
     expect(screen.getByText("Friday Finals")).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
 
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
+    await waitFor(() => {
+      expect(mockedStartHostSession).toHaveBeenCalled();
+    });
     fireEvent.click(
       screen.getByRole("link", { name: "Continue to lobby" }),
     );
@@ -187,7 +300,7 @@ describe("AppShell integration", () => {
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
     fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby" }),
+      screen.getByRole("button", { name: "Continue to lobby" }),
     );
 
     expect(
@@ -196,11 +309,68 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    expect(screen.getAllByText(/waiting for player/i).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
     expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "I'm ready" })).toBeNull();
+    });
+  });
+
+  it("creates, copies, and joins a tournament invite across host and join flows", async () => {
+    const hostRender = renderAppShell("/host");
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Host Tournament Setup",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Tournament name"), {
+      target: { value: "Invite Finals" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
+    await screen.findByText(/live on 192\.168\.1\.10/i);
+    fireEvent.click(screen.getByRole("button", { name: "Copy invite" }));
+
+    await waitFor(() => {
+      expect(mockedStartHostSession).toHaveBeenCalledWith({
+        hostAddress: "192.168.1.10",
+        hostPort: 43818,
+        tournamentName: "Invite Finals",
+        maxPlayers: 6,
+        startingStack: 1500,
+        blindPresetId: "standard",
+        turnTimerSeconds: 30,
+        displayName: "Player test-instance",
+      });
+      expect(clipboardWriteText).toHaveBeenCalledWith("pkr1_host_invite");
+    });
+
+    hostRender.unmount();
+
+    renderAppShell("/join");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_host_invite" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue to lobby" }));
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    expect(mockedJoinHostSession).toHaveBeenCalledWith({
+      joinPayload: "pkr1_host_invite",
+      displayName: "Player test-instance",
+    });
+    expect(screen.getByText("You: Waiting")).toBeTruthy();
   });
 
   it("redirects unknown routes back to the real home screen", async () => {
@@ -242,7 +412,7 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("keeps the lobby readiness badge aligned with the local seat state", async () => {
@@ -346,7 +516,7 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
     expect(await screen.findByText("Invite signature mismatch")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Continue to lobby" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continue to lobby" })).toBeTruthy();
 
     await act(async () => {
       bootstrapSubscriptionHandler?.(
@@ -359,7 +529,7 @@ describe("AppShell integration", () => {
     });
 
     expect(await screen.findByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("persists shell state and cached hand history across a restart-like remount", async () => {
@@ -391,7 +561,7 @@ describe("AppShell integration", () => {
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
 
     fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby" }),
+      screen.getByRole("button", { name: "Continue to lobby" }),
     );
     expect(
       await screen.findByRole("heading", {
@@ -399,7 +569,6 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     firstRender.unmount();
 
@@ -983,8 +1152,8 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByText("Join payload rejected")).toBeTruthy();
     expect(
-      screen.queryByRole("link", { name: "Continue to lobby" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Continue to lobby" }).hasAttribute("disabled"),
+    ).toBe(true);
 
     mockedGetTableView.mockRejectedValueOnce(
       new Error("Host connection lost. Reopen the lobby or rejoin."),

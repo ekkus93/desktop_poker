@@ -453,7 +453,9 @@ mod tests {
         let verifying_key = signing_keys.public_key_base64();
         let mut envelope = sample_signed_envelope();
 
-        envelope.sign(&provider, &signing_keys).expect("sign envelope");
+        envelope
+            .sign(&provider, &signing_keys)
+            .expect("sign envelope");
 
         assert!(envelope.signature.is_some());
         envelope
@@ -520,7 +522,10 @@ mod tests {
             },
         );
 
-        assert_eq!(envelope.message_type, ProtocolMessageType::PrivateHoleCardsEvent);
+        assert_eq!(
+            envelope.message_type,
+            ProtocolMessageType::PrivateHoleCardsEvent
+        );
         assert_eq!(envelope.recipient_id, "player-1");
         assert_eq!(envelope.recipient_key_id, "recipient-key");
         assert_eq!(envelope.nonce, "nonce-123");
@@ -534,7 +539,9 @@ mod tests {
         let verifying_key = signing_keys.public_key_base64();
         let mut envelope = sample_private_envelope();
 
-        envelope.sign(&provider, &signing_keys).expect("sign envelope");
+        envelope
+            .sign(&provider, &signing_keys)
+            .expect("sign envelope");
 
         assert!(envelope.signature.is_some());
         envelope
@@ -548,7 +555,10 @@ mod tests {
         let missing_signature_error = sample_private_envelope()
             .verify(&provider, &verifying_key)
             .expect_err("missing signature should fail");
-        assert_eq!(missing_signature_error.to_string(), "private envelope missing signature");
+        assert_eq!(
+            missing_signature_error.to_string(),
+            "private envelope missing signature"
+        );
     }
 
     #[test]
@@ -620,7 +630,10 @@ mod tests {
         .expect("serialize action without raise");
 
         assert_eq!(with_raise.get("raiseToAmount"), Some(&json!(180)));
-        assert_eq!(without_raise.get("raiseToAmount"), Some(&serde_json::Value::Null));
+        assert_eq!(
+            without_raise.get("raiseToAmount"),
+            Some(&serde_json::Value::Null)
+        );
     }
 
     #[test]

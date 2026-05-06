@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  joinHostSession,
   type JoinPayload,
   validateJoinPayloadInput,
 } from "../api/desktop";
@@ -16,17 +17,35 @@ vi.mock("../api/desktop", async () => {
 
   return {
     ...actual,
+    joinHostSession: vi.fn(),
     resolveHostLanAddress: vi.fn().mockResolvedValue("192.168.1.10"),
     validateJoinPayloadInput: vi.fn(),
   };
 });
 
+const mockedJoinHostSession = vi.mocked(joinHostSession);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 
 const parsedPayload: JoinPayload = createParsedJoinPayload();
 
 describe("JoinTournamentScreen", () => {
   beforeEach(() => {
+    mockedJoinHostSession.mockReset();
+    mockedJoinHostSession.mockResolvedValue({
+      tournamentName: "Friday Night",
+      tableName: "Main Table",
+      tableId: "table-1",
+      sessionEpoch: 9,
+      hostAddress: "192.168.1.10",
+      hostPort: 43818,
+      localPlayerId: "player-test-instance",
+      phase: "waitingForPlayers",
+      activeSeatCount: 1,
+      openSeatCount: 5,
+      reconnecting: false,
+      lastError: null,
+      participants: [],
+    });
     mockedValidateJoinPayloadInput.mockReset();
   });
 
@@ -45,7 +64,7 @@ describe("JoinTournamentScreen", () => {
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
-    expect(await screen.findByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("shows the continue action for a valid launch-attached invite", async () => {
@@ -61,7 +80,7 @@ describe("JoinTournamentScreen", () => {
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Continue to lobby" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
   });
 
   it("shows invite review failures from the Rust parser", async () => {
@@ -83,6 +102,36 @@ describe("JoinTournamentScreen", () => {
     expect(screen.getByText(/fix the invite above before continuing to the lobby/i)).toBeTruthy();
   });
 
+  it("explains when pasted host share details are not a compact invite", async () => {
+    const bootstrap = createBootstrap();
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: {
+        value: [
+          "Tournament: Desktop Sit 'n Go host-a",
+          "Host endpoint: 192.168.4.2:43818",
+          "Capacity: 2 players · 1500 starting chips",
+          "Blind preset: Standard (10 / 20 start)",
+          "Turn timer: 30s",
+          "Share these host details with the next player.",
+          "This text is not a compact pkr1_ invite.",
+        ].join("\n"),
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    expect(
+      await screen.findByText(
+        /that pasted text is host share details, not a compact pkr1_ invite/i,
+      ),
+    ).toBeTruthy();
+    expect(mockedValidateJoinPayloadInput).not.toHaveBeenCalled();
+  });
+
   it("shows decoded invite details after validation", async () => {
     const bootstrap = createBootstrap();
     mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
@@ -100,9 +149,31 @@ describe("JoinTournamentScreen", () => {
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
     expect(screen.getByText("Ready: 192.168.1.10:43818")).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: "Continue to lobby" }),
+      screen.getByRole("button", { name: "Continue to lobby" }),
     ).toBeTruthy();
-    expect(screen.getByText(/invite checked\. continue when ready/i)).toBeTruthy();
+    expect(screen.getByText(/invite checked\. join when ready/i)).toBeTruthy();
+  });
+
+  it("joins the live host session before navigating to the lobby", async () => {
+    const bootstrap = createBootstrap();
+    mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_good" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Continue to lobby" }));
+
+    await waitFor(() => {
+      expect(mockedJoinHostSession).toHaveBeenCalledWith({
+        joinPayload: "pkr1_good",
+        displayName: "Player test-instance",
+      });
+    });
   });
 
   it("keeps keyboard focus moving through the join flow in a sane order", async () => {
@@ -126,7 +197,7 @@ describe("JoinTournamentScreen", () => {
 
     await user.keyboard("[Enter]");
 
-    const continueLink = await screen.findByRole("link", { name: "Continue to lobby" });
+    const continueLink = await screen.findByRole("button", { name: "Continue to lobby" });
     await user.tab();
     expect(document.activeElement).toBe(continueLink);
   });
