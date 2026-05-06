@@ -603,7 +603,7 @@ impl DesktopClientSession {
 
 pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
-    table_runtime: Mutex<DesktopTableRuntime>,
+    table_runtime: Mutex<Option<DesktopTableRuntime>>,
     host_session: Mutex<Option<DesktopHostSession>>,
     client_session: Mutex<Option<DesktopClientSession>>,
     launched_instances: Mutex<u32>,
@@ -642,9 +642,7 @@ impl DesktopAppState {
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
             },
-            table_runtime: Mutex::new(
-                DesktopTableRuntime::new().expect("desktop table runtime should initialize"),
-            ),
+            table_runtime: Mutex::new(None),
             host_session: Mutex::new(None),
             client_session: Mutex::new(None),
             launched_instances: Mutex::new(0),
@@ -721,9 +719,14 @@ impl DesktopAppState {
     }
 
     pub fn debug_state(&self, viewer_mode: TableViewerMode) -> Result<DebugInspectorState, String> {
-        self.table_runtime
+        let mut table_runtime = self
+            .table_runtime
             .lock()
-            .map_err(|_| "table runtime lock poisoned".to_string())?
+            .map_err(|_| "table runtime lock poisoned".to_string())?;
+        table_runtime
+            .get_or_insert_with(|| {
+                DesktopTableRuntime::new().expect("desktop table runtime should initialize")
+            })
             .debug_state(viewer_mode)
     }
 
@@ -2371,6 +2374,10 @@ mod tests {
             .table_runtime
             .lock()
             .expect("table runtime")
+            .get_or_insert_with(|| {
+                super::DesktopTableRuntime::new()
+                    .expect("desktop table runtime should initialize")
+            })
             .controller
             .start_tournament(1)
             .expect("start tournament");
@@ -2394,6 +2401,28 @@ mod tests {
         assert!(state
             .profile_directory
             .ends_with("desktop-poker/profiles/default"));
+    }
+
+    #[test]
+    fn detect_does_not_boot_demo_table_runtime_until_debug_state_is_requested() {
+        let state = DesktopAppState::detect();
+
+        assert!(state
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .is_none());
+
+        let debug_state = state
+            .debug_state(TableViewerMode::Local)
+            .expect("debug state should lazily initialize the demo runtime");
+
+        assert_eq!(debug_state.current_hand_number, None);
+        assert!(state
+            .table_runtime
+            .lock()
+            .expect("table runtime")
+            .is_some());
     }
 
     #[test]
@@ -2470,6 +2499,10 @@ mod tests {
             .table_runtime
             .lock()
             .expect("table runtime")
+            .get_or_insert_with(|| {
+                super::DesktopTableRuntime::new()
+                    .expect("desktop table runtime should initialize")
+            })
             .view(TableViewerMode::Local)
             .expect("table view before action");
 
@@ -2481,6 +2514,10 @@ mod tests {
                 .table_runtime
                 .lock()
                 .expect("table runtime")
+                .get_or_insert_with(|| {
+                    super::DesktopTableRuntime::new()
+                        .expect("desktop table runtime should initialize")
+                })
                 .submit_action(
                     TableViewerMode::Observer,
                     DesktopTableActionKind::Fold,
@@ -2495,6 +2532,10 @@ mod tests {
             .table_runtime
             .lock()
             .expect("table runtime")
+            .get_or_insert_with(|| {
+                super::DesktopTableRuntime::new()
+                    .expect("desktop table runtime should initialize")
+            })
             .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::BetOrRaise,
@@ -2507,6 +2548,10 @@ mod tests {
             .table_runtime
             .lock()
             .expect("table runtime")
+            .get_or_insert_with(|| {
+                super::DesktopTableRuntime::new()
+                    .expect("desktop table runtime should initialize")
+            })
             .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::CheckOrCall,
@@ -2545,6 +2590,10 @@ mod tests {
             .table_runtime
             .lock()
             .expect("table runtime")
+            .get_or_insert_with(|| {
+                super::DesktopTableRuntime::new()
+                    .expect("desktop table runtime should initialize")
+            })
             .submit_action(
                 TableViewerMode::Local,
                 DesktopTableActionKind::CheckOrCall,

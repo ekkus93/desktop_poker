@@ -15,7 +15,7 @@ The work in this file is done only when all of the following are true:
 - [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state
 - [ ] Disconnect, reconnect, and resync work through the live runtime path
 - [ ] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
-- [ ] The release app no longer boots or depends on demo-only controller/runtime code in the player flow
+- [x] The release app no longer boots or depends on demo-only controller/runtime code in the player flow
 
 ## 1. Demo-code audit and removal map
 
@@ -49,8 +49,8 @@ The work in this file is done only when all of the following are true:
 - [ ] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently
 
 ### 2.2 Remove fake bootstrap assumptions
-- [ ] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
-- [ ] Ensure bootstrap can represent a clean idle app with no active tournament session
+- [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
+- [x] Ensure bootstrap can represent a clean idle app with no active tournament session
 - [ ] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form
 - [ ] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption
 
@@ -271,7 +271,7 @@ The work in this file is done only when all of the following are true:
 - [ ] Verify host shutdown behavior and client-visible failure handling
 
 ### 11.4 Regression coverage for demo removal
-- [ ] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths
+- [x] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths
 - [ ] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority
 - [x] Add tests that fail if the table view can be constructed without an active session container
 
