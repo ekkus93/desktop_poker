@@ -2707,6 +2707,33 @@ mod tests {
     }
 
     #[test]
+    fn detect_starts_a_fresh_host_state_after_a_prior_instance_was_hosting() {
+        let prior_state = DesktopAppState::detect();
+
+        prior_state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("prior host session should start");
+
+        let restarted_state = DesktopAppState::detect();
+
+        assert!(
+            restarted_state
+                .host_session_status()
+                .expect("restarted host status should resolve")
+                .is_none()
+        );
+        assert!(
+            restarted_state
+                .client_session_status()
+                .expect("restarted client status should resolve")
+                .is_none()
+        );
+    }
+
+    #[test]
     fn start_host_session_rejects_replacing_an_active_host_session() {
         let state = DesktopAppState::detect();
 

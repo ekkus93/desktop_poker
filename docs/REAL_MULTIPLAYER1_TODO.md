@@ -113,7 +113,7 @@ The work in this file is done only when all of the following are true:
 - [ ] Add a clear host-side recovery path when the host session fails before play starts
 - [x] Add a clear host-side teardown path when the host chooses to cancel the session
 - [x] Ensure leaving the host flow does not strand a live listener in the background
-- [ ] Ensure a restarted host instance must start a fresh session rather than silently reviving fake/demo state
+- [x] Ensure a restarted host instance must start a fresh session rather than silently reviving fake/demo state
 
 ---
 
