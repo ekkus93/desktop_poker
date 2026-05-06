@@ -55,4 +55,20 @@ describe("HomeScreen", () => {
     expect(screen.getByText("2 hands")).toBeTruthy();
     expect(screen.getByRole("heading", { level: 3, name: "Resume" })).toBeTruthy();
   });
+
+  it("surfaces unreadable startup storage as a recovery card", () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:display-name`,
+      "{bad-json",
+    );
+
+    renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(screen.getByText("Storage needs attention")).toBeTruthy();
+    expect(
+      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Review" })).toBeTruthy();
+  });
 });

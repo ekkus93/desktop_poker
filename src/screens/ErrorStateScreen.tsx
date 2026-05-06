@@ -13,6 +13,7 @@ type ErrorScenario =
   | "reconnect-failed"
   | "host-lost"
   | "invalid-invite"
+  | "persistence-reset"
   | "invalid-lan-ip"
   | "join-failed";
 
@@ -22,15 +23,20 @@ const SCENARIO_LABELS: Record<ErrorScenario, string> = {
   "reconnect-failed": "Reconnect failed",
   "host-lost": "Table unavailable",
   "invalid-invite": "Invalid invite",
+  "persistence-reset": "Local data reset",
   "invalid-lan-ip": "Host setup blocked",
   "join-failed": "Join failed",
 };
 
 export function ErrorStateScreen({ bootstrap }: ScreenProps) {
-  const { joinPayloadDraft } = useDesktopShell();
+  const { joinPayloadDraft, startupWarnings } = useDesktopShell();
   const [hostLanError, setHostLanError] = useState<string | null>(null);
   const [scenario, setScenario] = useState<ErrorScenario>(
-    bootstrap.launchJoinPayloadError ? "invalid-invite" : "reconnecting",
+    bootstrap.launchJoinPayloadError
+      ? "invalid-invite"
+      : startupWarnings.length > 0
+        ? "persistence-reset"
+        : "reconnecting",
   );
 
   useEffect(() => {
@@ -72,6 +78,8 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
     "invalid-invite": bootstrap.launchJoinPayloadError
       ? `Invite error: ${bootstrap.launchJoinPayloadError}`
       : "Invite error.",
+    "persistence-reset": startupWarnings[0]
+      ?? "Some saved local data was unreadable and has been reset.",
     "invalid-lan-ip": hostLanError ?? "Hosting requires a reachable LAN IP address.",
     "join-failed": joinPayloadDraft.trim()
       ? "The host did not accept the connection."
@@ -84,10 +92,11 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
     "reconnect-failed": { primaryLabel: "Join tournament", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
     "host-lost": { primaryLabel: "Open history", primaryTo: "/history", secondaryLabel: "Return home", secondaryTo: "/" },
     "invalid-invite": { primaryLabel: "Fix invite", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
+    "persistence-reset": { primaryLabel: "Return home", primaryTo: "/", secondaryLabel: "Open settings", secondaryTo: "/settings" },
     "invalid-lan-ip": { primaryLabel: "Open host setup", primaryTo: "/host", secondaryLabel: "Return home", secondaryTo: "/" },
     "join-failed": { primaryLabel: "Try joining again", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
   }[scenario];
-  const PrimaryIcon = scenario === "reconnecting" || scenario === "reconnect-success" ? RefreshCw : scenario === "host-lost" ? WifiOff : scenario === "invalid-invite" || scenario === "invalid-lan-ip" ? TriangleAlert : RotateCcw;
+  const PrimaryIcon = scenario === "reconnecting" || scenario === "reconnect-success" ? RefreshCw : scenario === "host-lost" ? WifiOff : scenario === "invalid-invite" || scenario === "invalid-lan-ip" || scenario === "persistence-reset" ? TriangleAlert : RotateCcw;
 
   return (
     <ScreenShell

@@ -52,7 +52,7 @@ The work in this file is done only when all of the following are true:
 - [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
 - [x] Ensure bootstrap can represent a clean idle app with no active tournament session
 - [x] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form
-- [ ] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption
+- [x] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption
 
 ### 2.3 Define session projection models for the UI
 - [ ] Replace ad hoc shell-local lobby/table derivation with Rust-projected view models for lobby participants, ready state, host controls, local seat, connection state, and table view

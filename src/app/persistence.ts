@@ -1,5 +1,5 @@
 import type { TableCardView, TableHistoryEntryView } from "../api/desktop";
-import { readStoredValue, storageKey } from "./shell";
+import { readStoredValue, readStoredValueWithStatus, storageKey } from "./shell";
 
 export type PersistedHandHistory = {
   updatedAtMs: number;
@@ -108,14 +108,21 @@ function normalizePersistedWindowState(
 }
 
 export function readPersistedHandHistory(storageNamespace: string) {
-  return normalizePersistedHandHistory(
-    readStoredValue<unknown>(
-      localStorage.getItem(
-        storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
-      ),
-      null,
+  return readPersistedHandHistoryWithStatus(storageNamespace).history;
+}
+
+export function readPersistedHandHistoryWithStatus(storageNamespace: string) {
+  const storedValue = readStoredValueWithStatus<unknown>(
+    localStorage.getItem(
+      storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
     ),
+    null,
   );
+
+  return {
+    history: normalizePersistedHandHistory(storedValue.value),
+    hadParseError: storedValue.hadParseError,
+  };
 }
 
 export function persistHandHistory(

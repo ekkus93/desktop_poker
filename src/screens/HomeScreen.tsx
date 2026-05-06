@@ -6,12 +6,16 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function HomeScreen({ bootstrap }: ScreenProps) {
-  const { hostDraft, recentJoinPayloads, persistedHandHistoryCount } =
+  const { hostDraft, recentJoinPayloads, persistedHandHistoryCount, startupWarnings } =
     useDesktopShell();
-  const hasSavedProgress = recentJoinPayloads.length > 0 || persistedHandHistoryCount > 0;
+  const hasSavedProgress =
+    recentJoinPayloads.length > 0 ||
+    persistedHandHistoryCount > 0 ||
+    startupWarnings.length > 0;
   const hasLaunchPayload = Boolean(bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError);
   const hasSavedHistory = persistedHandHistoryCount > 0;
   const hasSavedInvites = recentJoinPayloads.length > 0 || hasLaunchPayload;
+  const hasStartupWarnings = startupWarnings.length > 0;
 
   return (
     <ScreenShell
@@ -103,6 +107,22 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                       <span className="button-content">
                         <LogIn className="button-icon" strokeWidth={1.9} />
                         <span>Open</span>
+                      </span>
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
+              {hasStartupWarnings ? (
+                <article className="list-panel compact-list-panel">
+                  <div>
+                    <strong>Storage needs attention</strong>
+                    <p className="field-hint">{startupWarnings[0]}</p>
+                  </div>
+                  <div className="button-row">
+                    <Link className="secondary-button" to="/errors">
+                      <span className="button-content">
+                        <Settings className="button-icon" strokeWidth={1.9} />
+                        <span>Review</span>
                       </span>
                     </Link>
                   </div>

@@ -11,13 +11,13 @@ import {
   createDefaultHostDraft,
   type HostDraft,
   normalizeHostDraft,
-  readStoredValue,
+  readStoredValueWithStatus,
   storageKey,
 } from "./shell";
 import {
   initializeWindowStatePersistence,
   persistHandHistory,
-  readPersistedHandHistory,
+  readPersistedHandHistoryWithStatus,
 } from "./persistence";
 
 type DesktopShellContextValue = {
@@ -27,6 +27,7 @@ type DesktopShellContextValue = {
   readySeats: number[];
   recentJoinPayloads: string[];
   persistedHandHistoryCount: number;
+  startupWarnings: string[];
   setDisplayName: (value: string) => void;
   updateHostDraft: (patch: Partial<HostDraft>) => void;
   resetHostDraft: () => void;
@@ -59,41 +60,92 @@ export function DesktopShellProvider({
     [bootstrap],
   );
 
-  const [displayName, setDisplayName] = useState(() =>
-    readStoredValue<string>(
-      localStorage.getItem(storageKey(bootstrap.storageNamespace, "display-name")),
-      defaultDisplayName,
-    ),
+  const storedDisplayName = useMemo(
+    () =>
+      readStoredValueWithStatus<string>(
+        localStorage.getItem(storageKey(bootstrap.storageNamespace, "display-name")),
+        defaultDisplayName,
+      ),
+    [bootstrap.storageNamespace, defaultDisplayName],
   );
-  const [hostDraft, setHostDraft] = useState(() =>
-    normalizeHostDraft(
-      readStoredValue<unknown>(
+  const storedHostDraft = useMemo(
+    () =>
+      readStoredValueWithStatus<unknown>(
         localStorage.getItem(storageKey(bootstrap.storageNamespace, "host-draft")),
         defaultHostDraft,
       ),
-      defaultHostDraft,
-    ),
+    [bootstrap.storageNamespace, defaultHostDraft],
   );
-  const [joinPayloadDraft, setJoinPayloadDraft] = useState(() =>
-    readStoredValue<string>(
-      localStorage.getItem(storageKey(bootstrap.storageNamespace, "join-draft")),
-      bootstrap.launchJoinPayload ?? "",
-    ),
+  const storedJoinDraft = useMemo(
+    () =>
+      readStoredValueWithStatus<string>(
+        localStorage.getItem(storageKey(bootstrap.storageNamespace, "join-draft")),
+        bootstrap.launchJoinPayload ?? "",
+      ),
+    [bootstrap.launchJoinPayload, bootstrap.storageNamespace],
   );
-  const [readySeats, setReadySeats] = useState(() =>
-    readStoredValue<number[]>(
-      localStorage.getItem(storageKey(bootstrap.storageNamespace, "ready-seats")),
-      [],
-    ),
+  const storedReadySeats = useMemo(
+    () =>
+      readStoredValueWithStatus<number[]>(
+        localStorage.getItem(storageKey(bootstrap.storageNamespace, "ready-seats")),
+        [],
+      ),
+    [bootstrap.storageNamespace],
   );
-  const [recentJoinPayloads, setRecentJoinPayloads] = useState(() =>
-    readStoredValue<string[]>(
-      localStorage.getItem(storageKey(bootstrap.storageNamespace, "recent-join-payloads")),
-      [],
-    ),
+  const storedRecentJoinPayloads = useMemo(
+    () =>
+      readStoredValueWithStatus<string[]>(
+        localStorage.getItem(storageKey(bootstrap.storageNamespace, "recent-join-payloads")),
+        [],
+      ),
+    [bootstrap.storageNamespace],
   );
-  const [persistedHandHistoryCount, setPersistedHandHistoryCount] = useState(() =>
-    readPersistedHandHistory(bootstrap.storageNamespace)?.entries.length ?? 0,
+  const storedHandHistory = useMemo(
+    () => readPersistedHandHistoryWithStatus(bootstrap.storageNamespace),
+    [bootstrap.storageNamespace],
+  );
+  const startupWarnings = useMemo(() => {
+    const warnings = new Set<string>();
+
+    if (
+      storedDisplayName.hadParseError ||
+      storedHostDraft.hadParseError ||
+      storedJoinDraft.hadParseError ||
+      storedReadySeats.hadParseError ||
+      storedRecentJoinPayloads.hadParseError
+    ) {
+      warnings.add(
+        "Some saved local preferences were unreadable and were reset to safe defaults.",
+      );
+    }
+
+    if (storedHandHistory.hadParseError) {
+      warnings.add(
+        "Saved hand history was unreadable and has been ignored for this session.",
+      );
+    }
+
+    return [...warnings];
+  }, [
+    storedDisplayName.hadParseError,
+    storedHandHistory.hadParseError,
+    storedHostDraft.hadParseError,
+    storedJoinDraft.hadParseError,
+    storedReadySeats.hadParseError,
+    storedRecentJoinPayloads.hadParseError,
+  ]);
+
+  const [displayName, setDisplayName] = useState(() => storedDisplayName.value);
+  const [hostDraft, setHostDraft] = useState(() =>
+    normalizeHostDraft(storedHostDraft.value, defaultHostDraft),
+  );
+  const [joinPayloadDraft, setJoinPayloadDraft] = useState(() => storedJoinDraft.value);
+  const [readySeats, setReadySeats] = useState(() => storedReadySeats.value);
+  const [recentJoinPayloads, setRecentJoinPayloads] = useState(
+    () => storedRecentJoinPayloads.value,
+  );
+  const [persistedHandHistoryCount, setPersistedHandHistoryCount] = useState(
+    () => storedHandHistory.history?.entries.length ?? 0,
   );
 
   useEffect(() => initializeWindowStatePersistence(bootstrap.storageNamespace), [
@@ -101,35 +153,35 @@ export function DesktopShellProvider({
   ]);
 
   useEffect(() => {
-      localStorage.setItem(
+    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "display-name"),
       JSON.stringify(displayName),
     );
   }, [bootstrap.storageNamespace, displayName]);
 
   useEffect(() => {
-      localStorage.setItem(
+    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "host-draft"),
       JSON.stringify(hostDraft),
     );
   }, [bootstrap.storageNamespace, hostDraft]);
 
   useEffect(() => {
-      localStorage.setItem(
+    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "join-draft"),
       JSON.stringify(joinPayloadDraft),
     );
   }, [bootstrap.storageNamespace, joinPayloadDraft]);
 
   useEffect(() => {
-      localStorage.setItem(
+    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "ready-seats"),
       JSON.stringify(readySeats),
     );
   }, [bootstrap.storageNamespace, readySeats]);
 
   useEffect(() => {
-      localStorage.setItem(
+    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
       JSON.stringify(recentJoinPayloads),
     );
@@ -143,6 +195,7 @@ export function DesktopShellProvider({
       readySeats,
       recentJoinPayloads,
       persistedHandHistoryCount,
+      startupWarnings,
       setDisplayName,
       updateHostDraft: (patch) => {
         setHostDraft((currentDraft) => ({
@@ -185,6 +238,7 @@ export function DesktopShellProvider({
       persistedHandHistoryCount,
       readySeats,
       recentJoinPayloads,
+      startupWarnings,
     ],
   );
 

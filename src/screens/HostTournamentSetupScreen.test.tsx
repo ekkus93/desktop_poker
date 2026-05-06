@@ -181,6 +181,22 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.getByDisplayValue("pkr1_generated_invite")).toBeTruthy();
   });
 
+  it("surfaces host bind failures without unlocking lobby progression", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    mockedStartHostSession.mockRejectedValueOnce(new Error("Address already in use"));
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+
+    expect(await screen.findByText("Address already in use")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /continue to lobby/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /continue to lobby/i }).hasAttribute("disabled")).toBe(true);
+  });
+
   it("keeps critical setup options visible for legacy persisted host drafts", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     localStorage.setItem(

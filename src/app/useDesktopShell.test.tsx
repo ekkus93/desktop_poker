@@ -13,6 +13,7 @@ function ShellHookProbe() {
     readySeats,
     recentJoinPayloads,
     persistedHandHistoryCount,
+    startupWarnings,
     setDisplayName,
     updateHostDraft,
     resetHostDraft,
@@ -31,6 +32,7 @@ function ShellHookProbe() {
       <p>Ready seats: {readySeats.join(",") || "empty"}</p>
       <p>Recent: {recentJoinPayloads.join(",") || "empty"}</p>
       <p>History count: {persistedHandHistoryCount}</p>
+      <p>Warnings: {startupWarnings.join(" | ") || "none"}</p>
       <button onClick={() => setDisplayName("Alice")} type="button">
         Set Alice
       </button>
@@ -134,6 +136,7 @@ describe("useDesktopShell", () => {
     expect(screen.getByText("Ready seats: 1,2")).toBeTruthy();
     expect(screen.getByText("Recent: pkr1_recent")).toBeTruthy();
     expect(screen.getByText("History count: 1")).toBeTruthy();
+    expect(screen.getByText("Warnings: none")).toBeTruthy();
   });
 
   it("persists shell actions back into derived and stored state", () => {
@@ -203,6 +206,31 @@ describe("useDesktopShell", () => {
     expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).toContain(
       '"hostPort":43818',
     );
+    expect(screen.getByText("Warnings: none")).toBeTruthy();
+  });
+
+  it("surfaces unreadable persisted shell data as startup warnings", () => {
+    const bootstrap = createBootstrap({
+      instanceId: "broken-storage",
+      instanceLabel: "Broken Storage",
+      storageNamespace: "desktop-poker:broken-storage",
+    });
+
+    localStorage.setItem("desktop-poker:broken-storage:display-name", "{not-json");
+    localStorage.setItem(
+      "desktop-poker:broken-storage:hand-history-summaries",
+      "{still-not-json",
+    );
+
+    renderShellHook(bootstrap);
+
+    expect(screen.getByText("Display: Player Broken Storage")).toBeTruthy();
+    expect(
+      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/saved hand history was unreadable and has been ignored for this session/i),
+    ).toBeTruthy();
   });
 
   it("keeps storage namespaced so shell state does not bleed across profiles", () => {

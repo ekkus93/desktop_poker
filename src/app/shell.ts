@@ -26,6 +26,11 @@ export type ParticipantShell = {
   ready: boolean;
 };
 
+export type StoredValueReadResult<T> = {
+  value: T;
+  hadParseError: boolean;
+};
+
 export const BLIND_PRESETS: BlindPreset[] = [
   {
     id: "standard",
@@ -203,13 +208,23 @@ export function readStoredValue<T>(
   rawValue: string | null,
   fallbackValue: T,
 ): T {
+  return readStoredValueWithStatus(rawValue, fallbackValue).value;
+}
+
+export function readStoredValueWithStatus<T>(
+  rawValue: string | null,
+  fallbackValue: T,
+): StoredValueReadResult<T> {
   if (!rawValue) {
-    return fallbackValue;
+    return { value: fallbackValue, hadParseError: false };
   }
 
   try {
-    return JSON.parse(rawValue) as T;
+    return {
+      value: JSON.parse(rawValue) as T,
+      hadParseError: false,
+    };
   } catch {
-    return fallbackValue;
+    return { value: fallbackValue, hadParseError: true };
   }
 }

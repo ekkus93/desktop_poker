@@ -32,6 +32,23 @@ describe("ErrorStateScreen", () => {
     expect(screen.getAllByRole("link", { name: "Fix invite" }).length).toBeGreaterThan(0);
   });
 
+  it("surfaces unreadable persisted startup data as a recovery state", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:display-name`,
+      "{bad-json",
+    );
+
+    renderWithProviders(<ErrorStateScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect((await screen.findAllByText(/local data reset/i)).length).toBeGreaterThan(0);
+    expect(
+      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Return home" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open settings" })).toBeTruthy();
+  });
+
   it("keeps scenario controls out of the normal player flow", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
 
