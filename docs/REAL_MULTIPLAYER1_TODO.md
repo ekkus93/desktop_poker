@@ -87,7 +87,7 @@ The work in this file is done only when all of the following are true:
 
 ### 3.4 App-state mutation safety
 - [ ] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission
-- [ ] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported
+- [x] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported
 - [ ] Ensure teardown clears only the correct session-scoped data and does not destroy unrelated instance persistence
 - [ ] Add locking/state-transition rules so Tauri commands cannot race each other into inconsistent session state
 

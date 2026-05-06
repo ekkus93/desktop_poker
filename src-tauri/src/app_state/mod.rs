@@ -911,6 +911,15 @@ impl DesktopAppState {
             return Err("leave the active client session before hosting".to_string());
         }
 
+        if self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?
+            .is_some()
+        {
+            return Err("stop the active host session before starting a new table".to_string());
+        }
+
         if tournament_name.is_empty() {
             return Err("tournamentName must be non-blank".to_string());
         }
@@ -1003,6 +1012,15 @@ impl DesktopAppState {
             .is_some()
         {
             return Err("stop the active host session before joining another table".to_string());
+        }
+
+        if self
+            .client_session
+            .lock()
+            .map_err(|_| "client session lock poisoned".to_string())?
+            .is_some()
+        {
+            return Err("leave the active client session before joining another table".to_string());
         }
 
         let join_payload = protocol::decode_join_payload(payload).map_err(|error| error.to_string())?;
@@ -2689,6 +2707,35 @@ mod tests {
     }
 
     #[test]
+    fn start_host_session_rejects_replacing_an_active_host_session() {
+        let state = DesktopAppState::detect();
+
+        let first_status = state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("first host session should start");
+
+        let error = state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect_err("second host session should be rejected");
+
+        assert_eq!(error, "stop the active host session before starting a new table");
+        assert_eq!(
+            state
+                .host_session_status()
+                .expect("host session status should resolve")
+                .expect("original host session should remain active")
+                .invite,
+            first_status.invite,
+        );
+    }
+
+    #[test]
     fn join_host_session_returns_the_initial_live_snapshot() {
         let host_state = DesktopAppState::detect();
         let host_status = host_state
@@ -2726,6 +2773,52 @@ mod tests {
             .participants
             .iter()
             .any(|participant| participant.display_name == "Client Bravo"));
+    }
+
+    #[test]
+    fn join_host_session_rejects_replacing_an_active_client_session() {
+        let first_host_state = DesktopAppState::detect();
+        let first_host_status = first_host_state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("first host session should start");
+        let second_host_state = DesktopAppState::detect();
+        let second_host_status = second_host_state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("second host session should start");
+
+        let client_state = DesktopAppState::detect();
+        let first_client_status = client_state
+            .join_host_session(sample_join_host_session_request(&first_host_status.invite))
+            .expect("client should join the first host");
+
+        let error = client_state
+            .join_host_session(sample_join_host_session_request(&second_host_status.invite))
+            .expect_err("second client join should be rejected");
+
+        assert_eq!(error, "leave the active client session before joining another table");
+
+        let active_client_status = client_state
+            .client_session_status()
+            .expect("client session status should resolve")
+            .expect("original client session should remain active");
+        assert_eq!(active_client_status.table_id, first_client_status.table_id);
+        assert_eq!(active_client_status.host_port, first_client_status.host_port);
+
+        assert_eq!(
+            second_host_state
+                .host_session_status()
+                .expect("second host session status should resolve")
+                .expect("second host session should remain active")
+                .participants
+                .len(),
+            1,
+        );
     }
 
     #[test]
