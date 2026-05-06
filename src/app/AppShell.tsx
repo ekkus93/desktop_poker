@@ -1,6 +1,13 @@
+import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { DebugPanel } from "../components/debug/DebugPanel";
 import { AppFrame } from "../components/layout/AppFrame";
+import {
+  getClientSessionStatus,
+  getHostSessionStatus,
+  type ClientSessionStatus,
+  type HostSessionStatus,
+} from "../api/desktop";
 import { DesktopShellProvider } from "./DesktopShellProvider";
 import { DeviceSettingsScreen } from "../screens/DeviceSettingsScreen";
 import { ErrorStateScreen } from "../screens/ErrorStateScreen";
@@ -20,6 +27,77 @@ function hasScreenRoute(
   route: string,
 ) {
   return bootstrap.screens.some((screen) => screen.route === route);
+}
+
+type SessionRouteMode = "lobby" | "table";
+
+function LiveSessionRoute({
+  children,
+  mode,
+}: {
+  children: ReactNode;
+  mode: SessionRouteMode;
+}) {
+  const [state, setState] = useState<{
+    status: "loading" | "ready";
+    redirectTo: string | null;
+  }>({
+    status: "loading",
+    redirectTo: null,
+  });
+
+  useEffect(() => {
+    let active = true;
+
+    void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
+      .then(([hostSession, clientSession]) => {
+        if (!active) {
+          return;
+        }
+
+        const liveSession: HostSessionStatus | ClientSessionStatus | null =
+          hostSession ?? clientSession;
+
+        if (!liveSession) {
+          setState({ status: "ready", redirectTo: "/" });
+          return;
+        }
+
+        if (mode === "table" && liveSession.phase !== "running") {
+          setState({ status: "ready", redirectTo: "/lobby" });
+          return;
+        }
+
+        setState({ status: "ready", redirectTo: null });
+      })
+      .catch(() => {
+        if (active) {
+          setState({ status: "ready", redirectTo: "/errors" });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [mode]);
+
+  if (state.status === "loading") {
+    return (
+      <main className="loading-shell">
+        <section className="loading-card">
+          <p className="kicker">Checking session</p>
+          <h2>Verifying live table state</h2>
+          <p>Waiting for the desktop runtime to confirm the current session route.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (state.redirectTo) {
+    return <Navigate replace to={state.redirectTo} />;
+  }
+
+  return <>{children}</>;
 }
 
 export function AppShell() {
@@ -97,7 +175,11 @@ export function AppShell() {
           {lobbyRouteAvailable ? (
             <Route
               path="/lobby"
-              element={<TournamentLobbyScreen bootstrap={bootstrap} />}
+              element={(
+                <LiveSessionRoute mode="lobby">
+                  <TournamentLobbyScreen bootstrap={bootstrap} />
+                </LiveSessionRoute>
+              )}
             />
           ) : null}
           {readyRoomRouteAvailable ? (
@@ -107,7 +189,14 @@ export function AppShell() {
             />
           ) : null}
           {tableRouteAvailable ? (
-            <Route path="/table" element={<MainTableScreen bootstrap={bootstrap} />} />
+            <Route
+              path="/table"
+              element={(
+                <LiveSessionRoute mode="table">
+                  <MainTableScreen bootstrap={bootstrap} />
+                </LiveSessionRoute>
+              )}
+            />
           ) : null}
           {historyRouteAvailable ? (
             <Route

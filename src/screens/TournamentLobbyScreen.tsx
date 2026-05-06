@@ -129,6 +129,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const totalSeats = liveSession
     ? liveSession.activeSeatCount + liveSession.openSeatCount
     : hostDraft.maxPlayers;
+  const denseLobbyLayout = totalSeats > 8;
   const shellReadyCheck = !liveSession && activeSeats.length >= 2 && seatsStillWaiting === 0;
   const liveCanStart = Boolean(hostSession && liveSession?.phase === "readyCheck" && liveLocalParticipant?.isHost);
   const liveLobbyActionsEnabled = Boolean(liveSession && liveSession.phase !== "running");
@@ -199,7 +200,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     >
       <div className="content-grid lobby-shell-grid">
         <section className="section-card lobby-stage-card">
-          <div className="lobby-stage-layout">
+          <div className={`lobby-stage-layout ${denseLobbyLayout ? "dense-lobby-stage-layout" : ""}`}>
             <div className="lobby-stage-summary">
               <div className="lobby-table-meta">
                 <strong className="lobby-table-name">{tournamentName}</strong>
@@ -279,7 +280,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               </div>
                 {lobbyError ? <p className="inline-banner error">{lobbyError}</p> : null}
             </div>
-            <div className="seat-grid lobby-seat-grid">
+            <div className={`seat-grid lobby-seat-grid ${denseLobbyLayout ? "dense-lobby-seat-grid" : ""}`}>
               {participants.map((seat) => {
                 const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
 
@@ -301,14 +302,14 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
                       {liveSession && liveLobbyActionsEnabled && seat.kind === "open" ? (
                         <button
-                          className="secondary-button compact-button"
+                          className={`secondary-button compact-button ${denseLobbyLayout ? "dense-lobby-seat-action" : ""}`}
                           disabled={submitting}
                           onClick={() => {
                             void claimLiveSeat(seat.seatIndex - 1);
                           }}
                           type="button"
                         >
-                          Take seat
+                          {denseLobbyLayout ? "Take" : "Take seat"}
                         </button>
                       ) : null}
                   </article>

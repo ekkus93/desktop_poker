@@ -187,6 +187,19 @@ function syncLiveSessions(participants: NonNullable<typeof currentHostSession>["
 }
 
 function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) {
+  if (
+    initialEntry === "/table"
+    && !currentHostSession
+    && !currentClientSession
+  ) {
+    currentHostSession = {
+      ...buildHostSessionStatus({
+        tournamentName: "Friday Night",
+      }),
+      phase: "running",
+    };
+  }
+
   mockedFetchBootstrapState.mockResolvedValue(bootstrap);
   mockedSubscribeBootstrap.mockImplementation(async (onBootstrap) => {
     bootstrapSubscriptionHandler = onBootstrap;
@@ -660,13 +673,23 @@ describe("AppShell integration", () => {
     renderAppShell("/lobby");
 
     expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("You: Waiting")).toBeNull();
+  });
+
+  it("keeps the table route behind an active running session", async () => {
+    currentHostSession = {
+      ...buildHostSessionStatus({ tournamentName: "Friday Night" }),
+      phase: "waitingForPlayers",
+    };
+
+    renderAppShell("/table");
+
+    expect(
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
-    expect(screen.getByText("You: Waiting")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
-
-    expect(await screen.findByText("You: Ready")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
   });
 
   it("renders the real ready-room route and only unlocks start after all visible participants are ready", async () => {
@@ -811,6 +834,8 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
+
+    syncLiveSessions(currentClientSession?.participants ?? [], "running");
 
     firstRender.unmount();
 

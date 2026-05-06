@@ -826,6 +826,55 @@ dt {
   line-height: 1.1;
 }
 
+.dense-lobby-stage-layout {
+  grid-template-columns: minmax(9.75rem, 11.25rem) minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.dense-lobby-stage-layout .lobby-stage-summary {
+  gap: 0.28rem;
+}
+
+.dense-lobby-stage-layout .lobby-status-row {
+  gap: 0.35rem;
+}
+
+.dense-lobby-stage-layout .status-badge {
+  padding: 0.18rem 0.32rem;
+  font-size: 0.64rem;
+}
+
+.dense-lobby-stage-layout .compact-button {
+  padding: 0.28rem 0.42rem;
+  min-height: 0;
+}
+
+.dense-lobby-seat-grid {
+  gap: 0.28rem;
+}
+
+.dense-lobby-seat-grid .lobby-seat-card {
+  gap: 0.12rem;
+  padding: 0.24rem 0.3rem;
+}
+
+.dense-lobby-seat-grid .seat-card-header {
+  gap: 0.22rem;
+}
+
+.dense-lobby-seat-grid .seat-card-header strong,
+.dense-lobby-seat-grid .seat-card-header span {
+  font-size: 0.72rem;
+}
+
+.dense-lobby-seat-grid .seat-detail {
+  display: none;
+}
+
+.dense-lobby-seat-action {
+  justify-self: start;
+}
+
 .compact-workstation-actions {
   gap: 0.5rem;
 }

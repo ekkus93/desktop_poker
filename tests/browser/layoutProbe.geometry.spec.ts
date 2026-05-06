@@ -22,9 +22,9 @@ async function openProbe(page: Page, surface: string) {
 
 async function installRoutedShellMocks(
   page: Page,
-  options?: { tournamentName?: string; maxPlayers?: number },
+  options?: { tournamentName?: string; maxPlayers?: number; sessionPhase?: string },
 ) {
-  await page.addInitScript((initOptions?: { tournamentName?: string; maxPlayers?: number }) => {
+  await page.addInitScript((initOptions?: { tournamentName?: string; maxPlayers?: number; sessionPhase?: string }) => {
     const bootstrap = {
       appName: "Desktop Poker",
       protocolVersion: 1,
@@ -118,8 +118,36 @@ async function installRoutedShellMocks(
       actionTray: null,
     };
 
+    const maxPlayers = initOptions?.maxPlayers ?? 6;
+    const hostSession = {
+      tournamentName:
+        initOptions?.tournamentName ?? "Desktop Sit 'n Go playwright-routed-host",
+      tableName: "Main Table",
+      tableId: "playwright-routed-host-table",
+      sessionEpoch: 1,
+      advertisedHost: "192.168.1.10",
+      hostPort: 43818,
+      invite: "pkr1_playwright_invite",
+      phase: initOptions?.sessionPhase ?? "waitingForPlayers",
+      activeSeatCount: 1,
+      openSeatCount: maxPlayers - 1,
+      participants: [
+        {
+          playerId: "local-player",
+          displayName: "Player playwright-routed-host",
+          seatIndex: 0,
+          isHost: true,
+          isReady: false,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+      ],
+    };
+
     window.__DESKTOP_POKER_BROWSER_MOCKS__ = {
       fetchBootstrapState: async () => bootstrap,
+      getClientSessionStatus: async () => null,
+      getHostSessionStatus: async () => hostSession,
       subscribeBootstrap: async () => () => {},
       resolveHostLanAddress: async () => "192.168.1.10",
       validateJoinPayloadInput: async () => joinPayload,

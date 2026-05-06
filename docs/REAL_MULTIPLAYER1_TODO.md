@@ -46,7 +46,7 @@ The work in this file is done only when all of the following are true:
 - [ ] Replace the current demo-backed `DesktopTableRuntime` boot model with a session model that can represent: idle, hosting, joining, connected lobby, active table, reconnecting, completed, and fatal error states
 - [ ] Define a Rust-side session container that can hold the active `HostServer`, active `ClientRuntime`, host/client identity metadata, and the current projected tournament state
 - [ ] Decide which session data is authoritative, which is cached projection, and which is UI convenience metadata
-- [ ] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently
+- [x] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently
 
 ### 2.2 Remove fake bootstrap assumptions
 - [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
