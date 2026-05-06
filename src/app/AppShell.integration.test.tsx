@@ -639,7 +639,7 @@ describe("AppShell integration", () => {
     expect(screen.getByText(/resolve the lan address before continuing to the lobby/i)).toBeTruthy();
   });
 
-  it("lets a launch-attached invite continue straight into the lobby flow", async () => {
+  it("joins a launch-attached invite straight into the live lobby flow", async () => {
     const bootstrap = createAppBootstrap({
       launchJoinPayload: "pkr1_launch",
       parsedLaunchJoinPayload: createParsedJoinPayload(),
@@ -651,8 +651,9 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
-    expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
   });
 
   it("keeps the lobby readiness badge aligned with the local seat state", async () => {
@@ -768,8 +769,9 @@ describe("AppShell integration", () => {
       );
     });
 
-    expect(await screen.findByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
   });
 
   it("persists shell state and cached hand history across a restart-like remount", async () => {

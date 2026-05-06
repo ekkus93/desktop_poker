@@ -67,7 +67,7 @@ describe("JoinTournamentScreen", () => {
     expect(await screen.findByRole("button", { name: "Continue to lobby" })).toBeTruthy();
   });
 
-  it("shows the continue action for a valid launch-attached invite", async () => {
+  it("joins immediately for a valid launch-attached invite", async () => {
     const bootstrap = createBootstrap({
       launchJoinPayload: "pkr1_launch",
       parsedLaunchJoinPayload: parsedPayload,
@@ -79,8 +79,13 @@ describe("JoinTournamentScreen", () => {
     });
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
-    expect(screen.getByText(/invite already attached to this launch/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Continue to lobby" })).toBeTruthy();
+    expect(await screen.findByText(/joining the attached invite now/i)).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedJoinHostSession).toHaveBeenCalledWith({
+        joinPayload: "pkr1_launch",
+        displayName: "Player test-instance",
+      });
+    });
   });
 
   it("shows invite review failures from the Rust parser", async () => {

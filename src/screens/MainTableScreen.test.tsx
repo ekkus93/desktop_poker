@@ -149,7 +149,7 @@ describe("MainTableScreen", () => {
     expect(
       await screen.findByText(/the turn was published to every seat and observer/i),
     ).toBeTruthy();
-    expect(screen.getByText("J♠")).toBeTruthy();
+    expect(screen.getByLabelText("Jack of spades")).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/#1 Maya/)).toBeTruthy();
     expect(

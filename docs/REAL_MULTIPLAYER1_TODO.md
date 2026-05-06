@@ -51,7 +51,7 @@ The work in this file is done only when all of the following are true:
 ### 2.2 Remove fake bootstrap assumptions
 - [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
 - [x] Ensure bootstrap can represent a clean idle app with no active tournament session
-- [ ] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form
+- [x] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form
 - [ ] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption
 
 ### 2.3 Define session projection models for the UI

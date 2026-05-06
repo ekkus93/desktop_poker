@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, BadgeCheck, Clipboard, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -46,6 +46,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const launchJoinAttemptedForPayload = useRef<string | null>(null);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -97,6 +98,70 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     bootstrap.launchJoinPayloadError,
     bootstrap.parsedLaunchJoinPayload,
     joinPayloadDraft,
+  ]);
+
+  useEffect(() => {
+    if (!bootstrap.launchJoinPayload || !bootstrap.parsedLaunchJoinPayload) {
+      return;
+    }
+
+    if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
+      return;
+    }
+
+    if (launchJoinAttemptedForPayload.current === bootstrap.launchJoinPayload) {
+      return;
+    }
+
+    let cancelled = false;
+
+    launchJoinAttemptedForPayload.current = bootstrap.launchJoinPayload;
+    setJoining(true);
+    setJoinError(null);
+    setValidationState({
+      status: "valid",
+      payload: bootstrap.parsedLaunchJoinPayload,
+    });
+    setInviteBanner("Joining the attached invite now.");
+
+    void joinHostSession({
+      joinPayload: bootstrap.launchJoinPayload,
+      displayName,
+    })
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+
+        rememberJoinPayload(bootstrap.launchJoinPayload);
+        navigate("/lobby");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setJoinError(normaliseError(error));
+        setInviteBanner("Invite already attached to this launch.");
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setJoining(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    bootstrap.launchJoinPayload,
+    bootstrap.parsedLaunchJoinPayload,
+    displayName,
+    joinPayloadDraft,
+    navigate,
+    rememberJoinPayload,
   ]);
 
   const reviewInvite = async () => {
