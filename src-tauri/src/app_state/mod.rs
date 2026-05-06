@@ -2822,6 +2822,83 @@ mod tests {
     }
 
     #[test]
+    fn host_mutations_reject_missing_host_sessions_clearly() {
+        let state = DesktopAppState::detect();
+
+        assert_eq!(
+            state
+                .host_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 0 })
+                .expect_err("claiming a host seat without a host session should fail"),
+            "no active host session",
+        );
+        assert_eq!(
+            state
+                .host_set_lobby_ready_state(SetLobbyReadyStateRequest { is_ready: true })
+                .expect_err("setting host ready state without a host session should fail"),
+            "no active host session",
+        );
+        assert_eq!(
+            state
+                .host_start_tournament()
+                .expect_err("starting a tournament without a host session should fail"),
+            "no active host session",
+        );
+    }
+
+    #[test]
+    fn client_mutations_reject_missing_client_sessions_clearly() {
+        let state = DesktopAppState::detect();
+
+        assert_eq!(
+            state
+                .client_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 1 })
+                .expect_err("claiming a client seat without a client session should fail"),
+            "no active client session",
+        );
+        assert_eq!(
+            state
+                .client_set_lobby_ready_state(SetLobbyReadyStateRequest { is_ready: true })
+                .expect_err("setting client ready state without a client session should fail"),
+            "no active client session",
+        );
+    }
+
+    #[test]
+    fn client_ready_state_requires_a_claimed_seat() {
+        let host_state = DesktopAppState::detect();
+        let host_status = host_state
+            .start_host_session_with_mode(
+                sample_host_session_request("127.0.0.1"),
+                HostRuntimeMode::Test,
+            )
+            .expect("host session should start");
+        let client_state = DesktopAppState::detect();
+
+        client_state
+            .join_host_session(sample_join_host_session_request(&host_status.invite))
+            .expect("client should join the host before claiming a seat");
+
+        assert_eq!(
+            client_state
+                .client_set_lobby_ready_state(SetLobbyReadyStateRequest { is_ready: true })
+                .expect_err("readying before claiming a seat should fail"),
+            "ready state requires a claimed seat",
+        );
+
+        let refreshed_client_status = client_state
+            .client_session_status()
+            .expect("client session status should resolve")
+            .expect("client session should remain active");
+        let local_participant = refreshed_client_status
+            .participants
+            .iter()
+            .find(|participant| participant.display_name == "Client Bravo")
+            .expect("client participant should remain visible");
+        assert_eq!(local_participant.seat_index, None);
+        assert!(!local_participant.is_ready);
+    }
+
+    #[test]
     fn live_table_view_prefers_the_authoritative_session_snapshot() {
         let host_state = DesktopAppState::detect();
         let host_status = host_state
