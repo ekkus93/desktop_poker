@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Clock3, LogOut, Play } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { buildParticipantShell } from "../app/shell";
 import {
@@ -11,6 +11,8 @@ import {
   hostClaimLobbySeat,
   hostSetLobbyReadyState,
   hostStartTournament,
+  leaveClientSession,
+  stopHostSession,
   type ClientSessionStatus,
   type HostSessionStatus,
 } from "../api/desktop";
@@ -193,6 +195,28 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     }
   };
 
+  const leaveLiveSession = async () => {
+    setSubmitting(true);
+    setLobbyError(null);
+
+    try {
+      if (hostSession) {
+        await stopHostSession();
+        setHostSession(null);
+      } else if (clientSession) {
+        await leaveClientSession();
+        setClientSession(null);
+      }
+
+      setShowLeaveFlow(false);
+      navigate("/", { replace: true });
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "Unable to leave the current table.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <ScreenShell
       title="Lobby"
@@ -323,10 +347,18 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
         <section className="dialog-card">
           <p className="kicker">{localSeat?.kind === "host" ? "Close" : "Leave"}</p>
           <h3>{leaveTitle}</h3>
+          {lobbyError ? <p className="inline-banner error">{lobbyError}</p> : null}
           <div className="button-row">
-            <Link className="primary-button" to="/">
+            <button
+              className="primary-button"
+              disabled={submitting}
+              onClick={() => {
+                void leaveLiveSession();
+              }}
+              type="button"
+            >
               {leaveActionLabel}
-            </Link>
+            </button>
             <button
               className="secondary-button"
               onClick={() => {

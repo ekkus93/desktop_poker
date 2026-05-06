@@ -10,11 +10,13 @@ import {
   getDebugState,
   getTableView,
   hostClaimLobbySeat,
+  leaveClientSession,
   hostSetLobbyReadyState,
   hostStartTournament,
   joinHostSession,
   launchAdditionalClientInstance,
   resolveHostLanAddress,
+  stopHostSession,
   startHostSession,
   submitTableAction,
   subscribeBootstrap,
@@ -44,11 +46,13 @@ vi.mock("../api/desktop", async () => {
     subscribeBootstrap: vi.fn(),
     getDebugState: vi.fn(),
     hostClaimLobbySeat: vi.fn(),
+    leaveClientSession: vi.fn(),
     hostSetLobbyReadyState: vi.fn(),
     hostStartTournament: vi.fn(),
     joinHostSession: vi.fn(),
     launchAdditionalClientInstance: vi.fn(),
     resolveHostLanAddress: vi.fn(),
+    stopHostSession: vi.fn(),
     startHostSession: vi.fn(),
     validateJoinPayloadInput: vi.fn(),
     getTableView: vi.fn(),
@@ -64,11 +68,13 @@ const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedSubscribeBootstrap = vi.mocked(subscribeBootstrap);
 const mockedGetDebugState = vi.mocked(getDebugState);
 const mockedHostClaimLobbySeat = vi.mocked(hostClaimLobbySeat);
+const mockedLeaveClientSession = vi.mocked(leaveClientSession);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
 const mockedHostStartTournament = vi.mocked(hostStartTournament);
 const mockedJoinHostSession = vi.mocked(joinHostSession);
 const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
+const mockedStopHostSession = vi.mocked(stopHostSession);
 const mockedStartHostSession = vi.mocked(startHostSession);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
@@ -231,11 +237,13 @@ describe("AppShell integration", () => {
     mockedSubscribeBootstrap.mockReset();
     mockedGetDebugState.mockReset();
     mockedHostClaimLobbySeat.mockReset();
+    mockedLeaveClientSession.mockReset();
     mockedHostSetLobbyReadyState.mockReset();
     mockedHostStartTournament.mockReset();
     mockedJoinHostSession.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
     mockedResolveHostLanAddress.mockReset();
+    mockedStopHostSession.mockReset();
     mockedStartHostSession.mockReset();
     mockedValidateJoinPayloadInput.mockReset();
     mockedGetTableView.mockReset();
@@ -296,6 +304,12 @@ describe("AppShell integration", () => {
 
       syncLiveSessions(currentHostSession.participants, "running");
       return currentHostSession;
+    });
+    mockedStopHostSession.mockImplementation(async () => {
+      currentHostSession = null;
+    });
+    mockedLeaveClientSession.mockImplementation(async () => {
+      currentClientSession = null;
     });
     mockedClientClaimLobbySeat.mockImplementation(async (request) => {
       if (!currentClientSession) {
@@ -690,6 +704,48 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
     expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+  });
+
+  it("stops the live host session before leaving the lobby", async () => {
+    currentHostSession = buildHostSessionStatus({ tournamentName: "Friday Night" });
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close table" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Close table" })[1]);
+
+    await waitFor(() => {
+      expect(mockedStopHostSession).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+  });
+
+  it("leaves the live client session before returning home", async () => {
+    currentClientSession = buildClientSessionStatus();
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+
+    expect(await screen.findByText(/awaiting seat/i)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Leave table" })[1]);
+
+    await waitFor(() => {
+      expect(mockedLeaveClientSession).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
   });
 
   it("renders the real ready-room route and only unlocks start after all visible participants are ready", async () => {
