@@ -550,6 +550,52 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
   });
 
+  it("keeps the lobby in place when the authoritative host start rejects", async () => {
+    currentHostSession = buildHostSessionStatus({
+      tournamentName: "Friday Night",
+      displayName: "Host Alpha",
+    });
+    syncLiveSessions(
+      [
+        {
+          playerId: "local-player",
+          displayName: "Host Alpha",
+          seatIndex: 0,
+          isHost: true,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+        {
+          playerId: "player-test-instance",
+          displayName: "Player test-instance",
+          seatIndex: 1,
+          isHost: false,
+          isReady: true,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+      ],
+      "readyCheck",
+    );
+    mockedHostStartTournament.mockRejectedValueOnce(new Error("host start rejected"));
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(false);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start tournament" }));
+
+    expect(await screen.findByText("host start rejected")).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "Lobby" })).toBeTruthy();
+  });
+
   it("moves a joined client from the lobby to the table when the live session starts", async () => {
     currentClientSession = buildClientSessionStatus();
     syncLiveSessions(
@@ -1133,7 +1179,7 @@ describe("AppShell integration", () => {
       }),
     );
 
-    renderAppShell("/table");
+    const tableRender = renderAppShell("/table");
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
@@ -1145,6 +1191,8 @@ describe("AppShell integration", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
     expect(screen.getAllByText("Maya").length).toBeGreaterThan(0);
+
+    tableRender.unmount();
   });
 
   it("keeps action failures scoped to the acting shell instance", async () => {

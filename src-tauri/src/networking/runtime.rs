@@ -2749,6 +2749,28 @@ mod tests {
         }
     }
 
+    fn wait_for_client_command_connection(client: &ClientRuntime) {
+        let deadline = Instant::now() + Duration::from_secs(2);
+
+        loop {
+            if client
+                .command_connection
+                .lock()
+                .expect("client command connection")
+                .stream
+                .is_some()
+            {
+                return;
+            }
+
+            assert!(
+                Instant::now() < deadline,
+                "client command connection should become available"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
     fn sample_join_payload_for_tests(
         table_id: &str,
         session_epoch: u64,
@@ -3487,6 +3509,7 @@ mod tests {
         } else {
             (&bob, &alice)
         };
+        wait_for_client_command_connection(acting_client);
         let action_type = if action_window.legal_actions.contains(&crate::domain::ActionType::Check)
         {
             crate::domain::ActionType::Check

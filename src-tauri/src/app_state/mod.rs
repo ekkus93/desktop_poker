@@ -3031,14 +3031,39 @@ mod tests {
             .host_start_tournament()
             .expect("host should start the live tournament");
 
+        let host_running_view = (0..20)
+            .find_map(|_| {
+                let next_view = host_state
+                    .table_view(TableViewerMode::Local)
+                    .expect("host running table view before live action");
+                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
+                    Some(next_view)
+                } else {
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                    None
+                }
+            })
+            .expect("host should expose the running table before live action");
+        let client_running_view = (0..20)
+            .find_map(|_| {
+                let next_view = client_state
+                    .table_view(TableViewerMode::Local)
+                    .expect("client running table view before live action");
+                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
+                    Some(next_view)
+                } else {
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                    None
+                }
+            })
+            .expect("client should expose the running table before live action");
+
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut latest_host_view = host_running_view;
+        let mut latest_client_view = client_running_view;
         let (acting_state, observing_state, acting_view_before) = loop {
-            let next_host_view = host_state
-                .table_view(TableViewerMode::Local)
-                .expect("host table view before live action");
-            let next_client_view = client_state
-                .table_view(TableViewerMode::Local)
-                .expect("client table view before live action");
+            let next_host_view = latest_host_view.clone();
+            let next_client_view = latest_client_view.clone();
 
             if next_host_view.action_tray.is_some() {
                 break (&host_state, &client_state, next_host_view);
@@ -3052,6 +3077,12 @@ mod tests {
                 std::time::Instant::now() < deadline,
                 "one live session should observe an open action window"
             );
+            latest_host_view = host_state
+                .table_view(TableViewerMode::Local)
+                .expect("host table view before live action retry");
+            latest_client_view = client_state
+                .table_view(TableViewerMode::Local)
+                .expect("client table view before live action retry");
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
         assert_eq!(acting_view_before.phase_label, "Running");

@@ -272,7 +272,7 @@ The work in this file is done only when all of the following are true:
 
 ### 11.4 Regression coverage for demo removal
 - [x] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths
-- [ ] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority
+- [x] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority
 - [x] Add tests that fail if the table view can be constructed without an active session container
 
 ---
