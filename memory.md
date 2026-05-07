@@ -125,31 +125,125 @@
 - Commit `8f1bb14e0e9a18b27ada8d6b779cbeb0babaaba2` fixed host setup visibility issues caused by hidden advanced options and legacy persisted collapsed host state.
 - The host setup now recovers from older saved `hostDraft` values that left critical controls hidden.
 
-## 2026-05-05T11:15:42Z - GPT-5.4 - Ban mock-only tests in repo instructions
+## 2026-05-05T00:01:02-07:00 - GPT-5.4 - Add browser geometry layout coverage
+- Commit `b05bb56ec2652107e199cfffa192363d0fe00fa6` added browser geometry coverage for desktop layout validation, updated supporting tooling, and wired the extra checks into the repo validation path.
+
+## 2026-05-05T00:10:20-07:00 - GPT-5.4 - Tighten host shell spacing
+- Commit `e315f4842fb5405db435ea71a25a058007427283` tightened host shell spacing and refreshed layout contract coverage for the updated shell sizing.
+
+## 2026-05-05T00:50:35-07:00 - GPT-5.4 - Tighten host setup layout
+- Commit `31992825719ab8ce5063aee70cd646bfee39e395` tightened the host setup layout, updated related host-screen tests, and extended browser geometry coverage for the refined surface.
+
+## 2026-05-05T01:32:22-07:00 - GPT-5.4 - Fix host and lobby layout regressions
+- Commit `94becf64c10325ff5bc3ea5d2f2fcbb2a706a5c3` fixed host and lobby layout regressions and updated geometry checks so the regressions stay covered.
+
+## 2026-05-05T01:48:09-07:00 - GPT-5.4 - Clarify lobby and host setup flow
+- Commit `49ec86a320501867bbb31aa4b64d0606938f08af` clarified the host setup and lobby flow, with matching integration, layout, and screen-level coverage updates.
+
+## 2026-05-05T02:04:22-07:00 - GPT-5.4 - Clarify host and lobby actions
+- Commit `937a8b86f2be805e3def742e21184ed31c5a811f` clarified primary actions and supporting state on the host and lobby screens and updated the related test coverage.
+
+## 2026-05-05T02:12:47-07:00 - GPT-5.4 - Remove tournament support rail
+- Commit `3350e835c8146c0c2a195026d5e9026d226e2c42` removed the tournament support rail from the shared app frame and updated frame coverage for the simplified shell.
+
+## 2026-05-05T02:49:44-07:00 - GPT-5.4 - Simplify lobby seats and tournament shell
+- Commit `9efbf8d9843b70f864d8ed7850480c65e9b243e8` simplified lobby seat presentation and the in-tournament shell, including the related AppShell, AppFrame, and shell-state behavior.
+
+## 2026-05-05T03:10:00-07:00 - GPT-5.4 - Clarify lobby seats and complete navigation
+- Commit `250a96c4a35cf521ad62a34bd21b19b7fa5f9d37` clarified lobby seat messaging and tournament-complete navigation, with geometry and integration coverage updates for the revised flow.
+
+## 2026-05-05T03:52:09-07:00 - GPT-5.4 - Make lobby and table states truthful
+- Commit `8ab48470d10294cc3cbce0af4fc8f474f563fbea` made the lobby and main-table state surfaces truthful against runtime state and updated both Rust and frontend coverage around those projections.
+
+## 2026-05-05T04:15:42-07:00 - GPT-5.4 - Ban mock-only tests in repo instructions
 - Added an explicit rule to `.github/copilot_instructions.md` forbidding mock-only tests that do not execute meaningful production code.
 - Clarified that mocks are allowed only for external boundaries while critical behavior must still have at least one real-code test.
 
-## 2026-05-05T11:20:23Z - GPT-5.4 - Audit tests for mock-only coverage
+## 2026-05-05T04:20:23-07:00 - GPT-5.4 - Audit tests for mock-only coverage
 - Audited the current frontend test suite for pure mock-only tests.
 - Removed `src/app/AppShell.test.tsx` as the weakest hook-mocking shell test and replaced its route-redirect coverage in `src/app/AppShell.integration.test.tsx`, which exercises the real bootstrap provider and routing path.
 - After the audit, no other current frontend test files were judged pure mock-only under the stricter rule; remaining mocked tests still execute real components or real logic while isolating external boundaries.
 
-## 2026-05-05T11:28:45Z - GPT-5.4 - Audit Rust tests for demo-only assumptions
+## 2026-05-05T04:28:45-07:00 - GPT-5.4 - Audit Rust tests for demo-only assumptions
 - Audited the Rust-side test suite for fake/demo-only assumptions.
 - Found the main risk concentrated in `src-tauri/src/app_state/mod.rs`, where three tests are coupled to `demo_controller()` and demo-only identifiers/state rather than production runtime behavior.
 - The rest of the Rust suite in `engine`, `tournament`, `domain`, `protocol`, `crypto`, and `networking` was assessed as real-code or fixture-backed meaningful coverage rather than demo-only testing.
 
-## 2026-05-05T11:31:38Z - GPT-5.4 - Replace demo-coupled Rust tests with real controller contract test
+## 2026-05-05T04:31:38-07:00 - GPT-5.4 - Replace demo-coupled Rust tests with real controller contract test
 - Removed the three demo-coupled `app_state` tests that depended on `demo_controller()` and demo-only identifiers.
 - Added a real `TournamentController` contract test in `src-tauri/src/tournament/mod.rs` that verifies custom deck sequencing without using the demo runtime.
 - Removed dead demo-only test helpers from `src-tauri/src/app_state/mod.rs` after the replacement and revalidated with focused Rust tests plus `cargo clippy -D warnings`.
 
-## 2026-05-05T11:37:13Z - GPT-5.4 - Add second unit-test backlog document
+## 2026-05-05T04:37:13-07:00 - GPT-5.4 - Add second unit-test backlog document
 - Added `docs/UNIT_TEST2_TODO.md` with the next comprehensive unit-test backlog after the mock-only and demo-coupled test audit.
 - Prioritized direct coverage for `src/app/shell.ts`, `src/api/desktop.ts`, `src-tauri/src/commands.rs`, `src-tauri/src/networking/framing.rs`, and additional non-demo `src-tauri/src/app_state/mod.rs` contract tests.
 
-## 2026-05-05T05:11:49-07:00 - GPT-5.4 - Complete second unit-test expansion wave
+## 2026-05-05T05:13:48-07:00 - GPT-5.4 - Expand unit coverage across desktop boundaries
+- Commit `ff3562f198644cd2bedc34cc39b0223bf1bfd187` expanded unit coverage across frontend shell helpers, the Tauri desktop bridge, Rust command and protocol boundaries, and related runtime behavior.
 - Added direct frontend test coverage for shell helpers, the Tauri desktop bridge, hook/provider behavior, `ScreenShell`, and `ReadyRoomScreen` while explicitly deferring low-value prop-to-markup component tests.
 - Added Rust regression coverage for command wrappers, framing, join-payload helpers, canonical serialization, protocol models, and non-demo `DesktopAppState` runtime behavior.
 - Fixed a real reconnect race in `src-tauri/src/networking/runtime.rs` by retrying transient `participant is already connected` reconnect responses during cleanup.
-- Closed out `docs/UNIT_TEST2_TODO.md` with all tasks marked complete or explicitly deferred, then revalidated with `npm run lint`, `npm run test`, `npm run test:geometry`, `cargo test --manifest-path src-tauri/Cargo.toml`, and `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`.
+- Closed out `docs/UNIT_TEST2_TODO.md` with all tasks marked complete or explicitly deferred.
+
+## 2026-05-05T06:37:25-07:00 - GPT-5.4 - Complete INT_TEST2 integration coverage
+- Commit `c2f31a6a4294f66c0e81b292348e68ef64997b97` completed the second integration-test expansion wave across shell, runtime, and networking flows and updated `docs/INT_TEST2_TODO.md` to reflect the finished coverage.
+
+## 2026-05-05T11:47:06-07:00 - GPT-5.4 - Hide current-page host and lobby nav buttons
+- Commit `55998181590d83f120cc959e524084490f706061` hid redundant current-page host and lobby navigation buttons in the shared app frame and updated frame coverage for that navigation behavior.
+
+## 2026-05-06T11:22:07-07:00 - GPT-5.4 - Fix build-blocking test harness regressions
+- Commit `3a624924628eac1d7d8c4e21d98cd8f68c8014f1` fixed build-blocking test harness regressions across the TypeScript test setup, related frontend tests, and repo documentation.
+
+## 2026-05-06T13:03:36-07:00 - GPT-5.4 - Implement real host join lobby sessions
+- Commit `c4cdfd49df8062dc12d533b2ec047948d828bc6e` wired the real host, join, and lobby session path through the Tauri commands, runtime, protocol models, and `REAL_MULTIPLAYER1_TODO` progress tracking.
+
+## 2026-05-06T13:31:26-07:00 - GPT-5.4 - Add live lobby seat ready start flow
+- Commit `1657e3081581011ac960d7768073e53c0b611066` added the live lobby ready/start flow across the backend session state, desktop API surface, and integration coverage.
+
+## 2026-05-06T13:53:44-07:00 - GPT-5.4 - Cut lobby into live table projection
+- Commit `a9391162177aed9e27f366f4dce31e0f97c7bafd` switched the lobby screen over to the live table projection so the lobby reflects runtime-backed seat and table state.
+
+## 2026-05-06T14:49:20-07:00 - GPT-5.4 - Route live table actions through runtime
+- Commit `9314ee44dcb45d5d30af616eddadc3489b934d09` routed live table actions through the runtime-backed session path and updated main-table coverage for the new flow.
+
+## 2026-05-06T15:08:42-07:00 - GPT-5.4 - Remove table route demo fallback
+- Commit `11e9db2e9ce43e0158ad81b37005daaeb8891d55` removed the remaining table-route demo fallback from the desktop runtime path.
+
+## 2026-05-06T15:18:20-07:00 - GPT-5.4 - Lazy init debug table runtime
+- Commit `84c5ffe5027a3509410dded74d9f8a182435e0a2` switched the debug table runtime to lazy initialization so the normal live flow no longer eagerly constructs debug-only state.
+
+## 2026-05-06T15:35:48-07:00 - GPT-5.4 - Auto-join launch invites
+- Commit `592a02f95916d55b7a6fd10d306e737dd0533233` added auto-join behavior for valid launch and deep-link invites and covered the behavior in join and table tests.
+
+## 2026-05-06T16:13:42-07:00 - GPT-5.4 - Surface bootstrap recovery states
+- Commit `ef3694630d7d4ed1ce40a9d862a697748ede60d1` surfaced persisted bootstrap recovery states through the desktop shell, persistence helpers, and recovery-oriented screens.
+
+## 2026-05-06T16:24:27-07:00 - GPT-5.4 - Guard live routes by session state
+- Commit `c5a3893e0d78d3c74500382aa00a6d27b642f5ed` guarded live routes by real session state inside `AppShell` and updated layout coverage around the gated routing behavior.
+
+## 2026-05-06T16:30:22-07:00 - GPT-5.4 - Prevent overlapping live sessions
+- Commit `33dbe5420854dd4e607da814d65bb79e2f0cf592` prevented overlapping live sessions in `DesktopAppState` so a new runtime session cannot silently coexist with a stale one.
+
+## 2026-05-06T16:38:06-07:00 - GPT-5.4 - Validate session mutation guards
+- Commit `48f39c3ffdba9eab1d60648340a670f985d0f48d` tightened and validated session mutation guards around live session updates and added matching table coverage.
+
+## 2026-05-06T16:45:51-07:00 - GPT-5.4 - Tear down live sessions on lobby exit
+- Commit `a652ce648bd3a717c1c1a372e18a0f04c97a6ec0` tore down live sessions when leaving the lobby and covered the exit path in integration tests.
+
+## 2026-05-06T16:51:27-07:00 - GPT-5.4 - Prove fresh host restarts stay idle
+- Commit `18cb15503737de63627015b7827872529d413318` added coverage proving a fresh host restart stays idle instead of inheriting stale live-session state.
+
+## 2026-05-06T18:04:54-07:00 - GPT-5.4 - Protect lobby start from UI-only state
+- Commit `8b7551ada864e862ed716b323084bd4246baafb8` protected lobby start behavior from relying on UI-only state and backed the change with runtime and integration coverage.
+
+## 2026-05-06T18:08:09-07:00 - GPT-5.4 - Add host lobby recovery path
+- Commit `272946fa0aecaf6c6ffbe18775fb33f6c6ce0a79` added the host lobby recovery path so interrupted live sessions can return to the correct lobby state.
+
+## 2026-05-06T18:14:39-07:00 - GPT-5.4 - Add explicit live route guard coverage
+- Commit `1378cc7e67067d50cf6ce7fa007750f430f61ee5` added explicit coverage for the live-route guard behavior across the backend session layer and frontend shell integration tests.
+
+## 2026-05-06T18:29:16-07:00 - GPT-5.4 - Fix host setup integration assertion
+- Commit `9b8f5c1ef204f261b9c8d124197c4698414203d4` fixed a brittle host setup integration assertion after the live-flow routing changes.
+
+## 2026-05-06T18:30:11-07:00 - GPT-5.4 - Check in workspace ignore and lockfile updates
+- Commit `e1e21cdbb53c22e5f79fa8f333ef91bc5b3fbe1a` checked in workspace ignore updates and the corresponding `package-lock.json` refresh.
