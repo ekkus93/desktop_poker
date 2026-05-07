@@ -675,7 +675,7 @@ describe("AppShell integration", () => {
       target: { value: "Invite Finals" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
-    await screen.findByText(/live on 192\.168\.1\.10/i);
+    await screen.findByText(/ready on 192\.168\.1\.10/i);
     fireEvent.click(screen.getByRole("button", { name: "Copy invite" }));
 
     await waitFor(() => {
