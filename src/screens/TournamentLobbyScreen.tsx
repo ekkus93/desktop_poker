@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Clock3, LogOut, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -73,7 +73,13 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const [hostSession, setHostSession] = useState<HostSessionStatus | null>(null);
   const [clientSession, setClientSession] = useState<ClientSessionStatus | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
+  const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const hostSessionRef = useRef<HostSessionStatus | null>(null);
+
+  useEffect(() => {
+    hostSessionRef.current = hostSession;
+  }, [hostSession]);
 
   useEffect(() => {
     let active = true;
@@ -85,12 +91,37 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             return;
           }
 
+          const previousHostSession = hostSessionRef.current;
+
+          if (
+            previousHostSession
+            && previousHostSession.phase !== "running"
+            && !nextHostSession
+            && !nextClientSession
+          ) {
+            setHostRecoveryError(
+              "Hosting stopped before the table went live. Start hosting again or return home.",
+            );
+          } else if (nextHostSession) {
+            setHostRecoveryError(null);
+          }
+
           setHostSession(nextHostSession);
           setClientSession(nextClientSession);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (!active) {
             return;
+          }
+
+          const previousHostSession = hostSessionRef.current;
+
+          if (previousHostSession && previousHostSession.phase !== "running") {
+            setHostRecoveryError(
+              error instanceof Error
+                ? error.message
+                : "Hosting stopped before the table went live. Start hosting again or return home.",
+            );
           }
 
           setHostSession(null);
@@ -147,6 +178,49 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       navigate("/table", { replace: true });
     }
   }, [liveSession?.phase, navigate]);
+
+  if (hostRecoveryError && !liveSession) {
+    return (
+      <ScreenShell
+        title="Lobby"
+        badges={["Host stopped"]}
+      >
+        <div className="content-grid lobby-shell-grid">
+          <section className="section-card lobby-stage-card">
+            <div className="lobby-stage-layout">
+              <div className="lobby-stage-summary">
+                <div className="lobby-table-meta">
+                  <strong className="lobby-table-name">Host stopped</strong>
+                  <span className="field-hint">Recovery required before players can join again.</span>
+                </div>
+                <p className="inline-banner error">{hostRecoveryError}</p>
+                <div className="button-row workstation-actions compact-workstation-actions">
+                  <button
+                    className="primary-button compact-button"
+                    onClick={() => {
+                      navigate("/host", { replace: true });
+                    }}
+                    type="button"
+                  >
+                    Host again
+                  </button>
+                  <button
+                    className="secondary-button compact-button"
+                    onClick={() => {
+                      navigate("/", { replace: true });
+                    }}
+                    type="button"
+                  >
+                    Return home
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </ScreenShell>
+    );
+  }
 
   const claimLiveSeat = async (seatIndex: number) => {
     setSubmitting(true);

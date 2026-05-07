@@ -110,7 +110,7 @@ The work in this file is done only when all of the following are true:
 - [x] Ensure host lobby updates without requiring screen reloads or route resets
 
 ### 4.3 Host shutdown and recovery UX
-- [ ] Add a clear host-side recovery path when the host session fails before play starts
+- [x] Add a clear host-side recovery path when the host session fails before play starts
 - [x] Add a clear host-side teardown path when the host chooses to cancel the session
 - [x] Ensure leaving the host flow does not strand a live listener in the background
 - [x] Ensure a restarted host instance must start a fresh session rather than silently reviving fake/demo state

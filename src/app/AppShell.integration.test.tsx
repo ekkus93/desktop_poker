@@ -596,6 +596,32 @@ describe("AppShell integration", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Lobby" })).toBeTruthy();
   });
 
+  it("shows a host recovery path when the live host session stops before play starts", async () => {
+    currentHostSession = buildHostSessionStatus({
+      tournamentName: "Friday Night",
+      displayName: "Host Alpha",
+    });
+
+    renderAppShell("/lobby");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+
+    currentHostSession = null;
+
+    expect(
+      await screen.findByText(
+        "Hosting stopped before the table went live. Start hosting again or return home.",
+        {},
+        { timeout: 1500 },
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Host again" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();
+  });
+
   it("moves a joined client from the lobby to the table when the live session starts", async () => {
     currentClientSession = buildClientSessionStatus();
     syncLiveSessions(
