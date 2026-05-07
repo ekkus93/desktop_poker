@@ -261,7 +261,7 @@ The work in this file is done only when all of the following are true:
 - [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
 - [x] Add tests for real lobby ready/start propagation across host and client UI projections
 - [ ] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
-- [ ] Add tests proving the UI cannot reach lobby/table routes without a valid live session state
+- [x] Add tests proving the UI cannot reach lobby/table routes without a valid live session state
 
 ### 11.3 End-to-end multi-instance validation
 - [ ] Add a reproducible manual checklist for two local release instances on one machine

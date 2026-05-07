@@ -192,8 +192,14 @@ function syncLiveSessions(participants: NonNullable<typeof currentHostSession>["
   }
 }
 
-function renderAppShell(initialEntry: string, bootstrap = createAppBootstrap()) {
+function renderAppShell(
+  initialEntry: string,
+  bootstrap = createAppBootstrap(),
+  options?: { allowImplicitTableSession?: boolean },
+) {
   if (
+    options?.allowImplicitTableSession !== false
+    &&
     initialEntry === "/table"
     && !currentHostSession
     && !currentClientSession
@@ -755,13 +761,23 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
   });
 
-  it("keeps the lobby readiness badge aligned with the local seat state", async () => {
+  it("keeps the lobby route behind an active live session", async () => {
     renderAppShell("/lobby");
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Lobby" })).toBeNull();
     expect(screen.queryByText("You: Waiting")).toBeNull();
+  });
+
+  it("keeps the table route behind an active live session", async () => {
+    renderAppShell("/table", createAppBootstrap(), { allowImplicitTableSession: false });
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
   });
 
   it("keeps the table route behind an active running session", async () => {

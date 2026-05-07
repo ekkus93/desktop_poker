@@ -3031,34 +3031,37 @@ mod tests {
             .host_start_tournament()
             .expect("host should start the live tournament");
 
-        let host_running_view = (0..20)
-            .find_map(|_| {
-                let next_view = host_state
-                    .table_view(TableViewerMode::Local)
-                    .expect("host running table view before live action");
-                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
-                    Some(next_view)
-                } else {
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                    None
-                }
-            })
-            .expect("host should expose the running table before live action");
-        let client_running_view = (0..20)
-            .find_map(|_| {
-                let next_view = client_state
-                    .table_view(TableViewerMode::Local)
-                    .expect("client running table view before live action");
-                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
-                    Some(next_view)
-                } else {
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                    None
-                }
-            })
-            .expect("client should expose the running table before live action");
+        let running_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let host_running_view = loop {
+            let next_view = host_state
+                .table_view(TableViewerMode::Local)
+                .expect("host running table view before live action");
+            if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
+                break next_view;
+            }
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            assert!(
+                std::time::Instant::now() < running_deadline,
+                "host should expose the running table before live action"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        let client_running_view = loop {
+            let next_view = client_state
+                .table_view(TableViewerMode::Local)
+                .expect("client running table view before live action");
+            if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
+                break next_view;
+            }
+
+            assert!(
+                std::time::Instant::now() < running_deadline,
+                "client should expose the running table before live action"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
         let mut latest_host_view = host_running_view;
         let mut latest_client_view = client_running_view;
         let (acting_state, observing_state, acting_view_before) = loop {
