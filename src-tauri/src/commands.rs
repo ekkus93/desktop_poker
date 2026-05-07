@@ -10,9 +10,9 @@ use tauri::State;
 use crate::{
     app_state::{
         ClaimLobbySeatRequest, ClientSessionStatus, DebugInspectorState, DesktopAppState,
-        DesktopBootstrapState, DesktopTableActionKind, HostSessionStatus,
-        JoinHostSessionRequest, ScreenDescriptor, SetLobbyReadyStateRequest,
-        StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
+        DesktopBootstrapState, DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest,
+        ScreenDescriptor, SetLobbyReadyStateRequest, StartHostSessionRequest, TableViewSnapshot,
+        TableViewerMode,
     },
     domain::JoinPayload,
     networking::resolve_connectable_host_ip,

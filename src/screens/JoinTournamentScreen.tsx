@@ -101,21 +101,22 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   ]);
 
   useEffect(() => {
-    if (!bootstrap.launchJoinPayload || !bootstrap.parsedLaunchJoinPayload) {
+    const launchJoinPayload = bootstrap.launchJoinPayload;
+    if (!launchJoinPayload || !bootstrap.parsedLaunchJoinPayload) {
       return;
     }
 
-    if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
+    if (joinPayloadDraft !== launchJoinPayload) {
       return;
     }
 
-    if (launchJoinAttemptedForPayload.current === bootstrap.launchJoinPayload) {
+    if (launchJoinAttemptedForPayload.current === launchJoinPayload) {
       return;
     }
 
     let cancelled = false;
 
-    launchJoinAttemptedForPayload.current = bootstrap.launchJoinPayload;
+    launchJoinAttemptedForPayload.current = launchJoinPayload;
     setJoining(true);
     setJoinError(null);
     setValidationState({
@@ -125,7 +126,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     setInviteBanner("Joining the attached invite now.");
 
     void joinHostSession({
-      joinPayload: bootstrap.launchJoinPayload,
+      joinPayload: launchJoinPayload,
       displayName,
     })
       .then(() => {
@@ -133,7 +134,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
           return;
         }
 
-        rememberJoinPayload(bootstrap.launchJoinPayload);
+        rememberJoinPayload(launchJoinPayload);
         navigate("/lobby");
       })
       .catch((error: unknown) => {

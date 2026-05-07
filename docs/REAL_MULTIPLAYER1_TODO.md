@@ -4,39 +4,44 @@ This file tracks the work required to remove the remaining demo-backed desktop s
 
 The goal is not to make the UI look more realistic. The goal is to make the release app actually host, join, synchronize, and play real multiplayer poker across multiple desktop instances using the Rust networking/runtime stack as the source of truth.
 
+Audit note:
+
+- Items marked with **Approved by GPT-5.4 (2026-05-07)** were re-reviewed against the current codebase and the full validation gate (`npm run lint`, `npm run test`, `npm run test:geometry`, `npm run build`, `cargo fmt --check`, `cargo clippy`, and `cargo test`).
+- Checked items without that note were not rejected automatically, but they were not fully re-approved in this pass.
+
 ## Product definition of done
 
 The work in this file is done only when all of the following are true:
 
-- [x] A host instance can create a real networked tournament session from the desktop UI
-- [x] A second desktop instance can join that session using a real compact `pkr1_` invite
-- [x] Host and client both see the same authoritative lobby state
-- [x] Seat assignment, ready state, tournament start, and table progression are synchronized across instances
-- [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state
+- [x] A host instance can create a real networked tournament session from the desktop UI _(Approved by GPT-5.4, 2026-05-07)_
+- [x] A second desktop instance can join that session using a real compact `pkr1_` invite _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Host and client both see the same authoritative lobby state _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Seat assignment, ready state, tournament start, and table progression are synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Disconnect, reconnect, and resync work through the live runtime path
 - [ ] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
-- [x] The release app no longer boots or depends on demo-only controller/runtime code in the player flow
+- [x] The release app no longer boots or depends on demo-only controller/runtime code in the player flow _(Approved by GPT-5.4, 2026-05-07)_
 
 ## 1. Demo-code audit and removal map
 
 ### 1.1 Identify every demo-backed runtime entry point
-- [ ] Audit [src-tauri/src/app_state/mod.rs](/home/phil/work/desktop_poker/src-tauri/src/app_state/mod.rs) for `demo_controller()` usage and any helper paths that synthesize fake runtime state
-- [ ] Inventory every Tauri command that currently reads from or writes to demo-only app state rather than the real runtime
-- [ ] Inventory every frontend route that depends on shell-local poker state instead of Rust-projected session state
-- [ ] Inventory any fake participant, seat, table, or history builders still reachable from release builds
-- [ ] Identify which demo helpers can remain as test-only fixtures and which must be deleted outright
+- [x] Audit [src-tauri/src/app_state/mod.rs](/home/phil/work/desktop_poker/src-tauri/src/app_state/mod.rs) for `demo_controller()` usage and any helper paths that synthesize fake runtime state _(Approved by GPT-5.4, 2026-05-07; `demo_controller()` remains only in the debug inspector runtime path, not the release player flow.)_
+- [x] Inventory every Tauri command that currently reads from or writes to demo-only app state rather than the real runtime _(Approved by GPT-5.4, 2026-05-07; live session commands are runtime-backed, while `get_debug_state` remains the debug-only demo surface.)_
+- [x] Inventory every frontend route that depends on shell-local poker state instead of Rust-projected session state _(Approved by GPT-5.4, 2026-05-07; the live lobby fallback bug was fixed in this audit so the lobby no longer renders shell-local participant state.)_
+- [x] Inventory any fake participant, seat, table, or history builders still reachable from release builds _(Approved by GPT-5.4, 2026-05-07; fake table/runtime builders remain in debug/probe/test support, not the normal release player flow.)_
+- [x] Identify which demo helpers can remain as test-only fixtures and which must be deleted outright _(Approved by GPT-5.4, 2026-05-07; the remaining demo runtime helpers should be debug/test-only, while player-flow dependencies are no longer acceptable.)_
 
 ### 1.2 Classify demo code by final disposition
-- [ ] Mark each demo surface as one of: replace, move to tests, dev-only debug, or delete
-- [ ] Separate harmless UI scaffolding from dangerous fake-authority code that must not remain in production flows
-- [ ] Identify any docs or tests that currently encode demo behavior as if it were production behavior
-- [ ] Record explicit removal targets so the cleanup phase can prove nothing user-facing still depends on demo state
+- [x] Mark each demo surface as one of: replace, move to tests, dev-only debug, or delete _(Approved by GPT-5.4, 2026-05-07; release player-flow use is replaced, while debug inspector/probe helpers remain dev-only until the later cleanup phase deletes or isolates them fully.)_
+- [x] Separate harmless UI scaffolding from dangerous fake-authority code that must not remain in production flows _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Identify any docs or tests that currently encode demo behavior as if it were production behavior _(Approved by GPT-5.4, 2026-05-07; this audit updated lobby coverage to assert live-session state instead of shell-local fallback behavior.)_
+- [x] Record explicit removal targets so the cleanup phase can prove nothing user-facing still depends on demo state _(Approved by GPT-5.4, 2026-05-07; remaining targets are the debug `DesktopTableRuntime`/`demo_controller()` path and any probe-only fake runtime builders.)_
 
 ### 1.3 Define cutover constraints
-- [ ] Preserve the Rust-owned authority boundary documented in [docs/DESKTOP_ARCHITECTURE.md](/home/phil/work/desktop_poker/docs/DESKTOP_ARCHITECTURE.md)
-- [ ] Keep multi-instance local execution working on one machine via instance-scoped storage and explicit host ports
-- [ ] Avoid moving authoritative game logic into React state while replacing the shell flow
-- [ ] Ensure the migration path does not temporarily ship a mixed model where some screens are live and others still mutate fake poker state
+- [x] Preserve the Rust-owned authority boundary documented in [docs/DESKTOP_ARCHITECTURE.md](/home/phil/work/desktop_poker/docs/DESKTOP_ARCHITECTURE.md) _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Keep multi-instance local execution working on one machine via instance-scoped storage and explicit host ports _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Avoid moving authoritative game logic into React state while replacing the shell flow _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure the migration path does not temporarily ship a mixed model where some screens are live and others still mutate fake poker state _(Approved by GPT-5.4, 2026-05-07; the lobby fallback bug found in this audit was fixed before approval.)_
 
 ---
 
@@ -46,13 +51,13 @@ The work in this file is done only when all of the following are true:
 - [ ] Replace the current demo-backed `DesktopTableRuntime` boot model with a session model that can represent: idle, hosting, joining, connected lobby, active table, reconnecting, completed, and fatal error states
 - [ ] Define a Rust-side session container that can hold the active `HostServer`, active `ClientRuntime`, host/client identity metadata, and the current projected tournament state
 - [ ] Decide which session data is authoritative, which is cached projection, and which is UI convenience metadata
-- [x] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently
+- [x] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 2.2 Remove fake bootstrap assumptions
-- [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()`
-- [x] Ensure bootstrap can represent a clean idle app with no active tournament session
-- [x] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form
-- [x] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption
+- [x] Change bootstrap detection so release startup does not synthesize a live table via `demo_controller()` _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure bootstrap can represent a clean idle app with no active tournament session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure launch-time join payload handling feeds the real join flow rather than only pre-populating a form _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 2.3 Define session projection models for the UI
 - [ ] Replace ad hoc shell-local lobby/table derivation with Rust-projected view models for lobby participants, ready state, host controls, local seat, connection state, and table view
@@ -65,29 +70,29 @@ The work in this file is done only when all of the following are true:
 ## 3. Add real Tauri commands for session lifecycle
 
 ### 3.1 Host lifecycle commands
-- [x] Add a command to start a real host session using `HostServer::bind` and the current host setup draft
-- [x] Validate host bind address, advertised LAN address, port selection, table identity, and join token generation in the host command path
-- [x] Return the live encoded invite from the running host session rather than a detached helper-generated payload
-- [x] Add a command to stop/tear down a host session cleanly
-- [x] Add a command to query the active host session status after startup, error, or reconnect events
+- [x] Add a command to start a real host session using `HostServer::bind` and the current host setup draft _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Validate host bind address, advertised LAN address, port selection, table identity, and join token generation in the host command path _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Return the live encoded invite from the running host session rather than a detached helper-generated payload _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add a command to stop/tear down a host session cleanly _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add a command to query the active host session status after startup, error, or reconnect events _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 3.2 Client lifecycle commands
-- [x] Add a command to join a real host session using `ClientRuntime::connect`
-- [x] Ensure join commands generate and store a stable local player identity and reconnect material for that session
-- [x] Add a command to disconnect/leave a live client session safely
-- [x] Add a command to query active client session status and last known connection state
-- [x] Ensure launch-time `--join-payload` and manual join use the same validated command path
+- [x] Add a command to join a real host session using `ClientRuntime::connect` _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure join commands generate and store a stable local player identity and reconnect material for that session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add a command to disconnect/leave a live client session safely _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add a command to query active client session status and last known connection state _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure launch-time `--join-payload` and manual join use the same validated command path _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 3.3 Session event and projection commands
 - [ ] Add commands to fetch the current authoritative/projection snapshot for the active session
-- [x] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority
-- [x] Add commands to submit live table actions through the real tournament/runtime path
+- [x] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add commands to submit live table actions through the real tournament/runtime path _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Add commands or event subscriptions for reconnecting, disconnected, fatal error, and resync-required states
 - [ ] Ensure command responses are typed and structured so the frontend can render exact causes instead of generic failure text
 
 ### 3.4 App-state mutation safety
-- [x] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission
-- [x] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported
+- [x] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Ensure teardown clears only the correct session-scoped data and does not destroy unrelated instance persistence
 - [ ] Add locking/state-transition rules so Tauri commands cannot race each other into inconsistent session state
 
@@ -96,41 +101,41 @@ The work in this file is done only when all of the following are true:
 ## 4. Wire the real host flow through the frontend
 
 ### 4.1 Host setup screen
-- [x] Keep host draft editing local, but route host creation through the new Rust start-host command
-- [x] Replace any fake “continue to lobby” behavior with a real “host session started” transition
-- [x] Surface actual bind/listener/invite data from the running host session
-- [x] Show actionable errors for LAN IP resolution failure, port conflicts, or invalid host config
-- [x] Ensure the copied invite always comes from the running host session and matches the actual listener state
+- [x] Keep host draft editing local, but route host creation through the new Rust start-host command _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Replace any fake “continue to lobby” behavior with a real “host session started” transition _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Surface actual bind/listener/invite data from the running host session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Show actionable errors for LAN IP resolution failure, port conflicts, or invalid host config _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure the copied invite always comes from the running host session and matches the actual listener state _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 4.2 Host lobby behavior
-- [x] Replace shell-local participant rendering with live participant/session projection data from Rust
-- [x] Replace any fake ready/seat status with real participant admission, seat assignment, and ready state from the session
-- [x] Enable the host-only start control only when the authoritative runtime says starting is allowed
-- [x] Show host-visible connection state for joined players, including disconnect/reconnect eligibility
-- [x] Ensure host lobby updates without requiring screen reloads or route resets
+- [x] Replace shell-local participant rendering with live participant/session projection data from Rust _(Approved by GPT-5.4, 2026-05-07; this audit fixed the remaining lobby fallback bug before approval.)_
+- [x] Replace any fake ready/seat status with real participant admission, seat assignment, and ready state from the session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Enable the host-only start control only when the authoritative runtime says starting is allowed _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Show host-visible connection state for joined players, including disconnect/reconnect eligibility _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure host lobby updates without requiring screen reloads or route resets _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 4.3 Host shutdown and recovery UX
-- [x] Add a clear host-side recovery path when the host session fails before play starts
-- [x] Add a clear host-side teardown path when the host chooses to cancel the session
-- [x] Ensure leaving the host flow does not strand a live listener in the background
-- [x] Ensure a restarted host instance must start a fresh session rather than silently reviving fake/demo state
+- [x] Add a clear host-side recovery path when the host session fails before play starts _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add a clear host-side teardown path when the host chooses to cancel the session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure leaving the host flow does not strand a live listener in the background _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure a restarted host instance must start a fresh session rather than silently reviving fake/demo state _(Approved by GPT-5.4, 2026-05-07)_
 
 ---
 
 ## 5. Wire the real join flow through the frontend
 
 ### 5.1 Join screen
-- [x] Keep invite parsing and validation on the join screen, but route actual joining through the real Rust join-session command
+- [x] Keep invite parsing and validation on the join screen, but route actual joining through the real Rust join-session command _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Distinguish between invite format errors, host unreachable errors, join rejection errors, and reconnect-related errors
-- [x] Persist recent valid invites only after successful validation/join policy decisions
-- [x] Ensure launch-payload boot flows can join directly when appropriate instead of stopping at review-only shell state
+- [x] Persist recent valid invites only after successful validation/join policy decisions _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure launch-payload boot flows can join directly when appropriate instead of stopping at review-only shell state _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 5.2 Client lobby behavior
-- [x] Replace shell-local client lobby state with real session projections from Rust
-- [x] Show the client’s actual admission, seat, ready, and connection status
-- [x] Reflect host and peer participant changes in near real time
-- [x] Route to the table only when the live session transitions, not when local UI assumptions say it should
-- [x] Ensure a failed join cannot leave partial client session state behind
+- [x] Replace shell-local client lobby state with real session projections from Rust _(Approved by GPT-5.4, 2026-05-07; this audit fixed the last shell-local lobby fallback before approval.)_
+- [x] Show the client’s actual admission, seat, ready, and connection status _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Reflect host and peer participant changes in near real time _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Route to the table only when the live session transitions, not when local UI assumptions say it should _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure a failed join cannot leave partial client session state behind _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 5.3 Client disconnect and retry UX
 - [ ] Surface explicit reconnecting state when the runtime emits reconnect events
@@ -143,38 +148,38 @@ The work in this file is done only when all of the following are true:
 ## 6. Implement real lobby actions and transitions
 
 ### 6.1 Admission and seat selection
-- [x] Decide whether admission is automatic on join or requires explicit host approval in v1, then implement only that real rule
-- [x] Replace local seat toggles with Rust-owned seat selection/assignment commands
+- [x] Decide whether admission is automatic on join or requires explicit host approval in v1, then implement only that real rule _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Replace local seat toggles with Rust-owned seat selection/assignment commands _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Enforce seat conflicts, seat release, and host/client visibility through the authoritative state model
 - [ ] Ensure observers, eliminated players, and active participants are represented distinctly in the lobby and session state
 
 ### 6.2 Ready-state flow
-- [x] Route ready toggles through Rust-owned validation and session mutation
-- [x] Broadcast ready-state changes to all participants via the live runtime path
-- [x] Remove the hardcoded nonfunctional lobby start path such as `canStart = false`
-- [x] Define and enforce the exact rules for when the host may start the tournament
+- [x] Route ready toggles through Rust-owned validation and session mutation _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Broadcast ready-state changes to all participants via the live runtime path _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Remove the hardcoded nonfunctional lobby start path such as `canStart = false` _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Define and enforce the exact rules for when the host may start the tournament _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 6.3 Tournament start cutover
-- [x] Implement a real host start-tournament action that advances the authoritative session out of waiting/ready-check into live play
-- [x] Ensure both host and clients transition from lobby to main table based on the same runtime event/snapshot
-- [x] Ensure any late/duplicate start requests are rejected safely
-- [x] Ensure start failure rolls back cleanly or leaves the lobby in a consistent state with a real error
+- [x] Implement a real host start-tournament action that advances the authoritative session out of waiting/ready-check into live play _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure both host and clients transition from lobby to main table based on the same runtime event/snapshot _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure any late/duplicate start requests are rejected safely _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure start failure rolls back cleanly or leaves the lobby in a consistent state with a real error _(Approved by GPT-5.4, 2026-05-07)_
 
 ---
 
 ## 7. Drive the main table from the live runtime
 
 ### 7.1 Table projection replacement
-- [x] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state
-- [x] Ensure the local player sees only allowed private information while all participants share the same public state
-- [x] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority
-- [x] Remove any fake sample hand/feed/history data from release table routes
+- [x] Replace any demo/local table view generation in the player path with real projections sourced from the live authoritative state _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure the local player sees only allowed private information while all participants share the same public state _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure action ownership, turn timers if present, stacks, pot, board, and elimination state are all derived from Rust authority _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Remove any fake sample hand/feed/history data from release table routes _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 7.2 Table action submission
-- [x] Route fold, call, check, bet, raise, and any other supported actions through Rust-owned validation and mutation
-- [x] Ensure invalid or stale actions are rejected by Rust and surfaced clearly in the UI
-- [x] Ensure successful actions produce synchronized updates across host and all clients
-- [x] Ensure the host does not get a special fake shortcut path that bypasses the same authority used by clients
+- [x] Route fold, call, check, bet, raise, and any other supported actions through Rust-owned validation and mutation _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure invalid or stale actions are rejected by Rust and surfaced clearly in the UI _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure successful actions produce synchronized updates across host and all clients _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ensure the host does not get a special fake shortcut path that bypasses the same authority used by clients _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 7.3 Event application and refresh model
 - [ ] Decide whether the frontend will poll snapshots, subscribe to Tauri events, or use a hybrid model for session updates
@@ -251,17 +256,17 @@ The work in this file is done only when all of the following are true:
 ## 11. Expand automated coverage for real multiplayer behavior
 
 ### 11.1 Rust runtime/session tests
-- [x] Add or update Rust tests to cover the new app-state session container and state transitions
+- [x] Add or update Rust tests to cover the new app-state session container and state transitions _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Add host lifecycle tests for start, stop, bind failure, and host recovery
 - [ ] Add client lifecycle tests for join, disconnect, reconnect, and teardown
-- [x] Add tests proving lobby mutations and start flow update the authoritative state correctly
+- [x] Add tests proving lobby mutations and start flow update the authoritative state correctly _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 11.2 Frontend integration tests
-- [x] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx)
+- [x] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx) _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
-- [x] Add tests for real lobby ready/start propagation across host and client UI projections
+- [x] Add tests for real lobby ready/start propagation across host and client UI projections _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
-- [x] Add tests proving the UI cannot reach lobby/table routes without a valid live session state
+- [x] Add tests proving the UI cannot reach lobby/table routes without a valid live session state _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 11.3 End-to-end multi-instance validation
 - [ ] Add a reproducible manual checklist for two local release instances on one machine
@@ -271,9 +276,9 @@ The work in this file is done only when all of the following are true:
 - [ ] Verify host shutdown behavior and client-visible failure handling
 
 ### 11.4 Regression coverage for demo removal
-- [x] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths
-- [x] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority
-- [x] Add tests that fail if the table view can be constructed without an active session container
+- [x] Add tests that fail if release bootstrap reintroduces `demo_controller()` or equivalent fake runtime boot paths _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add tests that fail if lobby start becomes a UI-only toggle detached from Rust authority _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Add tests that fail if the table view can be constructed without an active session container _(Approved by GPT-5.4, 2026-05-07)_
 
 ---
 
@@ -292,10 +297,10 @@ The work in this file is done only when all of the following are true:
 - [ ] Document known limitations honestly if any multiplayer behaviors remain intentionally unsupported after this phase
 
 ### 12.3 Final acceptance checklist
-- [x] Host can create a tournament from the UI and obtain a real invite from the running session
-- [x] Client can join from the UI using that invite and enter the same authoritative lobby
-- [x] Ready/start works across instances
-- [x] Main table play is synchronized across instances
+- [x] Host can create a tournament from the UI and obtain a real invite from the running session _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Client can join from the UI using that invite and enter the same authoritative lobby _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Ready/start works across instances _(Approved by GPT-5.4, 2026-05-07)_
+- [x] Main table play is synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Reconnect/resync works or fails safely according to documented behavior
 - [ ] Demo-backed release player flow has been removed
 

@@ -3,6 +3,7 @@ import "../App.css";
 import type {
   DebugInspectorState,
   DesktopBootstrapState,
+  HostSessionStatus,
   JoinPayload,
   TableViewSnapshot,
 } from "../api/desktop";
@@ -287,10 +288,46 @@ function createDenseProbeTableView(): TableViewSnapshot {
 function installBrowserMocks(bootstrap: DesktopBootstrapState, surface: ProbeSurface) {
   const joinPayload = createProbeJoinPayload();
   const tableView = surface === "table-dense" ? createDenseProbeTableView() : createProbeTableView();
+  const hostSession: HostSessionStatus | null = surface === "lobby"
+    ? {
+        tournamentName: "Friday Finals",
+        tableName: "Main Table",
+        tableId: "layout-probe-table",
+        sessionEpoch: 1,
+        advertisedHost: "192.168.1.10",
+        hostPort: 43818,
+        invite: "pkr1_layout_probe_invite",
+        phase: "waitingForPlayers",
+        activeSeatCount: 2,
+        openSeatCount: 8,
+        participants: [
+          {
+            playerId: "local-player",
+            displayName: "Player layout-probe",
+            seatIndex: 0,
+            isHost: true,
+            isReady: false,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+          {
+            playerId: "player-b",
+            displayName: "Maya",
+            seatIndex: 1,
+            isHost: false,
+            isReady: false,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+        ],
+      }
+    : null;
   const noopUnsubscribe = async () => () => {};
 
   window.__DESKTOP_POKER_BROWSER_MOCKS__ = {
     fetchBootstrapState: async () => bootstrap,
+    getClientSessionStatus: async () => null,
+    getHostSessionStatus: async () => hostSession,
     subscribeBootstrap: noopUnsubscribe,
     resolveHostLanAddress: async () => "192.168.1.10",
     validateJoinPayloadInput: async () => joinPayload,

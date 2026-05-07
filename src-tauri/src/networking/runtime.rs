@@ -30,9 +30,9 @@ use crate::{
         decode_join_payload, encode_join_payload, join_request_envelope, validate_join_payload,
         EncryptedPrivateEnvelope, JoinTournamentRequest, JsonSignedEnvelope,
         PlayerActionSubmission, PrivateEnvelopeMetadata, PrivateHoleCardsEvent,
-        ProtocolErrorMessage, ProtocolMessageType, ReadyStateRequest,
-        ReconnectTournamentRequest, ResyncRequest, SeatClaimRequest, SignedEnvelope,
-        SnapshotEvent, TournamentStartedEvent, PROTOCOL_VERSION,
+        ProtocolErrorMessage, ProtocolMessageType, ReadyStateRequest, ReconnectTournamentRequest,
+        ResyncRequest, SeatClaimRequest, SignedEnvelope, SnapshotEvent, TournamentStartedEvent,
+        PROTOCOL_VERSION,
     },
     tournament::{ActionRequest, RegisteredPlayer, TournamentController},
 };
@@ -261,74 +261,74 @@ impl HostServer {
                 })?
         };
 
-            let tick_thread = {
-                let authoritative_state = Arc::clone(&authoritative_state);
-                let tournament_runtime = Arc::clone(&tournament_runtime);
-                let clients = Arc::clone(&clients);
-                let stop_signal = Arc::clone(&stop_signal);
-                let server_sequence = Arc::clone(&server_sequence);
-                let host_signing_keys = Arc::clone(&config.host_signing_keys);
-                let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
-                let join_payload = join_payload.clone();
+        let tick_thread = {
+            let authoritative_state = Arc::clone(&authoritative_state);
+            let tournament_runtime = Arc::clone(&tournament_runtime);
+            let clients = Arc::clone(&clients);
+            let stop_signal = Arc::clone(&stop_signal);
+            let server_sequence = Arc::clone(&server_sequence);
+            let host_signing_keys = Arc::clone(&config.host_signing_keys);
+            let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
+            let join_payload = join_payload.clone();
 
-                thread::Builder::new()
-                    .name("desktop-poker-host-tick".to_string())
-                    .spawn(move || {
-                        while !stop_signal.load(Ordering::SeqCst) {
-                            let next_state = {
-                                let mut runtime = match tournament_runtime.lock() {
-                                    Ok(runtime) => runtime,
-                                    Err(_) => break,
-                                };
-
-                                let Some(controller) = runtime.as_mut() else {
-                                    thread::sleep(Duration::from_millis(50));
-                                    continue;
-                                };
-
-                                let before = controller.state().clone();
-                                if controller.advance_time(now_epoch_ms()).is_err() {
-                                    thread::sleep(Duration::from_millis(50));
-                                    continue;
-                                }
-
-                                let after = controller.state().clone();
-                                (after != before).then_some(after)
+            thread::Builder::new()
+                .name("desktop-poker-host-tick".to_string())
+                .spawn(move || {
+                    while !stop_signal.load(Ordering::SeqCst) {
+                        let next_state = {
+                            let mut runtime = match tournament_runtime.lock() {
+                                Ok(runtime) => runtime,
+                                Err(_) => break,
                             };
 
-                            if let Some(state) = next_state {
-                                let _ = authoritative_state.lock().map(|mut authoritative| {
-                                    *authoritative = state;
-                                });
-                                let _ = sync_host_client_snapshots(
-                                    &join_payload,
-                                    &authoritative_state,
-                                    &clients,
-                                    &server_sequence,
-                                    &host_signing_keys,
-                                    &host_encryption_keys,
-                                );
+                            let Some(controller) = runtime.as_mut() else {
+                                thread::sleep(Duration::from_millis(50));
+                                continue;
+                            };
+
+                            let before = controller.state().clone();
+                            if controller.advance_time(now_epoch_ms()).is_err() {
+                                thread::sleep(Duration::from_millis(50));
+                                continue;
                             }
 
-                            thread::sleep(Duration::from_millis(50));
+                            let after = controller.state().clone();
+                            (after != before).then_some(after)
+                        };
+
+                        if let Some(state) = next_state {
+                            let _ = authoritative_state.lock().map(|mut authoritative| {
+                                *authoritative = state;
+                            });
+                            let _ = sync_host_client_snapshots(
+                                &join_payload,
+                                &authoritative_state,
+                                &clients,
+                                &server_sequence,
+                                &host_signing_keys,
+                                &host_encryption_keys,
+                            );
                         }
-                    })
-                    .map_err(|error| {
-                        NetworkingError::new(format!("failed to start host tick loop: {error}"))
-                    })?
-            };
+
+                        thread::sleep(Duration::from_millis(50));
+                    }
+                })
+                .map_err(|error| {
+                    NetworkingError::new(format!("failed to start host tick loop: {error}"))
+                })?
+        };
 
         Ok(Self {
             listener_addr,
             join_payload,
             encoded_join_payload,
             authoritative_state,
-                tournament_runtime,
+            tournament_runtime,
             clients,
             server_sequence,
             stop_signal,
             accept_thread: Some(accept_thread),
-                tick_thread: Some(tick_thread),
+            tick_thread: Some(tick_thread),
             host_signing_keys: config.host_signing_keys,
             host_encryption_keys: config.host_encryption_keys,
         })
@@ -402,7 +402,8 @@ impl HostServer {
     }
 
     pub fn start_tournament(&self) -> Result<(), NetworkingError> {
-        let controller = self.authoritative_state
+        let controller = self
+            .authoritative_state
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
             .and_then(|mut state| apply_start_tournament(&mut state))?;
@@ -757,11 +758,10 @@ impl ClientRuntime {
         )?;
         let snapshot_event = snapshot_envelope.payload.clone();
         let snapshot_sequence = snapshot_envelope.server_sequence;
-        let stream_handle = Arc::new(Mutex::new(
-            stream
-                .try_clone()
-                .map_err(|error| NetworkingError::new(format!("failed to clone stream: {error}")))?,
-        ));
+        let stream_handle =
+            Arc::new(Mutex::new(stream.try_clone().map_err(|error| {
+                NetworkingError::new(format!("failed to clone stream: {error}"))
+            })?));
         let command_connection = Arc::new(Mutex::new(ClientCommandConnection {
             player_id: player_id.clone(),
             table_id: join_payload.table_id.clone(),
@@ -810,8 +810,10 @@ impl ClientRuntime {
                         ) {
                             Ok((reconnected_stream, snapshot_envelope)) => {
                                 if let Ok(cloned_stream) = reconnected_stream.try_clone() {
-                                    if let Ok(mut connection) = command_connection_for_thread.lock() {
-                                        connection.stream = Some(Arc::new(Mutex::new(cloned_stream)));
+                                    if let Ok(mut connection) = command_connection_for_thread.lock()
+                                    {
+                                        connection.stream =
+                                            Some(Arc::new(Mutex::new(cloned_stream)));
                                     }
                                 }
                                 stream = reconnected_stream;
@@ -1033,10 +1035,9 @@ impl ClientRuntime {
                         last_seen_server_sequence = envelope.server_sequence;
 
                         if envelope.message_type == ProtocolMessageType::ProtocolError {
-                            let protocol_error = serde_json::from_value::<ProtocolErrorMessage>(
-                                envelope.payload,
-                            )
-                            .map_err(|error| error.to_string());
+                            let protocol_error =
+                                serde_json::from_value::<ProtocolErrorMessage>(envelope.payload)
+                                    .map_err(|error| error.to_string());
 
                             match protocol_error {
                                 Ok(message) => {
@@ -1156,11 +1157,9 @@ impl ClientRuntime {
                 .command_connection
                 .lock()
                 .map_err(|_| NetworkingError::new("client command connection lock poisoned"))?;
-            let stream_handle = connection
-                .stream
-                .as_ref()
-                .cloned()
-                .ok_or_else(|| NetworkingError::new("client is not currently connected to the host"))?;
+            let stream_handle = connection.stream.as_ref().cloned().ok_or_else(|| {
+                NetworkingError::new("client is not currently connected to the host")
+            })?;
             let counter = connection.next_counter;
             connection.next_counter += 1;
             (
@@ -1983,7 +1982,9 @@ fn apply_ready_state(
         .ok_or_else(|| NetworkingError::new("participant seat is out of range"))?;
 
     if seat.participant_id.as_deref() != Some(player_id) {
-        return Err(NetworkingError::new("seat ownership does not match the participant"));
+        return Err(NetworkingError::new(
+            "seat ownership does not match the participant",
+        ));
     }
 
     seat.is_ready = is_ready;
@@ -1999,15 +2000,20 @@ fn apply_ready_state(
 fn ensure_lobby_phase(phase: TournamentPhase) -> Result<(), NetworkingError> {
     match phase {
         TournamentPhase::WaitingForPlayers | TournamentPhase::ReadyCheck => Ok(()),
-        TournamentPhase::Running => Err(NetworkingError::new("lobby actions are unavailable after the tournament starts")),
-        TournamentPhase::Complete | TournamentPhase::Cancelled => {
-            Err(NetworkingError::new("lobby actions are unavailable for closed sessions"))
-        }
+        TournamentPhase::Running => Err(NetworkingError::new(
+            "lobby actions are unavailable after the tournament starts",
+        )),
+        TournamentPhase::Complete | TournamentPhase::Cancelled => Err(NetworkingError::new(
+            "lobby actions are unavailable for closed sessions",
+        )),
     }
 }
 
 fn recompute_lobby_phase(state: &mut TournamentState) {
-    if !matches!(state.phase, TournamentPhase::WaitingForPlayers | TournamentPhase::ReadyCheck) {
+    if !matches!(
+        state.phase,
+        TournamentPhase::WaitingForPlayers | TournamentPhase::ReadyCheck
+    ) {
         return;
     }
 
@@ -2025,7 +2031,9 @@ fn recompute_lobby_phase(state: &mut TournamentState) {
     };
 }
 
-fn apply_start_tournament(state: &mut TournamentState) -> Result<TournamentController, NetworkingError> {
+fn apply_start_tournament(
+    state: &mut TournamentState,
+) -> Result<TournamentController, NetworkingError> {
     ensure_lobby_phase(state.phase)?;
     ensure_lobby_seat_map(state);
 
@@ -2039,9 +2047,9 @@ fn apply_start_tournament(state: &mut TournamentState) -> Result<TournamentContr
                 .participant_id
                 .as_ref()
                 .ok_or_else(|| NetworkingError::new("occupied seat is missing a participant id"))?;
-            let participant = original_participants
-                .get(participant_id)
-                .ok_or_else(|| NetworkingError::new("occupied seat references an unknown participant"))?;
+            let participant = original_participants.get(participant_id).ok_or_else(|| {
+                NetworkingError::new("occupied seat references an unknown participant")
+            })?;
 
             Ok(RegisteredPlayer {
                 identity: participant.identity.clone(),
@@ -2070,7 +2078,9 @@ fn apply_start_tournament(state: &mut TournamentState) -> Result<TournamentContr
             next_participant.reconnect_token = original_participant.reconnect_token;
             next_participant.reconnect_expiry_ms = original_participant.reconnect_expiry_ms;
         } else if original_participant.state == ParticipantState::Admitted {
-            next_state.participants.insert(player_id, original_participant);
+            next_state
+                .participants
+                .insert(player_id, original_participant);
         }
     }
 
@@ -2672,7 +2682,10 @@ mod tests {
                 }
             }
 
-            assert!(Instant::now() < deadline, "expected public event before timeout");
+            assert!(
+                Instant::now() < deadline,
+                "expected public event before timeout"
+            );
         }
     }
 
@@ -2692,7 +2705,10 @@ mod tests {
                 }
             }
 
-            assert!(Instant::now() < deadline, "expected matching snapshot before timeout");
+            assert!(
+                Instant::now() < deadline,
+                "expected matching snapshot before timeout"
+            );
         }
     }
 
@@ -3240,7 +3256,10 @@ mod tests {
                 .and_then(|participant| participant.seat_index)
                 == Some(1)
         });
-        assert_eq!(alice_seated.state.state.phase, TournamentPhase::WaitingForPlayers);
+        assert_eq!(
+            alice_seated.state.state.phase,
+            TournamentPhase::WaitingForPlayers
+        );
 
         bob.claim_seat(2).expect("bob should claim a seat");
         let host_view_after_bob = expect_snapshot_where(&alice, |snapshot| {
@@ -3261,8 +3280,14 @@ mod tests {
                 .and_then(|participant| participant.seat_index)
                 == Some(2)
         });
-        assert_eq!(host_view_after_bob.state.state.phase, TournamentPhase::WaitingForPlayers);
-        assert_eq!(bob_view_after_claim.state.state.phase, TournamentPhase::WaitingForPlayers);
+        assert_eq!(
+            host_view_after_bob.state.state.phase,
+            TournamentPhase::WaitingForPlayers
+        );
+        assert_eq!(
+            bob_view_after_claim.state.state.phase,
+            TournamentPhase::WaitingForPlayers
+        );
 
         alice
             .set_ready_state(true)
@@ -3285,8 +3310,14 @@ mod tests {
                 .find(|seat| seat.seat_index == 1)
                 .is_some_and(|seat| seat.is_ready)
         });
-        assert_eq!(alice_ready.state.state.phase, TournamentPhase::WaitingForPlayers);
-        assert_eq!(bob_sees_alice_ready.state.state.phase, TournamentPhase::WaitingForPlayers);
+        assert_eq!(
+            alice_ready.state.state.phase,
+            TournamentPhase::WaitingForPlayers
+        );
+        assert_eq!(
+            bob_sees_alice_ready.state.state.phase,
+            TournamentPhase::WaitingForPlayers
+        );
 
         bob.set_ready_state(true).expect("bob should toggle ready");
         let alice_ready_check = expect_snapshot_where(&alice, |snapshot| {
@@ -3295,8 +3326,14 @@ mod tests {
         let bob_ready_check = expect_snapshot_where(&bob, |snapshot| {
             snapshot.state.state.phase == TournamentPhase::ReadyCheck
         });
-        assert_eq!(alice_ready_check.state.state.phase, TournamentPhase::ReadyCheck);
-        assert_eq!(bob_ready_check.state.state.phase, TournamentPhase::ReadyCheck);
+        assert_eq!(
+            alice_ready_check.state.state.phase,
+            TournamentPhase::ReadyCheck
+        );
+        assert_eq!(
+            bob_ready_check.state.state.phase,
+            TournamentPhase::ReadyCheck
+        );
 
         let host_state = host.authoritative_state().expect("host state");
         assert_eq!(host_state.phase, TournamentPhase::ReadyCheck);
@@ -3388,7 +3425,8 @@ mod tests {
             snapshot.state.state.phase == TournamentPhase::ReadyCheck
         });
 
-        host.start_tournament().expect("host should start the tournament");
+        host.start_tournament()
+            .expect("host should start the tournament");
         let _ = assert_public_event(&alice, ProtocolMessageType::TournamentStartedEvent);
         let alice_running = expect_snapshot_where(&alice, |snapshot| {
             snapshot.state.state.phase == TournamentPhase::Running
@@ -3487,7 +3525,8 @@ mod tests {
             snapshot.state.state.phase == TournamentPhase::ReadyCheck
         });
 
-        host.start_tournament().expect("host should start the tournament");
+        host.start_tournament()
+            .expect("host should start the tournament");
         let alice_running = expect_snapshot_where(&alice, |snapshot| {
             snapshot.state.state.phase == TournamentPhase::Running
                 && snapshot.state.state.current_hand.is_some()
@@ -3510,7 +3549,9 @@ mod tests {
             (&bob, &alice)
         };
         wait_for_client_command_connection(acting_client);
-        let action_type = if action_window.legal_actions.contains(&crate::domain::ActionType::Check)
+        let action_type = if action_window
+            .legal_actions
+            .contains(&crate::domain::ActionType::Check)
         {
             crate::domain::ActionType::Check
         } else {
@@ -3547,8 +3588,14 @@ mod tests {
                 != Some(action_window.action_window_id.as_str())
         });
 
-        assert_eq!(actor_after_action.state.state.phase, TournamentPhase::Running);
-        assert_eq!(watcher_after_action.state.state.phase, TournamentPhase::Running);
+        assert_eq!(
+            actor_after_action.state.state.phase,
+            TournamentPhase::Running
+        );
+        assert_eq!(
+            watcher_after_action.state.state.phase,
+            TournamentPhase::Running
+        );
         assert_ne!(
             actor_after_action
                 .state

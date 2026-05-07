@@ -11,15 +11,11 @@ pub mod tournament;
 
 use app_state::DesktopAppState;
 use commands::{
-    client_claim_lobby_seat,
-    client_set_lobby_ready_state,
-    create_host_invite,
-    get_client_session_status,
-    get_host_session_status,
-    get_bootstrap_state, get_debug_state, get_table_view, launch_additional_client_instance,
-    host_claim_lobby_seat, host_set_lobby_ready_state, host_start_tournament,
-    join_host_session, leave_client_session, list_screen_catalog, resolve_host_lan_address,
-    start_host_session, stop_host_session, submit_table_action,
+    client_claim_lobby_seat, client_set_lobby_ready_state, create_host_invite, get_bootstrap_state,
+    get_client_session_status, get_debug_state, get_host_session_status, get_table_view,
+    host_claim_lobby_seat, host_set_lobby_ready_state, host_start_tournament, join_host_session,
+    launch_additional_client_instance, leave_client_session, list_screen_catalog,
+    resolve_host_lan_address, start_host_session, stop_host_session, submit_table_action,
     validate_join_payload_input,
 };
 use tauri::Emitter;

@@ -450,7 +450,12 @@ impl DesktopClientSession {
             resolve_action_request(&current_window, action_kind, raise_to_amount)?;
         self.last_error = None;
         let prior_action_window_id = current_window.action_window_id.clone();
-        let prior_hand_number = self.latest_snapshot.state.current_hand.as_ref().map(|hand| hand.hand_number);
+        let prior_hand_number = self
+            .latest_snapshot
+            .state
+            .current_hand
+            .as_ref()
+            .map(|hand| hand.hand_number);
         self.runtime
             .submit_action(
                 current_window.action_window_id,
@@ -521,7 +526,10 @@ impl DesktopClientSession {
         }
     }
 
-    fn claim_lobby_seat(&mut self, request: ClaimLobbySeatRequest) -> Result<ClientSessionStatus, String> {
+    fn claim_lobby_seat(
+        &mut self,
+        request: ClaimLobbySeatRequest,
+    ) -> Result<ClientSessionStatus, String> {
         self.last_error = None;
         self.runtime
             .claim_seat(request.seat_index)
@@ -578,11 +586,7 @@ impl DesktopClientSession {
         Ok(self.status())
     }
 
-    fn await_condition(
-        &mut self,
-        timeout: Duration,
-        predicate: impl Fn(&Self) -> bool,
-    ) {
+    fn await_condition(&mut self, timeout: Duration, predicate: impl Fn(&Self) -> bool) {
         let deadline = Instant::now() + timeout;
         while Instant::now() < deadline {
             self.refresh();
@@ -1023,7 +1027,8 @@ impl DesktopAppState {
             return Err("leave the active client session before joining another table".to_string());
         }
 
-        let join_payload = protocol::decode_join_payload(payload).map_err(|error| error.to_string())?;
+        let join_payload =
+            protocol::decode_join_payload(payload).map_err(|error| error.to_string())?;
         let provider = crypto::DefaultCryptoProvider;
         let runtime = networking::ClientRuntime::connect(networking::ClientRuntimeConfig {
             join_payload: payload.to_string(),
@@ -1957,7 +1962,12 @@ fn build_table_view_snapshot(
             "Observer mode uses the public projector only: no private hole cards and no actions."
                 .to_string()
         }),
-        seats: build_table_seats_for_state(state, viewer_mode, local_player_id, &private_projection)?,
+        seats: build_table_seats_for_state(
+            state,
+            viewer_mode,
+            local_player_id,
+            &private_projection,
+        )?,
         standings: build_table_standings_for_state(state, local_player_id),
         hand_history: build_table_history_for_state(state),
         event_feed,
@@ -2098,7 +2108,8 @@ fn build_table_seats_for_state(
                     .and_then(|hand| hand.action_window.as_ref())
                     .is_some_and(|window| window.player_id == player_id),
                 is_observer: participant.state == domain::ParticipantState::EliminatedObserver,
-                is_eliminated: seat.tournament_state == domain::TournamentSeatState::EliminatedObserver,
+                is_eliminated: seat.tournament_state
+                    == domain::TournamentSeatState::EliminatedObserver,
                 is_compact: !is_local,
                 cards_hidden,
                 hole_cards: visible_cards,
@@ -2174,7 +2185,11 @@ fn build_table_history_for_state(state: &domain::TournamentState) -> Vec<TableHi
                     .map(|summary| summary.amount)
                     .sum::<u32>()
             ),
-            pot_total: result.pot_summaries.iter().map(|summary| summary.amount).sum(),
+            pot_total: result
+                .pot_summaries
+                .iter()
+                .map(|summary| summary.amount)
+                .sum(),
             winning_players: display_names_for_state(state, &result.winning_player_ids),
             eliminated_players: display_names_for_state(state, &result.eliminated_player_ids),
             board_cards: state
@@ -2393,8 +2408,7 @@ mod tests {
             .lock()
             .expect("table runtime")
             .get_or_insert_with(|| {
-                super::DesktopTableRuntime::new()
-                    .expect("desktop table runtime should initialize")
+                super::DesktopTableRuntime::new().expect("desktop table runtime should initialize")
             })
             .controller
             .start_tournament(1)
@@ -2425,22 +2439,14 @@ mod tests {
     fn detect_does_not_boot_demo_table_runtime_until_debug_state_is_requested() {
         let state = DesktopAppState::detect();
 
-        assert!(state
-            .table_runtime
-            .lock()
-            .expect("table runtime")
-            .is_none());
+        assert!(state.table_runtime.lock().expect("table runtime").is_none());
 
         let debug_state = state
             .debug_state(TableViewerMode::Local)
             .expect("debug state should lazily initialize the demo runtime");
 
         assert_eq!(debug_state.current_hand_number, None);
-        assert!(state
-            .table_runtime
-            .lock()
-            .expect("table runtime")
-            .is_some());
+        assert!(state.table_runtime.lock().expect("table runtime").is_some());
     }
 
     #[test]
@@ -2518,8 +2524,7 @@ mod tests {
             .lock()
             .expect("table runtime")
             .get_or_insert_with(|| {
-                super::DesktopTableRuntime::new()
-                    .expect("desktop table runtime should initialize")
+                super::DesktopTableRuntime::new().expect("desktop table runtime should initialize")
             })
             .view(TableViewerMode::Local)
             .expect("table view before action");
@@ -2551,8 +2556,7 @@ mod tests {
             .lock()
             .expect("table runtime")
             .get_or_insert_with(|| {
-                super::DesktopTableRuntime::new()
-                    .expect("desktop table runtime should initialize")
+                super::DesktopTableRuntime::new().expect("desktop table runtime should initialize")
             })
             .submit_action(
                 TableViewerMode::Local,
@@ -2567,8 +2571,7 @@ mod tests {
             .lock()
             .expect("table runtime")
             .get_or_insert_with(|| {
-                super::DesktopTableRuntime::new()
-                    .expect("desktop table runtime should initialize")
+                super::DesktopTableRuntime::new().expect("desktop table runtime should initialize")
             })
             .submit_action(
                 TableViewerMode::Local,
@@ -2609,8 +2612,7 @@ mod tests {
             .lock()
             .expect("table runtime")
             .get_or_insert_with(|| {
-                super::DesktopTableRuntime::new()
-                    .expect("desktop table runtime should initialize")
+                super::DesktopTableRuntime::new().expect("desktop table runtime should initialize")
             })
             .submit_action(
                 TableViewerMode::Local,
@@ -2719,18 +2721,14 @@ mod tests {
 
         let restarted_state = DesktopAppState::detect();
 
-        assert!(
-            restarted_state
-                .host_session_status()
-                .expect("restarted host status should resolve")
-                .is_none()
-        );
-        assert!(
-            restarted_state
-                .client_session_status()
-                .expect("restarted client status should resolve")
-                .is_none()
-        );
+        assert!(restarted_state
+            .host_session_status()
+            .expect("restarted host status should resolve")
+            .is_none());
+        assert!(restarted_state
+            .client_session_status()
+            .expect("restarted client status should resolve")
+            .is_none());
     }
 
     #[test]
@@ -2751,7 +2749,10 @@ mod tests {
             )
             .expect_err("second host session should be rejected");
 
-        assert_eq!(error, "stop the active host session before starting a new table");
+        assert_eq!(
+            error,
+            "stop the active host session before starting a new table"
+        );
         assert_eq!(
             state
                 .host_session_status()
@@ -2828,14 +2829,20 @@ mod tests {
             .join_host_session(sample_join_host_session_request(&second_host_status.invite))
             .expect_err("second client join should be rejected");
 
-        assert_eq!(error, "leave the active client session before joining another table");
+        assert_eq!(
+            error,
+            "leave the active client session before joining another table"
+        );
 
         let active_client_status = client_state
             .client_session_status()
             .expect("client session status should resolve")
             .expect("original client session should remain active");
         assert_eq!(active_client_status.table_id, first_client_status.table_id);
-        assert_eq!(active_client_status.host_port, first_client_status.host_port);
+        assert_eq!(
+            active_client_status.host_port,
+            first_client_status.host_port
+        );
 
         assert_eq!(
             second_host_state

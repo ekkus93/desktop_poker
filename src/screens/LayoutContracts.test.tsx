@@ -2,7 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getTableView, resolveHostLanAddress, validateJoinPayloadInput } from "../api/desktop";
+import {
+  getClientSessionStatus,
+  getHostSessionStatus,
+  getTableView,
+  resolveHostLanAddress,
+  validateJoinPayloadInput,
+} from "../api/desktop";
 import { createParsedJoinPayload, createTableViewSnapshot } from "../test/appIntegrationFixtures";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { HomeScreen } from "./HomeScreen";
@@ -18,12 +24,16 @@ vi.mock("../api/desktop", async () => {
 
   return {
     ...actual,
+    getClientSessionStatus: vi.fn(),
+    getHostSessionStatus: vi.fn(),
     resolveHostLanAddress: vi.fn(),
     validateJoinPayloadInput: vi.fn(),
     getTableView: vi.fn(),
   };
 });
 
+const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
+const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
@@ -31,9 +41,44 @@ const appCss = fs.readFileSync(path.resolve(process.cwd(), "src/App.css"), "utf8
 
 describe("Layout contracts", () => {
   beforeEach(() => {
+    mockedGetClientSessionStatus.mockReset();
+    mockedGetHostSessionStatus.mockReset();
     mockedResolveHostLanAddress.mockReset();
     mockedValidateJoinPayloadInput.mockReset();
     mockedGetTableView.mockReset();
+    mockedGetClientSessionStatus.mockResolvedValue(null);
+    mockedGetHostSessionStatus.mockResolvedValue({
+      tournamentName: "Friday Finals",
+      tableName: "Main Table",
+      tableId: "table-1",
+      sessionEpoch: 42,
+      advertisedHost: "192.168.1.10",
+      hostPort: 43818,
+      invite: "pkr1_layout_contracts",
+      phase: "waitingForPlayers",
+      activeSeatCount: 2,
+      openSeatCount: 4,
+      participants: [
+        {
+          playerId: "local-player",
+          displayName: "Host Alpha",
+          seatIndex: 0,
+          isHost: true,
+          isReady: false,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+        {
+          playerId: "player-b",
+          displayName: "Maya",
+          seatIndex: 1,
+          isHost: false,
+          isReady: false,
+          connectionState: "connected",
+          participantState: "seated",
+        },
+      ],
+    });
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedValidateJoinPayloadInput.mockResolvedValue(createParsedJoinPayload());
     mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
@@ -87,6 +132,7 @@ describe("Layout contracts", () => {
       initialEntries: ["/lobby"],
     });
     expect(await screen.findByRole("heading", { name: "Lobby" })).toBeTruthy();
+    expect(await screen.findByText("Friday Finals")).toBeTruthy();
     expect(lobbyRender.container.querySelector(".lobby-shell-grid")?.children.length).toBe(1);
     expect(lobbyRender.container.querySelector(".lobby-seat-grid")?.children.length).toBe(6);
     lobbyRender.unmount();

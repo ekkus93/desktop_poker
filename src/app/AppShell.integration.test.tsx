@@ -436,9 +436,9 @@ describe("AppShell integration", () => {
         name: "Lobby",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Friday Finals")).toBeTruthy();
-    expect(screen.getByText("Seat 1")).toBeTruthy();
-    expect(screen.getByText("Seat 6")).toBeTruthy();
+    expect(await screen.findByText("Friday Finals")).toBeTruthy();
+    expect(await screen.findByText("Seat 1")).toBeTruthy();
+    expect(await screen.findByText("Seat 6")).toBeTruthy();
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
   });
 
@@ -467,7 +467,11 @@ describe("AppShell integration", () => {
       }),
     ).toBeTruthy();
 
-    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
+    expect(
+      (await screen.findByRole("button", { name: "Start tournament" })).hasAttribute(
+        "disabled",
+      ),
+    ).toBe(true);
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "I'm ready" })).toBeNull();
     });
@@ -715,7 +719,7 @@ describe("AppShell integration", () => {
       joinPayload: "pkr1_host_invite",
       displayName: "Player test-instance",
     });
-    expect(screen.getByText("You: Waiting")).toBeTruthy();
+    expect(await screen.findByText("You: Waiting")).toBeTruthy();
   });
 
   it("redirects unknown routes back to the real home screen", async () => {
@@ -803,7 +807,7 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Close table" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Close table" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Close table" })[1]);
 
     await waitFor(() => {

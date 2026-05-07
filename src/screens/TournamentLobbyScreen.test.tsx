@@ -1,101 +1,150 @@
-import { fireEvent, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getClientSessionStatus,
+  getHostSessionStatus,
+  hostSetLobbyReadyState,
+  type HostSessionStatus,
+} from "../api/desktop";
 import { storageKey } from "../app/shell";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { TournamentLobbyScreen } from "./TournamentLobbyScreen";
 
+vi.mock("../api/desktop", async () => {
+  const actual = await vi.importActual<typeof import("../api/desktop")>(
+    "../api/desktop",
+  );
+
+  return {
+    ...actual,
+    getClientSessionStatus: vi.fn(),
+    getHostSessionStatus: vi.fn(),
+    hostSetLobbyReadyState: vi.fn(),
+  };
+});
+
+const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
+const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
+const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
+
+function createHostSession(
+  overrides: Partial<HostSessionStatus> = {},
+): HostSessionStatus {
+  return {
+    tournamentName: "Friday Finals Live",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    advertisedHost: "192.168.1.10",
+    hostPort: 43818,
+    invite: "pkr1_live_invite",
+    phase: "waitingForPlayers",
+    activeSeatCount: 2,
+    openSeatCount: 4,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: "Host Alpha",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+      {
+        playerId: "player-b",
+        displayName: "Maya",
+        seatIndex: 1,
+        isHost: false,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+    ],
+    ...overrides,
+  };
+}
+
 describe("TournamentLobbyScreen", () => {
-  it("keeps ready and waiting states easy to distinguish", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mockedGetClientSessionStatus.mockReset();
+    mockedGetHostSessionStatus.mockReset();
+    mockedHostSetLobbyReadyState.mockReset();
+    mockedGetClientSessionStatus.mockResolvedValue(null);
+    mockedGetHostSessionStatus.mockResolvedValue(createHostSession());
+    mockedHostSetLobbyReadyState.mockImplementation(async (request) => {
+      const nextSession = createHostSession({
+        participants: createHostSession().participants.map((participant) =>
+          participant.playerId === "local-player"
+            ? { ...participant, isReady: request.isReady }
+            : { ...participant, isReady: request.isReady ? true : participant.isReady },
+        ),
+        phase: request.isReady ? "readyCheck" : "waitingForPlayers",
+      });
+      mockedGetHostSessionStatus.mockResolvedValue(nextSession);
+      return nextSession;
+    });
+  });
+
+  it("shows a live-session loading state instead of shell-local fallback data", async () => {
+    mockedGetHostSessionStatus.mockImplementation(
+      () => new Promise<HostSessionStatus | null>(() => {}),
+    );
+
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({ tournamentName: "Stale Local Draft", maxPlayers: 10 }),
+    );
 
     renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
       bootstrap,
       initialEntries: ["/lobby"],
     });
 
-    expect(screen.getByText("Desktop Sit 'n Go test-instance")).toBeTruthy();
+    expect(screen.getByText("Loading live lobby")).toBeTruthy();
+    expect(screen.queryByText("Stale Local Draft")).toBeNull();
+    expect(screen.queryByText("Open seat")).toBeNull();
+  });
+
+  it("renders runtime-backed lobby state instead of shell-local host draft data", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({ tournamentName: "Stale Local Draft", maxPlayers: 10 }),
+    );
+
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    expect(await screen.findByText("Friday Finals Live")).toBeTruthy();
+    expect(screen.getByText("6 seats")).toBeTruthy();
     expect(screen.getByText("4 open seats")).toBeTruthy();
     expect(screen.getByText("You: Waiting")).toBeTruthy();
     expect(screen.getByText("2 waiting")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "I'm ready" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
-    expect(screen.getByText("Seat 1")).toBeTruthy();
-    expect(screen.getByText("Seat 6")).toBeTruthy();
-    expect(screen.getAllByText("Open seat").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.queryByText("Stale Local Draft")).toBeNull();
   });
 
-  it("renders all 10 seats for a 10-player tournament and keeps the tournament name visible", () => {
-    const bootstrap = createBootstrap({ debugToolsEnabled: false, storageNamespace: "desktop-poker:ten-seat-lobby" });
-    localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "host-draft"),
-      JSON.stringify({ tournamentName: "Friday Finals", maxPlayers: 10 }),
-    );
-
-    const { container } = renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
-      bootstrap,
-      initialEntries: ["/lobby"],
-    });
-
-    expect(screen.getByText("Friday Finals")).toBeTruthy();
-    expect(screen.getByText("10 seats")).toBeTruthy();
-    expect(screen.getByText("Seat 10")).toBeTruthy();
-    expect(container.querySelector(".lobby-seat-grid")?.children.length).toBe(10);
-  });
-
-  it("keeps remote ready controls out of the normal lobby even in debug builds", () => {
-    const bootstrap = createBootstrap({ debugToolsEnabled: true });
-
-    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
-      bootstrap,
-      initialEntries: ["/lobby"],
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
-
-    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Close table" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Mark seat 2 ready" })).toBeNull();
-  });
-
-  it("tracks the local ready badge without relying on display text matching", () => {
-    const bootstrap = createBootstrap({ debugToolsEnabled: false, instanceLabel: "host-alpha" });
-
-    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
-      bootstrap,
-      initialEntries: ["/lobby"],
-    });
-
-    expect(screen.getByText("You: Waiting")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
-
-    expect(screen.getByText("You: Ready")).toBeTruthy();
-    expect(screen.getByText("1 waiting")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Undo ready" })).toBeTruthy();
-  });
-
-  it("supports keyboard readiness toggles for the local player", async () => {
+  it("updates the local ready badge from the live host mutation path", async () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
-    const user = userEvent.setup();
 
     renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
       bootstrap,
       initialEntries: ["/lobby"],
     });
 
-    const readyButton = screen.getByRole("button", { name: "I'm ready" });
+    expect(await screen.findByText("You: Waiting")).toBeTruthy();
 
-    while (document.activeElement !== readyButton) {
-      await user.tab();
-    }
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
-    expect(document.activeElement).toBe(readyButton);
-
-    await user.keyboard("[Enter]");
-
-    expect(screen.getByText("You: Ready")).toBeTruthy();
-    expect(screen.getByText("1 waiting")).toBeTruthy();
+    await waitFor(() => {
+      expect(mockedHostSetLobbyReadyState).toHaveBeenCalledWith({ isReady: true });
+    });
+    expect(await screen.findByText("You: Ready")).toBeTruthy();
+    expect(screen.getByText("Table: Ready")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start tournament" })).toBeTruthy();
   });
 });
