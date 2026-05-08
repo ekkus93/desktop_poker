@@ -840,50 +840,13 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
   });
 
-  it("renders the real ready-room route and only unlocks start after all visible participants are ready", async () => {
+  it("reroutes removed ready-room paths back to the home screen", async () => {
     renderAppShell("/ready-room", createAppBootstrap({ debugToolsEnabled: true }));
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "Ready Room" }),
-    ).toBeTruthy();
-    expect(screen.getByText("Turn timer 30s")).toBeTruthy();
-    expect(screen.getByText("2 participants")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByRole("button", { name: "Not ready" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Host marks ready" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Not ready" }));
-    fireEvent.click(screen.getByRole("button", { name: "Host marks ready" }));
-
-    expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Start tournament" }).getAttribute("href")).toBe("/table");
-  });
-
-  it("keeps remote readiness passive outside debug mode and preserves state across the ready-room leave flow", async () => {
-    renderAppShell("/ready-room", createAppBootstrap({ debugToolsEnabled: false }));
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "Ready Room" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Host marks ready" })).toBeNull();
-    expect(screen.getByText("Waiting on player readiness.")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Not ready" }));
-    expect(screen.getByRole("button", { name: "Ready" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
-    expect(screen.getByText("Leave before start?")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Stay ready" }));
-    expect(screen.queryByText("Leave before start?")).toBeNull();
-    expect(screen.getByRole("button", { name: "Ready" })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
-    fireEvent.click(screen.getByRole("link", { name: "Leave table" }));
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 2, name: "Ready Room" })).toBeNull();
   });
 
   it("applies bootstrap subscription updates and reroutes away from routes removed by the new catalog", async () => {

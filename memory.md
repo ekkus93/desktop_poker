@@ -257,3 +257,7 @@
 ## 2026-05-08T03:43:10Z - GPT-5.4 - Record code review clarification handoff
 - Added `docs/responses2.md` to capture the remaining clarification questions from the desktop code review fix docs.
 - User selected removing Ready Room from production flow, matching `docs/DESKTOP_SPECS.md`.
+
+## 2026-05-08T05:06:13Z - GPT-5.4 - Finish desktop code review cleanup pass
+- Removed the production Ready Room flow and synthetic invite command, switched snapshots and live updates onto recipient-safe/runtime-event paths, and updated the patched cleanup checklist to reflect the implemented fixes.
+- Renamed the remaining demo inspector runtime to explicit debug-only names and updated `docs/WALKTHRU.md` so the docs no longer describe the production table flow as demo-backed.

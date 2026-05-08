@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     net::{IpAddr, SocketAddr, TcpListener, TcpStream},
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -22,17 +22,18 @@ use crate::{
     },
     domain::{
         ConnectionState, JoinPayload, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
-        SeatOccupancyState, SeatState, SnapshotState, TournamentPhase, TournamentSeatState,
-        TournamentState,
+        SeatOccupancyState, SeatState, SnapshotState, StateProjector, TournamentPhase,
+        TournamentSeatState, TournamentState,
     },
     networking::{read_json_frame, write_json_frame},
     protocol::{
         decode_join_payload, encode_join_payload, join_request_envelope, validate_join_payload,
-        EncryptedPrivateEnvelope, JoinTournamentRequest, JsonSignedEnvelope,
+        ActionWindowOpened, EliminationEvent, EncryptedPrivateEnvelope, HandResultCommitted,
+        HandStartingEvent, JoinTournamentRequest, JsonSignedEnvelope, PlayerActionCommitted,
         PlayerActionSubmission, PrivateEnvelopeMetadata, PrivateHoleCardsEvent,
         ProtocolErrorMessage, ProtocolMessageType, ReadyStateRequest, ReconnectTournamentRequest,
-        ResyncRequest, SeatClaimRequest, SignedEnvelope, SnapshotEvent, TournamentStartedEvent,
-        PROTOCOL_VERSION,
+        ResyncRequest, SeatClaimRequest, SignedEnvelope, SnapshotEvent, StreetRevealed,
+        TournamentCompleteEvent, TournamentStartedEvent, PROTOCOL_VERSION,
     },
     tournament::{ActionRequest, RegisteredPlayer, TournamentController},
 };
@@ -85,6 +86,13 @@ struct ConnectedClient {
     encryption_public_key: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PublicEventLogEntry {
+    pub sequence: u64,
+    pub message_type: ProtocolMessageType,
+    pub payload: Value,
+}
+
 pub struct HostServer {
     listener_addr: SocketAddr,
     join_payload: JoinPayload,
@@ -98,6 +106,7 @@ pub struct HostServer {
     tick_thread: Option<JoinHandle<()>>,
     host_signing_keys: Arc<SigningKeyMaterial>,
     host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
+    public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
 }
 
 #[derive(Debug)]
@@ -149,6 +158,7 @@ impl HostServer {
         let clients = Arc::new(Mutex::new(HashMap::new()));
         let stop_signal = Arc::new(AtomicBool::new(false));
         let server_sequence = Arc::new(AtomicU64::new(0));
+        let public_events = Arc::new(Mutex::new(Vec::new()));
 
         let accept_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
@@ -158,6 +168,7 @@ impl HostServer {
             let server_sequence = Arc::clone(&server_sequence);
             let host_signing_keys = Arc::clone(&config.host_signing_keys);
             let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
+            let public_events = Arc::clone(&public_events);
             let join_payload = join_payload.clone();
 
             thread::Builder::new()
@@ -178,6 +189,7 @@ impl HostServer {
                         let server_sequence = Arc::clone(&server_sequence);
                         let host_signing_keys = Arc::clone(&host_signing_keys);
                         let host_encryption_keys = Arc::clone(&host_encryption_keys);
+                        let public_events = Arc::clone(&public_events);
                         let join_payload = join_payload.clone();
 
                         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
@@ -236,6 +248,7 @@ impl HostServer {
                                             server_sequence,
                                             host_signing_keys,
                                             host_encryption_keys,
+                                            public_events,
                                         );
                                     }
                                 }
@@ -269,6 +282,7 @@ impl HostServer {
             let server_sequence = Arc::clone(&server_sequence);
             let host_signing_keys = Arc::clone(&config.host_signing_keys);
             let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
+            let public_events = Arc::clone(&public_events);
             let join_payload = join_payload.clone();
 
             thread::Builder::new()
@@ -297,16 +311,23 @@ impl HostServer {
                         };
 
                         if let Some(state) = next_state {
+                            let previous_state = authoritative_state
+                                .lock()
+                                .map(|authoritative| authoritative.clone())
+                                .unwrap_or_else(|_| state.clone());
                             let _ = authoritative_state.lock().map(|mut authoritative| {
-                                *authoritative = state;
+                                *authoritative = state.clone();
                             });
-                            let _ = sync_host_client_snapshots(
+                            let _ = publish_runtime_transition(
                                 &join_payload,
                                 &authoritative_state,
+                                &previous_state,
+                                &state,
                                 &clients,
                                 &server_sequence,
                                 &host_signing_keys,
                                 &host_encryption_keys,
+                                &public_events,
                             );
                         }
 
@@ -331,6 +352,7 @@ impl HostServer {
             tick_thread: Some(tick_thread),
             host_signing_keys: config.host_signing_keys,
             host_encryption_keys: config.host_encryption_keys,
+            public_events,
         })
     }
 
@@ -391,6 +413,13 @@ impl HostServer {
         self.server_sequence.load(Ordering::SeqCst)
     }
 
+    pub fn public_events(&self) -> Result<Vec<PublicEventLogEntry>, NetworkingError> {
+        self.public_events
+            .lock()
+            .map(|events| events.clone())
+            .map_err(|_| NetworkingError::new("public event log lock poisoned"))
+    }
+
     pub fn claim_seat(&self, player_id: &str, seat_index: u8) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_seat_claim(state, player_id, seat_index))?;
         self.sync_snapshots_to_clients()
@@ -402,6 +431,7 @@ impl HostServer {
     }
 
     pub fn start_tournament(&self) -> Result<(), NetworkingError> {
+        let before_state = self.authoritative_state()?;
         let controller = self
             .authoritative_state
             .lock()
@@ -412,12 +442,18 @@ impl HostServer {
             .lock()
             .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?
             .replace(controller);
-
-        self.broadcast_public_event(
-            ProtocolMessageType::TournamentStartedEvent,
-            &build_tournament_started_event(&self.authoritative_state()?),
-        )?;
-        self.sync_snapshots_to_clients()
+        let after_state = self.authoritative_state()?;
+        publish_runtime_transition(
+            &self.join_payload,
+            &self.authoritative_state,
+            &before_state,
+            &after_state,
+            &self.clients,
+            &self.server_sequence,
+            &self.host_signing_keys,
+            &self.host_encryption_keys,
+            &self.public_events,
+        )
     }
 
     pub fn submit_action(
@@ -427,6 +463,7 @@ impl HostServer {
         action_type: crate::domain::ActionType,
         raise_to_amount: Option<u32>,
     ) -> Result<(), NetworkingError> {
+        let before_state = self.authoritative_state()?;
         let next_state = {
             let mut runtime = self
                 .tournament_runtime
@@ -456,7 +493,18 @@ impl HostServer {
             .map(|mut authoritative_state| {
                 *authoritative_state = next_state;
             })?;
-        self.sync_snapshots_to_clients()
+        let after_state = self.authoritative_state()?;
+        publish_runtime_transition(
+            &self.join_payload,
+            &self.authoritative_state,
+            &before_state,
+            &after_state,
+            &self.clients,
+            &self.server_sequence,
+            &self.host_signing_keys,
+            &self.host_encryption_keys,
+            &self.public_events,
+        )
     }
 
     pub fn sync_snapshots_to_clients(&self) -> Result<(), NetworkingError> {
@@ -545,7 +593,7 @@ impl HostServer {
             counter: server_sequence,
             message_id: format!("host-{server_sequence}"),
             server_sequence: Some(server_sequence),
-            payload: payload_value,
+            payload: payload_value.clone(),
             signature: None,
         };
 
@@ -553,6 +601,14 @@ impl HostServer {
         envelope
             .sign(&crypto_provider, &self.host_signing_keys)
             .map_err(|error| NetworkingError::new(error.to_string()))?;
+        append_public_event_log(
+            &self.public_events,
+            PublicEventLogEntry {
+                sequence: server_sequence,
+                message_type,
+                payload: payload_value,
+            },
+        )?;
 
         let failed_clients = {
             let connected_clients = self
@@ -1058,7 +1114,8 @@ impl ClientRuntime {
 
                         if matches!(
                             envelope.message_type,
-                            ProtocolMessageType::ActionWindowOpenedEvent
+                            ProtocolMessageType::HandStartingEvent
+                                | ProtocolMessageType::ActionWindowOpenedEvent
                                 | ProtocolMessageType::PlayerActionCommittedEvent
                                 | ProtocolMessageType::StreetRevealedEvent
                                 | ProtocolMessageType::EliminationEvent
@@ -1068,6 +1125,7 @@ impl ClientRuntime {
                         ) {
                             let _ = sender.send(ClientRuntimeEvent::PublicEvent {
                                 message_type: envelope.message_type,
+                                server_sequence: envelope.server_sequence.unwrap_or_default(),
                                 payload: envelope.payload,
                             });
                         }
@@ -1219,6 +1277,7 @@ pub enum ClientRuntimeEvent {
     Snapshot(Box<SnapshotEvent>),
     PublicEvent {
         message_type: ProtocolMessageType,
+        server_sequence: u64,
         payload: Value,
     },
     PrivateHoleCards(PrivateHoleCardsEvent),
@@ -1482,6 +1541,7 @@ fn spawn_host_client_session(
     server_sequence: Arc<AtomicU64>,
     host_signing_keys: Arc<SigningKeyMaterial>,
     host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
+    public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
 ) {
     thread::spawn(move || {
         let crypto_provider = DefaultCryptoProvider;
@@ -1592,6 +1652,10 @@ fn spawn_host_client_session(
                 }
                 ProtocolMessageType::ActionSubmissionRequest => {
                     let rejected_message_id = request_envelope.message_id.clone();
+                    let previous_state = authoritative_state
+                        .lock()
+                        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
+                        .map(|state| state.clone());
                     let response = handle_action_submission_request(
                         &crypto_provider,
                         request_envelope,
@@ -1601,13 +1665,52 @@ fn spawn_host_client_session(
 
                     match response {
                         Ok(()) => {
-                            if sync_host_client_snapshots(
+                            let previous_state = match previous_state {
+                                Ok(state) => state,
+                                Err(error) => {
+                                    if let Ok(envelope) = build_protocol_error_envelope(
+                                        &crypto_provider,
+                                        &join_payload,
+                                        &server_sequence,
+                                        &host_signing_keys,
+                                        "ACTION_SUBMISSION_REJECTED",
+                                        error.to_string(),
+                                        Some(rejected_message_id.clone()),
+                                    ) {
+                                        let _ = write_json_frame(&mut stream, &envelope);
+                                    }
+                                    break;
+                                }
+                            };
+                            let next_state = match authoritative_state
+                                .lock()
+                                .map_err(|_| {
+                                    NetworkingError::new("authoritative state lock poisoned")
+                                })
+                                .map(|state| state.clone())
+                            {
+                                Ok(state) => state,
+                                Err(_) => {
+                                    let _ = clients.lock().map(|mut connected_clients| {
+                                        connected_clients.remove(&player_id);
+                                    });
+                                    let _ = mark_participant_reconnect_eligible(
+                                        &authoritative_state,
+                                        &player_id,
+                                    );
+                                    break;
+                                }
+                            };
+                            if publish_runtime_transition(
                                 &join_payload,
                                 &authoritative_state,
+                                &previous_state,
+                                &next_state,
                                 &clients,
                                 &server_sequence,
                                 &host_signing_keys,
                                 &host_encryption_keys,
+                                &public_events,
                             )
                             .is_err()
                             {
@@ -1841,6 +1944,379 @@ fn handle_action_submission_request(
     Ok(())
 }
 
+fn append_public_event_log(
+    public_events: &Arc<Mutex<Vec<PublicEventLogEntry>>>,
+    event: PublicEventLogEntry,
+) -> Result<(), NetworkingError> {
+    let mut entries = public_events
+        .lock()
+        .map_err(|_| NetworkingError::new("public event log lock poisoned"))?;
+    entries.push(event);
+    if entries.len() > 64 {
+        let overflow = entries.len() - 64;
+        entries.drain(0..overflow);
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn broadcast_public_event_to_clients<TPayload: serde::Serialize>(
+    join_payload: &JoinPayload,
+    clients: &Arc<Mutex<HashMap<String, ConnectedClient>>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &Arc<SigningKeyMaterial>,
+    public_events: &Arc<Mutex<Vec<PublicEventLogEntry>>>,
+    message_type: ProtocolMessageType,
+    payload: &TPayload,
+    on_failed_client: impl Fn(&str) -> Result<(), NetworkingError>,
+) -> Result<u64, NetworkingError> {
+    let payload_value =
+        serde_json::to_value(payload).map_err(|error| NetworkingError::new(error.to_string()))?;
+    let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+
+    let mut envelope = SignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type,
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        sender_id: "host".to_string(),
+        counter: next_server_sequence,
+        message_id: format!("host-{next_server_sequence}"),
+        server_sequence: Some(next_server_sequence),
+        payload: payload_value.clone(),
+        signature: None,
+    };
+    envelope
+        .sign(&DefaultCryptoProvider, host_signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+
+    append_public_event_log(
+        public_events,
+        PublicEventLogEntry {
+            sequence: next_server_sequence,
+            message_type,
+            payload: payload_value,
+        },
+    )?;
+
+    let player_ids = clients
+        .lock()
+        .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut failed_clients = Vec::new();
+
+    for player_id in player_ids {
+        let write_result = clients
+            .lock()
+            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
+            .get(&player_id)
+            .map(|client| {
+                client
+                    .stream
+                    .lock()
+                    .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
+                    .try_clone()
+                    .map_err(|error| {
+                        NetworkingError::new(format!("failed to clone client stream: {error}"))
+                    })
+                    .and_then(|mut stream| write_json_frame(&mut stream, &envelope))
+            })
+            .unwrap_or_else(|| Err(NetworkingError::new("unknown connected client")));
+
+        if write_result.is_err() {
+            failed_clients.push(player_id);
+        }
+    }
+
+    if !failed_clients.is_empty() {
+        let mut connected_clients = clients
+            .lock()
+            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
+        for player_id in failed_clients {
+            connected_clients.remove(&player_id);
+            on_failed_client(&player_id)?;
+        }
+    }
+
+    Ok(next_server_sequence)
+}
+
+fn infer_committed_action(
+    before: &TournamentState,
+    after: &TournamentState,
+) -> Option<PlayerActionCommitted> {
+    let before_window = before
+        .current_hand
+        .as_ref()
+        .and_then(|hand| hand.action_window.as_ref())?;
+    let before_hand = before.current_hand.as_ref()?;
+    let after_hand = after.current_hand.as_ref()?;
+    let before_contribution = before_hand
+        .betting_round
+        .contributions_by_player_id
+        .get(&before_window.player_id)
+        .copied()
+        .unwrap_or_default();
+    let after_contribution = after_hand
+        .betting_round
+        .contributions_by_player_id
+        .get(&before_window.player_id)
+        .copied()
+        .unwrap_or_default();
+    let after_participation = after_hand
+        .participation_by_player_id
+        .get(&before_window.player_id)
+        .copied();
+    let additional_amount = after_contribution.saturating_sub(before_contribution);
+    let action_type = if matches!(
+        after_participation,
+        Some(crate::domain::HandParticipationState::Folded)
+    ) {
+        crate::domain::ActionType::Fold
+    } else if additional_amount == 0 {
+        crate::domain::ActionType::Check
+    } else if matches!(
+        after_participation,
+        Some(crate::domain::HandParticipationState::AllIn)
+    ) {
+        crate::domain::ActionType::AllIn
+    } else if before_window.call_amount > 0 && additional_amount == before_window.call_amount {
+        crate::domain::ActionType::Call
+    } else if before_hand.betting_round.current_bet == 0 {
+        crate::domain::ActionType::Bet
+    } else {
+        crate::domain::ActionType::Raise
+    };
+
+    Some(PlayerActionCommitted {
+        hand_number: before_hand.hand_number,
+        seat_index: before_window.seat_index,
+        player_id: before_window.player_id.clone(),
+        action_type,
+        raise_to_amount: matches!(
+            action_type,
+            crate::domain::ActionType::Bet
+                | crate::domain::ActionType::Raise
+                | crate::domain::ActionType::AllIn
+        )
+        .then_some(after_contribution),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn publish_runtime_transition(
+    join_payload: &JoinPayload,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    before: &TournamentState,
+    after: &TournamentState,
+    clients: &Arc<Mutex<HashMap<String, ConnectedClient>>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &Arc<SigningKeyMaterial>,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+    public_events: &Arc<Mutex<Vec<PublicEventLogEntry>>>,
+) -> Result<(), NetworkingError> {
+    if before.phase != TournamentPhase::Running && after.phase == TournamentPhase::Running {
+        let _ = broadcast_public_event_to_clients(
+            join_payload,
+            clients,
+            server_sequence,
+            host_signing_keys,
+            public_events,
+            ProtocolMessageType::TournamentStartedEvent,
+            &build_tournament_started_event(after),
+            |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+        )?;
+    }
+
+    let before_hand_number = before.current_hand.as_ref().map(|hand| hand.hand_number);
+    if let Some(after_hand) = after.current_hand.as_ref() {
+        if before_hand_number != Some(after_hand.hand_number) {
+            let _ = broadcast_public_event_to_clients(
+                join_payload,
+                clients,
+                server_sequence,
+                host_signing_keys,
+                public_events,
+                ProtocolMessageType::HandStartingEvent,
+                &HandStartingEvent {
+                    hand_number: after_hand.hand_number,
+                    hand_phase: format!("{:?}", after_hand.cycle_phase),
+                    dealer_seat_index: after_hand.dealer_seat_index,
+                    small_blind_seat_index: after_hand.small_blind_seat_index,
+                    big_blind_seat_index: after_hand.big_blind_seat_index,
+                    board_cards: after_hand.board_cards.clone(),
+                },
+                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+            )?;
+        }
+    }
+
+    if let Some(committed_action) = infer_committed_action(before, after) {
+        let _ = broadcast_public_event_to_clients(
+            join_payload,
+            clients,
+            server_sequence,
+            host_signing_keys,
+            public_events,
+            ProtocolMessageType::PlayerActionCommittedEvent,
+            &committed_action,
+            |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+        )?;
+    }
+
+    let before_board = before
+        .current_hand
+        .as_ref()
+        .map(|hand| hand.board_cards.clone())
+        .unwrap_or_default();
+    let after_board = after
+        .current_hand
+        .as_ref()
+        .map(|hand| hand.board_cards.clone())
+        .unwrap_or_default();
+    if let Some(after_hand) = after.current_hand.as_ref() {
+        if after_board.len() > before_board.len() {
+            let _ = broadcast_public_event_to_clients(
+                join_payload,
+                clients,
+                server_sequence,
+                host_signing_keys,
+                public_events,
+                ProtocolMessageType::StreetRevealedEvent,
+                &StreetRevealed {
+                    hand_number: after_hand.hand_number,
+                    street: format!("{:?}", after_hand.street),
+                    board_cards: after_board.clone(),
+                },
+                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+            )?;
+        }
+    }
+
+    if after.hand_results.len() > before.hand_results.len() {
+        for result in &after.hand_results[before.hand_results.len()..] {
+            let _ = broadcast_public_event_to_clients(
+                join_payload,
+                clients,
+                server_sequence,
+                host_signing_keys,
+                public_events,
+                ProtocolMessageType::HandResultCommittedEvent,
+                &HandResultCommitted {
+                    hand_number: result.hand_number,
+                    result: result.clone(),
+                },
+                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+            )?;
+        }
+    }
+
+    if after.placements.len() > before.placements.len() {
+        for placement in &after.placements[before.placements.len()..] {
+            let _ = broadcast_public_event_to_clients(
+                join_payload,
+                clients,
+                server_sequence,
+                host_signing_keys,
+                public_events,
+                ProtocolMessageType::EliminationEvent,
+                &EliminationEvent {
+                    player_id: placement.player_id.clone(),
+                    place: placement.place,
+                },
+                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+            )?;
+        }
+    }
+
+    if after.phase == TournamentPhase::Complete && before.phase != TournamentPhase::Complete {
+        if let Some(winner_player_id) = after
+            .placements
+            .iter()
+            .find(|entry| entry.place == 1)
+            .map(|entry| entry.player_id.clone())
+        {
+            let _ = broadcast_public_event_to_clients(
+                join_payload,
+                clients,
+                server_sequence,
+                host_signing_keys,
+                public_events,
+                ProtocolMessageType::TournamentCompleteEvent,
+                &TournamentCompleteEvent {
+                    winner_player_id,
+                    placements: after.placements.clone(),
+                },
+                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+            )?;
+        }
+    }
+
+    if let Some(after_hand) = after.current_hand.as_ref() {
+        for (player_id, cards) in &after_hand.hole_cards_by_player_id {
+            let before_cards = before
+                .current_hand
+                .as_ref()
+                .and_then(|hand| hand.hole_cards_by_player_id.get(player_id));
+            let has_live_recipient = clients
+                .lock()
+                .map(|connected_clients| connected_clients.contains_key(player_id))
+                .unwrap_or(false);
+            if before_cards != Some(cards) && has_live_recipient {
+                let _ = send_private_hole_cards_to_recipient(
+                    join_payload,
+                    clients,
+                    server_sequence,
+                    host_signing_keys,
+                    host_encryption_keys,
+                    player_id,
+                    &PrivateHoleCardsEvent {
+                        recipient_player_id: player_id.clone(),
+                        hole_cards: cards.clone(),
+                    },
+                    |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+                )?;
+            }
+        }
+
+        if let Some(window) = after_hand.action_window.as_ref() {
+            let before_window_id = before
+                .current_hand
+                .as_ref()
+                .and_then(|hand| hand.action_window.as_ref())
+                .map(|window| window.action_window_id.as_str());
+            if before_window_id != Some(window.action_window_id.as_str()) {
+                let _ = broadcast_public_event_to_clients(
+                    join_payload,
+                    clients,
+                    server_sequence,
+                    host_signing_keys,
+                    public_events,
+                    ProtocolMessageType::ActionWindowOpenedEvent,
+                    &ActionWindowOpened {
+                        hand_number: after_hand.hand_number,
+                        hand_phase: format!("{:?}", after_hand.cycle_phase),
+                        action_window_id: window.action_window_id.clone(),
+                        player_id: window.player_id.clone(),
+                        seat_index: window.seat_index,
+                        legal_actions: window.legal_actions.clone(),
+                        call_amount: window.call_amount,
+                        min_raise_to: window.min_raise_to,
+                        max_raise_to: window.max_raise_to,
+                        deadline_epoch_ms: window.deadline_epoch_ms,
+                    },
+                    |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 fn sync_host_client_snapshots(
     join_payload: &JoinPayload,
     authoritative_state: &Arc<Mutex<TournamentState>>,
@@ -1900,6 +2376,110 @@ fn sync_host_client_snapshots(
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn send_private_hole_cards_to_recipient(
+    join_payload: &JoinPayload,
+    clients: &Arc<Mutex<HashMap<String, ConnectedClient>>>,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &Arc<SigningKeyMaterial>,
+    host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
+    recipient_id: &str,
+    hole_cards_event: &PrivateHoleCardsEvent,
+    on_failed_client: impl Fn(&str) -> Result<(), NetworkingError>,
+) -> Result<u64, NetworkingError> {
+    let crypto_provider = DefaultCryptoProvider;
+
+    let (client_stream, recipient_encryption_public_key) = {
+        let connected_clients = clients
+            .lock()
+            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
+        let client = connected_clients
+            .get(recipient_id)
+            .ok_or_else(|| NetworkingError::new("unknown recipient"))?;
+
+        (
+            Arc::clone(&client.stream),
+            client.encryption_public_key.clone(),
+        )
+    };
+
+    let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+    let payload_bytes = serde_json::to_vec(hole_cards_event).map_err(|error| {
+        NetworkingError::new(format!("failed to serialize private payload: {error}"))
+    })?;
+
+    let host_encryption_keys = host_encryption_keys
+        .lock()
+        .map_err(|_| NetworkingError::new("host encryption key lock poisoned"))?;
+
+    let aad_metadata = PrivateEnvelopeMetadata {
+        sender_id: "host".to_string(),
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        counter: next_server_sequence,
+        message_id: format!("private-{next_server_sequence}"),
+        server_sequence: next_server_sequence,
+        recipient_id: recipient_id.to_string(),
+    };
+
+    let aad_bytes = serde_json::json!({
+        "protocolVersion": PROTOCOL_VERSION,
+        "messageType": "PRIVATE_HOLE_CARDS_EVENT",
+        "tableId": aad_metadata.table_id,
+        "sessionEpoch": aad_metadata.session_epoch,
+        "senderId": aad_metadata.sender_id,
+        "counter": aad_metadata.counter,
+        "messageId": aad_metadata.message_id,
+        "serverSequence": aad_metadata.server_sequence,
+        "recipientId": aad_metadata.recipient_id,
+        "recipientKeyId": crate::crypto::key_fingerprint(
+            &base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .decode(recipient_encryption_public_key.as_bytes())
+                .map_err(|error| NetworkingError::new(format!("invalid recipient public key: {error}")))?,
+        )
+    });
+
+    let aad = serde_json::to_vec(&aad_bytes)
+        .map_err(|error| NetworkingError::new(format!("failed to serialize aad: {error}")))?;
+    let encrypted_payload = crypto_provider
+        .encrypt(
+            &host_encryption_keys,
+            &recipient_encryption_public_key,
+            &payload_bytes,
+            &aad,
+        )
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    drop(host_encryption_keys);
+
+    let mut envelope = EncryptedPrivateEnvelope::from_encrypted_payload(
+        encrypted_payload,
+        PrivateEnvelopeMetadata {
+            recipient_id: recipient_id.to_string(),
+            ..aad_metadata
+        },
+    );
+    envelope
+        .sign(&crypto_provider, host_signing_keys)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+
+    let mut stream = client_stream
+        .lock()
+        .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
+        .try_clone()
+        .map_err(|error| NetworkingError::new(format!("failed to clone client stream: {error}")))?;
+
+    match write_json_frame(&mut stream, &envelope) {
+        Ok(()) => Ok(next_server_sequence),
+        Err(error) => {
+            if let Ok(mut connected_clients) = clients.lock() {
+                connected_clients.remove(recipient_id);
+            }
+            on_failed_client(recipient_id)?;
+            Err(error)
+        }
+    }
 }
 
 fn apply_seat_claim(
@@ -2154,6 +2734,13 @@ fn build_snapshot_envelope(
         .map_err(|_| NetworkingError::new("host encryption key lock poisoned"))?
         .public_key_base64();
     let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
+    let projected_snapshot_state = build_recipient_projected_snapshot_state(
+        &authoritative_snapshot,
+        player_id,
+        join_payload.host_signing_public_key.clone(),
+        host_encryption_public_key.clone(),
+        reconnect_token.clone(),
+    )?;
 
     let mut snapshot_envelope = SignedEnvelope {
         protocol_version: PROTOCOL_VERSION,
@@ -2165,13 +2752,7 @@ fn build_snapshot_envelope(
         message_id: format!("snapshot-{next_server_sequence}"),
         server_sequence: Some(next_server_sequence),
         payload: SnapshotEvent {
-            state: SnapshotState {
-                state: authoritative_snapshot,
-                local_player_id: player_id.to_string(),
-                reconnect_token: reconnect_token.clone(),
-                host_signing_public_key: Some(join_payload.host_signing_public_key.clone()),
-                host_encryption_public_key: Some(host_encryption_public_key.clone()),
-            },
+            state: projected_snapshot_state,
             local_player_id: player_id.to_string(),
             reconnect_token,
             host_signing_public_key: Some(join_payload.host_signing_public_key.clone()),
@@ -2185,6 +2766,58 @@ fn build_snapshot_envelope(
         .map_err(|error| NetworkingError::new(error.to_string()))?;
 
     Ok(snapshot_envelope)
+}
+
+fn build_recipient_projected_snapshot_state(
+    authoritative_state: &TournamentState,
+    player_id: &str,
+    host_signing_public_key: String,
+    host_encryption_public_key: String,
+    reconnect_token: Option<String>,
+) -> Result<SnapshotState, NetworkingError> {
+    let mut projected_state = authoritative_state.clone();
+    let occupied_seat_links: BTreeMap<u8, String> = projected_state
+        .seats
+        .iter()
+        .filter(|seat| seat.occupancy == SeatOccupancyState::Occupied)
+        .filter_map(|seat| {
+            seat.participant_id
+                .as_ref()
+                .map(|participant_id| (seat.seat_index, participant_id.clone()))
+        })
+        .collect();
+    for (participant_id, participant) in &mut projected_state.participants {
+        if participant
+            .seat_index
+            .is_some_and(|seat_index| occupied_seat_links.get(&seat_index) != Some(participant_id))
+        {
+            participant.seat_index = None;
+        }
+    }
+    let projection = StateProjector::project(&projected_state)
+        .map_err(|error| NetworkingError::new(error.to_string()))?;
+    let private_state = projection
+        .private_states
+        .get(player_id)
+        .ok_or_else(|| NetworkingError::new("snapshot target is not registered"))?;
+    if let Some(hand) = projected_state.current_hand.as_mut() {
+        hand.hole_cards_by_player_id = if private_state.private_hole_cards.is_empty() {
+            BTreeMap::new()
+        } else {
+            BTreeMap::from([(
+                player_id.to_string(),
+                private_state.private_hole_cards.clone(),
+            )])
+        };
+    }
+
+    Ok(SnapshotState {
+        state: projected_state,
+        local_player_id: player_id.to_string(),
+        reconnect_token,
+        host_signing_public_key: Some(host_signing_public_key),
+        host_encryption_public_key: Some(host_encryption_public_key),
+    })
 }
 
 fn build_protocol_error_envelope(
@@ -2666,6 +3299,7 @@ mod tests {
                 ClientRuntimeEvent::PublicEvent {
                     message_type,
                     payload,
+                    ..
                 } => {
                     assert_eq!(message_type, expected_message_type);
                     return payload;
@@ -2685,6 +3319,76 @@ mod tests {
             assert!(
                 Instant::now() < deadline,
                 "expected public event before timeout"
+            );
+        }
+    }
+
+    fn wait_for_public_event(
+        client: &ClientRuntime,
+        expected_message_type: ProtocolMessageType,
+    ) -> serde_json::Value {
+        wait_for_public_event_where(client, expected_message_type, |_| true)
+    }
+
+    fn wait_for_public_event_where(
+        client: &ClientRuntime,
+        expected_message_type: ProtocolMessageType,
+        predicate: impl Fn(&serde_json::Value) -> bool,
+    ) -> serde_json::Value {
+        let deadline = Instant::now() + Duration::from_secs(2);
+
+        loop {
+            match client
+                .next_event(Duration::from_millis(200))
+                .expect("public event")
+            {
+                ClientRuntimeEvent::PublicEvent {
+                    message_type,
+                    payload,
+                    ..
+                } if message_type == expected_message_type && predicate(&payload) => {
+                    return payload
+                }
+                ClientRuntimeEvent::Snapshot(_) => {}
+                ClientRuntimeEvent::PublicEvent { .. } => {}
+                ClientRuntimeEvent::PrivateHoleCards(_) => {}
+                ClientRuntimeEvent::Reconnecting { .. } => {}
+                ClientRuntimeEvent::Disconnected { .. } => {}
+                ClientRuntimeEvent::ResyncRequested { .. } => {}
+                ClientRuntimeEvent::SafeError { message, .. } => {
+                    panic!("expected public event, got safe error: {message}");
+                }
+            }
+
+            assert!(
+                Instant::now() < deadline,
+                "expected matching public event before timeout"
+            );
+        }
+    }
+
+    fn wait_for_private_hole_cards(client: &ClientRuntime) -> PrivateHoleCardsEvent {
+        let deadline = Instant::now() + Duration::from_secs(2);
+
+        loop {
+            match client
+                .next_event(Duration::from_millis(200))
+                .expect("private hole cards")
+            {
+                ClientRuntimeEvent::PrivateHoleCards(payload) => return payload,
+                ClientRuntimeEvent::Snapshot(_) => {}
+                ClientRuntimeEvent::PublicEvent { .. } => {}
+                ClientRuntimeEvent::Reconnecting { .. } => {}
+                ClientRuntimeEvent::Disconnected { .. } => {}
+                ClientRuntimeEvent::ResyncRequested { .. } => {}
+                ClientRuntimeEvent::SafeError { message, .. } => {
+                    panic!("expected private hole cards, got safe error: {message}");
+                }
+            }
+
+            assert!(
+                Instant::now() < deadline,
+                "expected private hole cards before timeout"
             );
         }
     }
@@ -3115,6 +3819,7 @@ mod tests {
                 ClientRuntimeEvent::PublicEvent {
                     message_type,
                     payload,
+                    ..
                 } => {
                     assert_eq!(message_type, ProtocolMessageType::TournamentStartedEvent);
                     assert_eq!(payload.get("tournamentName"), Some(&json!("Local Play")));
@@ -3229,6 +3934,7 @@ mod tests {
             ClientRuntimeEvent::PublicEvent {
                 message_type,
                 payload,
+                ..
             } => {
                 assert_eq!(message_type, ProtocolMessageType::TournamentStartedEvent);
                 assert_eq!(payload.get("tournamentName"), Some(&json!("LAN Test")));
@@ -3345,7 +4051,7 @@ mod tests {
     }
 
     #[test]
-    fn host_start_tournament_syncs_a_running_snapshot_to_connected_clients() {
+    fn host_start_tournament_emits_running_public_and_private_events_to_connected_clients() {
         let provider = DefaultCryptoProvider;
         let host = bind_test_host(&provider, "table-host-start", 61);
         let alice = connect_test_client(&provider, &host, "player-alice", "Alice");
@@ -3427,21 +4133,22 @@ mod tests {
 
         host.start_tournament()
             .expect("host should start the tournament");
-        let _ = assert_public_event(&alice, ProtocolMessageType::TournamentStartedEvent);
-        let alice_running = expect_snapshot_where(&alice, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::Running
-                && snapshot.state.state.current_hand.is_some()
-        });
-        let _ = assert_public_event(&bob, ProtocolMessageType::TournamentStartedEvent);
-        let bob_running = expect_snapshot_where(&bob, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::Running
-                && snapshot.state.state.current_hand.is_some()
-        });
+        for client in [&alice, &bob] {
+            let _ = wait_for_public_event(client, ProtocolMessageType::TournamentStartedEvent);
+            let hand_start_payload =
+                wait_for_public_event(client, ProtocolMessageType::HandStartingEvent);
+            assert_eq!(hand_start_payload.get("handNumber"), Some(&json!(1)));
 
-        assert_eq!(alice_running.state.state.phase, TournamentPhase::Running);
-        assert_eq!(bob_running.state.state.phase, TournamentPhase::Running);
-        assert!(alice_running.state.state.current_hand.is_some());
-        assert!(bob_running.state.state.current_hand.is_some());
+            assert_eq!(wait_for_private_hole_cards(client).hole_cards.len(), 2);
+
+            let action_window_payload =
+                wait_for_public_event(client, ProtocolMessageType::ActionWindowOpenedEvent);
+            assert_eq!(action_window_payload.get("handNumber"), Some(&json!(1)));
+        }
+
+        let host_state = host.authoritative_state().expect("host state");
+        assert_eq!(host_state.phase, TournamentPhase::Running);
+        assert!(host_state.current_hand.is_some());
     }
 
     #[test]
@@ -3527,26 +4234,28 @@ mod tests {
 
         host.start_tournament()
             .expect("host should start the tournament");
-        let alice_running = expect_snapshot_where(&alice, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::Running
-                && snapshot.state.state.current_hand.is_some()
-        });
-        let _bob_running = expect_snapshot_where(&bob, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::Running
-                && snapshot.state.state.current_hand.is_some()
-        });
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let action_window = loop {
+            if let Some(window) = host
+                .authoritative_state()
+                .expect("host state after start")
+                .current_hand
+                .as_ref()
+                .and_then(|hand| hand.action_window.clone())
+            {
+                break window;
+            }
 
-        let action_window = alice_running
-            .state
-            .state
-            .current_hand
-            .as_ref()
-            .and_then(|hand| hand.action_window.clone())
-            .expect("running hand should expose an action window");
-        let (acting_client, waiting_client) = if action_window.player_id == "player-alice" {
-            (&alice, &bob)
+            assert!(
+                Instant::now() < deadline,
+                "running hand should expose an action window"
+            );
+            thread::sleep(Duration::from_millis(20));
+        };
+        let acting_client = if action_window.player_id == "player-alice" {
+            &alice
         } else {
-            (&bob, &alice)
+            &bob
         };
         wait_for_client_command_connection(acting_client);
         let action_type = if action_window
@@ -3567,60 +4276,25 @@ mod tests {
             )
             .expect("client action should succeed");
 
-        let actor_after_action = expect_snapshot_where(acting_client, |snapshot| {
-            snapshot
-                .state
-                .state
-                .current_hand
-                .as_ref()
-                .and_then(|hand| hand.action_window.as_ref())
-                .map(|window| window.action_window_id.as_str())
-                != Some(action_window.action_window_id.as_str())
-        });
-        let watcher_after_action = expect_snapshot_where(waiting_client, |snapshot| {
-            snapshot
-                .state
-                .state
-                .current_hand
-                .as_ref()
-                .and_then(|hand| hand.action_window.as_ref())
-                .map(|window| window.action_window_id.as_str())
-                != Some(action_window.action_window_id.as_str())
-        });
-
-        assert_eq!(
-            actor_after_action.state.state.phase,
-            TournamentPhase::Running
-        );
-        assert_eq!(
-            watcher_after_action.state.state.phase,
-            TournamentPhase::Running
-        );
-        assert_ne!(
-            actor_after_action
-                .state
-                .state
-                .current_hand
-                .as_ref()
-                .and_then(|hand| hand.action_window.as_ref())
-                .map(|window| window.action_window_id.clone()),
-            Some(action_window.action_window_id.clone())
-        );
-        assert_eq!(
-            host.authoritative_state()
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let next_action_window_id = host
+                .authoritative_state()
                 .expect("host state")
                 .current_hand
                 .as_ref()
                 .and_then(|hand| hand.action_window.as_ref())
-                .map(|window| window.action_window_id.clone()),
-            actor_after_action
-                .state
-                .state
-                .current_hand
-                .as_ref()
-                .and_then(|hand| hand.action_window.as_ref())
-                .map(|window| window.action_window_id.clone())
-        );
+                .map(|window| window.action_window_id.clone());
+            if next_action_window_id != Some(action_window.action_window_id.clone()) {
+                break;
+            }
+
+            assert!(
+                Instant::now() < deadline,
+                "host should advance beyond the submitted action window"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
     }
 
     #[test]

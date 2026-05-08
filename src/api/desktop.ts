@@ -17,7 +17,6 @@ type DesktopBrowserMocks = {
   leaveClientSession?: () => Promise<void>;
   clientClaimLobbySeat?: (request: ClaimLobbySeatRequest) => Promise<ClientSessionStatus>;
   clientSetLobbyReadyState?: (request: SetLobbyReadyStateRequest) => Promise<ClientSessionStatus>;
-  createHostInvite?: (request: HostInviteRequest) => Promise<string>;
   validateJoinPayloadInput?: (payload: string) => Promise<JoinPayload>;
   resolveHostLanAddress?: () => Promise<string>;
   getTableView?: (viewerMode: TableViewerMode) => Promise<TableViewSnapshot>;
@@ -66,12 +65,6 @@ export type JoinPayload = {
   joinToken: string;
   generatedAtMs: number;
   tableName: string | null;
-};
-
-export type HostInviteRequest = {
-  hostAddress: string;
-  hostPort: number;
-  tableName: string;
 };
 
 export type StartHostSessionRequest = {
@@ -293,15 +286,6 @@ export function validateJoinPayloadInput(payload: string) {
   }
 
   return invoke<JoinPayload>("validate_join_payload_input", { payload });
-}
-
-export function createHostInvite(request: HostInviteRequest) {
-  const browserMocks = getBrowserMocks();
-  if (browserMocks?.createHostInvite) {
-    return browserMocks.createHostInvite(request);
-  }
-
-  return invoke<string>("create_host_invite", { request });
 }
 
 export function startHostSession(request: StartHostSessionRequest) {

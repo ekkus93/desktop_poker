@@ -3,7 +3,6 @@ import { createBootstrap } from "../test/fixtures";
 import {
   BLIND_PRESETS,
   buildHostShareText,
-  buildParticipantShell,
   createDefaultDisplayName,
   createDefaultHostDraft,
   getBlindPreset,
@@ -117,115 +116,6 @@ describe("shell helpers", () => {
           ).hostPort,
         ).toBe(fallbackDraft.hostPort);
       }
-    });
-  });
-
-  describe("buildParticipantShell", () => {
-    it("builds a truthful single-seat host-only shell", () => {
-      const bootstrap = createBootstrap();
-      const seats = buildParticipantShell(
-        bootstrap,
-        {
-          ...createDefaultHostDraft(bootstrap),
-          maxPlayers: 1,
-          startingStack: 3000,
-        },
-        [1],
-        [],
-      );
-
-      expect(seats).toEqual([
-        {
-          seatIndex: 1,
-          label: "You",
-          detail: "Host · 3000 chips",
-          kind: "host",
-          isLocal: true,
-          ready: true,
-        },
-      ]);
-    });
-
-    it("marks seat two reserved when there is no join intent", () => {
-      const bootstrap = createBootstrap({ launchJoinPayload: null });
-      const seats = buildParticipantShell(
-        bootstrap,
-        createDefaultHostDraft(bootstrap),
-        [],
-        [],
-      );
-
-      expect(seats[0]).toMatchObject({
-        seatIndex: 1,
-        label: "You",
-        kind: "host",
-        isLocal: true,
-        ready: false,
-      });
-      expect(seats[1]).toEqual({
-        seatIndex: 2,
-        label: "Reserved seat",
-        detail: "Reserved",
-        kind: "pending",
-        isLocal: false,
-        ready: false,
-      });
-      expect(seats.slice(2).every((seat) => seat.kind === "open")).toBe(true);
-      expect(seats.slice(2).every((seat) => !seat.isLocal && !seat.ready)).toBe(
-        true,
-      );
-    });
-
-    it("marks seat two waiting when recent join payloads exist", () => {
-      const bootstrap = createBootstrap();
-      const seats = buildParticipantShell(
-        bootstrap,
-        createDefaultHostDraft(bootstrap),
-        [2],
-        ["pkr1_recent"],
-      );
-
-      expect(seats[1]).toEqual({
-        seatIndex: 2,
-        label: "Waiting for player",
-        detail: "Invite received",
-        kind: "pending",
-        isLocal: false,
-        ready: true,
-      });
-    });
-
-    it("treats a launch payload as join intent and shows accepted invites when parsed", () => {
-      const bootstrap = createBootstrap({
-        launchJoinPayload: "pkr1_launch",
-        parsedLaunchJoinPayload: {
-          payloadVersion: 1,
-          hostAddress: "192.168.1.8",
-          hostPort: 43818,
-          tableId: "table-1",
-          sessionEpoch: 5,
-          hostSigningPublicKey: "pubkey",
-          joinToken: "token",
-          generatedAtMs: 100,
-          tableName: "Friday Night",
-        },
-      });
-
-      const seats = buildParticipantShell(
-        bootstrap,
-        createDefaultHostDraft(bootstrap),
-        [],
-        [],
-      );
-
-      expect(seats[1]).toEqual({
-        seatIndex: 2,
-        label: "Waiting for player",
-        detail: "Invite accepted",
-        kind: "pending",
-        isLocal: false,
-        ready: false,
-      });
     });
   });
 

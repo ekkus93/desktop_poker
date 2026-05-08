@@ -1,10 +1,5 @@
-use std::{
-    fmt::Display,
-    net::IpAddr,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fmt::Display, net::IpAddr};
 
-use serde::Deserialize;
 use tauri::State;
 
 use crate::{
@@ -16,16 +11,8 @@ use crate::{
     },
     domain::JoinPayload,
     networking::resolve_connectable_host_ip,
-    protocol::{decode_join_payload, encode_join_payload},
+    protocol::decode_join_payload,
 };
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CreateHostInviteRequest {
-    pub host_address: String,
-    pub host_port: u16,
-    pub table_name: String,
-}
 
 #[tauri::command]
 pub fn get_bootstrap_state(state: State<'_, DesktopAppState>) -> DesktopBootstrapState {
@@ -41,19 +28,6 @@ pub fn list_screen_catalog(state: State<'_, DesktopAppState>) -> Vec<ScreenDescr
 pub fn validate_join_payload_input(payload: String) -> Result<JoinPayload, String> {
     validate_join_payload_input_inner(&payload, |trimmed_payload| {
         decode_join_payload(trimmed_payload).map_err(|error| error.to_string())
-    })
-}
-
-#[tauri::command]
-pub fn create_host_invite(
-    state: State<'_, DesktopAppState>,
-    request: CreateHostInviteRequest,
-) -> Result<String, String> {
-    create_host_invite_inner(state.bootstrap(), request, || {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|duration| duration.as_millis() as u64)
-            .unwrap_or(1)
     })
 }
 
@@ -207,38 +181,6 @@ fn validate_join_payload_input_inner(
     decode(payload.trim())
 }
 
-fn create_host_invite_inner(
-    bootstrap: DesktopBootstrapState,
-    request: CreateHostInviteRequest,
-    now_ms: impl FnOnce() -> u64,
-) -> Result<String, String> {
-    let host_address = request.host_address.trim();
-    let table_name = request.table_name.trim();
-
-    if host_address.is_empty() {
-        return Err("hostAddress must be non-blank".to_string());
-    }
-
-    if table_name.is_empty() {
-        return Err("tableName must be non-blank".to_string());
-    }
-
-    let generated_at_ms = now_ms().max(1);
-    let payload = JoinPayload {
-        payload_version: bootstrap.protocol_version,
-        host_address: host_address.to_string(),
-        host_port: request.host_port,
-        table_id: format!("table-{}", bootstrap.instance_id),
-        session_epoch: generated_at_ms,
-        host_signing_public_key: format!("host-signing-key:{}", bootstrap.session_identity),
-        join_token: format!("join-token:{}", bootstrap.reconnect_namespace),
-        generated_at_ms,
-        table_name: Some(table_name.to_string()),
-    };
-
-    encode_join_payload(&payload).map_err(|error| error.to_string())
-}
-
 fn resolve_host_lan_address_inner<E: Display>(
     resolve: impl FnOnce() -> Result<IpAddr, E>,
 ) -> Result<String, String> {
@@ -288,7 +230,7 @@ mod tests {
     use super::*;
     use crate::{
         app_state::{DesktopBootstrapState, ModuleDescriptor, ScreenDescriptor},
-        protocol::{decode_join_payload, encode_join_payload, PROTOCOL_VERSION},
+        protocol::{encode_join_payload, PROTOCOL_VERSION},
     };
 
     fn sample_bootstrap() -> DesktopBootstrapState {
@@ -387,58 +329,6 @@ mod tests {
         });
 
         assert_eq!(result.expect_err("payload should fail"), "decode failed");
-    }
-
-    #[test]
-    fn create_host_invite_inner_builds_a_valid_compact_payload() {
-        let bootstrap = sample_bootstrap();
-
-        let encoded = create_host_invite_inner(
-            bootstrap.clone(),
-            CreateHostInviteRequest {
-                host_address: "192.168.1.20".to_string(),
-                host_port: 43_818,
-                table_name: "Friday Night".to_string(),
-            },
-            || 42,
-        )
-        .expect("invite should encode");
-
-        let decoded = decode_join_payload(&encoded).expect("invite should decode");
-        assert_eq!(decoded.payload_version, bootstrap.protocol_version);
-        assert_eq!(decoded.host_address, "192.168.1.20");
-        assert_eq!(decoded.host_port, 43_818);
-        assert_eq!(decoded.table_id, "table-instance-a");
-        assert_eq!(decoded.session_epoch, 42);
-        assert_eq!(decoded.generated_at_ms, 42);
-        assert_eq!(decoded.table_name.as_deref(), Some("Friday Night"));
-    }
-
-    #[test]
-    fn create_host_invite_inner_rejects_blank_host_fields() {
-        let host_error = create_host_invite_inner(
-            sample_bootstrap(),
-            CreateHostInviteRequest {
-                host_address: "   ".to_string(),
-                host_port: 43_818,
-                table_name: "Friday Night".to_string(),
-            },
-            || 1,
-        )
-        .expect_err("blank host should fail");
-        let table_error = create_host_invite_inner(
-            sample_bootstrap(),
-            CreateHostInviteRequest {
-                host_address: "192.168.1.20".to_string(),
-                host_port: 43_818,
-                table_name: "  ".to_string(),
-            },
-            || 1,
-        )
-        .expect_err("blank table should fail");
-
-        assert_eq!(host_error, "hostAddress must be non-blank");
-        assert_eq!(table_error, "tableName must be non-blank");
     }
 
     #[test]

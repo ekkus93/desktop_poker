@@ -17,15 +17,6 @@ export type HostDraft = {
   hostPort: number;
 };
 
-export type ParticipantShell = {
-  seatIndex: number;
-  label: string;
-  detail: string;
-  kind: "host" | "pending" | "open";
-  isLocal: boolean;
-  ready: boolean;
-};
-
 export type StoredValueReadResult<T> = {
   value: T;
   hadParseError: boolean;
@@ -123,50 +114,6 @@ export function normalizeHostDraft(
       ? value.hostPort
       : fallbackDraft.hostPort,
   };
-}
-
-export function buildParticipantShell(
-  bootstrap: DesktopBootstrapState,
-  hostDraft: HostDraft,
-  readySeats: number[],
-  recentJoinPayloads: string[],
-): ParticipantShell[] {
-  const seats: ParticipantShell[] = Array.from({ length: hostDraft.maxPlayers }, (_, index) => ({
-    seatIndex: index + 1,
-    label: "Open seat",
-    detail: "",
-    kind: "open" as const,
-    isLocal: false,
-    ready: false,
-  }));
-
-  seats[0] = {
-    seatIndex: 1,
-    label: "You",
-    detail: `Host · ${hostDraft.startingStack} chips`,
-    kind: "host",
-    isLocal: true,
-    ready: readySeats.includes(1),
-  };
-
-  if (hostDraft.maxPlayers >= 2) {
-    const hasJoinIntent =
-      recentJoinPayloads.length > 0 || bootstrap.launchJoinPayload !== null;
-    seats[1] = {
-      seatIndex: 2,
-      label: hasJoinIntent ? "Waiting for player" : "Reserved seat",
-      detail: bootstrap.parsedLaunchJoinPayload
-        ? "Invite accepted"
-        : hasJoinIntent
-          ? "Invite received"
-          : "Reserved",
-      kind: "pending",
-      isLocal: false,
-      ready: readySeats.includes(2),
-    };
-  }
-
-  return seats;
 }
 
 export function buildHostShareText(

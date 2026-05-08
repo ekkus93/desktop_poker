@@ -3,7 +3,6 @@ import {
   clientClaimLobbySeat,
   clientSetLobbyReadyState,
   type ClaimLobbySeatRequest,
-  createHostInvite,
   fetchBootstrapState,
   getClientSessionStatus,
   hostClaimLobbySeat,
@@ -25,7 +24,6 @@ import {
   type DesktopBootstrapState,
   type ClientSessionStatus,
   type HostSessionStatus,
-  type HostInviteRequest,
   type JoinHostSessionRequest,
   type JoinPayload,
   type SetLobbyReadyStateRequest,
@@ -100,14 +98,6 @@ function sampleJoinPayload(): JoinPayload {
     hostSigningPublicKey: "pubkey",
     joinToken: "token",
     generatedAtMs: 1,
-    tableName: "Friday Night",
-  };
-}
-
-function sampleHostInviteRequest(): HostInviteRequest {
-  return {
-    hostAddress: "192.168.1.10",
-    hostPort: 43818,
     tableName: "Friday Night",
   };
 }
@@ -328,14 +318,6 @@ describe("desktop API bridge", () => {
       });
     });
 
-    it("invokes create_host_invite with the current host details", async () => {
-      const request = sampleHostInviteRequest();
-      mockedInvoke.mockResolvedValue("pkr1_generated");
-
-      await expect(createHostInvite(request)).resolves.toBe("pkr1_generated");
-      expect(mockedInvoke).toHaveBeenCalledWith("create_host_invite", { request });
-    });
-
     it("invokes validate_join_payload_input with the raw payload string", async () => {
       const payload = sampleJoinPayload();
       mockedInvoke.mockResolvedValue(payload);
@@ -365,7 +347,6 @@ describe("desktop API bridge", () => {
       const leaveClientMock = vi.fn().mockResolvedValue(undefined);
       const clientClaimSeatMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
       const clientReadyMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
-      const createInviteMock = vi.fn().mockResolvedValue("pkr1_mock");
       const validateMock = vi.fn().mockResolvedValue(sampleJoinPayload());
       const hostIpMock = vi.fn().mockResolvedValue("10.0.0.4");
       setBrowserMocks({
@@ -380,7 +361,6 @@ describe("desktop API bridge", () => {
         leaveClientSession: leaveClientMock,
         clientClaimLobbySeat: clientClaimSeatMock,
         clientSetLobbyReadyState: clientReadyMock,
-        createHostInvite: createInviteMock,
         validateJoinPayloadInput: validateMock,
         resolveHostLanAddress: hostIpMock,
       });
@@ -396,7 +376,6 @@ describe("desktop API bridge", () => {
       await leaveClientSession();
       await clientClaimLobbySeat(sampleClaimLobbySeatRequest());
       await clientSetLobbyReadyState(sampleSetLobbyReadyStateRequest());
-      await createHostInvite(sampleHostInviteRequest());
       await validateJoinPayloadInput("pkr1_mock");
       await resolveHostLanAddress();
 
@@ -411,7 +390,6 @@ describe("desktop API bridge", () => {
       expect(leaveClientMock).toHaveBeenCalledTimes(1);
       expect(clientClaimSeatMock).toHaveBeenCalledWith(sampleClaimLobbySeatRequest());
       expect(clientReadyMock).toHaveBeenCalledWith(sampleSetLobbyReadyStateRequest());
-      expect(createInviteMock).toHaveBeenCalledWith(sampleHostInviteRequest());
       expect(validateMock).toHaveBeenCalledWith("pkr1_mock");
       expect(hostIpMock).toHaveBeenCalledTimes(1);
       expect(mockedInvoke).not.toHaveBeenCalled();

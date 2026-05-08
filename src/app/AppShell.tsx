@@ -16,7 +16,6 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { HostTournamentSetupScreen } from "../screens/HostTournamentSetupScreen";
 import { JoinTournamentScreen } from "../screens/JoinTournamentScreen";
 import { MainTableScreen } from "../screens/MainTableScreen";
-import { ReadyRoomScreen } from "../screens/ReadyRoomScreen";
 import { RulesHelpScreen } from "../screens/RulesHelpScreen";
 import { TournamentCompleteScreen } from "../screens/TournamentCompleteScreen";
 import { TournamentLobbyScreen } from "../screens/TournamentLobbyScreen";
@@ -137,7 +136,6 @@ export function AppShell() {
   const hostRouteAvailable = hasScreenRoute(bootstrap, "/host");
   const joinRouteAvailable = hasScreenRoute(bootstrap, "/join");
   const lobbyRouteAvailable = hasScreenRoute(bootstrap, "/lobby");
-  const readyRoomRouteAvailable = hasScreenRoute(bootstrap, "/ready-room");
   const tableRouteAvailable = hasScreenRoute(bootstrap, "/table");
   const completeRouteAvailable = hasScreenRoute(bootstrap, "/complete");
   const historyRouteAvailable = hasScreenRoute(bootstrap, "/history");
@@ -180,12 +178,6 @@ export function AppShell() {
                   <TournamentLobbyScreen bootstrap={bootstrap} />
                 </LiveSessionRoute>
               )}
-            />
-          ) : null}
-          {readyRoomRouteAvailable ? (
-            <Route
-              path="/ready-room"
-              element={<ReadyRoomScreen bootstrap={bootstrap} />}
             />
           ) : null}
           {tableRouteAvailable ? (

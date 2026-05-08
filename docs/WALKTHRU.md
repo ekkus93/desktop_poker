@@ -20,7 +20,7 @@ The main composition root is `src-tauri/src/app_state/mod.rs`. That file does th
 
 - It detects instance identity from `--instance-id` or `DESKTOP_POKER_INSTANCE_ID`, then derives storage/session/reconnect namespaces and a per-instance profile directory.
 - It detects an optional launch payload from CLI or env and parses it through the protocol layer up front.
-- It exposes a `DesktopTableRuntime` that backs the current table and debug screens.
+- It exposes a debug-only `DebugTableRuntime` that powers the inspector path without driving the normal host/join/table flow.
 
 The protocol layer is clearly separated in `src-tauri/src/protocol/mod.rs` and `src-tauri/src/protocol/models.rs`. This is where the Android-compatible message types, signed envelopes, encrypted private envelopes, join payload encoding/decoding, and canonical signing behavior live. The domain layer in `src-tauri/src/domain/mod.rs` defines the core immutable tournament and participant models plus validation rules. Hidden-information control is enforced by the projector in `src-tauri/src/domain/projector.rs`: it produces a public projection, per-player private projections, and an observer projection with no hole cards and no action authority. The tournament logic itself is in `src-tauri/src/tournament/mod.rs`, where the `TournamentController` owns ready checks, roster freeze, blind progression, action windows, timeout handling, hand advancement, and completion.
 
@@ -28,15 +28,17 @@ The networking and crypto stacks are real modules, not placeholders. `src-tauri/
 
 ## Most Important Current Nuance
 
-The codebase is slightly ahead of the UI in some places and slightly behind in others. The backend has real protocol, crypto, networking, and tournament modules, but the current shell surfaces are not all driving those live runtime paths yet. The clearest proof is in `src-tauri/src/app_state/mod.rs`: `DesktopAppState` currently initializes `DesktopTableRuntime`, and that runtime builds a `demo_controller()`, starts a tournament immediately, drives to an “interesting” local turn, and auto-plays opponents. So the main table and debug surfaces are Rust-backed and authoritative, but they are currently powered by an in-process demo tournament harness rather than a live host/client session.
+The live player flow is now host/client-session driven. Hosting, joining, lobby state, table projections, reconnect/resync, public events, and private hole-card delivery run through the real networking/runtime path rather than the old synthetic invite or Ready Room flow.
 
-That same pattern shows up in the host and join screens. They already use real backend pieces where it matters most for correctness:
+The remaining in-process demo harness is intentionally debug-only. In `src-tauri/src/app_state/mod.rs`, `DesktopAppState::debug_state(...)` lazily initializes `DebugTableRuntime`, which builds `debug_demo_controller()` for the inspector route. That path is kept for internal inspection and test coverage; it is not the production table runtime.
+
+The host and join screens still use real backend pieces where it matters most for correctness:
 
 - host screen uses real LAN-IP resolution
 - join screen uses the real Rust payload decoder/validator
 - debug screen uses the real Tauri command surface and can spawn extra instances
 
-But those screens still describe the next step as wiring into the live runtime, which means the repo contains both the actual networking stack and a shell/runtime layer that has not fully switched over to it yet.
+The important distinction is that the repo now has a clean split between production live-session surfaces and debug-only tooling, rather than a production shell that still depends on the demo runtime.
 
 ## Suggested Next Walkthroughs
 
@@ -44,4 +46,4 @@ If you want the next walkthrough pass, the highest-value options are:
 
 1. Trace one end-to-end slice, like join payload from paste to protocol decode to client connect.
 2. Trace the poker path, from `TournamentController` state to projector output to table UI.
-3. Audit the gap between the existing live networking runtime and the current host/join shell wiring.
+3. Audit how the debug-only inspector/runtime path is isolated from the production host/join/table flow.
