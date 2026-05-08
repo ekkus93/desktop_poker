@@ -247,3 +247,13 @@
 
 ## 2026-05-06T18:30:11-07:00 - GPT-5.4 - Check in workspace ignore and lockfile updates
 - Commit `e1e21cdbb53c22e5f79fa8f333ef91bc5b3fbe1a` checked in workspace ignore updates and the corresponding `package-lock.json` refresh.
+
+## 2026-05-07T22:17:21Z - GPT-5.4 - Record README validation flow
+- README `Getting started` includes `npm run test:geometry` in addition to Rust fmt/clippy/test and frontend lint/test before `npm run tauri dev`.
+
+## 2026-05-08T03:37:03Z - GPT-5.4 - Record local multi-instance dev workflow
+- README documents that local multi-instance development should use one `npm run tauri dev` process for the shared Vite server, then launch additional instances with distinct `DESKTOP_POKER_INSTANCE_ID` values via `cargo run --manifest-path src-tauri/Cargo.toml --no-default-features --`.
+
+## 2026-05-08T03:43:10Z - GPT-5.4 - Record code review clarification handoff
+- Added `docs/responses2.md` to capture the remaining clarification questions from the desktop code review fix docs.
+- User selected removing Ready Room from production flow, matching `docs/DESKTOP_SPECS.md`.
