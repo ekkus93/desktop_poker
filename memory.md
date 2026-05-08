@@ -261,3 +261,11 @@
 ## 2026-05-08T05:06:13Z - GPT-5.4 - Finish desktop code review cleanup pass
 - Removed the production Ready Room flow and synthetic invite command, switched snapshots and live updates onto recipient-safe/runtime-event paths, and updated the patched cleanup checklist to reflect the implemented fixes.
 - Renamed the remaining demo inspector runtime to explicit debug-only names and updated `docs/WALKTHRU.md` so the docs no longer describe the production table flow as demo-backed.
+
+## 2026-05-08T16:44:36Z - GPT-5.4 - Review second desktop code review fix docs
+- Reviewed `docs/DESKTOP_CODE_REVIEW2_FIX_SPEC.md` and `docs/DESKTOP_CODE_REVIEW2_FIX_TODO.md` as the apparent intended files after a filename mismatch in the user message.
+- Main blocking ambiguity found: M1 asks for a new safe recipient snapshot DTO, but current Android compatibility docs still describe `SnapshotEvent` with `state: TournamentState`, so snapshot hardening needs an explicit decision on whether wire-format compatibility with Android must be preserved in this pass.
+
+## 2026-05-08T17:22:52Z - GPT-5.4 - Complete desktop code review repair pass 2 implementation
+- Implemented the second repair pass across Rust runtime, protocol DTOs, client state mapping, blind presets, debug gating, and docs, including recipient-safe snapshots, participant-capacity join guards, random join tokens, showdown/history fixes, and release-only debug restrictions.
+- Updated `docs/DESKTOP_CODE_REVIEW2_FIX_TODO.md` to mark the implementation and automated regression work complete while explicitly leaving manual desktop QA items recorded as pending in the checklist and README.

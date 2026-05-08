@@ -7,7 +7,9 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use base64::Engine as _;
 use dirs::data_local_dir;
+use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -513,7 +515,7 @@ impl DesktopClientSession {
     fn apply_event(&mut self, event: networking::ClientRuntimeEvent) {
         match event {
             networking::ClientRuntimeEvent::Snapshot(snapshot) => {
-                self.latest_snapshot = snapshot.state.clone();
+                self.latest_snapshot = client_snapshot_state_from_event(&snapshot);
                 self.reconnecting = false;
                 self.last_error = None;
             }
@@ -760,6 +762,10 @@ impl DesktopAppState {
     }
 
     pub fn debug_state(&self, viewer_mode: TableViewerMode) -> Result<DebugInspectorState, String> {
+        if !self.bootstrap.debug_tools_enabled {
+            return Err("debug tools are unavailable in release builds".to_string());
+        }
+
         let mut debug_table_runtime = self
             .debug_table_runtime
             .lock()
@@ -1003,10 +1009,7 @@ impl DesktopAppState {
             session_epoch,
             table_id,
             table_name: Some(config.tournament_name.clone()),
-            join_token: format!(
-                "join-token:{}:{}",
-                self.bootstrap.reconnect_namespace, session_epoch
-            ),
+            join_token: issue_join_token(),
             host_signing_keys,
             host_encryption_keys,
             snapshot_state,
@@ -1077,7 +1080,9 @@ impl DesktopAppState {
         .map_err(|error| error.to_string())?;
 
         let latest_snapshot = match runtime.next_event(Duration::from_secs(1)) {
-            Ok(networking::ClientRuntimeEvent::Snapshot(snapshot)) => snapshot.state.clone(),
+            Ok(networking::ClientRuntimeEvent::Snapshot(snapshot)) => {
+                client_snapshot_state_from_event(&snapshot)
+            }
             Ok(other) => {
                 return Err(format!(
                     "expected an initial snapshot event after join, got {other:?}"
@@ -1113,6 +1118,92 @@ fn now_epoch_ms() -> u64 {
         .unwrap_or(1)
 }
 
+fn client_snapshot_state_from_event(event: &protocol::SnapshotEvent) -> domain::SnapshotState {
+    let state = &event.state;
+    let occupied_seat_links = state
+        .seats
+        .iter()
+        .filter(|seat| seat.occupancy == domain::SeatOccupancyState::Occupied)
+        .filter_map(|seat| {
+            seat.participant_id
+                .as_ref()
+                .map(|participant_id| (seat.seat_index, participant_id.clone()))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let participants = state
+        .participants
+        .values()
+        .map(|participant| {
+            let normalized_seat_index = participant.seat_index.and_then(|seat_index| {
+                (occupied_seat_links.get(&seat_index) == Some(&participant.player_id))
+                    .then_some(seat_index)
+            });
+            (
+                participant.player_id.clone(),
+                domain::ParticipantRegistryEntry {
+                    identity: domain::PlayerIdentity {
+                        player_id: participant.player_id.clone(),
+                        display_name: participant.display_name.clone(),
+                        signing_public_key: format!("snapshot-sign-{}", participant.player_id),
+                        encryption_public_key: format!("snapshot-enc-{}", participant.player_id),
+                        signing_key_fingerprint: format!("snapshot-fp-{}", participant.player_id),
+                    },
+                    state: participant.participant_state,
+                    connection_state: participant.connection_state,
+                    seat_index: normalized_seat_index,
+                    admitted_at_ms: state.session_epoch,
+                    reconnect_token: None,
+                    reconnect_expiry_ms: None,
+                    is_host: participant.is_host,
+                },
+            )
+        })
+        .collect();
+    let current_hand = state.current_hand.as_ref().map(|hand| {
+        let mut hole_cards_by_player_id = hand.public_hole_cards_by_player_id.clone();
+        if !event.private_hole_cards.is_empty() {
+            hole_cards_by_player_id.insert(
+                event.local_player_id.clone(),
+                event.private_hole_cards.clone(),
+            );
+        }
+
+        domain::HandState {
+            hand_number: hand.hand_number,
+            cycle_phase: hand.cycle_phase,
+            street: hand.street,
+            dealer_seat_index: hand.dealer_seat_index,
+            small_blind_seat_index: hand.small_blind_seat_index,
+            big_blind_seat_index: hand.big_blind_seat_index,
+            board_cards: hand.board_cards.clone(),
+            hole_cards_by_player_id,
+            participation_by_player_id: hand.participation_by_player_id.clone(),
+            betting_round: hand.betting_round.clone(),
+            action_window: hand.action_window.clone(),
+        }
+    });
+
+    domain::SnapshotState {
+        state: domain::TournamentState {
+            table_id: state.table_id.clone(),
+            session_epoch: state.session_epoch,
+            phase: state.phase,
+            config: state.config.clone(),
+            blind_schedule: state.blind_schedule.clone(),
+            blind_level_index: state.blind_level_index,
+            participants,
+            seats: state.seats.clone(),
+            current_hand,
+            hand_results: state.hand_results.clone(),
+            placements: state.placements.clone(),
+        },
+        local_player_id: event.local_player_id.clone(),
+        reconnect_token: event.reconnect_token.clone(),
+        host_signing_public_key: event.host_signing_public_key.clone(),
+        host_encryption_public_key: event.host_encryption_public_key.clone(),
+    }
+}
+
 fn build_host_tournament_config(
     request: &StartHostSessionRequest,
 ) -> Result<domain::TournamentConfig, String> {
@@ -1129,43 +1220,51 @@ fn build_host_tournament_config(
 }
 
 fn blind_schedule_for_preset(blind_preset_id: &str) -> Result<domain::BlindSchedule, String> {
-    let (first_small_blind, duration_seconds) = match blind_preset_id.trim() {
-        "standard" => (10, 8 * 60),
-        "turbo" => (15, 5 * 60),
-        "deep-stack" => (10, 10 * 60),
+    let duration_seconds = match blind_preset_id.trim() {
+        "fast" => 180,
+        "normal" => 300,
+        "slow" => 480,
+        "turbo" => 180,
+        "standard" => 300,
+        "deep-stack" => 480,
         other => {
             return Err(format!("unsupported blindPresetId: {other}"));
         }
     };
 
     Ok(domain::BlindSchedule {
-        levels: vec![
-            domain::BlindLevel {
-                level_index: 1,
-                label: "Level 1".to_string(),
-                small_blind: first_small_blind,
-                big_blind: first_small_blind * 2,
-                ante: 0,
-                duration_seconds,
-            },
-            domain::BlindLevel {
-                level_index: 2,
-                label: "Level 2".to_string(),
-                small_blind: first_small_blind * 2,
-                big_blind: first_small_blind * 4,
-                ante: 0,
-                duration_seconds,
-            },
-            domain::BlindLevel {
-                level_index: 3,
-                label: "Level 3".to_string(),
-                small_blind: first_small_blind * 4,
-                big_blind: first_small_blind * 8,
-                ante: 0,
-                duration_seconds,
-            },
-        ],
+        levels: [
+            (10, 20),
+            (15, 30),
+            (25, 50),
+            (50, 100),
+            (75, 150),
+            (100, 200),
+            (150, 300),
+            (200, 400),
+            (300, 600),
+            (400, 800),
+            (600, 1200),
+            (800, 1600),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, (small_blind, big_blind))| domain::BlindLevel {
+            level_index: (index + 1) as u8,
+            label: format!("Level {}", index + 1),
+            small_blind,
+            big_blind,
+            ante: 0,
+            duration_seconds,
+        })
+        .collect(),
     })
+}
+
+fn issue_join_token() -> String {
+    let mut bytes = [0_u8; 24];
+    OsRng.fill_bytes(&mut bytes);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
 }
 
 fn build_initial_host_state(
@@ -2104,11 +2203,24 @@ fn build_table_seats_for_state(
                         .cloned()
                         .filter(|_| {
                             !is_local
-                                && matches!(viewer_mode, TableViewerMode::Local)
+                                && matches!(
+                                    viewer_mode,
+                                    TableViewerMode::Local | TableViewerMode::Observer
+                                )
                                 && matches!(
                                     hand.cycle_phase,
                                     domain::HandCyclePhase::Showdown
                                         | domain::HandCyclePhase::Settlement
+                                )
+                                && hand.participation_by_player_id.get(player_id).is_some_and(
+                                    |participation| {
+                                        !matches!(
+                                            participation,
+                                            domain::HandParticipationState::Folded
+                                                | domain::HandParticipationState::Out
+                                                | domain::HandParticipationState::EliminatedObserver
+                                        )
+                                    },
                                 )
                         })
                 })
@@ -2252,11 +2364,7 @@ fn build_table_history_for_state(state: &domain::TournamentState) -> Vec<TableHi
                 .sum(),
             winning_players: display_names_for_state(state, &result.winning_player_ids),
             eliminated_players: display_names_for_state(state, &result.eliminated_player_ids),
-            board_cards: state
-                .current_hand
-                .as_ref()
-                .map(|hand| hand.board_cards.iter().map(card_view).collect())
-                .unwrap_or_default(),
+            board_cards: result.board_cards.iter().map(card_view).collect(),
         })
         .collect()
 }
@@ -2646,24 +2754,46 @@ fn apply_public_event_to_snapshot(
             {
                 state.hand_results.push(event.result.clone());
             }
-            let mut payouts = std::collections::BTreeMap::<String, u32>::new();
-            for pot in &event.result.pot_summaries {
-                for winner in &pot.winner_player_ids {
-                    *payouts.entry(winner.clone()).or_default() +=
-                        pot.amount / pot.winner_player_ids.len() as u32;
+            if event.result.final_stack_by_player_id.is_empty() {
+                let mut payouts = std::collections::BTreeMap::<String, u32>::new();
+                for pot in &event.result.pot_summaries {
+                    let Some(split_winner_count) = (!pot.winner_player_ids.is_empty())
+                        .then_some(pot.winner_player_ids.len() as u32)
+                    else {
+                        continue;
+                    };
+                    let split_amount = pot.amount / split_winner_count;
+                    for winner in &pot.winner_player_ids {
+                        *payouts.entry(winner.clone()).or_default() += split_amount;
+                    }
+                    if let Some(odd_chip_player_id) = pot.odd_chip_awarded_to.as_ref() {
+                        *payouts.entry(odd_chip_player_id.clone()).or_default() +=
+                            pot.odd_chip_count;
+                    }
                 }
-            }
-            for seat in &mut state.seats {
-                let Some(player_id) = seat.participant_id.as_ref() else {
-                    continue;
-                };
-                if let Some(payout) = payouts.get(player_id) {
-                    let chips = seat.chip_count.get_or_insert(0);
-                    *chips = chips.saturating_add(*payout);
+                for seat in &mut state.seats {
+                    let Some(player_id) = seat.participant_id.as_ref() else {
+                        continue;
+                    };
+                    if let Some(payout) = payouts.get(player_id) {
+                        let chips = seat.chip_count.get_or_insert(0);
+                        *chips = chips.saturating_add(*payout);
+                    }
+                }
+            } else {
+                for seat in &mut state.seats {
+                    let Some(player_id) = seat.participant_id.as_ref() else {
+                        continue;
+                    };
+                    if let Some(final_stack) = event.result.final_stack_by_player_id.get(player_id)
+                    {
+                        seat.chip_count = Some(*final_stack);
+                    }
                 }
             }
             if let Some(hand) = state.current_hand.as_mut() {
                 if hand.hand_number == event.hand_number {
+                    hand.board_cards = event.result.board_cards.clone();
                     for (player_id, cards) in &event.result.revealed_hands_by_player_id {
                         hand.hole_cards_by_player_id
                             .insert(player_id.clone(), cards.clone());
@@ -2885,17 +3015,27 @@ fn format_action(action: domain::ActionType) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::{
-        build_debug_child_instance_id, build_debug_child_launch_args, derive_instance_profile,
-        detect_profile_directory, ensure_legal, format_marker, format_phase, format_street,
-        resolve_action_request, screen_catalog, ClaimLobbySeatRequest, DesktopAppState,
-        DesktopTableActionKind, JoinHostSessionRequest, SetLobbyReadyStateRequest,
-        StartHostSessionRequest, TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
+        apply_public_event_to_snapshot, blind_schedule_for_preset, build_debug_child_instance_id,
+        build_debug_child_launch_args, build_table_history_for_state, build_table_view_snapshot,
+        derive_instance_profile, detect_profile_directory, ensure_legal, format_marker,
+        format_phase, format_street, issue_join_token, resolve_action_request, screen_catalog,
+        ClaimLobbySeatRequest, DesktopAppState, DesktopTableActionKind, JoinHostSessionRequest,
+        SetLobbyReadyStateRequest, StartHostSessionRequest, TableViewerMode, INSTANCE_ID_ENV_VAR,
+        JOIN_PAYLOAD_ENV_VAR, LOCAL_PLAYER_ID,
     };
     use crate::{
-        domain::{ActionType, ActionWindow, SeatMarker, StreetPhase, TournamentPhase},
+        domain::{
+            ActionType, ActionWindow, BettingRoundState, Card, ConnectionState, HandCyclePhase,
+            HandParticipationState, HandResult, ParticipantRegistryEntry, ParticipantState,
+            PlayerIdentity, PotSummary, Rank, SeatMarker, SeatOccupancyState, SeatState,
+            StreetPhase, Suit, TournamentConfig, TournamentPhase, TournamentSeatState,
+            TournamentState,
+        },
         networking::HostRuntimeMode,
-        protocol::decode_join_payload,
+        protocol::{self, decode_join_payload},
     };
 
     fn sample_host_session_request(host_address: &str) -> StartHostSessionRequest {
@@ -2905,7 +3045,7 @@ mod tests {
             tournament_name: "Friday Finals".to_string(),
             max_players: 6,
             starting_stack: 1_500,
-            blind_preset_id: "standard".to_string(),
+            blind_preset_id: "normal".to_string(),
             turn_timer_seconds: 30,
             display_name: "Host Alpha".to_string(),
         }
@@ -3484,6 +3624,9 @@ mod tests {
             .join_host_session(sample_join_host_session_request(&host_status.invite))
             .expect("client should join live host");
 
+        host_state
+            .host_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 0 })
+            .expect("host seat claim should succeed");
         client_state
             .client_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 1 })
             .expect("client seat claim should succeed");
@@ -3576,12 +3719,12 @@ mod tests {
             .expect("host should start the live tournament");
 
         let running_deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        let host_running_view = loop {
+        loop {
             let next_view = host_state
                 .table_view(TableViewerMode::Local)
                 .expect("host running table view before live action");
             if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
-                break next_view;
+                break;
             }
 
             assert!(
@@ -3589,13 +3732,13 @@ mod tests {
                 "host should expose the running table before live action"
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
-        };
-        let client_running_view = loop {
+        }
+        loop {
             let next_view = client_state
                 .table_view(TableViewerMode::Local)
                 .expect("client running table view before live action");
             if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
-                break next_view;
+                break;
             }
 
             assert!(
@@ -3603,33 +3746,72 @@ mod tests {
                 "client should expose the running table before live action"
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
-        };
+        }
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
-        let mut latest_host_view = host_running_view;
-        let mut latest_client_view = client_running_view;
         let (acting_state, observing_state, acting_view_before, observing_view_before) = loop {
-            let next_host_view = latest_host_view.clone();
-            let next_client_view = latest_client_view.clone();
+            let next_host_view = host_state
+                .table_view(TableViewerMode::Local)
+                .expect("host table view before live action retry");
+            let next_client_view = client_state
+                .table_view(TableViewerMode::Local)
+                .expect("client table view before live action retry");
 
-            if next_host_view.action_tray.is_some() {
-                break (&host_state, &client_state, next_host_view, next_client_view);
+            let host_can_act = host_state
+                .host_session
+                .lock()
+                .expect("host session lock")
+                .as_ref()
+                .and_then(|session| {
+                    session
+                        .host_server
+                        .authoritative_state()
+                        .ok()
+                        .and_then(|state| state.current_hand)
+                        .and_then(|hand| hand.action_window)
+                        .map(|window| window.player_id == LOCAL_PLAYER_ID)
+                })
+                .unwrap_or(false);
+            if host_can_act {
+                break (
+                    &host_state,
+                    &client_state,
+                    next_host_view.clone(),
+                    next_client_view.clone(),
+                );
             }
 
-            if next_client_view.action_tray.is_some() {
-                break (&client_state, &host_state, next_client_view, next_host_view);
+            let client_can_act = client_state
+                .client_session
+                .lock()
+                .expect("client session lock")
+                .as_ref()
+                .and_then(|session| {
+                    session
+                        .latest_snapshot
+                        .state
+                        .current_hand
+                        .as_ref()
+                        .and_then(|hand| {
+                            hand.action_window.as_ref().map(|window| {
+                                window.player_id == session.latest_snapshot.local_player_id
+                            })
+                        })
+                })
+                .unwrap_or(false);
+            if client_can_act {
+                break (
+                    &client_state,
+                    &host_state,
+                    next_client_view.clone(),
+                    next_host_view.clone(),
+                );
             }
 
             assert!(
                 std::time::Instant::now() < deadline,
                 "one live session should observe an open action window"
             );
-            latest_host_view = host_state
-                .table_view(TableViewerMode::Local)
-                .expect("host table view before live action retry");
-            latest_client_view = client_state
-                .table_view(TableViewerMode::Local)
-                .expect("client table view before live action retry");
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
         assert_eq!(acting_view_before.phase_label, "Running");
@@ -3733,5 +3915,383 @@ mod tests {
         assert_eq!(format_street(StreetPhase::River), "River");
         assert_eq!(format_marker(SeatMarker::Dealer), "Dealer");
         assert_eq!(format_marker(SeatMarker::BigBlind), "Big blind");
+    }
+
+    #[test]
+    fn blind_schedule_presets_match_the_canonical_v1_structure() {
+        let fast = blind_schedule_for_preset("fast").expect("fast blind schedule");
+        let normal = blind_schedule_for_preset("normal").expect("normal blind schedule");
+        let slow = blind_schedule_for_preset("slow").expect("slow blind schedule");
+
+        for (schedule, expected_duration) in [(&fast, 180), (&normal, 300), (&slow, 480)] {
+            assert_eq!(schedule.levels.len(), 12);
+            assert_eq!(
+                schedule.levels.first().map(|level| level.small_blind),
+                Some(10)
+            );
+            assert_eq!(
+                schedule.levels.first().map(|level| level.big_blind),
+                Some(20)
+            );
+            assert_eq!(
+                schedule.levels.last().map(|level| level.small_blind),
+                Some(800)
+            );
+            assert_eq!(
+                schedule.levels.last().map(|level| level.big_blind),
+                Some(1600)
+            );
+            assert!(schedule
+                .levels
+                .iter()
+                .all(|level| level.duration_seconds == expected_duration));
+        }
+    }
+
+    #[test]
+    fn join_tokens_are_random_and_url_safe() {
+        let first = issue_join_token();
+        let second = issue_join_token();
+
+        assert!(!first.is_empty());
+        assert!(!second.is_empty());
+        assert_ne!(first, second);
+        assert!(!first.contains(':'));
+        assert!(first
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_')));
+    }
+
+    #[test]
+    fn debug_state_is_blocked_when_debug_tools_are_disabled() {
+        let mut state = DesktopAppState::detect();
+        state.bootstrap.debug_tools_enabled = false;
+        state.bootstrap.screens = screen_catalog(false);
+
+        assert_eq!(
+            state
+                .debug_state(TableViewerMode::Local)
+                .expect_err("release mode should block debug state"),
+            "debug tools are unavailable in release builds"
+        );
+    }
+
+    fn snapshot_test_state() -> TournamentState {
+        let blind_schedule = blind_schedule_for_preset("normal").expect("normal blind schedule");
+        TournamentState {
+            table_id: "table-test".to_string(),
+            session_epoch: 7,
+            phase: TournamentPhase::Running,
+            config: TournamentConfig {
+                tournament_name: "Observer Table".to_string(),
+                table_name: Some("Main Table".to_string()),
+                max_players: 3,
+                starting_stack: 1_500,
+                turn_timer_seconds: 30,
+                blind_schedule: blind_schedule.clone(),
+            },
+            blind_schedule,
+            blind_level_index: 0,
+            participants: [
+                (
+                    "observer".to_string(),
+                    ParticipantRegistryEntry {
+                        identity: PlayerIdentity {
+                            player_id: "observer".to_string(),
+                            display_name: "Observer".to_string(),
+                            signing_public_key: "sign-observer".to_string(),
+                            encryption_public_key: "enc-observer".to_string(),
+                            signing_key_fingerprint: "fp-observer".to_string(),
+                        },
+                        state: ParticipantState::EliminatedObserver,
+                        connection_state: ConnectionState::Connected,
+                        seat_index: Some(0),
+                        admitted_at_ms: 1,
+                        reconnect_token: None,
+                        reconnect_expiry_ms: None,
+                        is_host: false,
+                    },
+                ),
+                (
+                    "showdown".to_string(),
+                    ParticipantRegistryEntry {
+                        identity: PlayerIdentity {
+                            player_id: "showdown".to_string(),
+                            display_name: "Showdown".to_string(),
+                            signing_public_key: "sign-showdown".to_string(),
+                            encryption_public_key: "enc-showdown".to_string(),
+                            signing_key_fingerprint: "fp-showdown".to_string(),
+                        },
+                        state: ParticipantState::Active,
+                        connection_state: ConnectionState::Connected,
+                        seat_index: Some(1),
+                        admitted_at_ms: 1,
+                        reconnect_token: None,
+                        reconnect_expiry_ms: None,
+                        is_host: false,
+                    },
+                ),
+                (
+                    "folded".to_string(),
+                    ParticipantRegistryEntry {
+                        identity: PlayerIdentity {
+                            player_id: "folded".to_string(),
+                            display_name: "Folded".to_string(),
+                            signing_public_key: "sign-folded".to_string(),
+                            encryption_public_key: "enc-folded".to_string(),
+                            signing_key_fingerprint: "fp-folded".to_string(),
+                        },
+                        state: ParticipantState::Active,
+                        connection_state: ConnectionState::Connected,
+                        seat_index: Some(2),
+                        admitted_at_ms: 1,
+                        reconnect_token: None,
+                        reconnect_expiry_ms: None,
+                        is_host: false,
+                    },
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            seats: vec![
+                SeatState {
+                    seat_index: 0,
+                    occupancy: SeatOccupancyState::Occupied,
+                    tournament_state: TournamentSeatState::EliminatedObserver,
+                    participant_id: Some("observer".to_string()),
+                    display_name: Some("Observer".to_string()),
+                    chip_count: Some(0),
+                    is_ready: true,
+                    marker: None,
+                },
+                SeatState {
+                    seat_index: 1,
+                    occupancy: SeatOccupancyState::Occupied,
+                    tournament_state: TournamentSeatState::Active,
+                    participant_id: Some("showdown".to_string()),
+                    display_name: Some("Showdown".to_string()),
+                    chip_count: Some(1_250),
+                    is_ready: false,
+                    marker: None,
+                },
+                SeatState {
+                    seat_index: 2,
+                    occupancy: SeatOccupancyState::Occupied,
+                    tournament_state: TournamentSeatState::Active,
+                    participant_id: Some("folded".to_string()),
+                    display_name: Some("Folded".to_string()),
+                    chip_count: Some(250),
+                    is_ready: false,
+                    marker: None,
+                },
+            ],
+            current_hand: Some(crate::domain::HandState {
+                hand_number: 9,
+                cycle_phase: HandCyclePhase::Settlement,
+                street: StreetPhase::Showdown,
+                dealer_seat_index: 0,
+                small_blind_seat_index: 1,
+                big_blind_seat_index: 2,
+                board_cards: vec![Card {
+                    rank: Rank::Ace,
+                    suit: Suit::Clubs,
+                }],
+                hole_cards_by_player_id: [
+                    (
+                        "showdown".to_string(),
+                        vec![
+                            Card {
+                                rank: Rank::King,
+                                suit: Suit::Hearts,
+                            },
+                            Card {
+                                rank: Rank::King,
+                                suit: Suit::Diamonds,
+                            },
+                        ],
+                    ),
+                    (
+                        "folded".to_string(),
+                        vec![
+                            Card {
+                                rank: Rank::Two,
+                                suit: Suit::Spades,
+                            },
+                            Card {
+                                rank: Rank::Three,
+                                suit: Suit::Spades,
+                            },
+                        ],
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+                participation_by_player_id: [
+                    ("showdown".to_string(), HandParticipationState::AllIn),
+                    ("folded".to_string(), HandParticipationState::Folded),
+                ]
+                .into_iter()
+                .collect(),
+                betting_round: BettingRoundState {
+                    street: StreetPhase::Showdown,
+                    current_bet: 0,
+                    min_raise_to: None,
+                    max_raise_to: None,
+                    pot_size: 200,
+                    contributions_by_player_id: BTreeMap::new(),
+                },
+                action_window: None,
+            }),
+            hand_results: vec![HandResult {
+                hand_number: 8,
+                winning_player_ids: vec!["showdown".to_string()],
+                pot_summaries: vec![PotSummary {
+                    pot_index: 0,
+                    amount: 120,
+                    eligible_player_ids: vec!["showdown".to_string()],
+                    winner_player_ids: vec!["showdown".to_string()],
+                    odd_chip_count: 0,
+                    odd_chip_awarded_to: None,
+                }],
+                board_cards: vec![Card {
+                    rank: Rank::Queen,
+                    suit: Suit::Clubs,
+                }],
+                revealed_hands_by_player_id: BTreeMap::new(),
+                eliminated_player_ids: Vec::new(),
+                final_stack_by_player_id: [("showdown".to_string(), 1_620)].into_iter().collect(),
+            }],
+            placements: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn observer_table_view_shows_public_showdown_cards_but_not_folded_private_cards() {
+        let state = snapshot_test_state();
+        let view = build_table_view_snapshot(
+            &state,
+            "observer",
+            TableViewerMode::Observer,
+            false,
+            Vec::new(),
+        )
+        .expect("observer table view");
+
+        let showdown_seat = view
+            .seats
+            .iter()
+            .find(|seat| seat.display_name == "Showdown")
+            .expect("showdown seat");
+        let folded_seat = view
+            .seats
+            .iter()
+            .find(|seat| seat.display_name == "Folded")
+            .expect("folded seat");
+
+        assert!(!showdown_seat.cards_hidden);
+        assert_eq!(showdown_seat.hole_cards.len(), 2);
+        assert!(folded_seat.cards_hidden);
+        assert!(folded_seat.hole_cards.is_empty());
+    }
+
+    #[test]
+    fn hand_history_uses_stored_completed_hand_boards() {
+        let mut state = snapshot_test_state();
+        state
+            .current_hand
+            .as_mut()
+            .expect("current hand")
+            .board_cards = vec![Card {
+            rank: Rank::Ten,
+            suit: Suit::Hearts,
+        }];
+
+        let history = build_table_history_for_state(&state);
+
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].board_cards[0].label, "Queen of Clubs");
+    }
+
+    #[test]
+    fn hand_result_application_uses_final_stack_values_when_present() {
+        let mut state = snapshot_test_state();
+        let event = serde_json::to_value(protocol::HandResultCommitted {
+            hand_number: 9,
+            result: HandResult {
+                hand_number: 9,
+                winning_player_ids: vec!["showdown".to_string()],
+                pot_summaries: vec![PotSummary {
+                    pot_index: 0,
+                    amount: 101,
+                    eligible_player_ids: vec!["showdown".to_string()],
+                    winner_player_ids: vec!["showdown".to_string()],
+                    odd_chip_count: 0,
+                    odd_chip_awarded_to: None,
+                }],
+                board_cards: vec![Card {
+                    rank: Rank::Ace,
+                    suit: Suit::Clubs,
+                }],
+                revealed_hands_by_player_id: BTreeMap::new(),
+                eliminated_player_ids: Vec::new(),
+                final_stack_by_player_id: [
+                    ("showdown".to_string(), 1_351),
+                    ("folded".to_string(), 249),
+                ]
+                .into_iter()
+                .collect(),
+            },
+        })
+        .expect("hand result payload");
+
+        apply_public_event_to_snapshot(
+            &mut state,
+            "observer",
+            protocol::ProtocolMessageType::HandResultCommittedEvent,
+            &event,
+        );
+
+        assert_eq!(state.seats[1].chip_count, Some(1_351));
+        assert_eq!(state.seats[2].chip_count, Some(249));
+    }
+
+    #[test]
+    fn odd_chip_fallback_awards_the_extra_chip_to_the_declared_recipient() {
+        let mut state = snapshot_test_state();
+        state.seats[1].chip_count = Some(10);
+        state.seats[2].chip_count = Some(10);
+        let event = serde_json::to_value(protocol::HandResultCommitted {
+            hand_number: 9,
+            result: HandResult {
+                hand_number: 9,
+                winning_player_ids: vec!["showdown".to_string(), "folded".to_string()],
+                pot_summaries: vec![PotSummary {
+                    pot_index: 0,
+                    amount: 5,
+                    eligible_player_ids: vec!["showdown".to_string(), "folded".to_string()],
+                    winner_player_ids: vec!["showdown".to_string(), "folded".to_string()],
+                    odd_chip_count: 1,
+                    odd_chip_awarded_to: Some("showdown".to_string()),
+                }],
+                board_cards: vec![Card {
+                    rank: Rank::Ace,
+                    suit: Suit::Clubs,
+                }],
+                revealed_hands_by_player_id: BTreeMap::new(),
+                eliminated_player_ids: Vec::new(),
+                final_stack_by_player_id: BTreeMap::new(),
+            },
+        })
+        .expect("hand result payload");
+
+        apply_public_event_to_snapshot(
+            &mut state,
+            "observer",
+            protocol::ProtocolMessageType::HandResultCommittedEvent,
+            &event,
+        );
+
+        assert_eq!(state.seats[1].chip_count, Some(13));
+        assert_eq!(state.seats[2].chip_count, Some(12));
     }
 }

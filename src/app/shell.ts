@@ -24,25 +24,25 @@ export type StoredValueReadResult<T> = {
 
 export const BLIND_PRESETS: BlindPreset[] = [
   {
-    id: "standard",
-    label: "Standard",
-    summary: "8 minute levels · steadier local game flow",
+    id: "normal",
+    label: "Normal",
+    summary: "5 minute levels · balanced Sit 'n Go pace",
     firstLevel: "10 / 20",
-    durationMinutes: 8,
-  },
-  {
-    id: "turbo",
-    label: "Turbo",
-    summary: "5 minute levels · faster test loops",
-    firstLevel: "15 / 30",
     durationMinutes: 5,
   },
   {
-    id: "deep-stack",
-    label: "Deep Stack",
-    summary: "10 minute levels · longer post-flop play",
+    id: "fast",
+    label: "Fast",
+    summary: "3 minute levels · quickest local loop",
     firstLevel: "10 / 20",
-    durationMinutes: 10,
+    durationMinutes: 3,
+  },
+  {
+    id: "slow",
+    label: "Slow",
+    summary: "8 minute levels · longest local structure",
+    firstLevel: "10 / 20",
+    durationMinutes: 8,
   },
 ];
 
@@ -89,6 +89,15 @@ export function normalizeHostDraft(
     return fallbackDraft;
   }
 
+  const legacyBlindPresetId =
+    typeof value.blindPresetId === "string"
+      ? {
+          standard: "normal",
+          turbo: "fast",
+          "deep-stack": "slow",
+        }[value.blindPresetId]
+      : undefined;
+
   return {
     tournamentName:
       typeof value.tournamentName === "string" && value.tournamentName.trim()
@@ -103,8 +112,11 @@ export function normalizeHostDraft(
         ? value.startingStack
         : fallbackDraft.startingStack,
     blindPresetId:
-      typeof value.blindPresetId === "string" && BLIND_PRESETS.some((preset) => preset.id === value.blindPresetId)
+      typeof value.blindPresetId === "string" &&
+      BLIND_PRESETS.some((preset) => preset.id === value.blindPresetId)
         ? value.blindPresetId
+        : legacyBlindPresetId && BLIND_PRESETS.some((preset) => preset.id === legacyBlindPresetId)
+          ? legacyBlindPresetId
         : fallbackDraft.blindPresetId,
     turnTimerSeconds:
       typeof value.turnTimerSeconds === "number" && TURN_TIMER_OPTIONS.includes(value.turnTimerSeconds)

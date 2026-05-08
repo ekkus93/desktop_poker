@@ -21,9 +21,9 @@ use crate::{
         SigningKeyMaterial,
     },
     domain::{
-        ConnectionState, JoinPayload, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
-        SeatOccupancyState, SeatState, SnapshotState, StateProjector, TournamentPhase,
-        TournamentSeatState, TournamentState,
+        counted_capacity, ConnectionState, HandCyclePhase, HandParticipationState, JoinPayload,
+        ParticipantRegistryEntry, ParticipantState, PlayerIdentity, SeatOccupancyState, SeatState,
+        StateProjector, TournamentPhase, TournamentSeatState, TournamentState,
     },
     networking::{read_json_frame, write_json_frame},
     protocol::{
@@ -31,8 +31,9 @@ use crate::{
         ActionWindowOpened, EliminationEvent, EncryptedPrivateEnvelope, HandResultCommitted,
         HandStartingEvent, JoinTournamentRequest, JsonSignedEnvelope, PlayerActionCommitted,
         PlayerActionSubmission, PrivateEnvelopeMetadata, PrivateHoleCardsEvent,
-        ProtocolErrorMessage, ProtocolMessageType, ReadyStateRequest, ReconnectTournamentRequest,
-        ResyncRequest, SeatClaimRequest, SignedEnvelope, SnapshotEvent, StreetRevealed,
+        ProtocolErrorMessage, ProtocolMessageType, ReadyStateRequest, RecipientHandSnapshot,
+        RecipientSnapshotState, ReconnectTournamentRequest, ResyncRequest, SeatClaimRequest,
+        SignedEnvelope, SnapshotEvent, SnapshotParticipant, StreetRevealed,
         TournamentCompleteEvent, TournamentStartedEvent, PROTOCOL_VERSION,
     },
     tournament::{ActionRequest, RegisteredPlayer, TournamentController},
@@ -1381,6 +1382,9 @@ fn handle_join_request(
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
 
+        ensure_joinable_phase(state.phase)?;
+        ensure_join_capacity(&state)?;
+
         if state
             .participants
             .get(&player_id)
@@ -1433,6 +1437,33 @@ fn handle_join_request(
         snapshot_envelope,
         encryption_public_key: request.encryption_public_key,
     })
+}
+
+fn ensure_joinable_phase(phase: TournamentPhase) -> Result<(), NetworkingError> {
+    match phase {
+        TournamentPhase::WaitingForPlayers => Ok(()),
+        TournamentPhase::ReadyCheck => {
+            Err(NetworkingError::new("joins are closed after roster freeze"))
+        }
+        TournamentPhase::Running => Err(NetworkingError::new(
+            "joins are unavailable after the tournament starts",
+        )),
+        TournamentPhase::Complete | TournamentPhase::Cancelled => Err(NetworkingError::new(
+            "joins are unavailable for closed sessions",
+        )),
+    }
+}
+
+fn ensure_join_capacity(state: &TournamentState) -> Result<(), NetworkingError> {
+    let participant_count = counted_capacity(&state.participants);
+    if participant_count >= state.config.max_players as usize {
+        return Err(NetworkingError::new(format!(
+            "table is full: {participant_count} participants already admitted for {} seats",
+            state.config.max_players
+        )));
+    }
+
+    Ok(())
 }
 
 fn handle_reconnect_request(
@@ -2734,13 +2765,8 @@ fn build_snapshot_envelope(
         .map_err(|_| NetworkingError::new("host encryption key lock poisoned"))?
         .public_key_base64();
     let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
-    let projected_snapshot_state = build_recipient_projected_snapshot_state(
-        &authoritative_snapshot,
-        player_id,
-        join_payload.host_signing_public_key.clone(),
-        host_encryption_public_key.clone(),
-        reconnect_token.clone(),
-    )?;
+    let (projected_snapshot_state, private_hole_cards) =
+        build_recipient_snapshot_state(&authoritative_snapshot, player_id)?;
 
     let mut snapshot_envelope = SignedEnvelope {
         protocol_version: PROTOCOL_VERSION,
@@ -2754,6 +2780,7 @@ fn build_snapshot_envelope(
         payload: SnapshotEvent {
             state: projected_snapshot_state,
             local_player_id: player_id.to_string(),
+            private_hole_cards,
             reconnect_token,
             host_signing_public_key: Some(join_payload.host_signing_public_key.clone()),
             host_encryption_public_key: Some(host_encryption_public_key),
@@ -2768,13 +2795,10 @@ fn build_snapshot_envelope(
     Ok(snapshot_envelope)
 }
 
-fn build_recipient_projected_snapshot_state(
+fn build_recipient_snapshot_state(
     authoritative_state: &TournamentState,
     player_id: &str,
-    host_signing_public_key: String,
-    host_encryption_public_key: String,
-    reconnect_token: Option<String>,
-) -> Result<SnapshotState, NetworkingError> {
+) -> Result<(RecipientSnapshotState, Vec<crate::domain::Card>), NetworkingError> {
     let mut projected_state = authoritative_state.clone();
     let occupied_seat_links: BTreeMap<u8, String> = projected_state
         .seats
@@ -2800,24 +2824,85 @@ fn build_recipient_projected_snapshot_state(
         .private_states
         .get(player_id)
         .ok_or_else(|| NetworkingError::new("snapshot target is not registered"))?;
-    if let Some(hand) = projected_state.current_hand.as_mut() {
-        hand.hole_cards_by_player_id = if private_state.private_hole_cards.is_empty() {
-            BTreeMap::new()
-        } else {
-            BTreeMap::from([(
-                player_id.to_string(),
-                private_state.private_hole_cards.clone(),
-            )])
-        };
+    let participants = projected_state
+        .participants
+        .values()
+        .map(|participant| SnapshotParticipant {
+            player_id: participant.identity.player_id.clone(),
+            display_name: participant.identity.display_name.clone(),
+            seat_index: participant.seat_index,
+            is_host: participant.is_host,
+            is_ready: participant
+                .seat_index
+                .and_then(|seat_index| projected_state.seats.get(seat_index as usize))
+                .map(|seat| seat.is_ready)
+                .unwrap_or(false),
+            connection_state: participant.connection_state,
+            participant_state: participant.state,
+        })
+        .map(|participant| (participant.player_id.clone(), participant))
+        .collect();
+    let current_hand = projected_state
+        .current_hand
+        .as_ref()
+        .map(|hand| RecipientHandSnapshot {
+            hand_number: hand.hand_number,
+            cycle_phase: hand.cycle_phase,
+            street: hand.street,
+            dealer_seat_index: hand.dealer_seat_index,
+            small_blind_seat_index: hand.small_blind_seat_index,
+            big_blind_seat_index: hand.big_blind_seat_index,
+            board_cards: hand.board_cards.clone(),
+            public_hole_cards_by_player_id: public_revealed_hole_cards(hand),
+            participation_by_player_id: hand.participation_by_player_id.clone(),
+            betting_round: hand.betting_round.clone(),
+            action_window: hand.action_window.clone(),
+        });
+
+    Ok((
+        RecipientSnapshotState {
+            table_id: projected_state.table_id,
+            session_epoch: projected_state.session_epoch,
+            phase: projected_state.phase,
+            config: projected_state.config,
+            blind_schedule: projected_state.blind_schedule,
+            blind_level_index: projected_state.blind_level_index,
+            participants,
+            seats: projected_state.seats,
+            current_hand,
+            hand_results: projected_state.hand_results,
+            placements: projected_state.placements,
+        },
+        private_state.private_hole_cards.clone(),
+    ))
+}
+
+fn public_revealed_hole_cards(
+    hand: &crate::domain::HandState,
+) -> BTreeMap<String, Vec<crate::domain::Card>> {
+    if !matches!(
+        hand.cycle_phase,
+        HandCyclePhase::Showdown | HandCyclePhase::Settlement
+    ) {
+        return BTreeMap::new();
     }
 
-    Ok(SnapshotState {
-        state: projected_state,
-        local_player_id: player_id.to_string(),
-        reconnect_token,
-        host_signing_public_key: Some(host_signing_public_key),
-        host_encryption_public_key: Some(host_encryption_public_key),
-    })
+    hand.hole_cards_by_player_id
+        .iter()
+        .filter(|(player_id, _)| {
+            hand.participation_by_player_id
+                .get(player_id.as_str())
+                .is_some_and(|participation| {
+                    !matches!(
+                        participation,
+                        HandParticipationState::Folded
+                            | HandParticipationState::Out
+                            | HandParticipationState::EliminatedObserver
+                    )
+                })
+        })
+        .map(|(player_id, cards)| (player_id.clone(), cards.clone()))
+        .collect()
 }
 
 fn build_protocol_error_envelope(
@@ -3171,8 +3256,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        connect_and_join, handle_reconnect_request, handle_resync_request, now_epoch_ms,
-        reconnect_after_disconnect, validate_production_host_ip, ClientReconnectIdentity,
+        build_snapshot_envelope, connect_and_join, handle_join_request, handle_reconnect_request,
+        handle_resync_request, now_epoch_ms, reconnect_after_disconnect,
+        validate_production_host_ip, ClientReconnectIdentity,
     };
     use crate::{
         crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider},
@@ -3189,9 +3275,10 @@ mod tests {
         },
         protocol::{
             test_support::{sample_reconnect_request, sample_resync_request},
-            ActionWindowOpened, EliminationEvent, JsonSignedEnvelope, PrivateHoleCardsEvent,
-            ProtocolMessageType, ReconnectTournamentRequest, ResyncRequest, SignedEnvelope,
-            SnapshotEvent, TournamentCompleteEvent, TournamentStartedEvent, PROTOCOL_VERSION,
+            ActionWindowOpened, EliminationEvent, JoinTournamentRequest, JsonSignedEnvelope,
+            PrivateHoleCardsEvent, ProtocolMessageType, ReconnectTournamentRequest, ResyncRequest,
+            SignedEnvelope, SnapshotEvent, TournamentCompleteEvent, TournamentStartedEvent,
+            PROTOCOL_VERSION,
         },
     };
 
@@ -3569,6 +3656,40 @@ mod tests {
         envelope
     }
 
+    fn signed_join_envelope(
+        provider: &DefaultCryptoProvider,
+        signing_keys: &crate::crypto::SigningKeyMaterial,
+        encryption_keys: &crate::crypto::EncryptionKeyMaterial,
+        join_payload: &JoinPayload,
+        player_id: &str,
+        display_name: &str,
+        join_token: &str,
+    ) -> JsonSignedEnvelope {
+        let request = JoinTournamentRequest {
+            display_name: display_name.to_string(),
+            join_token: join_token.to_string(),
+            signing_public_key: signing_keys.public_key_base64(),
+            encryption_public_key: encryption_keys.public_key_base64(),
+        };
+        let mut envelope = SignedEnvelope {
+            protocol_version: PROTOCOL_VERSION,
+            message_type: ProtocolMessageType::JoinTournamentRequest,
+            table_id: join_payload.table_id.clone(),
+            session_epoch: join_payload.session_epoch,
+            sender_id: player_id.to_string(),
+            counter: 1,
+            message_id: format!("join-test-{player_id}"),
+            server_sequence: None,
+            payload: serde_json::to_value(request).expect("join request payload"),
+            signature: None,
+        };
+        envelope
+            .sign(provider, signing_keys)
+            .expect("join request should sign");
+
+        envelope
+    }
+
     fn signed_resync_envelope(
         provider: &DefaultCryptoProvider,
         signing_keys: &crate::crypto::SigningKeyMaterial,
@@ -3595,6 +3716,705 @@ mod tests {
             .expect("resync request should sign");
 
         envelope
+    }
+
+    #[test]
+    fn recipient_snapshots_strip_other_players_private_data_from_serialized_json() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let join_payload = sample_join_payload_for_tests(
+            "table-private-snapshot",
+            80,
+            host_signing_keys.public_key_base64(),
+        );
+        let mut state = sample_tournament_state("table-private-snapshot", 80);
+        let player_a_keys = provider.generate_signing_keypair();
+        let player_b_keys = provider.generate_signing_keypair();
+        state.phase = TournamentPhase::Running;
+        state.participants.insert(
+            "player-a".to_string(),
+            sample_participant_entry(
+                "player-a",
+                "Alice",
+                player_a_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(0),
+                "token-a",
+            ),
+        );
+        state.participants.insert(
+            "player-b".to_string(),
+            sample_participant_entry(
+                "player-b",
+                "Bob",
+                player_b_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(1),
+                "token-b",
+            ),
+        );
+        state.seats = vec![
+            SeatState {
+                seat_index: 0,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::Active,
+                participant_id: Some("player-a".to_string()),
+                display_name: Some("Alice".to_string()),
+                chip_count: Some(1200),
+                is_ready: true,
+                marker: None,
+            },
+            SeatState {
+                seat_index: 1,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::Active,
+                participant_id: Some("player-b".to_string()),
+                display_name: Some("Bob".to_string()),
+                chip_count: Some(1300),
+                is_ready: true,
+                marker: None,
+            },
+        ];
+        state.current_hand = Some(crate::domain::HandState {
+            hand_number: 4,
+            cycle_phase: HandCyclePhase::AwaitingAction,
+            street: crate::domain::StreetPhase::Turn,
+            dealer_seat_index: 0,
+            small_blind_seat_index: 0,
+            big_blind_seat_index: 1,
+            board_cards: Vec::new(),
+            hole_cards_by_player_id: [
+                (
+                    "player-a".to_string(),
+                    vec![
+                        crate::domain::Card {
+                            rank: crate::domain::Rank::Ace,
+                            suit: crate::domain::Suit::Clubs,
+                        },
+                        crate::domain::Card {
+                            rank: crate::domain::Rank::Ace,
+                            suit: crate::domain::Suit::Hearts,
+                        },
+                    ],
+                ),
+                (
+                    "player-b".to_string(),
+                    vec![
+                        crate::domain::Card {
+                            rank: crate::domain::Rank::Jack,
+                            suit: crate::domain::Suit::Diamonds,
+                        },
+                        crate::domain::Card {
+                            rank: crate::domain::Rank::Nine,
+                            suit: crate::domain::Suit::Spades,
+                        },
+                    ],
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            participation_by_player_id: [
+                (
+                    "player-a".to_string(),
+                    crate::domain::HandParticipationState::Active,
+                ),
+                (
+                    "player-b".to_string(),
+                    crate::domain::HandParticipationState::Active,
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            betting_round: crate::domain::BettingRoundState {
+                street: crate::domain::StreetPhase::Turn,
+                current_bet: 40,
+                min_raise_to: Some(80),
+                max_raise_to: Some(200),
+                pot_size: 120,
+                contributions_by_player_id: BTreeMap::new(),
+            },
+            action_window: None,
+        });
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let snapshot = build_snapshot_envelope(
+            &provider,
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+            "player-a",
+        )
+        .expect("snapshot envelope");
+
+        let json = serde_json::to_string(&snapshot).expect("snapshot json");
+        assert!(!json.contains("token-b"));
+        assert!(!json.contains("\"rank\":\"JACK\""));
+        assert_eq!(snapshot.payload.private_hole_cards.len(), 2);
+        assert!(snapshot
+            .payload
+            .state
+            .current_hand
+            .as_ref()
+            .is_some_and(|hand| hand.public_hole_cards_by_player_id.is_empty()));
+    }
+
+    #[test]
+    fn observer_snapshot_contains_no_private_cards() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let join_payload = sample_join_payload_for_tests(
+            "table-observer-snapshot",
+            81,
+            host_signing_keys.public_key_base64(),
+        );
+        let mut state = sample_tournament_state("table-observer-snapshot", 81);
+        let observer_keys = provider.generate_signing_keypair();
+        let active_keys = provider.generate_signing_keypair();
+        state.phase = TournamentPhase::Running;
+        state.participants.insert(
+            "observer".to_string(),
+            sample_participant_entry(
+                "observer",
+                "Observer",
+                observer_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::EliminatedObserver,
+                ConnectionState::Connected,
+                Some(0),
+                "token-observer",
+            ),
+        );
+        state.participants.insert(
+            "active".to_string(),
+            sample_participant_entry(
+                "active",
+                "Active",
+                active_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(1),
+                "token-active",
+            ),
+        );
+        state.seats = vec![
+            SeatState {
+                seat_index: 0,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::EliminatedObserver,
+                participant_id: Some("observer".to_string()),
+                display_name: Some("Observer".to_string()),
+                chip_count: Some(0),
+                is_ready: true,
+                marker: None,
+            },
+            SeatState {
+                seat_index: 1,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::Active,
+                participant_id: Some("active".to_string()),
+                display_name: Some("Active".to_string()),
+                chip_count: Some(1500),
+                is_ready: true,
+                marker: None,
+            },
+        ];
+        state.current_hand = Some(crate::domain::HandState {
+            hand_number: 1,
+            cycle_phase: HandCyclePhase::AwaitingAction,
+            street: crate::domain::StreetPhase::Preflop,
+            dealer_seat_index: 0,
+            small_blind_seat_index: 0,
+            big_blind_seat_index: 1,
+            board_cards: Vec::new(),
+            hole_cards_by_player_id: [(
+                "active".to_string(),
+                vec![
+                    crate::domain::Card {
+                        rank: crate::domain::Rank::King,
+                        suit: crate::domain::Suit::Clubs,
+                    },
+                    crate::domain::Card {
+                        rank: crate::domain::Rank::Queen,
+                        suit: crate::domain::Suit::Clubs,
+                    },
+                ],
+            )]
+            .into_iter()
+            .collect(),
+            participation_by_player_id: [(
+                "active".to_string(),
+                crate::domain::HandParticipationState::Active,
+            )]
+            .into_iter()
+            .collect(),
+            betting_round: crate::domain::BettingRoundState {
+                street: crate::domain::StreetPhase::Preflop,
+                current_bet: 20,
+                min_raise_to: Some(40),
+                max_raise_to: None,
+                pot_size: 30,
+                contributions_by_player_id: BTreeMap::new(),
+            },
+            action_window: None,
+        });
+        let authoritative_state = Arc::new(Mutex::new(state));
+
+        let snapshot = build_snapshot_envelope(
+            &provider,
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+            "observer",
+        )
+        .expect("observer snapshot envelope");
+
+        assert!(snapshot.payload.private_hole_cards.is_empty());
+        assert!(snapshot
+            .payload
+            .state
+            .current_hand
+            .as_ref()
+            .is_some_and(|hand| hand.public_hole_cards_by_player_id.is_empty()));
+    }
+
+    #[test]
+    fn join_requests_are_rejected_after_roster_freeze() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-join-ready-check",
+            82,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-join-ready-check", 82);
+        state.phase = TournamentPhase::ReadyCheck;
+        let authoritative_state = Arc::new(Mutex::new(state));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+
+        let result = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &player_signing_keys,
+                &player_encryption_keys,
+                &join_payload,
+                "player-ready-check",
+                "Ready Check",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("join should fail")
+            .to_string()
+            .contains("roster freeze"));
+    }
+
+    #[test]
+    fn joins_allow_up_to_capacity_then_reject_max_plus_one_even_with_open_seats() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-max-capacity",
+            87,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-max-capacity", 87);
+        state.config.max_players = 2;
+        state.seats = (0..4)
+            .map(|seat_index| SeatState {
+                seat_index,
+                occupancy: SeatOccupancyState::Empty,
+                tournament_state: TournamentSeatState::Open,
+                participant_id: None,
+                display_name: None,
+                chip_count: None,
+                is_ready: false,
+                marker: None,
+            })
+            .collect();
+        let authoritative_state = Arc::new(Mutex::new(state));
+        let first_signing_keys = provider.generate_signing_keypair();
+        let first_encryption_keys = provider.generate_encryption_keypair();
+        let second_signing_keys = provider.generate_signing_keypair();
+        let second_encryption_keys = provider.generate_encryption_keypair();
+        let third_signing_keys = provider.generate_signing_keypair();
+        let third_encryption_keys = provider.generate_encryption_keypair();
+
+        let first = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &first_signing_keys,
+                &first_encryption_keys,
+                &join_payload,
+                "player-one",
+                "One",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+        let second = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &second_signing_keys,
+                &second_encryption_keys,
+                &join_payload,
+                "player-two",
+                "Two",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+        let third = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &third_signing_keys,
+                &third_encryption_keys,
+                &join_payload,
+                "player-three",
+                "Three",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(first.is_ok());
+        assert!(second.is_ok());
+        assert!(third.is_err());
+        assert!(third
+            .expect_err("join should fail")
+            .to_string()
+            .contains("table is full"));
+    }
+
+    #[test]
+    fn admitted_unseated_participants_count_toward_join_capacity() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-capacity",
+            83,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-capacity", 83);
+        state.config.max_players = 2;
+        let host_keys = provider.generate_signing_keypair();
+        let waiting_keys = provider.generate_signing_keypair();
+        state.participants.insert(
+            "host".to_string(),
+            sample_participant_entry(
+                "host",
+                "Host",
+                host_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(0),
+                "token-host",
+            ),
+        );
+        state.participants.insert(
+            "waiting".to_string(),
+            sample_participant_entry(
+                "waiting",
+                "Waiting",
+                waiting_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Admitted,
+                ConnectionState::Disconnected,
+                None,
+                "token-waiting",
+            ),
+        );
+        state.seats = vec![
+            SeatState {
+                seat_index: 0,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::Active,
+                participant_id: Some("host".to_string()),
+                display_name: Some("Host".to_string()),
+                chip_count: Some(1500),
+                is_ready: true,
+                marker: None,
+            },
+            SeatState {
+                seat_index: 1,
+                occupancy: SeatOccupancyState::Empty,
+                tournament_state: TournamentSeatState::Open,
+                participant_id: None,
+                display_name: None,
+                chip_count: None,
+                is_ready: false,
+                marker: None,
+            },
+        ];
+        let authoritative_state = Arc::new(Mutex::new(state));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+
+        let result = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &player_signing_keys,
+                &player_encryption_keys,
+                &join_payload,
+                "player-over-capacity",
+                "Capacity",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("join should fail")
+            .to_string()
+            .contains("table is full"));
+    }
+
+    #[test]
+    fn reconnect_eligible_disconnected_participants_count_toward_join_capacity() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-reconnect-capacity",
+            86,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-reconnect-capacity", 86);
+        state.config.max_players = 2;
+        let host_keys = provider.generate_signing_keypair();
+        let reconnecting_keys = provider.generate_signing_keypair();
+        state.participants.insert(
+            "host".to_string(),
+            sample_participant_entry(
+                "host",
+                "Host",
+                host_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(0),
+                "token-host",
+            ),
+        );
+        state.participants.insert(
+            "reconnecting".to_string(),
+            sample_participant_entry(
+                "reconnecting",
+                "Reconnect",
+                reconnecting_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Reconnecting,
+                ConnectionState::Disconnected,
+                Some(1),
+                "token-reconnecting",
+            ),
+        );
+        let authoritative_state = Arc::new(Mutex::new(state));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+
+        let result = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &player_signing_keys,
+                &player_encryption_keys,
+                &join_payload,
+                "player-after-reconnect-slot",
+                "Reconnect Slot",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("join should fail")
+            .to_string()
+            .contains("table is full"));
+    }
+
+    #[test]
+    fn eliminated_observers_do_not_block_join_capacity() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-observer-capacity",
+            84,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let mut state = sample_tournament_state("table-observer-capacity", 84);
+        state.config.max_players = 2;
+        let host_keys = provider.generate_signing_keypair();
+        let observer_keys = provider.generate_signing_keypair();
+        state.participants.insert(
+            "host".to_string(),
+            sample_participant_entry(
+                "host",
+                "Host",
+                host_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::Active,
+                ConnectionState::Connected,
+                Some(0),
+                "token-host",
+            ),
+        );
+        state.participants.insert(
+            "observer".to_string(),
+            sample_participant_entry(
+                "observer",
+                "Observer",
+                observer_keys.public_key_base64(),
+                provider.generate_encryption_keypair().public_key_base64(),
+                ParticipantState::EliminatedObserver,
+                ConnectionState::Connected,
+                Some(1),
+                "token-observer",
+            ),
+        );
+        state.seats = vec![
+            SeatState {
+                seat_index: 0,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::Active,
+                participant_id: Some("host".to_string()),
+                display_name: Some("Host".to_string()),
+                chip_count: Some(1500),
+                is_ready: true,
+                marker: None,
+            },
+            SeatState {
+                seat_index: 1,
+                occupancy: SeatOccupancyState::Occupied,
+                tournament_state: TournamentSeatState::EliminatedObserver,
+                participant_id: Some("observer".to_string()),
+                display_name: Some("Observer".to_string()),
+                chip_count: Some(0),
+                is_ready: true,
+                marker: None,
+            },
+        ];
+        let authoritative_state = Arc::new(Mutex::new(state));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+
+        let result = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &player_signing_keys,
+                &player_encryption_keys,
+                &join_payload,
+                "player-new",
+                "New Player",
+                &join_payload.join_token,
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn join_requests_reject_the_wrong_join_token() {
+        let provider = DefaultCryptoProvider;
+        let host_signing_keys = provider.generate_signing_keypair();
+        let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+        let join_payload = sample_join_payload_for_tests(
+            "table-wrong-token",
+            85,
+            host_signing_keys.public_key_base64(),
+        );
+        let server_sequence = Arc::new(AtomicU64::new(0));
+        let authoritative_state =
+            Arc::new(Mutex::new(sample_tournament_state("table-wrong-token", 85)));
+        let player_signing_keys = provider.generate_signing_keypair();
+        let player_encryption_keys = provider.generate_encryption_keypair();
+
+        let result = handle_join_request(
+            &provider,
+            signed_join_envelope(
+                &provider,
+                &player_signing_keys,
+                &player_encryption_keys,
+                &join_payload,
+                "player-wrong-token",
+                "Wrong Token",
+                "not-the-live-token",
+            ),
+            &join_payload,
+            &authoritative_state,
+            &server_sequence,
+            &host_signing_keys,
+            &host_encryption_keys,
+        );
+
+        assert!(result.is_err());
+        assert!(result
+            .expect_err("join should fail")
+            .to_string()
+            .contains("join token mismatch"));
     }
 
     #[test]
@@ -3956,21 +4776,16 @@ mod tests {
         let alice_seated = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-alice")
                 .and_then(|participant| participant.seat_index)
                 == Some(1)
         });
-        assert_eq!(
-            alice_seated.state.state.phase,
-            TournamentPhase::WaitingForPlayers
-        );
+        assert_eq!(alice_seated.state.phase, TournamentPhase::WaitingForPlayers);
 
         bob.claim_seat(2).expect("bob should claim a seat");
         let host_view_after_bob = expect_snapshot_where(&alice, |snapshot| {
             snapshot
-                .state
                 .state
                 .participants
                 .get("player-bob")
@@ -3980,18 +4795,17 @@ mod tests {
         let bob_view_after_claim = expect_snapshot_where(&bob, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-bob")
                 .and_then(|participant| participant.seat_index)
                 == Some(2)
         });
         assert_eq!(
-            host_view_after_bob.state.state.phase,
+            host_view_after_bob.state.phase,
             TournamentPhase::WaitingForPlayers
         );
         assert_eq!(
-            bob_view_after_claim.state.state.phase,
+            bob_view_after_claim.state.phase,
             TournamentPhase::WaitingForPlayers
         );
 
@@ -4001,7 +4815,6 @@ mod tests {
         let alice_ready = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .seats
                 .iter()
                 .find(|seat| seat.seat_index == 1)
@@ -4010,36 +4823,26 @@ mod tests {
         let bob_sees_alice_ready = expect_snapshot_where(&bob, |snapshot| {
             snapshot
                 .state
-                .state
                 .seats
                 .iter()
                 .find(|seat| seat.seat_index == 1)
                 .is_some_and(|seat| seat.is_ready)
         });
+        assert_eq!(alice_ready.state.phase, TournamentPhase::WaitingForPlayers);
         assert_eq!(
-            alice_ready.state.state.phase,
-            TournamentPhase::WaitingForPlayers
-        );
-        assert_eq!(
-            bob_sees_alice_ready.state.state.phase,
+            bob_sees_alice_ready.state.phase,
             TournamentPhase::WaitingForPlayers
         );
 
         bob.set_ready_state(true).expect("bob should toggle ready");
         let alice_ready_check = expect_snapshot_where(&alice, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
         let bob_ready_check = expect_snapshot_where(&bob, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
-        assert_eq!(
-            alice_ready_check.state.state.phase,
-            TournamentPhase::ReadyCheck
-        );
-        assert_eq!(
-            bob_ready_check.state.state.phase,
-            TournamentPhase::ReadyCheck
-        );
+        assert_eq!(alice_ready_check.state.phase, TournamentPhase::ReadyCheck);
+        assert_eq!(bob_ready_check.state.phase, TournamentPhase::ReadyCheck);
 
         let host_state = host.authoritative_state().expect("host state");
         assert_eq!(host_state.phase, TournamentPhase::ReadyCheck);
@@ -4064,7 +4867,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-alice")
                 .and_then(|participant| participant.seat_index)
@@ -4072,7 +4874,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .participants
                 .get("player-alice")
@@ -4085,7 +4886,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-bob")
                 .and_then(|participant| participant.seat_index)
@@ -4093,7 +4893,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .participants
                 .get("player-bob")
@@ -4106,7 +4905,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .seats
                 .iter()
                 .find(|seat| seat.seat_index == 0)
@@ -4114,7 +4912,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .seats
                 .iter()
@@ -4125,10 +4922,10 @@ mod tests {
         host.set_ready_state("player-bob", true)
             .expect("bob ready should succeed");
         let _ = expect_snapshot_where(&alice, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
 
         host.start_tournament()
@@ -4165,7 +4962,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-alice")
                 .and_then(|participant| participant.seat_index)
@@ -4173,7 +4969,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .participants
                 .get("player-alice")
@@ -4186,7 +4981,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .participants
                 .get("player-bob")
                 .and_then(|participant| participant.seat_index)
@@ -4194,7 +4988,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .participants
                 .get("player-bob")
@@ -4207,7 +5000,6 @@ mod tests {
         let _ = expect_snapshot_where(&alice, |snapshot| {
             snapshot
                 .state
-                .state
                 .seats
                 .iter()
                 .find(|seat| seat.seat_index == 0)
@@ -4215,7 +5007,6 @@ mod tests {
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
             snapshot
-                .state
                 .state
                 .seats
                 .iter()
@@ -4226,10 +5017,10 @@ mod tests {
         host.set_ready_state("player-bob", true)
             .expect("bob ready should succeed");
         let _ = expect_snapshot_where(&alice, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
         let _ = expect_snapshot_where(&bob, |snapshot| {
-            snapshot.state.state.phase == TournamentPhase::ReadyCheck
+            snapshot.state.phase == TournamentPhase::ReadyCheck
         });
 
         host.start_tournament()
@@ -4988,7 +5779,7 @@ mod tests {
         .expect("repeated resync should succeed");
 
         assert_eq!(
-            second_snapshot.payload.state.state.config.tournament_name,
+            second_snapshot.payload.state.config.tournament_name,
             "Resync Repeat Updated"
         );
     }
@@ -5262,9 +6053,8 @@ mod tests {
 
         let snapshot = expect_snapshot_event(&client);
         assert_eq!(snapshot.local_player_id, "player-midhand");
-        assert_eq!(snapshot.state.state.phase, TournamentPhase::Running);
+        assert_eq!(snapshot.state.phase, TournamentPhase::Running);
         let action_window = snapshot
-            .state
             .state
             .current_hand
             .as_ref()
@@ -5314,10 +6104,7 @@ mod tests {
         }
 
         let snapshot = expect_snapshot_event(&client);
-        assert_eq!(
-            snapshot.state.state.config.tournament_name,
-            "Resync Continue"
-        );
+        assert_eq!(snapshot.state.config.tournament_name, "Resync Continue");
 
         host.broadcast_public_event(
             ProtocolMessageType::TournamentCompleteEvent,
@@ -5529,11 +6316,8 @@ mod tests {
             .expect("resynced snapshot")
         {
             ClientRuntimeEvent::Snapshot(snapshot) => {
-                assert_eq!(snapshot.state.state.phase, TournamentPhase::ReadyCheck);
-                assert_eq!(
-                    snapshot.state.state.config.tournament_name,
-                    "Resynced Tournament"
-                );
+                assert_eq!(snapshot.state.phase, TournamentPhase::ReadyCheck);
+                assert_eq!(snapshot.state.config.tournament_name, "Resynced Tournament");
             }
             other => panic!("expected snapshot event, got {other:?}"),
         }

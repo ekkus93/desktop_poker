@@ -240,8 +240,10 @@ pub struct HandResult {
     pub hand_number: u32,
     pub winning_player_ids: Vec<String>,
     pub pot_summaries: Vec<PotSummary>,
+    pub board_cards: Vec<Card>,
     pub revealed_hands_by_player_id: BTreeMap<String, Vec<Card>>,
     pub eliminated_player_ids: Vec<String>,
+    pub final_stack_by_player_id: BTreeMap<String, u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

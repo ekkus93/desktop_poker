@@ -474,7 +474,7 @@ mod tests {
             CanonicalJsonFixture {
                 name: "hand-result-committed",
                 expected_json:
-                    "{\"handNumber\":7,\"result\":{\"eliminatedPlayerIds\":[],\"handNumber\":7,\"potSummaries\":[],\"revealedHandsByPlayerId\":{},\"winningPlayerIds\":[\"player-a\"]}}",
+                    "{\"handNumber\":7,\"result\":{\"boardCards\":[{\"rank\":\"ACE\",\"suit\":\"CLUBS\"}],\"eliminatedPlayerIds\":[],\"finalStackByPlayerId\":{\"player-a\":1600},\"handNumber\":7,\"potSummaries\":[],\"revealedHandsByPlayerId\":{},\"winningPlayerIds\":[\"player-a\"]}}",
             },
             &sample_hand_result_committed(),
         );
@@ -504,7 +504,7 @@ mod tests {
             Some(&json!("host-enc"))
         );
         assert_eq!(
-            json.pointer("/state/state/participants/player-a/identity/displayName"),
+            json.pointer("/state/participants/player-a/displayName"),
             Some(&json!("Alice"))
         );
     }

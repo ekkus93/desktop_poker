@@ -8,7 +8,7 @@ That frontend shell is intentionally thin. `src/app/DesktopShellProvider.tsx` ow
 
 ## Frontend Surfaces
 
-The important frontend screens are mostly presenters over Rust commands. `src/screens/HostTournamentSetupScreen.tsx` uses the backend only for LAN-IP resolution right now, then stages a host draft and a placeholder share surface. `src/screens/JoinTournamentScreen.tsx` is a little more concrete: it validates pasted or launch-supplied payloads with the Rust decoder, remembers recent payloads, and prepares the next handoff step. `src/screens/MainTableScreen.tsx` is the richest live surface: it fetches a `TableViewSnapshot`, renders local vs observer mode, submits table actions back to Rust, and persists settled hand history. `src/components/debug/DebugPanel.tsx` exposes the same pattern for debug-only inspection: bootstrap metadata, snapshot JSON, protocol log, current action window, and the multi-instance launch helper.
+The important frontend screens are mostly presenters over Rust commands. `src/screens/HostTournamentSetupScreen.tsx` uses the backend only for LAN-IP resolution right now, then stages a host draft and share surface. `src/screens/JoinTournamentScreen.tsx` validates pasted or launch-supplied payloads with the Rust decoder, remembers recent payloads, and prepares the next handoff step. `src/screens/MainTableScreen.tsx` is the richest live surface: it fetches a `TableViewSnapshot`, renders local vs observer mode, submits table actions back to Rust, and persists settled hand history. `src/components/debug/DebugPanel.tsx` exposes the same pattern for debug-only inspection: bootstrap metadata, snapshot JSON, protocol log, current action window, and the multi-instance launch helper.
 
 The key architectural point is that the frontend does not compute poker truth. It asks Rust for already-shaped views and sends user intent back down. That boundary is visible in the API file itself: `src/api/desktop.ts` mostly defines typed `invoke(...)` wrappers and shared view-model shapes.
 
@@ -20,7 +20,7 @@ The main composition root is `src-tauri/src/app_state/mod.rs`. That file does th
 
 - It detects instance identity from `--instance-id` or `DESKTOP_POKER_INSTANCE_ID`, then derives storage/session/reconnect namespaces and a per-instance profile directory.
 - It detects an optional launch payload from CLI or env and parses it through the protocol layer up front.
-- It exposes a debug-only `DebugTableRuntime` that powers the inspector path without driving the normal host/join/table flow.
+- It exposes a debug-only `DebugTableRuntime` that powers the inspector path without driving the normal host/join/table flow, and release-mode debug commands are gated off.
 
 The protocol layer is clearly separated in `src-tauri/src/protocol/mod.rs` and `src-tauri/src/protocol/models.rs`. This is where the Android-compatible message types, signed envelopes, encrypted private envelopes, join payload encoding/decoding, and canonical signing behavior live. The domain layer in `src-tauri/src/domain/mod.rs` defines the core immutable tournament and participant models plus validation rules. Hidden-information control is enforced by the projector in `src-tauri/src/domain/projector.rs`: it produces a public projection, per-player private projections, and an observer projection with no hole cards and no action authority. The tournament logic itself is in `src-tauri/src/tournament/mod.rs`, where the `TournamentController` owns ready checks, roster freeze, blind progression, action windows, timeout handling, hand advancement, and completion.
 
@@ -28,9 +28,9 @@ The networking and crypto stacks are real modules, not placeholders. `src-tauri/
 
 ## Most Important Current Nuance
 
-The live player flow is now host/client-session driven. Hosting, joining, lobby state, table projections, reconnect/resync, public events, and private hole-card delivery run through the real networking/runtime path rather than the old synthetic invite or Ready Room flow.
+The live player flow is now host/client-session driven. Hosting, joining, lobby state, table projections, reconnect/resync, public events, and private hole-card delivery run through the real networking/runtime path rather than the old synthetic invite or Ready Room flow. That said, the repository still treats desktop LAN play as an MVP under validation, not as a finished production claim.
 
-The remaining in-process demo harness is intentionally debug-only. In `src-tauri/src/app_state/mod.rs`, `DesktopAppState::debug_state(...)` lazily initializes `DebugTableRuntime`, which builds `debug_demo_controller()` for the inspector route. That path is kept for internal inspection and test coverage; it is not the production table runtime.
+The remaining in-process demo harness is intentionally debug-only. In `src-tauri/src/app_state/mod.rs`, `DesktopAppState::debug_state(...)` lazily initializes `DebugTableRuntime`, which builds `debug_demo_controller()` for the inspector route. That path is kept for internal inspection and test coverage, and it is blocked in release-mode flows; it is not the production table runtime.
 
 The host and join screens still use real backend pieces where it matters most for correctness:
 

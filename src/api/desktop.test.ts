@@ -109,7 +109,7 @@ function sampleStartHostSessionRequest(): StartHostSessionRequest {
     tournamentName: "Friday Night",
     maxPlayers: 6,
     startingStack: 1500,
-    blindPresetId: "standard",
+    blindPresetId: "normal",
     turnTimerSeconds: 30,
     displayName: "Host Alpha",
   };

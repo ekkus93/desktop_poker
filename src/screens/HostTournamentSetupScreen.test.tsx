@@ -74,6 +74,12 @@ describe("HostTournamentSetupScreen", () => {
     expect(await screen.findByText(/ready on 192\.168\.1\.10/i)).toBeTruthy();
     expect(screen.getByLabelText(/starting stack/i)).toBeTruthy();
     expect(screen.getByLabelText(/blind preset/i)).toBeTruthy();
+    expect(screen.getByRole("option", { name: /normal · small blind 10 · big blind 20/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /fast · small blind 10 · big blind 20/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /slow · small blind 10 · big blind 20/i })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /standard/i })).toBeNull();
+    expect(screen.queryByRole("option", { name: /turbo/i })).toBeNull();
+    expect(screen.queryByRole("option", { name: /deep stack/i })).toBeNull();
     expect(screen.getByLabelText(/turn timer/i)).toBeTruthy();
     expect(screen.getByLabelText(/host port/i)).toBeTruthy();
     expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
@@ -105,7 +111,7 @@ describe("HostTournamentSetupScreen", () => {
         tournamentName: "Desktop Sit 'n Go test-instance",
         maxPlayers: 6,
         startingStack: 1500,
-        blindPresetId: "standard",
+        blindPresetId: "normal",
         turnTimerSeconds: 30,
         displayName: "Player test-instance",
       });

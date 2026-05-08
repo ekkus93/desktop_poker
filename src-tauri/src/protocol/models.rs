@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
     crypto::{EncryptedPayload, ProtocolCryptoProvider, SigningKeyMaterial},
     domain::{
-        ActionType, Card, HandResult, JoinPayload, PlacementEntry, PublicState, SnapshotState,
+        ActionType, ActionWindow, BettingRoundState, BlindSchedule, Card, ConnectionState,
+        HandCyclePhase, HandParticipationState, HandResult, JoinPayload, ParticipantState,
+        PlacementEntry, PublicState, SeatState, StreetPhase, TournamentConfig, TournamentPhase,
     },
 };
 
@@ -338,11 +342,58 @@ pub struct PrivateHoleCardsEvent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapshotEvent {
-    pub state: SnapshotState,
+    pub state: RecipientSnapshotState,
     pub local_player_id: String,
+    pub private_hole_cards: Vec<Card>,
     pub reconnect_token: Option<String>,
     pub host_signing_public_key: Option<String>,
     pub host_encryption_public_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipientSnapshotState {
+    pub table_id: String,
+    pub session_epoch: u64,
+    pub phase: TournamentPhase,
+    pub config: TournamentConfig,
+    pub blind_schedule: BlindSchedule,
+    pub blind_level_index: usize,
+    pub participants: BTreeMap<String, SnapshotParticipant>,
+    pub seats: Vec<SeatState>,
+    pub current_hand: Option<RecipientHandSnapshot>,
+    pub hand_results: Vec<HandResult>,
+    pub placements: Vec<PlacementEntry>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotParticipant {
+    pub player_id: String,
+    pub display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seat_index: Option<u8>,
+    pub is_host: bool,
+    pub is_ready: bool,
+    pub connection_state: ConnectionState,
+    pub participant_state: ParticipantState,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RecipientHandSnapshot {
+    pub hand_number: u32,
+    pub cycle_phase: HandCyclePhase,
+    pub street: StreetPhase,
+    pub dealer_seat_index: u8,
+    pub small_blind_seat_index: u8,
+    pub big_blind_seat_index: u8,
+    pub board_cards: Vec<Card>,
+    pub public_hole_cards_by_player_id: BTreeMap<String, Vec<Card>>,
+    pub participation_by_player_id: BTreeMap<String, HandParticipationState>,
+    pub betting_round: BettingRoundState,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_window: Option<ActionWindow>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

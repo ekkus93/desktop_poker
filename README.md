@@ -8,7 +8,7 @@ Desktop Poker is a Linux-first Tauri 2 desktop client/host for single-table Sit 
 
 The repository currently includes:
 
-- A complete desktop host and join flow for a single-table Sit 'n Go over LAN TCP.
+- A desktop host and join flow for a single-table Sit 'n Go over LAN TCP that is still under active validation.
 - A player-first frontend built around `Home`, `Host`, `Join`, `Lobby`, `Main Table`, `History`, `Tournament Complete`, and contextual recovery states.
 - A Rust backend that owns poker rules, tournament orchestration, networking, reconnect and resync behavior, protocol compatibility, crypto, persistence, and state projection.
 - Launch-payload handling for direct join flows using compact `pkr1_...` invitations.
@@ -17,7 +17,7 @@ The repository currently includes:
 - Linux desktop bundle output through Tauri 2.
 - Frontend and Rust test coverage for host, join, table, observer, reconnect, persistence, and transport behavior.
 
-In practice, the app is already usable for local desktop-hosted poker sessions, while mixed Android/Desktop live sessions remain an explicit interop follow-up rather than a proven shipping claim.
+This repository should be treated as an MVP in progress rather than a production-ready poker release. Automated coverage is strong, but manual multi-instance desktop QA and live Android/Desktop interoperability QA are still tracked separately below.
 
 ## Current player flow
 
@@ -29,7 +29,7 @@ The current player-facing flow is:
 4. Main Table: play the hand while the board, pot, and current decision stay front and center
 5. History, Help, Recovery, or Complete: review secondary details only when you choose them or when the game needs them
 
-Recovery and reconnect states appear only when needed, and debug or multi-instance tooling stays on a hidden debug-only route outside the normal player path.
+Recovery and reconnect states appear only when needed, and debug or multi-instance tooling stays on a hidden debug-only route outside the normal player path in debug/dev usage.
 
 ## What the app is responsible for
 
@@ -214,6 +214,12 @@ Current status:
 - Android-side crypto, networking, and tournament tests were run during the audit.
 - Mixed-runtime Android/Desktop host-client sessions are still **audited but not yet proven** by live end-to-end runs in this repository.
 
+## Manual QA status
+
+- **Desktop multi-instance QA:** not yet recorded as complete in this repository for the current repair pass.
+- **Android/Desktop interoperability QA:** not yet recorded as complete in this repository.
+- **Debug/probe reachability QA in release builds:** still required as an explicit manual check even though release gating is covered by automated tests.
+
 ## Release notes and current limitations
 
 What is supported today:
@@ -229,7 +235,7 @@ What is intentionally limited right now:
 - **Interop:** Android/Desktop interoperability is audited, but not fully proven until live mixed-runtime sessions succeed.
 - **Discovery:** there is no room-code discovery or matchmaking flow yet. Direct `pkr1_...` payload join is the supported path.
 - **Network scope:** the app is LAN-only and assumes a trusted host-authoritative table on the local network.
-- **Production behavior:** release builds use the real TCP LAN runtime, while debug launch helpers stay hidden outside debug builds.
+- **Production behavior:** release builds use the real TCP LAN runtime, while debug and probe helpers are internal-only and should not be treated as player-facing features.
 - **Assets:** the table uses generated card and felt treatments plus simple status badges so the MVP stays license-safe.
 - **Sound:** sound is currently not included. Any future sound support should remain optional and off by default.
 

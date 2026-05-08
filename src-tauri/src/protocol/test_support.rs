@@ -13,7 +13,8 @@ use crate::domain::{
 
 use super::{
     canonical_json_bytes, ActionRejectedEvent, ActionWindowOpened, CanonicalJsonFixture,
-    JoinTournamentRequest, ReconnectTournamentRequest, ResyncRequest, SnapshotEvent,
+    JoinTournamentRequest, RecipientHandSnapshot, RecipientSnapshotState,
+    ReconnectTournamentRequest, ResyncRequest, SnapshotEvent, SnapshotParticipant,
 };
 
 pub(crate) fn assert_canonical_fixture<T: Serialize>(fixture: CanonicalJsonFixture, value: &T) {
@@ -120,8 +121,13 @@ pub(crate) fn sample_hand_result_committed() -> super::HandResultCommitted {
             hand_number: 7,
             winning_player_ids: vec!["player-a".to_string()],
             pot_summaries: Vec::new(),
+            board_cards: vec![Card {
+                rank: Rank::Ace,
+                suit: Suit::Clubs,
+            }],
             revealed_hands_by_player_id: BTreeMap::new(),
             eliminated_player_ids: Vec::new(),
+            final_stack_by_player_id: [("player-a".to_string(), 1600)].into_iter().collect(),
         },
     }
 }
@@ -322,23 +328,87 @@ pub(crate) fn sample_tournament_state() -> TournamentState {
             hand_number: 6,
             winning_player_ids: vec!["player-b".to_string()],
             pot_summaries: Vec::new(),
+            board_cards: vec![Card {
+                rank: Rank::Queen,
+                suit: Suit::Diamonds,
+            }],
             revealed_hands_by_player_id: BTreeMap::new(),
             eliminated_player_ids: Vec::new(),
+            final_stack_by_player_id: [("player-b".to_string(), 1800)].into_iter().collect(),
         }],
         placements: Vec::new(),
     }
 }
 
+pub(crate) fn sample_recipient_snapshot_state(local_player_id: &str) -> RecipientSnapshotState {
+    let state = sample_tournament_state();
+    let participants = state
+        .participants
+        .values()
+        .map(|participant| SnapshotParticipant {
+            player_id: participant.identity.player_id.clone(),
+            display_name: participant.identity.display_name.clone(),
+            seat_index: participant.seat_index,
+            is_host: participant.is_host,
+            is_ready: participant
+                .seat_index
+                .and_then(|seat_index| state.seats.get(seat_index as usize))
+                .map(|seat| seat.is_ready)
+                .unwrap_or(false),
+            connection_state: participant.connection_state,
+            participant_state: participant.state,
+        })
+        .map(|participant| (participant.player_id.clone(), participant))
+        .collect();
+    let current_hand = state
+        .current_hand
+        .as_ref()
+        .map(|hand| RecipientHandSnapshot {
+            hand_number: hand.hand_number,
+            cycle_phase: hand.cycle_phase,
+            street: hand.street,
+            dealer_seat_index: hand.dealer_seat_index,
+            small_blind_seat_index: hand.small_blind_seat_index,
+            big_blind_seat_index: hand.big_blind_seat_index,
+            board_cards: hand.board_cards.clone(),
+            public_hole_cards_by_player_id: if matches!(
+                hand.cycle_phase,
+                HandCyclePhase::Showdown | HandCyclePhase::Settlement
+            ) {
+                hand.hole_cards_by_player_id.clone()
+            } else {
+                BTreeMap::new()
+            },
+            participation_by_player_id: hand.participation_by_player_id.clone(),
+            betting_round: hand.betting_round.clone(),
+            action_window: hand.action_window.clone(),
+        });
+
+    let _ = local_player_id;
+
+    RecipientSnapshotState {
+        table_id: state.table_id,
+        session_epoch: state.session_epoch,
+        phase: state.phase,
+        config: state.config,
+        blind_schedule: state.blind_schedule,
+        blind_level_index: state.blind_level_index,
+        participants,
+        seats: state.seats,
+        current_hand,
+        hand_results: state.hand_results,
+        placements: state.placements,
+    }
+}
+
 pub(crate) fn sample_snapshot_event(local_player_id: &str) -> SnapshotEvent {
     SnapshotEvent {
-        state: crate::domain::SnapshotState {
-            state: sample_tournament_state(),
-            local_player_id: local_player_id.to_string(),
-            reconnect_token: Some(format!("reconnect-{local_player_id}")),
-            host_signing_public_key: Some("host-sign".to_string()),
-            host_encryption_public_key: Some("host-enc".to_string()),
-        },
+        state: sample_recipient_snapshot_state(local_player_id),
         local_player_id: local_player_id.to_string(),
+        private_hole_cards: sample_tournament_state()
+            .current_hand
+            .and_then(|hand| hand.hole_cards_by_player_id.get(local_player_id).cloned())
+            .unwrap_or_default(),
         reconnect_token: Some(format!("reconnect-{local_player_id}")),
         host_signing_public_key: Some("host-sign".to_string()),
         host_encryption_public_key: Some("host-enc".to_string()),

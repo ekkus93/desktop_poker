@@ -66,7 +66,7 @@ describe("shell helpers", () => {
         tournamentName: "Friday Turbo",
         maxPlayers: 10,
         startingStack: 5000,
-        blindPresetId: "deep-stack",
+        blindPresetId: "slow",
         turnTimerSeconds: 60,
         hostPort: 43900,
       };
@@ -102,6 +102,36 @@ describe("shell helpers", () => {
         turnTimerSeconds: 45,
         hostPort: fallbackDraft.hostPort,
       });
+    });
+
+    it("maps legacy stored blind preset ids onto the supported production presets", () => {
+      expect(
+        normalizeHostDraft(
+          {
+            ...fallbackDraft,
+            blindPresetId: "standard",
+          },
+          fallbackDraft,
+        ).blindPresetId,
+      ).toBe("normal");
+      expect(
+        normalizeHostDraft(
+          {
+            ...fallbackDraft,
+            blindPresetId: "turbo",
+          },
+          fallbackDraft,
+        ).blindPresetId,
+      ).toBe("fast");
+      expect(
+        normalizeHostDraft(
+          {
+            ...fallbackDraft,
+            blindPresetId: "deep-stack",
+          },
+          fallbackDraft,
+        ).blindPresetId,
+      ).toBe("slow");
     });
 
     it("rejects invalid port numbers", () => {
@@ -151,7 +181,7 @@ describe("shell helpers", () => {
           tournamentName: "Kitchen Table",
           maxPlayers: 8,
           startingStack: 5000,
-          blindPresetId: "turbo",
+          blindPresetId: "fast",
           turnTimerSeconds: 45,
           hostPort: 49001,
         },
@@ -162,7 +192,7 @@ describe("shell helpers", () => {
       expect(text).toContain("Tournament: Kitchen Table");
       expect(text).toContain("Host endpoint: 192.168.1.42:49001");
       expect(text).toContain("Capacity: 8 players · 5000 starting chips");
-      expect(text).toContain("Blind preset: Turbo (15 / 30 start)");
+      expect(text).toContain("Blind preset: Fast (10 / 20 start)");
       expect(text).toContain("Turn timer: 45s");
       expect(text).toContain("This text is not a compact pkr1_ invite.");
     });

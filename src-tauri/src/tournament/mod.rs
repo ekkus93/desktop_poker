@@ -1037,12 +1037,30 @@ impl TournamentController {
         }
 
         let eliminated_player_ids = self.process_eliminations(hand.hand_number);
+        let final_stack_by_player_id = self
+            .state
+            .seats
+            .iter()
+            .filter_map(|seat| {
+                seat.participant_id
+                    .as_ref()
+                    .zip(seat.chip_count)
+                    .map(|(player_id, chip_count)| (player_id.clone(), chip_count))
+            })
+            .collect();
         let result = HandResult {
             hand_number: hand.hand_number,
             winning_player_ids: settlement.winning_player_ids.clone(),
             pot_summaries: settlement.pot_summaries,
+            board_cards: self
+                .state
+                .current_hand
+                .as_ref()
+                .map(|current_hand| current_hand.board_cards.clone())
+                .unwrap_or_else(|| hand.board_cards.clone()),
             revealed_hands_by_player_id,
             eliminated_player_ids: eliminated_player_ids.clone(),
+            final_stack_by_player_id,
         };
         self.state.hand_results.push(result);
         self.active_hand = None;
