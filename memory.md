@@ -269,3 +269,7 @@
 ## 2026-05-08T17:22:52Z - GPT-5.4 - Complete desktop code review repair pass 2 implementation
 - Implemented the second repair pass across Rust runtime, protocol DTOs, client state mapping, blind presets, debug gating, and docs, including recipient-safe snapshots, participant-capacity join guards, random join tokens, showdown/history fixes, and release-only debug restrictions.
 - Updated `docs/DESKTOP_CODE_REVIEW2_FIX_TODO.md` to mark the implementation and automated regression work complete while explicitly leaving manual desktop QA items recorded as pending in the checklist and README.
+
+## 2026-05-15T15:16:33-07:00 - GPT-5.4 - Stabilize live action Rust tests
+- Commit `f12131fe985d79bab0e82ecb7b3c73f91fc88c06` stabilized the live-action Rust validation path by replacing clippy-triggering descending sort closures, extending the runtime command-connection wait under full-suite load, and relaxing the app-state live-action assertions to require observable view changes instead of a specific action-owner label flip.
+- Revalidated the repository with frontend lint/tests/geometry plus Rust tests and clippy after recovering disk space from generated build artifacts.
