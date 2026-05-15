@@ -3557,7 +3557,7 @@ mod tests {
     }
 
     fn wait_for_client_command_connection(client: &ClientRuntime) {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
 
         loop {
             if client

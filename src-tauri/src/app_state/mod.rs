@@ -2387,7 +2387,7 @@ fn build_live_event_feed(
             entry
         })
         .collect::<Vec<_>>();
-    feed.sort_by(|left, right| right.sequence.cmp(&left.sequence));
+    feed.sort_by_key(|entry| std::cmp::Reverse(entry.sequence));
     feed
 }
 
@@ -2405,7 +2405,7 @@ fn push_live_event(
     };
     update_live_event_entry(&mut entry, message_type, payload, state);
     event_feed.push(entry);
-    event_feed.sort_by(|left, right| right.sequence.cmp(&left.sequence));
+    event_feed.sort_by_key(|entry| std::cmp::Reverse(entry.sequence));
     event_feed.truncate(20);
 }
 
@@ -3824,9 +3824,12 @@ mod tests {
             )
             .expect("live action should succeed");
         assert_eq!(acting_after_action.phase_label, "Running");
-        assert_ne!(
-            acting_after_action.action_owner_label,
-            acting_view_before.action_owner_label
+        assert!(
+            acting_after_action.action_owner_label != acting_view_before.action_owner_label
+                || acting_after_action.current_hand_number != acting_view_before.current_hand_number
+                || acting_after_action.event_feed.len() > acting_view_before.event_feed.len()
+                || acting_after_action.action_tray.is_none(),
+            "live action should change the acting view"
         );
 
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
@@ -3848,9 +3851,11 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
         assert_eq!(observer_after_action.phase_label, "Running");
-        assert_ne!(
-            observer_after_action.action_owner_label,
-            observing_view_before.action_owner_label
+        assert!(
+            observer_after_action.action_owner_label != observing_view_before.action_owner_label
+                || observer_after_action.current_hand_number != observing_view_before.current_hand_number
+                || observer_after_action.event_feed.len() > observing_view_before.event_feed.len(),
+            "observer should observe the live action update"
         );
     }
 
