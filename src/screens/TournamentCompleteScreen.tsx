@@ -6,7 +6,7 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
 export function TournamentCompleteScreen() {
-  const { hostDraft, persistedHandHistoryCount } = useDesktopShell();
+  const { hostDraft, persistedHandHistoryCount, wasHost } = useDesktopShell();
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,9 +66,15 @@ export function TournamentCompleteScreen() {
           <SectionCard title="Next" className="support-card">
             <p>{persistedHandHistoryCount} hand summaries saved.</p>
             <div className="button-row">
-              <Link className="primary-button" to="/host">
-                Host another table
-              </Link>
+              {wasHost ? (
+                <Link className="primary-button" to="/host">
+                  Host another table
+                </Link>
+              ) : (
+                <Link className="primary-button" to="/join">
+                  Join another table
+                </Link>
+              )}
               <Link className="secondary-button" to="/history">
                 Review history
               </Link>

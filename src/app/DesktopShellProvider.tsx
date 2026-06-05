@@ -28,7 +28,11 @@ type DesktopShellContextValue = {
   recentJoinPayloads: string[];
   persistedHandHistoryCount: number;
   startupWarnings: string[];
+  wasHost: boolean;
+  tableSidePanelOpen: boolean;
   setDisplayName: (value: string) => void;
+  setWasHost: (value: boolean) => void;
+  setTableSidePanelOpen: (value: boolean) => void;
   updateHostDraft: (patch: Partial<HostDraft>) => void;
   resetHostDraft: () => void;
   setJoinPayloadDraft: (value: string) => void;
@@ -136,6 +140,8 @@ export function DesktopShellProvider({
   ]);
 
   const [displayName, setDisplayName] = useState(() => storedDisplayName.value);
+  const [wasHost, setWasHost] = useState(false);
+  const [tableSidePanelOpen, setTableSidePanelOpen] = useState(false);
   const [hostDraft, setHostDraft] = useState(() =>
     normalizeHostDraft(storedHostDraft.value, defaultHostDraft),
   );
@@ -196,7 +202,11 @@ export function DesktopShellProvider({
       recentJoinPayloads,
       persistedHandHistoryCount,
       startupWarnings,
+      wasHost,
+      tableSidePanelOpen,
       setDisplayName,
+      setWasHost,
+      setTableSidePanelOpen,
       updateHostDraft: (patch) => {
         setHostDraft((currentDraft) => ({
           ...currentDraft,
@@ -239,6 +249,8 @@ export function DesktopShellProvider({
       readySeats,
       recentJoinPayloads,
       startupWarnings,
+      tableSidePanelOpen,
+      wasHost,
     ],
   );
 

@@ -25,7 +25,7 @@ const EVENT_FEED_CAP = 50;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
-  const { displayName, persistHandHistory } = useDesktopShell();
+  const { displayName, persistHandHistory, tableSidePanelOpen, setTableSidePanelOpen } = useDesktopShell();
   const navigate = useNavigate();
   const viewerMode: TableViewerMode = "local";
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
@@ -34,7 +34,6 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   const [connectionSlow, setConnectionSlow] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showSidePanel, setShowSidePanel] = useState(false);
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
   const [confirmation, setConfirmation] = useState<
     { actionKind: "betOrRaise" | "allIn"; label: string } | null
@@ -238,12 +237,12 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <div className="button-row">
             <button
               className="secondary-button compact-button"
-              onClick={() => setShowSidePanel((current) => !current)}
+              onClick={() => setTableSidePanelOpen(!tableSidePanelOpen)}
               type="button"
             >
               <span className="button-content">
                 <PanelRight className="button-icon" strokeWidth={1.9} />
-                <span>{showSidePanel ? "Hide details" : "Table details"}</span>
+                <span>{tableSidePanelOpen ? "Hide details" : "Table details"}</span>
               </span>
             </button>
           </div>
@@ -290,7 +289,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         ) : null}
 
         {tableView ? (
-          <div className={`desktop-table-layout ${showSidePanel ? "with-side-panel" : ""}`}>
+          <div className={`desktop-table-layout ${tableSidePanelOpen ? "with-side-panel" : ""}`}>
             <div className={`table-main-column ${denseSeatMap ? "dense-table-main-column" : ""}`}>
               <section className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}>
                 <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
@@ -357,7 +356,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   </>
                 ) : (
                   <SectionCard title="Before the first hand">
-                    <p>Return to the Lobby to confirm the table and start the first hand. This page represents the live hand view once cards are actually in play.</p>
+                    <p>The tournament is live but the first hand has not started yet. The host will deal once all players are seated and ready.</p>
                   </SectionCard>
                 )}
 
@@ -520,7 +519,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               )}
             </div>
 
-            {showSidePanel ? (
+            {tableSidePanelOpen ? (
               <aside className="table-side-panel">
                 <SectionCard kicker="Standings" title="Chip order">
                   <div className="stacked-list" id="standings-panel">

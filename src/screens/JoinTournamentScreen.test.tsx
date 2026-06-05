@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   joinHostSession,
   type JoinPayload,
@@ -29,6 +29,10 @@ const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const parsedPayload: JoinPayload = createParsedJoinPayload();
 
 describe("JoinTournamentScreen", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     mockedJoinHostSession.mockReset();
     mockedJoinHostSession.mockResolvedValue({
@@ -107,7 +111,7 @@ describe("JoinTournamentScreen", () => {
     expect(screen.getByText(/fix the invite above before continuing to the lobby/i)).toBeTruthy();
   });
 
-  it("explains when pasted host share details are not a compact invite", async () => {
+  it("explains when pasted host share details are not a compact invite (W2)", async () => {
     const bootstrap = createBootstrap();
 
     renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
@@ -131,7 +135,7 @@ describe("JoinTournamentScreen", () => {
 
     expect(
       await screen.findByText(
-        /that pasted text is host share details, not a compact pkr1_ invite/i,
+        /that looks like host details — ask the host to share the invite code/i,
       ),
     ).toBeTruthy();
     expect(mockedValidateJoinPayloadInput).not.toHaveBeenCalled();
@@ -179,6 +183,29 @@ describe("JoinTournamentScreen", () => {
         displayName: "Player test-instance",
       });
     });
+  });
+
+  it("shows a timeout error when invite validation hangs for 10 seconds (F3)", async () => {
+    vi.useFakeTimers();
+    mockedValidateJoinPayloadInput.mockImplementation(
+      () => new Promise(() => {}), // never resolves
+    );
+
+    const bootstrap = createBootstrap();
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, { bootstrap });
+
+    fireEvent.change(screen.getByLabelText("Invite"), { target: { value: "pkr1_slow" } });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    // Advance past the 10-second timeout inside act() to flush React state updates.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_001);
+    });
+
+    expect(
+      screen.queryByText(/validation timed out — check your connection and try again/i),
+    ).not.toBeNull();
+    // afterEach restores real timers
   });
 
   it("shows escape actions when auto-join from launch payload fails (B8)", async () => {

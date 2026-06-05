@@ -79,7 +79,7 @@ describe("MainTableScreen", () => {
     renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(await screen.findByText("Tournament has not started")).toBeTruthy();
-    expect(screen.getByText(/return to the lobby to confirm the table and start the first hand/i)).toBeTruthy();
+    expect(screen.getByText(/the tournament is live but the first hand has not started yet/i)).toBeTruthy();
     expect(screen.queryByLabelText("Community cards")).toBeNull();
     expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
   });

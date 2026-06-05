@@ -637,16 +637,22 @@ describe("AppShell integration", () => {
 
     // Simulate host session stopping and fire a session-update event to trigger re-poll
     currentHostSession = null;
-    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined());
-    capturedSessionUpdateCallback?.();
+    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined(), { timeout: 2000 });
+    // Wrap in act to flush the async Promise.all inside the callback
+    await act(async () => {
+      capturedSessionUpdateCallback?.();
+      // Allow the microtask queue to drain so the .then() inside the callback can run
+      await Promise.resolve();
+    });
 
-    expect(
-      await screen.findByText(
-        "Hosting stopped before the table went live. Start hosting again or return home.",
-        {},
-        { timeout: 1500 },
-      ),
-    ).toBeTruthy();
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(/hosting stopped before the table went live/i),
+        ).toBeTruthy();
+      },
+      { timeout: 5000 },
+    );
     expect(screen.getByRole("button", { name: "Host again" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();

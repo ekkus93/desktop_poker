@@ -245,4 +245,72 @@ describe("HostTournamentSetupScreen", () => {
     expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
   });
+
+  it("disables Start hosting and shows an error when tournament name is blank (F1)", async () => {
+    mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    // Clear the tournament name
+    const nameInput = await screen.findByLabelText("Tournament name");
+    fireEvent.change(nameInput, { target: { value: "" } });
+    fireEvent.blur(nameInput);
+
+    expect(screen.getByText("Name is required.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /start hosting/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("shows port validation feedback when an out-of-range port is entered (F2)", async () => {
+    mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const portInput = await screen.findByLabelText("Host port");
+    // The onChange handler checks the raw value before clamping
+    fireEvent.change(portInput, { target: { value: "99999" } });
+
+    expect(screen.getByText("Port must be between 1 and 65535.")).toBeTruthy();
+
+    fireEvent.change(portInput, { target: { value: "43818" } });
+
+    expect(screen.queryByText("Port must be between 1 and 65535.")).toBeNull();
+  });
+
+  it("disables the Start hosting button while hosting is starting (E3)", async () => {
+    mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+
+    let resolveStart!: (value: ReturnType<typeof sampleHostSessionStatus>) => void;
+    mockedStartHostSession.mockImplementation(
+      () => new Promise((resolve) => { resolveStart = resolve; }),
+    );
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+
+    // Button should show "Starting…" and be disabled while the promise is pending
+    expect(await screen.findByRole("button", { name: /starting/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /starting/i }).hasAttribute("disabled")).toBe(true);
+
+    resolveStart(sampleHostSessionStatus());
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /starting/i })).toBeNull();
+    });
+  });
 });

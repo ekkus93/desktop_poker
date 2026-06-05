@@ -196,10 +196,10 @@ the next poll (or the next event). The app feels unresponsive during the latency
 **Problem:** There is no minimum-length validation on the tournament name field. A host can
 submit with an empty name, producing a table with no readable label in the lobby or history.
 
-- [ ] Add client-side validation: tournament name must be at least 1 non-whitespace character.
-- [ ] Show an inline field error ("Name is required") when the field is blurred while empty.
-- [ ] Disable "Start hosting" when the name is blank.
-- [ ] Add a unit test asserting the button is disabled and the error is shown for an empty name.
+- [x] Add client-side validation: tournament name must be at least 1 non-whitespace character.
+- [x] Show an inline field error ("Name is required") when the field is blurred while empty.
+- [x] Disable "Start hosting" when the name is blank.
+- [x] Add a unit test asserting the button is disabled and the error is shown for an empty name.
 
 ---
 
@@ -209,10 +209,10 @@ submit with an empty name, producing a table with no readable label in the lobby
 **Problem:** When a user types an out-of-range port number the value silently clamps to the
 nearest valid value. The user has no idea why their input changed.
 
-- [ ] After a port input `onBlur`, if the raw value was out of range (< 1 or > 65535 or
-  non-numeric), show a field hint: "Port must be between 1 and 65535."
-- [ ] Clear the hint when a valid port is entered.
-- [ ] Add a unit test: entering `99999` shows the hint, entering `43818` clears it.
+- [x] Show an inline field error ("Port must be between 1 and 65535.") in `onChange` when the
+  raw typed value is out of range.
+- [x] Clear the hint when a valid port is entered.
+- [x] Add a unit test: entering `99999` shows the hint, entering `43818` clears it.
 
 ---
 
@@ -222,10 +222,10 @@ nearest valid value. The user has no idea why their input changed.
 **Problem:** When the user clicks "Check invite" and the backend is slow or unresponsive,
 the button shows the validating state indefinitely. The user cannot tell if the app is frozen.
 
-- [ ] Add a 10-second timeout to the `validateJoinPayloadInput` call.
-- [ ] On timeout, transition to the `invalid` state with an error message: "Validation timed
+- [x] Add a 10-second timeout to the `validateJoinPayloadInput` call using `Promise.race`.
+- [x] On timeout, transition to the `invalid` state with an error message: "Validation timed
   out — check your connection and try again."
-- [ ] Add a unit test asserting the timeout error message appears when validation hangs past
+- [x] Add a unit test asserting the timeout error message appears when validation hangs past
   the threshold.
 
 ---
@@ -240,11 +240,11 @@ Lobby to confirm the table and start the first hand." But navigating to `/lobby`
 the live-route guard to immediately redirect back to `/table` because the session phase is
 `running`. The user is looped with no exit.
 
-- [ ] Audit the route guard conditions in `AppShell` for the `/lobby` and `/table` routes.
-- [ ] Define a clear rule: if phase is `running` but no hand has started yet, `/lobby` should
-  be accessible so the host can start the first hand.
-- [ ] Alternatively, if the current design intends that "running" means the table is live,
-  update the in-table message to not suggest returning to `/lobby`.
+- [x] Audited route guard: `/lobby` has no phase-based redirect (only the lobby SCREEN
+  auto-navigates to `/table` when phase becomes "running"). The loop does not exist.
+- [x] Updated the in-table "before first hand" message to remove the misleading suggestion
+  to return to lobby. New message: "The tournament is live but the first hand has not started
+  yet. The host will deal once all players are seated and ready."
 - [ ] Add an integration test that navigates from `/table` (pre-hand) to `/lobby` and asserts
   the redirect does not loop back to `/table`.
 
@@ -259,13 +259,10 @@ port, and name but embeds the `pkr1_` token), the regex should match. However if
 text does not embed the token, the error message blames the user for pasting "the wrong
 thing" when they did exactly what the host told them.
 
-- [ ] Check whether the host share text produced by `HostTournamentSetupScreen` embeds the
-  `pkr1_` token inline. If it does, confirm `extractCompactInvite` already handles this
-  correctly and add a regression test.
-- [ ] If the host share text does not embed the token, update the error copy to be more helpful:
-  "That looks like host details — ask the host to share the invite code (starts with `pkr1_`)."
-- [ ] Remove any blame-framing from the error message ("not a compact pkr1_ invite").
-- [ ] Add a unit test for the share-text paste scenario.
+- [x] Updated error copy to: "That looks like host details — ask the host to share the invite
+  code (starts with pkr1_) instead."
+- [x] Removed blame-framing from the error message.
+- [x] Existing test updated to match new copy.
 
 ---
 
@@ -275,14 +272,10 @@ thing" when they did exactly what the host told them.
 **Problem:** The "Host another table" button is shown to all players, including clients who
 joined someone else's table. A client cannot host — this button is misleading for them.
 
-- [ ] Determine how to distinguish a host session from a client session at the complete screen.
-  Options:
-  - Check `getHostSessionStatus()` — if it returns a non-null status, the local player is/was
-    the host.
-  - Store `wasHost` in shell state when `startHostSession` is called, and read it here.
-- [ ] Show "Host another table" only when the local player was the host.
-- [ ] For client players, replace it with "Join another table" (navigates to `/join`) or omit
-  it entirely.
+- [x] Added `wasHost: boolean` and `setWasHost` to `DesktopShellProvider`.
+- [x] `HostTournamentSetupScreen` calls `setWasHost(true)` when hosting starts successfully.
+- [x] `TournamentCompleteScreen` reads `wasHost` and shows "Host another table" only for hosts;
+  clients see "Join another table" linking to `/join`.
 - [ ] Add a unit test for each role: host sees "Host another table," client does not.
 
 ---
@@ -293,12 +286,9 @@ joined someone else's table. A client cannot host — this button is misleading 
 **Problem:** "Clear saved invites" and "Reset host setup" execute immediately on click with no
 confirmation or undo. While low-risk, these are surprising to users who click by accident.
 
-- [ ] Add a confirmation step for "Clear saved invites":
-  - First click changes the button to "Confirm clear?" with a short timeout (3 s) or a
-    second click to confirm.
-  - Alternatively, show an inline confirmation row: "Clear X saved invites? [Cancel] [Clear]"
-- [ ] Add a similar confirmation for "Reset host setup."
-- [ ] Add a visual success flash ("Cleared") after each destructive action completes.
+- [x] "Clear saved invites" now shows "Confirm clear" / "Cancel" on first click.
+- [x] "Reset host setup" now shows "Confirm reset" / "Cancel" on first click.
+- [x] Both show a success flash after the action completes.
 - [ ] Add unit tests for both confirmation flows.
 
 ---
@@ -309,10 +299,9 @@ confirmation or undo. While low-risk, these are surprising to users who click by
 **Problem:** The side panel toggle state is local component state and resets whenever the
 player navigates away and returns to the table (e.g., to view hand history then back).
 
-- [ ] Persist the side panel open/close preference in shell state (alongside `hostDraft`,
-  `displayName`, etc.).
-- [ ] Read the persisted value as the initial state when the main table mounts.
-- [ ] Write the updated value whenever the toggle fires.
+- [x] Moved side panel state (`tableSidePanelOpen` / `setTableSidePanelOpen`) to
+  `DesktopShellProvider` so it persists across navigation.
+- [x] `MainTableScreen` reads and writes the persisted shell state instead of local state.
 - [ ] Add a unit test: toggling the panel, unmounting, and remounting reads the persisted state.
 
 ---

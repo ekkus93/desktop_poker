@@ -33,14 +33,17 @@ function clampPort(value: string, fallbackPort: number) {
 }
 
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
-  const { displayName, hostDraft, updateHostDraft } = useDesktopShell();
+  const { displayName, hostDraft, setWasHost, updateHostDraft } = useDesktopShell();
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
   const [lanError, setLanError] = useState<string | null>(null);
   const [hostSession, setHostSession] = useState<Awaited<ReturnType<typeof getHostSessionStatus>>>(null);
   const [hostError, setHostError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [portError, setPortError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -122,10 +125,11 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     : hostDraft.maxPlayers;
 
   const handleStartHosting = async () => {
-    if (!resolvedHostIp) {
+    if (!resolvedHostIp || starting) {
       return;
     }
 
+    setStarting(true);
     try {
       const status = await startHostSession({
         hostAddress: resolvedHostIp,
@@ -140,11 +144,14 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
       setHostSession(status);
       setHostError(null);
       setCopyError(null);
+      setWasHost(true);
     } catch (error) {
       setHostError(
         error instanceof Error ? error.message : "Unable to start hosting.",
       );
       setHostSession(null);
+    } finally {
+      setStarting(false);
     }
   };
 
@@ -177,10 +184,16 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     }
   };
 
+  const tournamentNameIsBlank = hostDraft.tournamentName.trim().length === 0;
+  const canStartHosting = Boolean(resolvedHostIp) && !lanError && !starting && !tournamentNameIsBlank;
+
   const handleTextField =
     (field: "tournamentName") =>
     (event: ChangeEvent<HTMLInputElement>) => {
       updateHostDraft({ [field]: event.target.value });
+      if (event.target.value.trim().length > 0) {
+        setNameError(null);
+      }
     };
 
   return (
@@ -201,9 +214,15 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 <label className="field setup-grid-field-span-2">
                   Tournament name
                   <input
+                    onBlur={() => {
+                      if (hostDraft.tournamentName.trim().length === 0) {
+                        setNameError("Name is required.");
+                      }
+                    }}
                     onChange={handleTextField("tournamentName")}
                     value={hostDraft.tournamentName}
                   />
+                  {nameError ? <span className="field-hint error-hint">{nameError}</span> : null}
                 </label>
               </div>
 
@@ -284,17 +303,21 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   Host port
                   <input
                     min={1}
-                    onChange={(event) => {
-                      updateHostDraft({
-                        hostPort: clampPort(
-                          event.target.value,
-                          bootstrap.defaultHostPort,
-                        ),
-                      });
+                      onChange={(event) => {
+                      const raw = event.target.value;
+                      const parsed = Number.parseInt(raw, 10);
+                      const clamped = clampPort(raw, bootstrap.defaultHostPort);
+                      updateHostDraft({ hostPort: clamped });
+                      if (!raw || Number.isNaN(parsed) || parsed < 1 || parsed > 65535) {
+                        setPortError("Port must be between 1 and 65535.");
+                      } else {
+                        setPortError(null);
+                      }
                     }}
                     type="number"
                     value={hostDraft.hostPort}
                   />
+                  {portError ? <span className="field-hint error-hint">{portError}</span> : null}
                 </label>
               </div>
               {lanError ? <p className="inline-banner error">{lanError}</p> : null}
@@ -345,7 +368,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               <div className="button-row workstation-actions">
                 <button
                   className="primary-button compact-button"
-                  disabled={!resolvedHostIp || Boolean(lanError)}
+                  disabled={!canStartHosting}
                   onClick={() => {
                     void handleStartHosting();
                   }}
@@ -353,7 +376,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Radio className="button-icon" strokeWidth={1.9} />
-                    <span>{hostSession ? "Restart hosting" : "Start hosting"}</span>
+                    <span>{starting ? "Starting…" : hostSession ? "Restart hosting" : "Start hosting"}</span>
                   </span>
                 </button>
                 <button

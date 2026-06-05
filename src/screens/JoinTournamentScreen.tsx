@@ -193,7 +193,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       setValidationState({
         status: "invalid",
         message:
-          "That pasted text is host share details, not a compact pkr1_ invite. Copy a real pkr1_ invite before checking it.",
+          "That looks like host details — ask the host to share the invite code (starts with pkr1_) instead.",
       });
       setInviteBanner(null);
       return null;
@@ -202,7 +202,15 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     setValidationState({ status: "validating" });
 
     try {
-      const parsedPayload = await validateJoinPayloadInput(compactInvite ?? trimmedPayload);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        window.setTimeout(() => {
+          reject(new Error("Validation timed out — check your connection and try again."));
+        }, 10_000);
+      });
+      const parsedPayload = await Promise.race([
+        validateJoinPayloadInput(compactInvite ?? trimmedPayload),
+        timeoutPromise,
+      ]);
       setValidationState({ status: "valid", payload: parsedPayload });
       rememberJoinPayload(compactInvite ?? trimmedPayload);
       setJoinError(null);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -10,6 +11,10 @@ export function DeviceSettingsScreen() {
     recentJoinPayloads,
     clearRecentJoinPayloads,
   } = useDesktopShell();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [clearSuccess, setClearSuccess] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   return (
     <ScreenShell
@@ -43,17 +48,69 @@ export function DeviceSettingsScreen() {
           className="support-card device-settings-card"
         >
           <div className="button-row">
-            <button className="secondary-button" onClick={resetHostDraft} type="button">
-              Reset host setup
-            </button>
-            <button
-              className="secondary-button"
-              onClick={clearRecentJoinPayloads}
-              type="button"
-            >
-              Clear saved invites ({recentJoinPayloads.length})
-            </button>
+            {confirmReset ? (
+              <>
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    resetHostDraft();
+                    setConfirmReset(false);
+                    setResetSuccess(true);
+                  }}
+                  type="button"
+                >
+                  Confirm reset
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setConfirmReset(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                className="secondary-button"
+                onClick={() => { setConfirmReset(true); setResetSuccess(false); }}
+                type="button"
+              >
+                Reset host setup
+              </button>
+            )}
+            {confirmClear ? (
+              <>
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    clearRecentJoinPayloads();
+                    setConfirmClear(false);
+                    setClearSuccess(true);
+                  }}
+                  type="button"
+                >
+                  Confirm clear
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setConfirmClear(false)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                className="secondary-button"
+                onClick={() => { setConfirmClear(true); setClearSuccess(false); }}
+                type="button"
+              >
+                Clear saved invites ({recentJoinPayloads.length})
+              </button>
+            )}
           </div>
+          {resetSuccess ? <p className="inline-banner success">Host setup reset.</p> : null}
+          {clearSuccess ? <p className="inline-banner success">Saved invites cleared.</p> : null}
           <p className="field-hint">
             {recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"}.
           </p>
