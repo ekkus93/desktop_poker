@@ -25,6 +25,7 @@ type LobbySeatView = {
   kind: "host" | "pending" | "open";
   isLocal: boolean;
   ready: boolean;
+  isNpc: boolean;
 };
 
 function buildLiveSeats(
@@ -38,6 +39,7 @@ function buildLiveSeats(
     kind: "open",
     isLocal: false,
     ready: false,
+    isNpc: false,
   }));
   const localPlayerId = "localPlayerId" in liveSession ? liveSession.localPlayerId : "local-player";
 
@@ -47,17 +49,21 @@ function buildLiveSeats(
       continue;
     }
 
+    const isNpc = participant.playerId.startsWith("npc-seat-");
     seats[preferredIndex] = {
       seatIndex: preferredIndex + 1,
       label: participant.playerId === localPlayerId ? "You" : participant.displayName,
-      detail: participant.seatIndex === null
-        ? `${participant.participantState} · ${participant.connectionState} · awaiting seat`
-        : participant.isHost
-          ? `Host · ${participant.connectionState}`
-          : participant.connectionState,
+      detail: isNpc
+        ? "(AI) · Always ready"
+        : participant.seatIndex === null
+          ? `${participant.participantState} · ${participant.connectionState} · awaiting seat`
+          : participant.isHost
+            ? `Host · ${participant.connectionState}`
+            : participant.connectionState,
       kind: participant.seatIndex === null ? "pending" : "host",
       isLocal: participant.playerId === localPlayerId,
-      ready: participant.isReady,
+      ready: isNpc ? true : participant.isReady,
+      isNpc,
     };
   }
 
@@ -220,7 +226,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const localSeat = participants.find((seat) => seat.isLocal);
   const localSeatReady = optimisticReadyOverride ?? localSeat?.ready ?? false;
-  const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
+  const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready && !seat.isNpc).length;
   const openSeatCount = liveSession?.openSeatCount ?? 0;
   const leaveTitle = localSeat?.kind === "host" ? "Close this table?" : "Leave this table?";
   const leaveActionLabel = localSeat?.kind === "host" ? "Close table" : "Leave table";
@@ -517,7 +523,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                       </span>
                     </div>
                     {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
-                      {liveSession && liveLobbyActionsEnabled && seat.kind === "open" ? (
+                      {liveSession && liveLobbyActionsEnabled && seat.kind === "open" && !seat.isNpc ? (
                         <button
                           aria-label={denseLobbyLayout ? `Take seat ${seat.seatIndex}` : undefined}
                           className={`secondary-button compact-button ${denseLobbyLayout ? "dense-lobby-seat-action" : ""}`}

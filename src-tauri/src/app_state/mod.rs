@@ -3751,19 +3751,26 @@ mod tests {
             .iter()
             .all(|seat| seat.display_name != "Waiting for player"));
 
-        let client_table_view = (0..20)
+        let client_table_view = (0..40)
             .find_map(|_| {
                 let next_view = client_state
                     .table_view(TableViewerMode::Local)
                     .expect("client live table view");
-                if next_view.phase_label == "Running" && next_view.current_hand_number == Some(1) {
+                let local_has_cards = next_view
+                    .seats
+                    .iter()
+                    .any(|s| s.is_local && s.hole_cards.len() == 2);
+                if next_view.phase_label == "Running"
+                    && next_view.current_hand_number == Some(1)
+                    && local_has_cards
+                {
                     Some(next_view)
                 } else {
-                    std::thread::sleep(std::time::Duration::from_millis(20));
+                    std::thread::sleep(std::time::Duration::from_millis(25));
                     None
                 }
             })
-            .expect("client should observe the running live table view");
+            .expect("client should observe the running live table view with hole cards");
         assert_eq!(client_table_view.phase_label, "Running");
         let local_client_seat = client_table_view
             .seats
@@ -3915,7 +3922,8 @@ mod tests {
         assert_eq!(acting_after_action.phase_label, "Running");
         assert!(
             acting_after_action.action_owner_label != acting_view_before.action_owner_label
-                || acting_after_action.current_hand_number != acting_view_before.current_hand_number
+                || acting_after_action.current_hand_number
+                    != acting_view_before.current_hand_number
                 || acting_after_action.event_feed.len() > acting_view_before.event_feed.len()
                 || acting_after_action.action_tray.is_none(),
             "live action should change the acting view"
@@ -3942,7 +3950,8 @@ mod tests {
         assert_eq!(observer_after_action.phase_label, "Running");
         assert!(
             observer_after_action.action_owner_label != observing_view_before.action_owner_label
-                || observer_after_action.current_hand_number != observing_view_before.current_hand_number
+                || observer_after_action.current_hand_number
+                    != observing_view_before.current_hand_number
                 || observer_after_action.event_feed.len() > observing_view_before.event_feed.len(),
             "observer should observe the live action update"
         );

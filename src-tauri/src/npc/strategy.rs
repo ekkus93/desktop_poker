@@ -1,5 +1,5 @@
-use super::preflop::PreflopTier;
 use super::postflop::PostflopCategory;
+use super::preflop::PreflopTier;
 use super::NpcStyle;
 
 /// Table position relative to the dealer button.
@@ -79,12 +79,26 @@ pub fn choose_preflop_action(
 
     match style {
         NpcStyle::Conservative => conservative_preflop(
-            effective_tier, position, facing_raise, raise_count,
-            min_raise_to, max_raise_to, call_amount, stack, seed,
+            effective_tier,
+            position,
+            facing_raise,
+            raise_count,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            stack,
+            seed,
         ),
         NpcStyle::Aggressive => aggressive_preflop(
-            effective_tier, position, facing_raise, raise_count,
-            min_raise_to, max_raise_to, call_amount, stack, seed,
+            effective_tier,
+            position,
+            facing_raise,
+            raise_count,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            stack,
+            seed,
         ),
     }
 }
@@ -241,12 +255,26 @@ pub fn choose_postflop_action(
 ) -> NpcAction {
     match style {
         NpcStyle::Conservative => conservative_postflop(
-            category, facing_bet, facing_bet_fraction,
-            min_raise_to, max_raise_to, call_amount, pot_total, stack, seed,
+            category,
+            facing_bet,
+            facing_bet_fraction,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            pot_total,
+            stack,
+            seed,
         ),
         NpcStyle::Aggressive => aggressive_postflop(
-            category, facing_bet, facing_bet_fraction,
-            min_raise_to, max_raise_to, call_amount, pot_total, stack, seed,
+            category,
+            facing_bet,
+            facing_bet_fraction,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            pot_total,
+            stack,
+            seed,
         ),
     }
 }
@@ -272,10 +300,18 @@ fn conservative_postflop(
             }
             PostflopCategory::Strong => NpcAction::CheckOrCall,
             PostflopCategory::Medium => {
-                if facing_bet_fraction <= 0.25 { NpcAction::CheckOrCall } else { NpcAction::Fold }
+                if facing_bet_fraction <= 0.25 {
+                    NpcAction::CheckOrCall
+                } else {
+                    NpcAction::Fold
+                }
             }
             PostflopCategory::Draw => {
-                if facing_bet_fraction <= 0.30 { NpcAction::CheckOrCall } else { NpcAction::Fold }
+                if facing_bet_fraction <= 0.30 {
+                    NpcAction::CheckOrCall
+                } else {
+                    NpcAction::Fold
+                }
             }
             PostflopCategory::Weak => NpcAction::Fold,
         }
@@ -318,13 +354,25 @@ fn aggressive_postflop(
                 }
             }
             PostflopCategory::Medium => {
-                if facing_bet_fraction <= 0.50 { NpcAction::CheckOrCall } else { NpcAction::Fold }
+                if facing_bet_fraction <= 0.50 {
+                    NpcAction::CheckOrCall
+                } else {
+                    NpcAction::Fold
+                }
             }
             PostflopCategory::Draw => {
-                if facing_bet_fraction <= 0.35 { NpcAction::CheckOrCall } else { NpcAction::Fold }
+                if facing_bet_fraction <= 0.35 {
+                    NpcAction::CheckOrCall
+                } else {
+                    NpcAction::Fold
+                }
             }
             PostflopCategory::Weak => {
-                if facing_bet_fraction > 0.10 { NpcAction::Fold } else { NpcAction::CheckOrCall }
+                if facing_bet_fraction > 0.10 {
+                    NpcAction::Fold
+                } else {
+                    NpcAction::CheckOrCall
+                }
             }
         }
     } else {
@@ -355,7 +403,13 @@ fn aggressive_postflop(
 // ── Sizing helpers ────────────────────────────────────────────────────────────
 
 /// Compute a pot-fraction bet target clamped to legal raise bounds.
-fn pot_fraction(pot: u32, fraction: f32, min_raise_to: Option<u32>, max_raise_to: Option<u32>, stack: u32) -> Option<u32> {
+fn pot_fraction(
+    pot: u32,
+    fraction: f32,
+    min_raise_to: Option<u32>,
+    max_raise_to: Option<u32>,
+    stack: u32,
+) -> Option<u32> {
     max_raise_to?;
     let target = (pot as f32 * fraction).round() as u32;
     let clamped = clamp_raise(target, min_raise_to, max_raise_to, stack);
@@ -363,19 +417,37 @@ fn pot_fraction(pot: u32, fraction: f32, min_raise_to: Option<u32>, max_raise_to
 }
 
 /// Compute a raise-to amount as `multiplier × call_amount` clamped to bounds.
-fn scale_raise(call_amount: u32, multiplier: u32, min_raise_to: Option<u32>, max_raise_to: Option<u32>, stack: u32) -> u32 {
-    let target = call_amount.saturating_mul(multiplier).max(call_amount.saturating_add(1));
+fn scale_raise(
+    call_amount: u32,
+    multiplier: u32,
+    min_raise_to: Option<u32>,
+    max_raise_to: Option<u32>,
+    stack: u32,
+) -> u32 {
+    let target = call_amount
+        .saturating_mul(multiplier)
+        .max(call_amount.saturating_add(1));
     clamp_raise(target, min_raise_to, max_raise_to, stack)
 }
 
-fn clamp_raise(target: u32, min_raise_to: Option<u32>, max_raise_to: Option<u32>, stack: u32) -> u32 {
+fn clamp_raise(
+    target: u32,
+    min_raise_to: Option<u32>,
+    max_raise_to: Option<u32>,
+    stack: u32,
+) -> u32 {
     let lo = min_raise_to.unwrap_or(target);
     let hi = max_raise_to.unwrap_or(stack).min(stack);
     target.max(lo).min(hi)
 }
 
 /// Try to return a `Raise` action; fall back to `CheckOrCall` if raising is not possible.
-fn try_raise(target: Option<u32>, max_raise_to: Option<u32>, call_amount: u32, stack: u32) -> NpcAction {
+fn try_raise(
+    target: Option<u32>,
+    max_raise_to: Option<u32>,
+    call_amount: u32,
+    stack: u32,
+) -> NpcAction {
     match (target, max_raise_to) {
         (Some(t), Some(max)) => {
             let amount = t.min(max).min(stack);
@@ -393,13 +465,24 @@ fn try_raise(target: Option<u32>, max_raise_to: Option<u32>, call_amount: u32, s
 mod tests {
     use super::*;
 
-    fn seed() -> u64 { 12345 }
+    fn seed() -> u64 {
+        12345
+    }
 
     #[test]
     fn conservative_premium_opens() {
         let action = choose_preflop_action(
-            &NpcStyle::Conservative, PreflopTier::Premium, Position::Early,
-            false, 0, Some(60), Some(1500), 20, 100, 1500, seed(),
+            &NpcStyle::Conservative,
+            PreflopTier::Premium,
+            Position::Early,
+            false,
+            0,
+            Some(60),
+            Some(1500),
+            20,
+            100,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Raise(_)));
     }
@@ -407,8 +490,17 @@ mod tests {
     #[test]
     fn conservative_folds_playable() {
         let action = choose_preflop_action(
-            &NpcStyle::Conservative, PreflopTier::Playable, Position::Middle,
-            false, 0, Some(60), Some(1500), 20, 100, 1500, seed(),
+            &NpcStyle::Conservative,
+            PreflopTier::Playable,
+            Position::Middle,
+            false,
+            0,
+            Some(60),
+            Some(1500),
+            20,
+            100,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Fold));
     }
@@ -416,8 +508,17 @@ mod tests {
     #[test]
     fn aggressive_playable_opens_late() {
         let action = choose_preflop_action(
-            &NpcStyle::Aggressive, PreflopTier::Playable, Position::Late,
-            false, 0, Some(60), Some(1500), 20, 100, 1500, seed(),
+            &NpcStyle::Aggressive,
+            PreflopTier::Playable,
+            Position::Late,
+            false,
+            0,
+            Some(60),
+            Some(1500),
+            20,
+            100,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Raise(_)));
     }
@@ -425,8 +526,17 @@ mod tests {
     #[test]
     fn aggressive_marginal_folds_to_raise() {
         let action = choose_preflop_action(
-            &NpcStyle::Aggressive, PreflopTier::Marginal, Position::Middle,
-            true, 1, Some(120), Some(1500), 80, 200, 1500, seed(),
+            &NpcStyle::Aggressive,
+            PreflopTier::Marginal,
+            Position::Middle,
+            true,
+            1,
+            Some(120),
+            Some(1500),
+            80,
+            200,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Fold));
     }
@@ -436,12 +546,23 @@ mod tests {
         for &min in &[60u32, 100, 200] {
             for &max in &[300u32, 500, 1500] {
                 let action = choose_preflop_action(
-                    &NpcStyle::Aggressive, PreflopTier::Premium, Position::Late,
-                    false, 0, Some(min), Some(max), 20, 100, max, seed(),
+                    &NpcStyle::Aggressive,
+                    PreflopTier::Premium,
+                    Position::Late,
+                    false,
+                    0,
+                    Some(min),
+                    Some(max),
+                    20,
+                    100,
+                    max,
+                    seed(),
                 );
                 if let NpcAction::Raise(amount) = action {
-                    assert!(amount >= min && amount <= max,
-                        "raise {amount} out of bounds [{min}, {max}]");
+                    assert!(
+                        amount >= min && amount <= max,
+                        "raise {amount} out of bounds [{min}, {max}]"
+                    );
                 }
             }
         }
@@ -450,8 +571,17 @@ mod tests {
     #[test]
     fn no_raise_available_falls_back_to_check_or_call() {
         let action = choose_preflop_action(
-            &NpcStyle::Aggressive, PreflopTier::Premium, Position::Late,
-            false, 0, None, None, 0, 100, 1500, seed(),
+            &NpcStyle::Aggressive,
+            PreflopTier::Premium,
+            Position::Late,
+            false,
+            0,
+            None,
+            None,
+            0,
+            100,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::CheckOrCall));
     }
@@ -459,8 +589,16 @@ mod tests {
     #[test]
     fn postflop_monster_bets_facing_bet_conservative() {
         let action = choose_postflop_action(
-            &NpcStyle::Conservative, PostflopCategory::Monster,
-            true, 0.5, Some(200), Some(1500), 150, 300, 1500, seed(),
+            &NpcStyle::Conservative,
+            PostflopCategory::Monster,
+            true,
+            0.5,
+            Some(200),
+            Some(1500),
+            150,
+            300,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Raise(_)));
     }
@@ -468,8 +606,16 @@ mod tests {
     #[test]
     fn postflop_weak_folds_to_bet() {
         let action = choose_postflop_action(
-            &NpcStyle::Conservative, PostflopCategory::Weak,
-            true, 0.5, Some(200), Some(1500), 150, 300, 1500, seed(),
+            &NpcStyle::Conservative,
+            PostflopCategory::Weak,
+            true,
+            0.5,
+            Some(200),
+            Some(1500),
+            150,
+            300,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::Fold));
     }
@@ -477,8 +623,16 @@ mod tests {
     #[test]
     fn postflop_weak_checks_behind() {
         let action = choose_postflop_action(
-            &NpcStyle::Aggressive, PostflopCategory::Weak,
-            false, 0.0, Some(200), Some(1500), 0, 300, 1500, seed(),
+            &NpcStyle::Aggressive,
+            PostflopCategory::Weak,
+            false,
+            0.0,
+            Some(200),
+            Some(1500),
+            0,
+            300,
+            1500,
+            seed(),
         );
         assert!(matches!(action, NpcAction::CheckOrCall));
     }

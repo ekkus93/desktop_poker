@@ -10,13 +10,22 @@ import {
   TURN_TIMER_OPTIONS,
 } from "../app/shell";
 import {
+  addNpcPlayers,
   getHostSessionStatus,
   resolveHostLanAddress,
   startHostSession,
+  type NpcStyle,
 } from "../api/desktop";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
+
+const NPC_BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota"];
+
+function npcDisplayName(index: number): string {
+  const suffix = NPC_BOT_NAMES[index] ?? String(index + 1);
+  return `Bot ${suffix}`;
+}
 
 function describeBlindOpening(firstLevel: string) {
   const [smallBlind, bigBlind] = firstLevel.split("/").map((value) => value.trim());
@@ -44,6 +53,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [portError, setPortError] = useState<string | null>(null);
+  const [npcError, setNpcError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -130,6 +140,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     }
 
     setStarting(true);
+    setNpcError(null);
     try {
       const status = await startHostSession({
         hostAddress: resolvedHostIp,
@@ -141,10 +152,27 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         turnTimerSeconds: hostDraft.turnTimerSeconds,
         displayName,
       });
-      setHostSession(status);
       setHostError(null);
       setCopyError(null);
       setWasHost(true);
+
+      if (hostDraft.npcCount > 0) {
+        try {
+          const npcs = Array.from({ length: hostDraft.npcCount }, (_, i) => ({
+            displayName: npcDisplayName(i),
+            style: hostDraft.npcStyle as NpcStyle,
+          }));
+          const npcStatus = await addNpcPlayers({ npcs });
+          setHostSession(npcStatus);
+        } catch (npcErr) {
+          setNpcError(
+            npcErr instanceof Error ? npcErr.message : "Unable to add NPC players.",
+          );
+          setHostSession(status);
+        }
+      } else {
+        setHostSession(status);
+      }
     } catch (error) {
       setHostError(
         error instanceof Error ? error.message : "Unable to start hosting.",
@@ -320,7 +348,43 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   {portError ? <span className="field-hint error-hint">{portError}</span> : null}
                 </label>
               </div>
+              <div className="setup-grid-row compact-advanced-panel">
+                <label className="field">
+                  NPC players
+                  <select
+                    onChange={(event) => {
+                      updateHostDraft({
+                        npcCount: Number.parseInt(event.target.value, 10),
+                      });
+                    }}
+                    value={hostDraft.npcCount}
+                  >
+                    {Array.from({ length: hostDraft.maxPlayers }, (_, i) => i).map((count) => (
+                      <option key={count} value={count}>
+                        {count === 0 ? "None" : `${count} bot${count === 1 ? "" : "s"}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {hostDraft.npcCount > 0 ? (
+                  <label className="field">
+                    NPC style
+                    <select
+                      onChange={(event) => {
+                        updateHostDraft({
+                          npcStyle: event.target.value as "aggressive" | "conservative",
+                        });
+                      }}
+                      value={hostDraft.npcStyle}
+                    >
+                      <option value="aggressive">Aggressive</option>
+                      <option value="conservative">Conservative</option>
+                    </select>
+                  </label>
+                ) : null}
+              </div>
               {lanError ? <p className="inline-banner error">{lanError}</p> : null}
+              {npcError ? <p className="inline-banner error">{npcError}</p> : null}
             </div>
 
             <div className="workstation-side-panel">

@@ -15,6 +15,8 @@ export type HostDraft = {
   blindPresetId: string;
   turnTimerSeconds: number;
   hostPort: number;
+  npcCount: number;
+  npcStyle: "aggressive" | "conservative";
 };
 
 export type StoredValueReadResult<T> = {
@@ -66,6 +68,8 @@ export function createDefaultHostDraft(
     blindPresetId: BLIND_PRESETS[0].id,
     turnTimerSeconds: 30,
     hostPort: bootstrap.defaultHostPort,
+    npcCount: 0,
+    npcStyle: "aggressive",
   };
 }
 
@@ -125,6 +129,14 @@ export function normalizeHostDraft(
     hostPort: isValidPortNumber(value.hostPort)
       ? value.hostPort
       : fallbackDraft.hostPort,
+    npcCount:
+      typeof value.npcCount === "number" && Number.isInteger(value.npcCount) && value.npcCount >= 0
+        ? value.npcCount
+        : fallbackDraft.npcCount,
+    npcStyle:
+      value.npcStyle === "aggressive" || value.npcStyle === "conservative"
+        ? value.npcStyle
+        : fallbackDraft.npcStyle,
   };
 }
 

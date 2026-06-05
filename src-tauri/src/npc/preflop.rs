@@ -16,7 +16,11 @@ pub enum PreflopTier {
 ///
 /// Panics in debug if `hole_cards` does not have exactly 2 elements.
 pub fn preflop_hand_tier(hole_cards: &[Card]) -> PreflopTier {
-    debug_assert_eq!(hole_cards.len(), 2, "preflop_hand_tier requires exactly 2 hole cards");
+    debug_assert_eq!(
+        hole_cards.len(),
+        2,
+        "preflop_hand_tier requires exactly 2 hole cards"
+    );
     if hole_cards.len() < 2 {
         return PreflopTier::Fold;
     }
@@ -87,9 +91,7 @@ fn unpaired_tier(high: Rank, low: Rank, suited: bool) -> PreflopTier {
 
         // ── Marginal ─────────────────────────────────────────────────
         // Any two broadway cards offsuit not already categorised
-        (high_rank, low_rank, false)
-            if high_rank >= Ten && low_rank >= Ten =>
-        {
+        (high_rank, low_rank, false) if high_rank >= Ten && low_rank >= Ten => {
             PreflopTier::Marginal
         }
         // Weak aces offsuit
@@ -113,48 +115,120 @@ mod tests {
 
     #[test]
     fn pairs() {
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Ace, Hearts)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(King, Spades), card(King, Hearts)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(Ten, Spades), card(Ten, Hearts)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(Nine, Spades), card(Nine, Hearts)]), PreflopTier::Strong);
-        assert_eq!(preflop_hand_tier(&[card(Seven, Spades), card(Seven, Hearts)]), PreflopTier::Strong);
-        assert_eq!(preflop_hand_tier(&[card(Six, Spades), card(Six, Hearts)]), PreflopTier::Playable);
-        assert_eq!(preflop_hand_tier(&[card(Two, Spades), card(Two, Hearts)]), PreflopTier::Playable);
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Ace, Hearts)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(King, Spades), card(King, Hearts)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ten, Spades), card(Ten, Hearts)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Nine, Spades), card(Nine, Hearts)]),
+            PreflopTier::Strong
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Seven, Spades), card(Seven, Hearts)]),
+            PreflopTier::Strong
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Six, Spades), card(Six, Hearts)]),
+            PreflopTier::Playable
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Two, Spades), card(Two, Hearts)]),
+            PreflopTier::Playable
+        );
     }
 
     #[test]
     fn premium_unpaired() {
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(King, Hearts)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(King, Spades)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Queen, Hearts)]), PreflopTier::Premium);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Jack, Spades)]), PreflopTier::Premium);
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(King, Hearts)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(King, Spades)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Queen, Hearts)]),
+            PreflopTier::Premium
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Jack, Spades)]),
+            PreflopTier::Premium
+        );
     }
 
     #[test]
     fn strong_unpaired() {
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Jack, Hearts)]), PreflopTier::Strong);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Ten, Spades)]), PreflopTier::Strong);
-        assert_eq!(preflop_hand_tier(&[card(King, Spades), card(Queen, Hearts)]), PreflopTier::Strong);
-        assert_eq!(preflop_hand_tier(&[card(King, Spades), card(Jack, Spades)]), PreflopTier::Strong);
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Jack, Hearts)]),
+            PreflopTier::Strong
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Ten, Spades)]),
+            PreflopTier::Strong
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(King, Spades), card(Queen, Hearts)]),
+            PreflopTier::Strong
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(King, Spades), card(Jack, Spades)]),
+            PreflopTier::Strong
+        );
     }
 
     #[test]
     fn playable_suited_connectors() {
-        assert_eq!(preflop_hand_tier(&[card(Jack, Spades), card(Ten, Spades)]), PreflopTier::Playable);
-        assert_eq!(preflop_hand_tier(&[card(Ten, Spades), card(Nine, Spades)]), PreflopTier::Playable);
-        assert_eq!(preflop_hand_tier(&[card(Seven, Spades), card(Six, Spades)]), PreflopTier::Playable);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Five, Spades)]), PreflopTier::Playable);
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Two, Spades)]), PreflopTier::Playable);
+        assert_eq!(
+            preflop_hand_tier(&[card(Jack, Spades), card(Ten, Spades)]),
+            PreflopTier::Playable
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ten, Spades), card(Nine, Spades)]),
+            PreflopTier::Playable
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Seven, Spades), card(Six, Spades)]),
+            PreflopTier::Playable
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Five, Spades)]),
+            PreflopTier::Playable
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Two, Spades)]),
+            PreflopTier::Playable
+        );
     }
 
     #[test]
     fn marginal_and_fold() {
         // Offsuit broadway
-        assert_eq!(preflop_hand_tier(&[card(Jack, Spades), card(Ten, Hearts)]), PreflopTier::Marginal);
+        assert_eq!(
+            preflop_hand_tier(&[card(Jack, Spades), card(Ten, Hearts)]),
+            PreflopTier::Marginal
+        );
         // Weak ace offsuit
-        assert_eq!(preflop_hand_tier(&[card(Ace, Spades), card(Five, Hearts)]), PreflopTier::Marginal);
+        assert_eq!(
+            preflop_hand_tier(&[card(Ace, Spades), card(Five, Hearts)]),
+            PreflopTier::Marginal
+        );
         // Random junk
-        assert_eq!(preflop_hand_tier(&[card(Seven, Spades), card(Two, Hearts)]), PreflopTier::Fold);
-        assert_eq!(preflop_hand_tier(&[card(Nine, Spades), card(Four, Hearts)]), PreflopTier::Fold);
+        assert_eq!(
+            preflop_hand_tier(&[card(Seven, Spades), card(Two, Hearts)]),
+            PreflopTier::Fold
+        );
+        assert_eq!(
+            preflop_hand_tier(&[card(Nine, Spades), card(Four, Hearts)]),
+            PreflopTier::Fold
+        );
     }
 }

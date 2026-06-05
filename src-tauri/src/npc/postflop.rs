@@ -17,7 +17,10 @@ pub enum PostflopCategory {
 ///
 /// When 5 board cards are available delegates to `evaluate_best_holdem_hand`.
 /// For partial boards evaluates all C(n,5) combinations directly.
-fn evaluate_partial_board(hole_cards: &[Card], board: &[Card]) -> Result<HandStrength, crate::engine::EngineError> {
+fn evaluate_partial_board(
+    hole_cards: &[Card],
+    board: &[Card],
+) -> Result<HandStrength, crate::engine::EngineError> {
     if board.len() == 5 {
         return evaluate_best_holdem_hand(hole_cards, board);
     }
@@ -28,7 +31,9 @@ fn evaluate_partial_board(hole_cards: &[Card], board: &[Card]) -> Result<HandStr
     all.extend_from_slice(board);
 
     if all.len() < 5 {
-        return Err(crate::engine::EngineError::new("not enough cards to evaluate"));
+        return Err(crate::engine::EngineError::new(
+            "not enough cards to evaluate",
+        ));
     }
 
     let n = all.len();
@@ -38,7 +43,9 @@ fn evaluate_partial_board(hole_cards: &[Card], board: &[Card]) -> Result<HandStr
             for c in b + 1..n - 2 {
                 for d in c + 1..n - 1 {
                     for e in d + 1..n {
-                        let s = crate::engine::evaluate_five_card_hand([all[a], all[b], all[c], all[d], all[e]]);
+                        let s = crate::engine::evaluate_five_card_hand([
+                            all[a], all[b], all[c], all[d], all[e],
+                        ]);
                         if best.is_none_or(|prev| s > prev) {
                             best = Some(s);
                         }
@@ -67,9 +74,7 @@ pub fn postflop_hand_category(hole_cards: &[Card], board: &[Card]) -> PostflopCa
             use crate::engine::HandCategory;
             match strength.category {
                 HandCategory::HighCard => PostflopCategory::Weak,
-                HandCategory::OnePair => {
-                    top_pair_or_medium(hole_cards, board)
-                }
+                HandCategory::OnePair => top_pair_or_medium(hole_cards, board),
                 HandCategory::TwoPair | HandCategory::ThreeOfAKind => PostflopCategory::Strong,
                 HandCategory::Straight
                 | HandCategory::Flush
@@ -181,20 +186,28 @@ mod tests {
     use Rank::*;
     use Suit::*;
 
-    fn c(rank: Rank, suit: Suit) -> Card { Card { rank, suit } }
+    fn c(rank: Rank, suit: Suit) -> Card {
+        Card { rank, suit }
+    }
 
     #[test]
     fn high_card_is_weak() {
         let hole = [c(Seven, Spades), c(Two, Hearts)];
         let board = [c(Ace, Clubs), c(King, Diamonds), c(Queen, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Weak);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Weak
+        );
     }
 
     #[test]
     fn top_pair_is_strong() {
         let hole = [c(Ace, Spades), c(King, Hearts)];
         let board = [c(Ace, Clubs), c(Seven, Diamonds), c(Two, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Strong);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Strong
+        );
     }
 
     #[test]
@@ -202,35 +215,50 @@ mod tests {
         let hole = [c(Seven, Spades), c(Six, Hearts)];
         let board = [c(Ace, Clubs), c(Seven, Diamonds), c(Two, Spades)];
         // Seven pairs but it's not the top board card (Ace is highest).
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Medium);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Medium
+        );
     }
 
     #[test]
     fn two_pair_is_strong() {
         let hole = [c(Ace, Spades), c(King, Hearts)];
         let board = [c(Ace, Clubs), c(King, Diamonds), c(Two, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Strong);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Strong
+        );
     }
 
     #[test]
     fn set_is_strong() {
         let hole = [c(Seven, Spades), c(Seven, Hearts)];
         let board = [c(Seven, Clubs), c(King, Diamonds), c(Two, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Strong);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Strong
+        );
     }
 
     #[test]
     fn flush_is_monster() {
         let hole = [c(Ace, Spades), c(King, Spades)];
         let board = [c(Queen, Spades), c(Jack, Spades), c(Two, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Monster);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Monster
+        );
     }
 
     #[test]
     fn straight_is_monster() {
         let hole = [c(Six, Spades), c(Seven, Hearts)];
         let board = [c(Eight, Clubs), c(Nine, Diamonds), c(Ten, Spades)];
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Monster);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Monster
+        );
     }
 
     #[test]
@@ -238,7 +266,10 @@ mod tests {
         let hole = [c(Ace, Spades), c(Three, Spades)];
         let board = [c(King, Spades), c(Nine, Spades), c(Two, Hearts)];
         // Only 4 spades total → flush draw, no pair → Draw
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Draw);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Draw
+        );
     }
 
     #[test]
@@ -246,7 +277,10 @@ mod tests {
         let hole = [c(Six, Spades), c(Seven, Hearts)];
         let board = [c(Eight, Clubs), c(Nine, Diamonds), c(Ace, Spades)];
         // 6-7-8-9 is an OESD (needs 5 or T)
-        assert_eq!(postflop_hand_category(&hole, &board), PostflopCategory::Draw);
+        assert_eq!(
+            postflop_hand_category(&hole, &board),
+            PostflopCategory::Draw
+        );
     }
 
     #[test]

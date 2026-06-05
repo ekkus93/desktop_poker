@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  addNpcPlayers,
   getHostSessionStatus,
   resolveHostLanAddress,
   startHostSession,
@@ -17,12 +18,14 @@ vi.mock("../api/desktop", async () => {
 
   return {
     ...actual,
+    addNpcPlayers: vi.fn(),
     getHostSessionStatus: vi.fn(),
     resolveHostLanAddress: vi.fn(),
     startHostSession: vi.fn(),
   };
 });
 
+const mockedAddNpcPlayers = vi.mocked(addNpcPlayers);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedStartHostSession = vi.mocked(startHostSession);
@@ -55,6 +58,8 @@ function sampleHostSessionStatus() {
 
 describe("HostTournamentSetupScreen", () => {
   beforeEach(() => {
+    mockedAddNpcPlayers.mockReset();
+    mockedAddNpcPlayers.mockResolvedValue(sampleHostSessionStatus());
     mockedGetHostSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockResolvedValue(null);
     mockedResolveHostLanAddress.mockReset();
@@ -312,5 +317,74 @@ describe("HostTournamentSetupScreen", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /starting/i })).toBeNull();
     });
+  });
+
+  it("hides NPC style selector when npcCount is 0", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    expect(await screen.findByLabelText(/npc players/i)).toBeTruthy();
+    expect(screen.queryByLabelText(/npc style/i)).toBeNull();
+  });
+
+  it("shows NPC style selector when npcCount is set to 1 or more", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const npcSelect = await screen.findByLabelText(/npc players/i);
+    fireEvent.change(npcSelect, { target: { value: "2" } });
+
+    expect(screen.getByLabelText(/npc style/i)).toBeTruthy();
+  });
+
+  it("calls addNpcPlayers with correct payload after startHostSession succeeds when npcCount > 0", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const npcSelect = await screen.findByLabelText(/npc players/i);
+    fireEvent.change(npcSelect, { target: { value: "2" } });
+
+    const styleSelect = screen.getByLabelText(/npc style/i);
+    fireEvent.change(styleSelect, { target: { value: "conservative" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /start hosting/i }));
+
+    await waitFor(() => {
+      expect(mockedAddNpcPlayers).toHaveBeenCalledWith({
+        npcs: [
+          { displayName: "Bot Alpha", style: "conservative" },
+          { displayName: "Bot Beta", style: "conservative" },
+        ],
+      });
+    });
+  });
+
+  it("does not call addNpcPlayers when npcCount is 0", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /start hosting/i }));
+
+    await waitFor(() => {
+      expect(mockedStartHostSession).toHaveBeenCalled();
+    });
+
+    expect(mockedAddNpcPlayers).not.toHaveBeenCalled();
   });
 });

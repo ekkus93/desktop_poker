@@ -1,4 +1,7 @@
-use std::sync::{atomic::{AtomicBool, Ordering}, Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::thread;
 use std::time::Duration;
 
@@ -94,7 +97,8 @@ fn try_npc_action(
     }
 
     // Find the matching NPC config.
-    let npc_seat: u8 = window.player_id
+    let npc_seat: u8 = window
+        .player_id
         .strip_prefix("npc-seat-")
         .and_then(|s| s.parse().ok())
         .unwrap_or(0);
@@ -104,7 +108,9 @@ fn try_npc_action(
         .get(npc_seat as usize)
         .or_else(|| npc_configs.first());
 
-    let style = npc_config.map(|c| &c.style).unwrap_or(&NpcStyle::Aggressive);
+    let style = npc_config
+        .map(|c| &c.style)
+        .unwrap_or(&NpcStyle::Aggressive);
 
     // Derive the seed deterministically from the action window ID.
     let seed = hash_str(&window.player_id) ^ hash_str(&window.action_window_id);
@@ -121,7 +127,11 @@ fn try_npc_action(
         Ok(s) => s,
         Err(_) => return false,
     };
-    let fresh_window = match fresh_state.current_hand.as_ref().and_then(|h| h.action_window.as_ref()) {
+    let fresh_window = match fresh_state
+        .current_hand
+        .as_ref()
+        .and_then(|h| h.action_window.as_ref())
+    {
         Some(w) if w.action_window_id == window.action_window_id => w.clone(),
         _ => return false, // window changed — abort
     };
@@ -157,7 +167,12 @@ fn try_npc_action(
     let active_count = fresh_state
         .seats
         .iter()
-        .filter(|s| matches!(s.tournament_state, crate::domain::TournamentSeatState::Active))
+        .filter(|s| {
+            matches!(
+                s.tournament_state,
+                crate::domain::TournamentSeatState::Active
+            )
+        })
         .count() as u8;
 
     let dealer_seat = fresh_hand.dealer_seat_index;
@@ -175,11 +190,26 @@ fn try_npc_action(
             .unwrap_or(20);
         let facing_raise = call_amount > big_blind;
         // Approximate raise count from current_bet vs big_blind.
-        let raise_count = if fresh_hand.betting_round.current_bet > big_blind * 3 { 2 } else if facing_raise { 1 } else { 0 };
+        let raise_count = if fresh_hand.betting_round.current_bet > big_blind * 3 {
+            2
+        } else if facing_raise {
+            1
+        } else {
+            0
+        };
 
         choose_preflop_action(
-            style, tier, position, facing_raise, raise_count,
-            min_raise_to, max_raise_to, call_amount, pot_total, stack, seed,
+            style,
+            tier,
+            position,
+            facing_raise,
+            raise_count,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            pot_total,
+            stack,
+            seed,
         )
     } else {
         let category = postflop_hand_category(hole_cards, board);
@@ -189,8 +219,16 @@ fn try_npc_action(
             0.0
         };
         choose_postflop_action(
-            style, category, facing_bet, facing_bet_fraction,
-            min_raise_to, max_raise_to, call_amount, pot_total, stack, seed,
+            style,
+            category,
+            facing_bet,
+            facing_bet_fraction,
+            min_raise_to,
+            max_raise_to,
+            call_amount,
+            pot_total,
+            stack,
+            seed,
         )
     };
 

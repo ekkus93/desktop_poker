@@ -8,6 +8,7 @@ type DesktopBrowserMocks = {
   ) => Promise<() => void>;
   onSessionUpdate?: (callback: () => void) => Promise<() => void>;
   onTableUpdate?: (callback: () => void) => Promise<() => void>;
+  addNpcPlayers?: (request: AddNpcPlayersRequest) => Promise<HostSessionStatus>;
   startHostSession?: (request: StartHostSessionRequest) => Promise<HostSessionStatus>;
   getHostSessionStatus?: () => Promise<HostSessionStatus | null>;
   stopHostSession?: () => Promise<void>;

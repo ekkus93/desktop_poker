@@ -217,4 +217,96 @@ describe("TournamentLobbyScreen", () => {
     expect(screen.getByText("Close this table?")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Stay here" })).toBeTruthy();
   });
+
+  it("shows (AI) detail and Ready badge for NPC seat without a Take seat button", async () => {
+    mockedGetHostSessionStatus.mockResolvedValue(
+      createHostSession({
+        activeSeatCount: 3,
+        openSeatCount: 3,
+        participants: [
+          {
+            playerId: "local-player",
+            displayName: "Host Alpha",
+            seatIndex: 0,
+            isHost: true,
+            isReady: false,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+          {
+            playerId: "npc-seat-1",
+            displayName: "Bot Beta",
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+          {
+            playerId: "player-c",
+            displayName: "Maya",
+            seatIndex: 2,
+            isHost: false,
+            isReady: false,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+        ],
+      }),
+    );
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    await screen.findByText("Bot Beta");
+    expect(screen.getByText("(AI) · Always ready")).toBeTruthy();
+
+    // NPC seat should show Ready badge
+    const npcCard = screen.getByText("Bot Beta").closest("article");
+    expect(npcCard?.textContent).toContain("Ready");
+
+    // No "Take seat" button for NPC-occupied seats (they are filled, not open)
+    expect(screen.queryByRole("button", { name: /take seat 2/i })).toBeNull();
+  });
+
+  it("does not count NPC seats in seatsStillWaiting", async () => {
+    mockedGetHostSessionStatus.mockResolvedValue(
+      createHostSession({
+        activeSeatCount: 2,
+        openSeatCount: 4,
+        participants: [
+          {
+            playerId: "local-player",
+            displayName: "Host Alpha",
+            seatIndex: 0,
+            isHost: true,
+            isReady: false,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+          {
+            playerId: "npc-seat-1",
+            displayName: "Bot Beta",
+            seatIndex: 1,
+            isHost: false,
+            isReady: true,
+            connectionState: "connected",
+            participantState: "seated",
+          },
+        ],
+      }),
+    );
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    // Only the real local player (Host Alpha) is waiting — NPC should not count
+    expect(await screen.findByText("1 waiting")).toBeTruthy();
+  });
 });
