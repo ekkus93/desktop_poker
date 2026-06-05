@@ -17,6 +17,7 @@ export type HostDraft = {
   hostPort: number;
   npcCount: number;
   npcStyle: "aggressive" | "conservative";
+  npcProfileId: string | null;
 };
 
 export type StoredValueReadResult<T> = {
@@ -70,6 +71,7 @@ export function createDefaultHostDraft(
     hostPort: bootstrap.defaultHostPort,
     npcCount: 0,
     npcStyle: "aggressive",
+    npcProfileId: null,
   };
 }
 
@@ -137,6 +139,12 @@ export function normalizeHostDraft(
       value.npcStyle === "aggressive" || value.npcStyle === "conservative"
         ? value.npcStyle
         : fallbackDraft.npcStyle,
+    npcProfileId:
+      typeof value.npcProfileId === "string"
+        ? value.npcProfileId
+        : value.npcProfileId === null
+          ? null
+          : fallbackDraft.npcProfileId,
   };
 }
 

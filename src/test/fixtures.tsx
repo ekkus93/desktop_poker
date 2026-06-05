@@ -27,6 +27,7 @@ export function createBootstrap(
     parsedLaunchJoinPayload: null,
     launchJoinPayloadError: null,
     debugToolsEnabled: true,
+    llmApiKeyConfigured: false,
     backendModules: [],
     screens: [],
     ...overrides,

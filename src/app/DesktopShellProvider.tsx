@@ -21,6 +21,7 @@ import {
 } from "./persistence";
 
 type DesktopShellContextValue = {
+  bootstrap: DesktopBootstrapState;
   displayName: string;
   hostDraft: HostDraft;
   joinPayloadDraft: string;
@@ -195,6 +196,7 @@ export function DesktopShellProvider({
 
   const value = useMemo<DesktopShellContextValue>(
     () => ({
+      bootstrap,
       displayName,
       hostDraft,
       joinPayloadDraft,
@@ -240,7 +242,7 @@ export function DesktopShellProvider({
       },
     }),
     [
-      bootstrap.storageNamespace,
+      bootstrap,
       defaultHostDraft,
       displayName,
       hostDraft,

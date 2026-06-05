@@ -295,3 +295,40 @@
 - Highest-impact improvements: switch polling to Tauri event subscriptions (`desktop://session-update` and `desktop://table-update`) since the pattern already exists in `lib.rs:32` for bootstrap (H1); add optimistic updates for user actions (H2).
 - Other notable items: form validation for tournament name/port (F1/F2), table↔lobby navigation loop fix (W1), conditional "Host another table" button (W3), decoded metadata on invite pills (I1), ARIA/accessibility pass (A1/A2).
 - Added CLAUDE.md to the repo (adapts `.github/copilot-instructions.md` for Claude Code) and pushed to GitHub.
+
+## 2026-06-05T21:35:53Z - Claude Sonnet 4.6 - Complete NPC Phase 1 frontend (Parts 8-11)
+
+- Added NPC count (0..maxPlayers-1) and style (aggressive/conservative) selectors to host setup form in `HostTournamentSetupScreen.tsx`.
+- Added `addNpcPlayers` API bridge in `src/api/desktop.ts` with `NpcStyle`/`NpcConfig`/`AddNpcPlayersRequest` types.
+- Updated `HostDraft` type and `normalizeHostDraft` in `shell.ts` to persist `npcCount` and `npcStyle`.
+- After `startHostSession` succeeds, calls `addNpcPlayers` if `npcCount > 0`; bot names generated as "Bot Alpha", "Bot Beta", etc.
+- Lobby screen detects NPC seats via `player_id.startsWith("npc-seat-")`, shows "(AI) · Always ready" detail, always-ready badge, no Take seat button; NPC seats excluded from `seatsStillWaiting`.
+- Added frontend tests: NPC selector visibility, `addNpcPlayers` payload, lobby NPC indicators (both `HostTournamentSetupScreen.test.tsx` and `TournamentLobbyScreen.test.tsx`).
+- Applied `cargo fmt` to NPC Rust modules; fixed pre-existing flaky integration test (`live_table_view_prefers_the_authoritative_session_snapshot`) by extending poll condition to wait for local hole cards.
+- All 180 Rust tests pass; 182/185 frontend tests pass (3 pre-existing failures in `LayoutContracts.test.tsx` due to Tauri internals unavailable in jsdom).
+- Commit `5545d48` pushed to GitHub.
+- Manual QA checklist (11.3) is the only remaining item — all automated tasks complete.
+
+## 2026-06-05T22:37:17Z - Claude Sonnet 4.6 - Implement NPC Phase 2 (Parts 1-12 automated)
+
+- Added `thiserror`, `serde_yaml`, `reqwest` (blocking + rustls-tls), `httpmock`, `tempfile` to `Cargo.toml`.
+- Created starter profile files: `aggressive-alice.md`, `conservative-carlos.md`, `balanced-sam.md` under `src-tauri/src/npc/profiles/`.
+- Created `npc/profile.rs`: `NpcProfile` struct, `NpcProfileFrontmatter`, `ProfileError`, `parse_profile` with 8 tests.
+- Created `npc/profile_store.rs`: CRUD ops (`list_profiles`, `load_profile`, `save_profile`, `delete_profile`), seeds starter profiles on first run via `include_str!`, 6 tests.
+- Created `npc/prompt.rs`: `GameStateSnapshot`, `StreetAction`, `render_game_state`, `build_system_prompt`, `build_user_message`, 5 tests. Uses Unicode suit symbols and thousands-separated chip counts.
+- Created `npc/llm_client.rs`: `LlmClient` (reqwest blocking, `claude-haiku-4-5-20251001`, 5s timeout), `LlmError`, tests via `httpmock` mock server.
+- Created `npc/llm_action.rs`: `LlmActionResponse`, `parse_llm_response` (JSON extraction fallback), `validate_llm_action` (clamps raise, downgrades illegal actions), 7 tests.
+- Created `npc/api_key.rs`: `load_api_key`/`save_api_key` using `{app_data_dir}/claude-api-key.txt`, 4 tests.
+- Created `npc/llm_strategy.rs`: `choose_llm_action` (LLM path with rule-based fallback on any error), 3 tests using mock servers.
+- Updated `npc/mod.rs`: all new modules exported; `NpcConfig` extended with `profile: Option<NpcProfile>`; `NpcConfigRequest` added as frontend-facing type with optional `profile_id`.
+- Updated `runner.rs`: `start_npc_runner` now takes `api_key_holder: Arc<Mutex<Option<String>>>`; LLM decision path activated when NPC has profile + key; rule-based fallback otherwise.
+- Updated `app_state/mod.rs`: `DesktopBootstrapState` gains `llm_api_key_configured: bool`; `DesktopAppState` gains `app_data_dir`, `llm_api_key`; `add_npc_players` resolves profiles from store; new methods `set_llm_api_key`, `clear_llm_api_key`, `list/get/save/delete_npc_profile`.
+- Updated `commands.rs` and `lib.rs`: registered `set_llm_api_key`, `clear_llm_api_key`, `list_npc_profiles`, `get_npc_profile`, `save_npc_profile`, `delete_npc_profile`.
+- Frontend: `desktop.ts` gets `NpcProfile` type, `listNpcProfiles/getNpcProfile/saveNpcProfile/deleteNpcProfile`, `setLlmApiKey/clearLlmApiKey`, `llmApiKeyConfigured` on bootstrap state.
+- `DesktopShellProvider`: added `bootstrap` to context value so child components can access it.
+- `DeviceSettingsScreen`: new "Claude API key" section (status indicator, masked input, save/clear buttons, link to profiles screen); 5 new tests.
+- `NpcProfilesScreen`: new route `/npc-profiles` for browsing/editing/creating/deleting profiles; builtin profile delete button disabled; 4 tests.
+- `HostTournamentSetupScreen`: profile select appears when `llmApiKeyConfigured && npcCount > 0`; API key hint shown when key not configured; `addNpcPlayers` passes `profileId`; 2 new tests.
+- `shell.ts`: `HostDraft` gains `npcProfileId: string | null`; default `null`; normalization added.
+- All 219 Rust tests pass (2 pre-existing flaky networking tests pass in isolation). 195/196 frontend tests pass (1 pre-existing flaky timing test in AppShell integration tests; passes in isolation). Lint and fmt clean.
+- Parts 1-12 (automated tasks) complete. Manual QA (12.3) is the only remaining item.

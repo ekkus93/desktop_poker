@@ -12,8 +12,10 @@ import {
 import {
   addNpcPlayers,
   getHostSessionStatus,
+  listNpcProfiles,
   resolveHostLanAddress,
   startHostSession,
+  type NpcProfile,
   type NpcStyle,
 } from "../api/desktop";
 import { SectionCard } from "../components/shared/SectionCard";
@@ -48,12 +50,19 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [hostSession, setHostSession] = useState<Awaited<ReturnType<typeof getHostSessionStatus>>>(null);
   const [hostError, setHostError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [availableProfiles, setAvailableProfiles] = useState<NpcProfile[]>([]);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [portError, setPortError] = useState<string | null>(null);
   const [npcError, setNpcError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (bootstrap.llmApiKeyConfigured) {
+      void listNpcProfiles().then(setAvailableProfiles).catch(() => {});
+    }
+  }, [bootstrap.llmApiKeyConfigured]);
 
   useEffect(() => {
     let active = true;
@@ -161,6 +170,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           const npcs = Array.from({ length: hostDraft.npcCount }, (_, i) => ({
             displayName: npcDisplayName(i),
             style: hostDraft.npcStyle as NpcStyle,
+            profileId: hostDraft.npcProfileId ?? null,
           }));
           const npcStatus = await addNpcPlayers({ npcs });
           setHostSession(npcStatus);
@@ -381,6 +391,31 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                       <option value="conservative">Conservative</option>
                     </select>
                   </label>
+                ) : null}
+                {hostDraft.npcCount > 0 && bootstrap.llmApiKeyConfigured ? (
+                  <label className="field">
+                    AI profile
+                    <select
+                      onChange={(event) => {
+                        updateHostDraft({
+                          npcProfileId: event.target.value || null,
+                        });
+                      }}
+                      value={hostDraft.npcProfileId ?? ""}
+                    >
+                      <option value="">Rule-based (no profile)</option>
+                      {availableProfiles.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                {hostDraft.npcCount > 0 && !bootstrap.llmApiKeyConfigured ? (
+                  <p className="field-hint">
+                    Add a Claude API key in settings to use AI profiles.
+                  </p>
                 ) : null}
               </div>
               {lanError ? <p className="inline-banner error">{lanError}</p> : null}

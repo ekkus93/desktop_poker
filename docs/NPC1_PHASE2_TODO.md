@@ -8,7 +8,7 @@ See `docs/NPC1_SPEC.md` for the full design and `docs/NPC1_PHASE1_TODO.md` for P
 (already complete).
 
 Status legend:
-- [ ] not started
+- [x] not started
 - [~] in progress
 - [x] done
 
@@ -20,12 +20,12 @@ Status legend:
 
 ### 1.1 Create `profile.rs` and declare it in `npc/mod.rs`
 
-- [ ] Create `src-tauri/src/npc/profile.rs`.
-- [ ] Add `pub mod profile;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/profile.rs`.
+- [x] Add `pub mod profile;` to `src-tauri/src/npc/mod.rs`.
 
 ### 1.2 Define the `NpcProfile` struct
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[derive(Clone, Debug, Serialize, Deserialize)]
   #[serde(rename_all = "camelCase")]
@@ -40,7 +40,7 @@ Status legend:
 
 ### 1.3 Define `NpcProfileFrontmatter` for YAML parsing
 
-- [ ] Define a separate struct for YAML deserialization:
+- [x] Define a separate struct for YAML deserialization:
   ```rust
   #[derive(Debug, Deserialize)]
   struct NpcProfileFrontmatter {
@@ -49,21 +49,21 @@ Status legend:
       skill: Option<String>,
   }
   ```
-- [ ] Use `serde_yaml` (add to `Cargo.toml`) for frontmatter parsing.
+- [x] Use `serde_yaml` (add to `Cargo.toml`) for frontmatter parsing.
 
 ### 1.4 Implement `parse_profile(file_stem: &str, content: &str) -> Result<NpcProfile, ProfileError>`
 
-- [ ] Split file content on the second `---` delimiter to separate YAML frontmatter from
+- [x] Split file content on the second `---` delimiter to separate YAML frontmatter from
   the body.
-- [ ] Parse the YAML block with `serde_yaml::from_str`.
-- [ ] Trim whitespace from the body.
-- [ ] Return a descriptive `ProfileError` on malformed frontmatter or missing `name` field.
-- [ ] Validate `name` is non-empty; `style` and `skill` default to `"custom"` / `"unknown"`
+- [x] Parse the YAML block with `serde_yaml::from_str`.
+- [x] Trim whitespace from the body.
+- [x] Return a descriptive `ProfileError` on malformed frontmatter or missing `name` field.
+- [x] Validate `name` is non-empty; `style` and `skill` default to `"custom"` / `"unknown"`
   if absent.
 
 ### 1.5 Define `ProfileError`
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[derive(Debug, thiserror::Error)]
   pub enum ProfileError {
@@ -80,12 +80,12 @@ Status legend:
 
 ### 1.6 Tests for `parse_profile`
 
-- [ ] Test: valid profile parses to correct `NpcProfile` fields.
-- [ ] Test: missing second `---` delimiter → `ProfileError::MissingDelimiter`.
-- [ ] Test: invalid YAML in frontmatter → `ProfileError::YamlParse`.
-- [ ] Test: missing `name` field → `ProfileError::MissingName`.
-- [ ] Test: `style` and `skill` absent → defaults applied without error.
-- [ ] Test: body is correctly trimmed and preserved across multi-paragraph text.
+- [x] Test: valid profile parses to correct `NpcProfile` fields.
+- [x] Test: missing second `---` delimiter → `ProfileError::MissingDelimiter`.
+- [x] Test: invalid YAML in frontmatter → `ProfileError::YamlParse`.
+- [x] Test: missing `name` field → `ProfileError::MissingName`.
+- [x] Test: `style` and `skill` absent → defaults applied without error.
+- [x] Test: body is correctly trimmed and preserved across multi-paragraph text.
 
 ---
 
@@ -95,52 +95,52 @@ Status legend:
 
 ### 2.1 Create `profile_store.rs`
 
-- [ ] Create `src-tauri/src/npc/profile_store.rs`.
-- [ ] Add `pub mod profile_store;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/profile_store.rs`.
+- [x] Add `pub mod profile_store;` to `src-tauri/src/npc/mod.rs`.
 
 ### 2.2 Implement `profiles_dir(app_data_dir: &Path) -> PathBuf`
 
-- [ ] Return `{app_data_dir}/npc-profiles/`.
-- [ ] This directory is created on first access if it does not exist.
+- [x] Return `{app_data_dir}/npc-profiles/`.
+- [x] This directory is created on first access if it does not exist.
 
 ### 2.3 Implement `list_profiles(profiles_dir: &Path) -> Result<Vec<NpcProfile>, ProfileError>`
 
-- [ ] Scan `profiles_dir` for files with `.md` extension.
-- [ ] Parse each file with `parse_profile`, using the file stem as the profile ID.
-- [ ] Skip files that fail to parse (log a warning, do not error the whole list).
-- [ ] Return profiles sorted alphabetically by `name`.
+- [x] Scan `profiles_dir` for files with `.md` extension.
+- [x] Parse each file with `parse_profile`, using the file stem as the profile ID.
+- [x] Skip files that fail to parse (log a warning, do not error the whole list).
+- [x] Return profiles sorted alphabetically by `name`.
 
 ### 2.4 Implement `load_profile(profiles_dir: &Path, id: &str) -> Result<NpcProfile, ProfileError>`
 
-- [ ] Locate `{profiles_dir}/{id}.md`.
-- [ ] Parse and return it, or return `ProfileError::Io` if the file does not exist.
+- [x] Locate `{profiles_dir}/{id}.md`.
+- [x] Parse and return it, or return `ProfileError::Io` if the file does not exist.
 
 ### 2.5 Implement `save_profile(profiles_dir: &Path, profile_content: &str, id: &str) -> Result<(), ProfileError>`
 
-- [ ] Write `{profiles_dir}/{id}.md` (create or overwrite).
-- [ ] Validate that `profile_content` parses correctly before writing; return error if invalid.
+- [x] Write `{profiles_dir}/{id}.md` (create or overwrite).
+- [x] Validate that `profile_content` parses correctly before writing; return error if invalid.
 
 ### 2.6 Implement `delete_profile(profiles_dir: &Path, id: &str) -> Result<(), ProfileError>`
 
-- [ ] Delete `{profiles_dir}/{id}.md`; return `ProfileError::Io` if not found.
+- [x] Delete `{profiles_dir}/{id}.md`; return `ProfileError::Io` if not found.
 
 ### 2.7 Seed built-in profiles on first run
 
-- [ ] On startup (or on first call to `list_profiles` when the directory is empty), copy
+- [x] On startup (or on first call to `list_profiles` when the directory is empty), copy
   a set of bundled starter profiles from the binary's embedded resources into the profiles
   directory.
-- [ ] Starter profiles to ship: `aggressive-alice.md`, `conservative-carlos.md`,
+- [x] Starter profiles to ship: `aggressive-alice.md`, `conservative-carlos.md`,
   `balanced-sam.md` (one loose-aggressive, one tight-passive, one balanced).
-- [ ] Use `include_str!` to embed the starter profile content in the binary.
+- [x] Use `include_str!` to embed the starter profile content in the binary.
 
 ### 2.8 Tests for profile store
 
-- [ ] Test: `list_profiles` on an empty directory returns an empty vec.
-- [ ] Test: `list_profiles` skips an unparseable file and still returns valid profiles.
-- [ ] Test: `load_profile` returns the correct profile for a known ID.
-- [ ] Test: `load_profile` on an unknown ID returns `ProfileError::Io`.
-- [ ] Test: `save_profile` writes a file that can be read back with `load_profile`.
-- [ ] Test: `delete_profile` removes the file; a subsequent `load_profile` returns an error.
+- [x] Test: `list_profiles` on an empty directory returns an empty vec.
+- [x] Test: `list_profiles` skips an unparseable file and still returns valid profiles.
+- [x] Test: `load_profile` returns the correct profile for a known ID.
+- [x] Test: `load_profile` on an unknown ID returns `ProfileError::Io`.
+- [x] Test: `save_profile` writes a file that can be read back with `load_profile`.
+- [x] Test: `delete_profile` removes the file; a subsequent `load_profile` returns an error.
 
 ---
 
@@ -150,12 +150,12 @@ Status legend:
 
 ### 3.1 Create `prompt.rs`
 
-- [ ] Create `src-tauri/src/npc/prompt.rs`.
-- [ ] Add `pub mod prompt;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/prompt.rs`.
+- [x] Add `pub mod prompt;` to `src-tauri/src/npc/mod.rs`.
 
 ### 3.2 Define `GameStateSnapshot` — the data needed to build a prompt
 
-- [ ] Define:
+- [x] Define:
   ```rust
   pub struct GameStateSnapshot {
       pub hand_number: u32,
@@ -175,7 +175,7 @@ Status legend:
   }
   ```
 
-- [ ] Define `StreetAction`:
+- [x] Define `StreetAction`:
   ```rust
   pub struct StreetAction {
       pub seat_index: u8,
@@ -186,12 +186,12 @@ Status legend:
 
 ### 3.3 Implement `build_game_state_snapshot` to extract a snapshot from live state
 
-- [ ] In `runner.rs` (or a helper), populate a `GameStateSnapshot` from `TournamentState`
+- [x] In `runner.rs` (or a helper), populate a `GameStateSnapshot` from `TournamentState`
   and the current `ActionWindow` immediately before making an LLM decision.
 
 ### 3.4 Implement `render_game_state(snapshot: &GameStateSnapshot) -> String`
 
-- [ ] Render the snapshot as human-readable text. Example output:
+- [x] Render the snapshot as human-readable text. Example output:
   ```
   Hand #3 — Flop
   Board: A♠ K♦ 7♣
@@ -211,14 +211,14 @@ Status legend:
   - call 200
   - raise to 400–1,240
   ```
-- [ ] Use Unicode suit symbols (♠ ♥ ♦ ♣) and rank names (Ace, King, …, Two).
-- [ ] Format chip counts with thousands separators.
-- [ ] List legal actions with bounds explicitly; omit `min_raise_to` / `max_raise_to` lines
+- [x] Use Unicode suit symbols (♠ ♥ ♦ ♣) and rank names (Ace, King, …, Two).
+- [x] Format chip counts with thousands separators.
+- [x] List legal actions with bounds explicitly; omit `min_raise_to` / `max_raise_to` lines
   when raising is not a legal action.
 
 ### 3.5 Implement `build_system_prompt() -> String`
 
-- [ ] Return a fixed system prompt explaining:
+- [x] Return a fixed system prompt explaining:
   - The model is playing Texas Hold'em No-Limit poker.
   - It must respond with **only** a JSON object matching the schema:
     `{ "action": "fold" | "check" | "call" | "raise" | "allIn", "amount": <integer or null> }`
@@ -228,19 +228,19 @@ Status legend:
 
 ### 3.6 Implement `build_user_message(profile: &NpcProfile, snapshot: &GameStateSnapshot) -> String`
 
-- [ ] Concatenate:
+- [x] Concatenate:
   1. The profile's `description` (the free-form Markdown body).
   2. A separator line (e.g., `---`).
   3. The rendered game state from `render_game_state`.
 
 ### 3.7 Tests for prompt rendering
 
-- [ ] Test: `render_game_state` on a preflop snapshot includes hole cards, pot, and legal
+- [x] Test: `render_game_state` on a preflop snapshot includes hole cards, pot, and legal
   options with correct amounts.
-- [ ] Test: `render_game_state` on a flop snapshot includes board cards and street history.
-- [ ] Test: `build_user_message` includes both the profile description and the game state.
-- [ ] Test: when raising is not legal, no raise line appears in the options section.
-- [ ] Test: chip amounts ≥ 1000 are formatted with thousands separators.
+- [x] Test: `render_game_state` on a flop snapshot includes board cards and street history.
+- [x] Test: `build_user_message` includes both the profile description and the game state.
+- [x] Test: when raising is not legal, no raise line appears in the options section.
+- [x] Test: chip amounts ≥ 1000 are formatted with thousands separators.
 
 ---
 
@@ -250,19 +250,19 @@ Status legend:
 
 ### 4.1 Add dependencies to `Cargo.toml`
 
-- [ ] Add `reqwest` with `json` and `rustls-tls` features (avoid OpenSSL dependency).
-- [ ] Add `serde_yaml` for profile frontmatter parsing (Part 1).
-- [ ] Add `tokio` with `time` feature if not already present (for timeout).
-- [ ] Confirm `serde_json` is available.
+- [x] Add `reqwest` with `json` and `rustls-tls` features (avoid OpenSSL dependency).
+- [x] Add `serde_yaml` for profile frontmatter parsing (Part 1).
+- [x] Add `tokio` with `time` feature if not already present (for timeout).
+- [x] Confirm `serde_json` is available.
 
 ### 4.2 Create `llm_client.rs`
 
-- [ ] Create `src-tauri/src/npc/llm_client.rs`.
-- [ ] Add `pub mod llm_client;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/llm_client.rs`.
+- [x] Add `pub mod llm_client;` to `src-tauri/src/npc/mod.rs`.
 
 ### 4.3 Define `LlmClient`
 
-- [ ] Define:
+- [x] Define:
   ```rust
   pub struct LlmClient {
       client: reqwest::Client,
@@ -271,13 +271,13 @@ Status legend:
       timeout_secs: u64,     // default 5
   }
   ```
-- [ ] Implement `LlmClient::new(api_key: String) -> Self` with sensible defaults.
-- [ ] The model default should be `claude-haiku-4-5-20251001` (fastest/cheapest for
+- [x] Implement `LlmClient::new(api_key: String) -> Self` with sensible defaults.
+- [x] The model default should be `claude-haiku-4-5-20251001` (fastest/cheapest for
   real-time poker decisions).
 
 ### 4.4 Define the API request/response types
 
-- [ ] Define:
+- [x] Define:
   ```rust
   struct ClaudeRequest {
       model: String,
@@ -300,23 +300,23 @@ Status legend:
       text: String,
   }
   ```
-- [ ] All structs derive `Serialize` / `Deserialize`.
+- [x] All structs derive `Serialize` / `Deserialize`.
 
 ### 4.5 Implement `LlmClient::complete(system: &str, user: &str) -> Result<String, LlmError>`
 
-- [ ] POST to `https://api.anthropic.com/v1/messages` with:
+- [x] POST to `https://api.anthropic.com/v1/messages` with:
   - Header `x-api-key: {api_key}`
   - Header `anthropic-version: 2023-06-01`
   - Header `content-type: application/json`
   - Body: `ClaudeRequest { model, max_tokens: 128, system, messages: [{ role: "user", content: user }] }`
-- [ ] Apply a `tokio::time::timeout` of `timeout_secs` seconds to the full request.
-- [ ] On success, extract `response.content[0].text`.
-- [ ] Return `LlmError::Timeout` on timeout, `LlmError::Api(status, body)` on non-2xx,
+- [x] Apply a `tokio::time::timeout` of `timeout_secs` seconds to the full request.
+- [x] On success, extract `response.content[0].text`.
+- [x] Return `LlmError::Timeout` on timeout, `LlmError::Api(status, body)` on non-2xx,
   `LlmError::Network(msg)` on transport failure.
 
 ### 4.6 Define `LlmError`
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[derive(Debug, thiserror::Error)]
   pub enum LlmError {
@@ -333,11 +333,11 @@ Status legend:
 
 ### 4.7 Tests for `LlmClient`
 
-- [ ] Test: `complete` with a mock HTTP server (use `wiremock` or `httpmock` crate) returns
+- [x] Test: `complete` with a mock HTTP server (use `wiremock` or `httpmock` crate) returns
   the text from `content[0].text`.
-- [ ] Test: non-2xx response → `LlmError::Api`.
-- [ ] Test: request that exceeds timeout → `LlmError::Timeout`.
-- [ ] Test: malformed JSON response body → `LlmError::Parse`.
+- [x] Test: non-2xx response → `LlmError::Api`.
+- [x] Test: request that exceeds timeout → `LlmError::Timeout`.
+- [x] Test: malformed JSON response body → `LlmError::Parse`.
 
 ---
 
@@ -347,12 +347,12 @@ Status legend:
 
 ### 5.1 Create `llm_action.rs`
 
-- [ ] Create `src-tauri/src/npc/llm_action.rs`.
-- [ ] Add `pub mod llm_action;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/llm_action.rs`.
+- [x] Add `pub mod llm_action;` to `src-tauri/src/npc/mod.rs`.
 
 ### 5.2 Define `LlmActionResponse`
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[derive(Debug, Deserialize)]
   pub struct LlmActionResponse {
@@ -363,34 +363,34 @@ Status legend:
 
 ### 5.3 Implement `parse_llm_response(text: &str) -> Result<LlmActionResponse, LlmError>`
 
-- [ ] Attempt `serde_json::from_str` directly.
-- [ ] If that fails, search `text` for the first `{` … `}` substring and retry (handles
+- [x] Attempt `serde_json::from_str` directly.
+- [x] If that fails, search `text` for the first `{` … `}` substring and retry (handles
   responses that include preamble text despite instructions).
-- [ ] Return `LlmError::Parse` if no valid JSON action object is found.
+- [x] Return `LlmError::Parse` if no valid JSON action object is found.
 
 ### 5.4 Implement `validate_llm_action(response: &LlmActionResponse, snapshot: &GameStateSnapshot) -> (ActionType, Option<u32>)`
 
-- [ ] Map `response.action` string to `ActionType` (case-insensitive):
+- [x] Map `response.action` string to `ActionType` (case-insensitive):
   - `"fold"` → `ActionType::Fold`
   - `"check"` → `ActionType::Check`
   - `"call"` → `ActionType::Call`
   - `"raise"` → `ActionType::Raise` with `amount`
   - `"allIn"` / `"all_in"` / `"allin"` → `ActionType::AllIn`
-- [ ] Verify the resolved `ActionType` is in `snapshot.legal_actions`. If not, fall back to
+- [x] Verify the resolved `ActionType` is in `snapshot.legal_actions`. If not, fall back to
   `first_check_or_call(legal_actions)`.
-- [ ] If action is `Raise` and `amount` is `None`, fall back to `CheckOrCall`.
-- [ ] If action is `Raise`, clamp `amount` to `[min_raise_to, max_raise_to]` and to ≤ stack.
-- [ ] If `max_raise_to` is `None` and action is `Raise`, downgrade to `CheckOrCall`.
+- [x] If action is `Raise` and `amount` is `None`, fall back to `CheckOrCall`.
+- [x] If action is `Raise`, clamp `amount` to `[min_raise_to, max_raise_to]` and to ≤ stack.
+- [x] If `max_raise_to` is `None` and action is `Raise`, downgrade to `CheckOrCall`.
 
 ### 5.5 Tests for parsing and validation
 
-- [ ] Test: clean JSON `{ "action": "raise", "amount": 480 }` parses and validates correctly.
-- [ ] Test: JSON embedded in prose still extracts the action object.
-- [ ] Test: `action: "fold"` when `Fold` is not legal → falls back to `CheckOrCall`.
-- [ ] Test: `action: "raise"` with amount above `max_raise_to` → clamped to max.
-- [ ] Test: `action: "raise"` with `max_raise_to: None` → `CheckOrCall`.
-- [ ] Test: completely invalid JSON → `LlmError::Parse`.
-- [ ] Test: unknown action string → fallback to `CheckOrCall`.
+- [x] Test: clean JSON `{ "action": "raise", "amount": 480 }` parses and validates correctly.
+- [x] Test: JSON embedded in prose still extracts the action object.
+- [x] Test: `action: "fold"` when `Fold` is not legal → falls back to `CheckOrCall`.
+- [x] Test: `action: "raise"` with amount above `max_raise_to` → clamped to max.
+- [x] Test: `action: "raise"` with `max_raise_to: None` → `CheckOrCall`.
+- [x] Test: completely invalid JSON → `LlmError::Parse`.
+- [x] Test: unknown action string → fallback to `CheckOrCall`.
 
 ---
 
@@ -400,12 +400,12 @@ Status legend:
 
 ### 6.1 Create `llm_strategy.rs`
 
-- [ ] Create `src-tauri/src/npc/llm_strategy.rs`.
-- [ ] Add `pub mod llm_strategy;` to `src-tauri/src/npc/mod.rs`.
+- [x] Create `src-tauri/src/npc/llm_strategy.rs`.
+- [x] Add `pub mod llm_strategy;` to `src-tauri/src/npc/mod.rs`.
 
 ### 6.2 Implement `choose_llm_action`
 
-- [ ] Define:
+- [x] Define:
   ```rust
   pub async fn choose_llm_action(
       client: &LlmClient,
@@ -413,40 +413,40 @@ Status legend:
       snapshot: &GameStateSnapshot,
   ) -> (ActionType, Option<u32>)
   ```
-- [ ] Build system prompt via `build_system_prompt()`.
-- [ ] Build user message via `build_user_message(profile, snapshot)`.
-- [ ] Call `client.complete(system, user)`.
-- [ ] On success: `parse_llm_response` → `validate_llm_action`.
-- [ ] On any error (timeout, API error, parse error): log the error and fall back to the
+- [x] Build system prompt via `build_system_prompt()`.
+- [x] Build user message via `build_user_message(profile, snapshot)`.
+- [x] Call `client.complete(system, user)`.
+- [x] On success: `parse_llm_response` → `validate_llm_action`.
+- [x] On any error (timeout, API error, parse error): log the error and fall back to the
   Phase 1 rule-based strategy using the profile's `style` field (map `"loose-aggressive"` /
   `"aggressive"` → `NpcStyle::Aggressive`, everything else → `NpcStyle::Conservative`).
 
 ### 6.3 Extend `NpcConfig` to carry an optional profile
 
-- [ ] Add `pub profile: Option<NpcProfile>` to `NpcConfig`.
-- [ ] Update `AddNpcPlayersRequest` to accept an optional `profile_id: Option<String>` per
+- [x] Add `pub profile: Option<NpcProfile>` to `NpcConfig`.
+- [x] Update `AddNpcPlayersRequest` to accept an optional `profile_id: Option<String>` per
   NPC config — the backend loads the profile by ID from the profile store.
 
 ### 6.4 Thread the `LlmClient` into the NPC runner
 
-- [ ] Add `llm_client: Option<Arc<LlmClient>>` to the runner's context (alongside
+- [x] Add `llm_client: Option<Arc<LlmClient>>` to the runner's context (alongside
   `host_server` and `npc_configs`).
-- [ ] In `try_npc_action`:
+- [x] In `try_npc_action`:
   - If the NPC has a `profile` and an `LlmClient` is available → use `choose_llm_action`.
   - Otherwise → use the existing Phase 1 rule-based path.
 
 ### 6.5 Store the `LlmClient` in `DesktopHostSession`
 
-- [ ] Add `llm_client: Option<Arc<LlmClient>>` to `DesktopHostSession`.
-- [ ] Initialise it from the stored API key when the session starts (if a key is configured).
-- [ ] Pass it into `start_npc_runner`.
+- [x] Add `llm_client: Option<Arc<LlmClient>>` to `DesktopHostSession`.
+- [x] Initialise it from the stored API key when the session starts (if a key is configured).
+- [x] Pass it into `start_npc_runner`.
 
 ### 6.6 Tests for LLM strategy integration
 
-- [ ] Test: when LLM returns a valid raise, the runner submits a raise within legal bounds.
-- [ ] Test: when LLM call times out, the runner falls back to the rule-based strategy.
-- [ ] Test: when LLM returns an illegal action, `validate_llm_action` produces a legal one.
-- [ ] All tests use a mock `LlmClient` (inject via trait or a test-double struct).
+- [x] Test: when LLM returns a valid raise, the runner submits a raise within legal bounds.
+- [x] Test: when LLM call times out, the runner falls back to the rule-based strategy.
+- [x] Test: when LLM returns an illegal action, `validate_llm_action` produces a legal one.
+- [x] All tests use a mock `LlmClient` (inject via trait or a test-double struct).
 
 ---
 
@@ -456,42 +456,42 @@ Status legend:
 
 ### 7.1 Define API key storage path
 
-- [ ] API key is stored in `{app_data_dir}/claude-api-key.txt` — a plaintext file with only
+- [x] API key is stored in `{app_data_dir}/claude-api-key.txt` — a plaintext file with only
   the key, no surrounding whitespace.
-- [ ] Do **not** store the key in `localStorage` or any frontend-accessible path.
+- [x] Do **not** store the key in `localStorage` or any frontend-accessible path.
 
 ### 7.2 Implement `load_api_key(app_data_dir: &Path) -> Option<String>`
 
-- [ ] Read the key file; return `None` if it does not exist or is empty.
-- [ ] Trim whitespace before returning.
+- [x] Read the key file; return `None` if it does not exist or is empty.
+- [x] Trim whitespace before returning.
 
 ### 7.3 Implement `save_api_key(app_data_dir: &Path, key: &str) -> Result<(), std::io::Error>`
 
-- [ ] Write the trimmed key to the key file, creating it if necessary.
-- [ ] If `key` is empty after trimming, delete the key file instead.
+- [x] Write the trimmed key to the key file, creating it if necessary.
+- [x] If `key` is empty after trimming, delete the key file instead.
 
 ### 7.4 Expose the key status (not the key itself) to the frontend
 
-- [ ] Add `llm_api_key_configured: bool` to `DesktopBootstrapState` so the UI knows
+- [x] Add `llm_api_key_configured: bool` to `DesktopBootstrapState` so the UI knows
   whether to show LLM-capable NPC options.
-- [ ] Never expose the raw key to the frontend.
+- [x] Never expose the raw key to the frontend.
 
 ### 7.5 Add `set_llm_api_key` and `clear_llm_api_key` Tauri commands
 
-- [ ] `set_llm_api_key(key: String) -> Result<(), String>`:
+- [x] `set_llm_api_key(key: String) -> Result<(), String>`:
   - Validate the key is non-empty.
   - Save it via `save_api_key`.
   - If a host session is active, reinitialise its `LlmClient` with the new key.
   - Emit `desktop://bootstrap-update` (or similar) so the frontend can refresh.
-- [ ] `clear_llm_api_key() -> Result<(), String>`:
+- [x] `clear_llm_api_key() -> Result<(), String>`:
   - Delete the key file.
   - Nil out the `LlmClient` in any active session.
 
 ### 7.6 Tests for API key management
 
-- [ ] Test: `save_api_key` followed by `load_api_key` returns the same trimmed key.
-- [ ] Test: saving an empty string deletes the key file; subsequent `load_api_key` → `None`.
-- [ ] Test: `DesktopBootstrapState.llm_api_key_configured` is `true` when key exists,
+- [x] Test: `save_api_key` followed by `load_api_key` returns the same trimmed key.
+- [x] Test: saving an empty string deletes the key file; subsequent `load_api_key` → `None`.
+- [x] Test: `DesktopBootstrapState.llm_api_key_configured` is `true` when key exists,
   `false` otherwise.
 
 ---
@@ -502,25 +502,25 @@ Status legend:
 
 ### 8.1 Add `list_npc_profiles` command
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[tauri::command]
   pub fn list_npc_profiles(state: State<'_, DesktopAppState>) -> Result<Vec<NpcProfile>, String>
   ```
-- [ ] Calls `profile_store::list_profiles`.
+- [x] Calls `profile_store::list_profiles`.
 
 ### 8.2 Add `get_npc_profile` command
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[tauri::command]
   pub fn get_npc_profile(state: State<'_, DesktopAppState>, id: String) -> Result<NpcProfile, String>
   ```
-- [ ] Calls `profile_store::load_profile`.
+- [x] Calls `profile_store::load_profile`.
 
 ### 8.3 Add `save_npc_profile` command
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[tauri::command]
   pub fn save_npc_profile(
@@ -529,20 +529,20 @@ Status legend:
       content: String,
   ) -> Result<NpcProfile, String>
   ```
-- [ ] Saves and re-parses the profile; returns the parsed `NpcProfile` on success.
+- [x] Saves and re-parses the profile; returns the parsed `NpcProfile` on success.
 
 ### 8.4 Add `delete_npc_profile` command
 
-- [ ] Define:
+- [x] Define:
   ```rust
   #[tauri::command]
   pub fn delete_npc_profile(state: State<'_, DesktopAppState>, id: String) -> Result<(), String>
   ```
-- [ ] Calls `profile_store::delete_profile`. Refuses to delete built-in starter profiles.
+- [x] Calls `profile_store::delete_profile`. Refuses to delete built-in starter profiles.
 
 ### 8.5 Update `add_npc_players` to accept profile IDs
 
-- [ ] Extend `AddNpcPlayersRequest`:
+- [x] Extend `AddNpcPlayersRequest`:
   ```rust
   pub struct NpcConfigRequest {
       pub display_name: String,
@@ -550,12 +550,12 @@ Status legend:
       pub profile_id: Option<String>,  // new field
   }
   ```
-- [ ] In `add_npc_players`, if `profile_id` is `Some`, load the profile from the store and
+- [x] In `add_npc_players`, if `profile_id` is `Some`, load the profile from the store and
   attach it to the `NpcConfig`.
 
 ### 8.6 Register all new commands in `lib.rs`
 
-- [ ] Add `list_npc_profiles`, `get_npc_profile`, `save_npc_profile`, `delete_npc_profile`,
+- [x] Add `list_npc_profiles`, `get_npc_profile`, `save_npc_profile`, `delete_npc_profile`,
   `set_llm_api_key`, `clear_llm_api_key` to the `invoke_handler` macro.
 
 ---
@@ -566,30 +566,30 @@ Status legend:
 
 ### 9.1 Add API key configuration UI
 
-- [ ] Add an "AI Players" section to `DeviceSettingsScreen` (or a new settings screen).
-- [ ] Show a masked text input for the Claude API key.
-- [ ] Show a `"Key configured"` / `"No key set"` status indicator sourced from
+- [x] Add an "AI Players" section to `DeviceSettingsScreen` (or a new settings screen).
+- [x] Show a masked text input for the Claude API key.
+- [x] Show a `"Key configured"` / `"No key set"` status indicator sourced from
   `bootstrap.llm_api_key_configured`.
-- [ ] Provide a "Save key" button that calls `set_llm_api_key`.
-- [ ] Provide a "Clear key" button (visible only when a key is configured) that calls
+- [x] Provide a "Save key" button that calls `set_llm_api_key`.
+- [x] Provide a "Clear key" button (visible only when a key is configured) that calls
   `clear_llm_api_key`.
-- [ ] Show success/error feedback inline.
+- [x] Show success/error feedback inline.
 
 ### 9.2 Add API bridge functions for API key management
 
 **File:** `src/api/desktop.ts`
 
-- [ ] Add `setLlmApiKey(key: string): Promise<void>`.
-- [ ] Add `clearLlmApiKey(): Promise<void>`.
-- [ ] Add `llmApiKeyConfigured: boolean` to `DesktopBootstrapState` type.
+- [x] Add `setLlmApiKey(key: string): Promise<void>`.
+- [x] Add `clearLlmApiKey(): Promise<void>`.
+- [x] Add `llmApiKeyConfigured: boolean` to `DesktopBootstrapState` type.
 
 ### 9.3 Tests for API key settings UI
 
-- [ ] Test: when `bootstrap.llmApiKeyConfigured` is `false`, status shows "No key set".
-- [ ] Test: when `bootstrap.llmApiKeyConfigured` is `true`, status shows "Key configured".
-- [ ] Test: clicking "Save key" calls `setLlmApiKey` with the entered value.
-- [ ] Test: clicking "Clear key" calls `clearLlmApiKey`.
-- [ ] Test: error from `setLlmApiKey` is displayed inline.
+- [x] Test: when `bootstrap.llmApiKeyConfigured` is `false`, status shows "No key set".
+- [x] Test: when `bootstrap.llmApiKeyConfigured` is `true`, status shows "Key configured".
+- [x] Test: clicking "Save key" calls `setLlmApiKey` with the entered value.
+- [x] Test: clicking "Clear key" calls `clearLlmApiKey`.
+- [x] Test: error from `setLlmApiKey` is displayed inline.
 
 ---
 
@@ -599,21 +599,21 @@ Status legend:
 
 ### 10.1 Create `NpcProfilesScreen`
 
-- [ ] Add a new route `/npc-profiles` for browsing and editing profiles.
-- [ ] List all profiles returned by `listNpcProfiles` API call.
-- [ ] Show profile name, style, skill in a card per profile.
-- [ ] Provide a "View / Edit" action that opens a detail view with the raw Markdown content
+- [x] Add a new route `/npc-profiles` for browsing and editing profiles.
+- [x] List all profiles returned by `listNpcProfiles` API call.
+- [x] Show profile name, style, skill in a card per profile.
+- [x] Provide a "View / Edit" action that opens a detail view with the raw Markdown content
   in an editable textarea.
-- [ ] Provide a "Save" button that calls `saveNpcProfile`.
-- [ ] Provide a "Delete" button (disabled for built-in starter profiles) that calls
+- [x] Provide a "Save" button that calls `saveNpcProfile`.
+- [x] Provide a "Delete" button (disabled for built-in starter profiles) that calls
   `deleteNpcProfile`.
-- [ ] Provide a "New profile" flow: slug input + Markdown editor + Save.
+- [x] Provide a "New profile" flow: slug input + Markdown editor + Save.
 
 ### 10.2 Add API bridge functions for profile management
 
 **File:** `src/api/desktop.ts`
 
-- [ ] Add `NpcProfile` type:
+- [x] Add `NpcProfile` type:
   ```typescript
   export type NpcProfile = {
     id: string;
@@ -623,54 +623,54 @@ Status legend:
     description: string;
   };
   ```
-- [ ] Add `listNpcProfiles(): Promise<NpcProfile[]>`.
-- [ ] Add `getNpcProfile(id: string): Promise<NpcProfile>`.
-- [ ] Add `saveNpcProfile(id: string, content: string): Promise<NpcProfile>`.
-- [ ] Add `deleteNpcProfile(id: string): Promise<void>`.
+- [x] Add `listNpcProfiles(): Promise<NpcProfile[]>`.
+- [x] Add `getNpcProfile(id: string): Promise<NpcProfile>`.
+- [x] Add `saveNpcProfile(id: string, content: string): Promise<NpcProfile>`.
+- [x] Add `deleteNpcProfile(id: string): Promise<void>`.
 
 ### 10.3 Extend host setup to support profile selection per NPC seat
 
 **File:** `src/screens/HostTournamentSetupScreen.tsx`
 
-- [ ] When the LLM API key is configured (`bootstrap.llmApiKeyConfigured`), show a
+- [x] When the LLM API key is configured (`bootstrap.llmApiKeyConfigured`), show a
   "Profile" select per NPC entry (populated from `listNpcProfiles`).
-- [ ] Default to "Rule-based (no profile)" when no profiles are available or the user
+- [x] Default to "Rule-based (no profile)" when no profiles are available or the user
   does not select one.
-- [ ] Update `AddNpcPlayersRequest` to include `profileId: string | null` per NPC.
-- [ ] When key is not configured, hide the profile select and show a hint:
+- [x] Update `AddNpcPlayersRequest` to include `profileId: string | null` per NPC.
+- [x] When key is not configured, hide the profile select and show a hint:
   "Add a Claude API key in settings to use AI profiles."
 
 ### 10.4 Update `HostDraft` to carry per-NPC profile selections
 
-- [ ] Add `npcProfileIds: (string | null)[]` to `HostDraft` (one entry per NPC seat,
+- [x] Add `npcProfileIds: (string | null)[]` to `HostDraft` (one entry per NPC seat,
   ordered by seat index).
-- [ ] Add `npcProfileIds: []` to `createDefaultHostDraft`.
-- [ ] Add normalization in `normalizeHostDraft`: validate each entry is a string or null,
+- [x] Add `npcProfileIds: []` to `createDefaultHostDraft`.
+- [x] Add normalization in `normalizeHostDraft`: validate each entry is a string or null,
   fallback to `[]` on invalid input.
 
 ### 10.5 Extend lobby display for LLM-profile NPCs
 
 **File:** `src/screens/TournamentLobbyScreen.tsx`
 
-- [ ] In `buildLiveSeats`, if an NPC seat's profile name is available (surfaced through
+- [x] In `buildLiveSeats`, if an NPC seat's profile name is available (surfaced through
   `HostSessionStatus.participants`), show it as the seat detail:
   `"(AI) {profileName} · Always ready"`.
-- [ ] Fall back to `"(AI) · Always ready"` for rule-based NPCs.
+- [x] Fall back to `"(AI) · Always ready"` for rule-based NPCs.
 
 ### 10.6 Add navigation entry points for profile management
 
-- [ ] Add a "Manage AI profiles" link/button from `DeviceSettingsScreen` (or the AI section
+- [x] Add a "Manage AI profiles" link/button from `DeviceSettingsScreen` (or the AI section
   of settings) that navigates to `/npc-profiles`.
-- [ ] Add the route to the router configuration.
+- [x] Add the route to the router configuration.
 
 ### 10.7 Tests for profile management UI
 
-- [ ] Test: `NpcProfilesScreen` lists profiles returned by `listNpcProfiles`.
-- [ ] Test: clicking "Save" on a profile calls `saveNpcProfile` with the correct arguments.
-- [ ] Test: clicking "Delete" on a non-builtin profile calls `deleteNpcProfile`.
-- [ ] Test: "Delete" is disabled for built-in starter profiles.
-- [ ] Test: when `llmApiKeyConfigured` is true, the profile select appears in host setup.
-- [ ] Test: when `llmApiKeyConfigured` is false, the profile select is hidden and the hint
+- [x] Test: `NpcProfilesScreen` lists profiles returned by `listNpcProfiles`.
+- [x] Test: clicking "Save" on a profile calls `saveNpcProfile` with the correct arguments.
+- [x] Test: clicking "Delete" on a non-builtin profile calls `deleteNpcProfile`.
+- [x] Test: "Delete" is disabled for built-in starter profiles.
+- [x] Test: when `llmApiKeyConfigured` is true, the profile select appears in host setup.
+- [x] Test: when `llmApiKeyConfigured` is false, the profile select is hidden and the hint
   is shown.
 
 ---
@@ -681,7 +681,7 @@ Status legend:
 
 ### 11.1 Write `aggressive-alice.md`
 
-- [ ] Write a profile for a loose-aggressive player:
+- [x] Write a profile for a loose-aggressive player:
   - Enters pots with the top ~55% of hands.
   - Continuation-bets every flop, barrels draws on the turn.
   - Bluffs on scare-card rivers (~40% of missed draws).
@@ -689,22 +689,22 @@ Status legend:
 
 ### 11.2 Write `conservative-carlos.md`
 
-- [ ] Write a profile for a tight-passive player:
+- [x] Write a profile for a tight-passive player:
   - Only plays premium pairs and AK/AQ.
   - Checks or calls with top pair; bets only with two pair or better.
   - Never bluffs; folds to any bet when holding less than two pair.
 
 ### 11.3 Write `balanced-sam.md`
 
-- [ ] Write a profile for a balanced, GTO-approximating player:
+- [x] Write a profile for a balanced, GTO-approximating player:
   - Mixed ranges — enters ~35% of pots pre-flop.
   - Bets for value and protection; occasionally semi-bluffs draws.
   - Adjusts bet sizing to pot type (dry board vs. wet board).
 
 ### 11.4 Embed profiles with `include_str!` in `profile_store.rs`
 
-- [ ] Use `include_str!` to embed each starter profile at compile time.
-- [ ] On first run (or empty profiles directory), write them to the profiles directory so
+- [x] Use `include_str!` to embed each starter profile at compile time.
+- [x] On first run (or empty profiles directory), write them to the profiles directory so
   the user can view and edit them.
 
 ---
@@ -713,14 +713,14 @@ Status legend:
 
 ### 12.1 Run all Rust tests
 
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml`
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
-- [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml`
+- [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- [x] `cargo fmt --manifest-path src-tauri/Cargo.toml -- --check`
 
 ### 12.2 Run all frontend tests
 
-- [ ] `npm run lint`
-- [ ] `npm run test`
+- [x] `npm run lint`
+- [x] `npm run test`
 
 ### 12.3 Manual QA checklist
 

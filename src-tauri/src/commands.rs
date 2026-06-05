@@ -150,6 +150,53 @@ pub fn add_npc_players(
 }
 
 #[tauri::command]
+pub fn set_llm_api_key(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+    key: String,
+) -> Result<(), String> {
+    state.set_llm_api_key(key)?;
+    let _ = app.emit("desktop://bootstrap-update", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_llm_api_key(app: AppHandle, state: State<'_, DesktopAppState>) -> Result<(), String> {
+    state.clear_llm_api_key()?;
+    let _ = app.emit("desktop://bootstrap-update", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_npc_profiles(
+    state: State<'_, DesktopAppState>,
+) -> Result<Vec<crate::npc::NpcProfile>, String> {
+    state.list_npc_profiles()
+}
+
+#[tauri::command]
+pub fn get_npc_profile(
+    state: State<'_, DesktopAppState>,
+    id: String,
+) -> Result<crate::npc::NpcProfile, String> {
+    state.get_npc_profile(&id)
+}
+
+#[tauri::command]
+pub fn save_npc_profile(
+    state: State<'_, DesktopAppState>,
+    id: String,
+    content: String,
+) -> Result<crate::npc::NpcProfile, String> {
+    state.save_npc_profile(&id, &content)
+}
+
+#[tauri::command]
+pub fn delete_npc_profile(state: State<'_, DesktopAppState>, id: String) -> Result<(), String> {
+    state.delete_npc_profile(&id)
+}
+
+#[tauri::command]
 pub fn resolve_host_lan_address() -> Result<String, String> {
     resolve_host_lan_address_inner(resolve_connectable_host_ip)
 }
@@ -296,6 +343,7 @@ mod tests {
             parsed_launch_join_payload: None,
             launch_join_payload_error: None,
             debug_tools_enabled: true,
+            llm_api_key_configured: false,
             backend_modules: vec![ModuleDescriptor {
                 name: "protocol",
                 responsibility: "Owns protocol behavior.",

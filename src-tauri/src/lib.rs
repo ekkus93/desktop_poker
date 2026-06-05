@@ -12,12 +12,13 @@ pub mod tournament;
 
 use app_state::DesktopAppState;
 use commands::{
-    add_npc_players, client_claim_lobby_seat, client_set_lobby_ready_state, get_bootstrap_state,
-    get_client_session_status, get_debug_state, get_host_session_status, get_table_view,
-    host_claim_lobby_seat, host_set_lobby_ready_state, host_start_tournament, join_host_session,
-    launch_additional_client_instance, leave_client_session, list_screen_catalog,
-    resolve_host_lan_address, start_host_session, stop_host_session, submit_table_action,
-    validate_join_payload_input,
+    add_npc_players, clear_llm_api_key, client_claim_lobby_seat, client_set_lobby_ready_state,
+    delete_npc_profile, get_bootstrap_state, get_client_session_status, get_debug_state,
+    get_host_session_status, get_npc_profile, get_table_view, host_claim_lobby_seat,
+    host_set_lobby_ready_state, host_start_tournament, join_host_session,
+    launch_additional_client_instance, leave_client_session, list_npc_profiles,
+    list_screen_catalog, resolve_host_lan_address, save_npc_profile, set_llm_api_key,
+    start_host_session, stop_host_session, submit_table_action, validate_join_payload_input,
 };
 use tauri::Emitter;
 
@@ -53,7 +54,13 @@ pub fn run() {
             submit_table_action,
             get_debug_state,
             launch_additional_client_instance,
-            add_npc_players
+            add_npc_players,
+            set_llm_api_key,
+            clear_llm_api_key,
+            list_npc_profiles,
+            get_npc_profile,
+            save_npc_profile,
+            delete_npc_profile
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");

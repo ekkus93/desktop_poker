@@ -38,6 +38,9 @@ describe("shell helpers", () => {
         blindPresetId: BLIND_PRESETS[0].id,
         turnTimerSeconds: 30,
         hostPort: 49000,
+        npcCount: 0,
+        npcStyle: "aggressive",
+        npcProfileId: null,
       });
     });
   });
@@ -69,6 +72,9 @@ describe("shell helpers", () => {
         blindPresetId: "slow",
         turnTimerSeconds: 60,
         hostPort: 43900,
+        npcCount: 2,
+        npcStyle: "conservative" as const,
+        npcProfileId: "aggressive-alice",
       };
 
       expect(normalizeHostDraft(validDraft, fallbackDraft)).toEqual(validDraft);
@@ -101,6 +107,9 @@ describe("shell helpers", () => {
         blindPresetId: fallbackDraft.blindPresetId,
         turnTimerSeconds: 45,
         hostPort: fallbackDraft.hostPort,
+        npcCount: fallbackDraft.npcCount,
+        npcStyle: fallbackDraft.npcStyle,
+        npcProfileId: fallbackDraft.npcProfileId,
       });
     });
 

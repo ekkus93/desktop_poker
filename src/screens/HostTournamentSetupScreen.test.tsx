@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addNpcPlayers,
   getHostSessionStatus,
+  listNpcProfiles,
   resolveHostLanAddress,
   startHostSession,
 } from "../api/desktop";
@@ -20,6 +21,7 @@ vi.mock("../api/desktop", async () => {
     ...actual,
     addNpcPlayers: vi.fn(),
     getHostSessionStatus: vi.fn(),
+    listNpcProfiles: vi.fn(),
     resolveHostLanAddress: vi.fn(),
     startHostSession: vi.fn(),
   };
@@ -27,6 +29,7 @@ vi.mock("../api/desktop", async () => {
 
 const mockedAddNpcPlayers = vi.mocked(addNpcPlayers);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
+const mockedListNpcProfiles = vi.mocked(listNpcProfiles);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedStartHostSession = vi.mocked(startHostSession);
 
@@ -62,6 +65,8 @@ describe("HostTournamentSetupScreen", () => {
     mockedAddNpcPlayers.mockResolvedValue(sampleHostSessionStatus());
     mockedGetHostSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockResolvedValue(null);
+    mockedListNpcProfiles.mockReset();
+    mockedListNpcProfiles.mockResolvedValue([]);
     mockedResolveHostLanAddress.mockReset();
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedStartHostSession.mockReset();
@@ -364,8 +369,8 @@ describe("HostTournamentSetupScreen", () => {
     await waitFor(() => {
       expect(mockedAddNpcPlayers).toHaveBeenCalledWith({
         npcs: [
-          { displayName: "Bot Alpha", style: "conservative" },
-          { displayName: "Bot Beta", style: "conservative" },
+          { displayName: "Bot Alpha", style: "conservative", profileId: null },
+          { displayName: "Bot Beta", style: "conservative", profileId: null },
         ],
       });
     });
@@ -386,5 +391,32 @@ describe("HostTournamentSetupScreen", () => {
     });
 
     expect(mockedAddNpcPlayers).not.toHaveBeenCalled();
+  });
+
+  it("hides profile select when llmApiKeyConfigured is false", async () => {
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: false });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({ ...createDefaultHostDraft(bootstrap), npcCount: 2 }),
+    );
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, { bootstrap });
+    await screen.findByRole("button", { name: /start hosting/i });
+    expect(screen.queryByLabelText("AI profile")).toBeNull();
+    expect(screen.getByText(/add a claude api key/i)).toBeTruthy();
+  });
+
+  it("shows profile select when llmApiKeyConfigured is true and npcCount > 0", async () => {
+    mockedListNpcProfiles.mockResolvedValue([
+      { id: "aggressive-alice", name: "Aggressive Alice", style: "loose-aggressive", skill: "intermediate", description: "" },
+    ]);
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({ ...createDefaultHostDraft(bootstrap), npcCount: 1 }),
+    );
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, { bootstrap });
+    await screen.findByRole("button", { name: /start hosting/i });
+    expect(await screen.findByLabelText("AI profile")).toBeTruthy();
+    expect(screen.getByText("Aggressive Alice")).toBeTruthy();
   });
 });

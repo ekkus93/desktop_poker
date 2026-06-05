@@ -1,9 +1,18 @@
+pub mod api_key;
+pub mod llm_action;
+pub mod llm_client;
+pub mod llm_strategy;
 pub mod postflop;
 pub mod preflop;
+pub mod profile;
+pub mod profile_store;
+pub mod prompt;
 pub mod runner;
 pub mod strategy;
 
 use serde::{Deserialize, Serialize};
+
+pub use profile::NpcProfile;
 
 /// Playing style for a rule-based NPC player.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -13,12 +22,14 @@ pub enum NpcStyle {
     Conservative,
 }
 
-/// Configuration for a single NPC seat at the host's table.
+/// Internal configuration for a single NPC seat during a host session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NpcConfig {
     pub display_name: String,
     pub style: NpcStyle,
+    /// Optional LLM profile; when present the NPC uses LLM-based decisions.
+    pub profile: Option<NpcProfile>,
 }
 
 impl NpcConfig {
@@ -33,9 +44,22 @@ impl NpcConfig {
     }
 }
 
+/// Per-NPC entry in the `add_npc_players` request payload.
+///
+/// This is the frontend-facing type.  The backend resolves `profile_id` to a
+/// loaded `NpcProfile` before creating the internal `NpcConfig`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NpcConfigRequest {
+    pub display_name: String,
+    pub style: NpcStyle,
+    /// Optional profile ID; when set the backend loads the profile by this ID.
+    pub profile_id: Option<String>,
+}
+
 /// Request payload for the `add_npc_players` Tauri command.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddNpcPlayersRequest {
-    pub npcs: Vec<NpcConfig>,
+    pub npcs: Vec<NpcConfigRequest>,
 }

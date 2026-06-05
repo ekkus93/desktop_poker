@@ -77,6 +77,7 @@ pub struct DesktopBootstrapState {
     pub parsed_launch_join_payload: Option<domain::JoinPayload>,
     pub launch_join_payload_error: Option<String>,
     pub debug_tools_enabled: bool,
+    pub llm_api_key_configured: bool,
     pub backend_modules: Vec<ModuleDescriptor>,
     pub screens: Vec<ScreenDescriptor>,
 }
@@ -647,6 +648,8 @@ impl DesktopClientSession {
 
 pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
+    app_data_dir: PathBuf,
+    llm_api_key: Arc<Mutex<Option<String>>>,
     debug_table_runtime: Mutex<Option<DebugTableRuntime>>,
     host_session: Mutex<Option<DesktopHostSession>>,
     client_session: Mutex<Option<DesktopClientSession>>,
@@ -661,6 +664,10 @@ impl DesktopAppState {
         let launch_join_payload = detect_launch_join_payload();
         let (parsed_launch_join_payload, launch_join_payload_error) =
             parse_launch_join_payload(launch_join_payload.as_deref());
+        let app_data_dir = detect_app_data_dir();
+        let loaded_api_key = crate::npc::api_key::load_api_key(&app_data_dir);
+        let llm_api_key_configured = loaded_api_key.is_some();
+        let llm_api_key = Arc::new(Mutex::new(loaded_api_key));
 
         Self {
             bootstrap: DesktopBootstrapState {
@@ -683,9 +690,12 @@ impl DesktopAppState {
                 parsed_launch_join_payload,
                 launch_join_payload_error,
                 debug_tools_enabled,
+                llm_api_key_configured,
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
             },
+            app_data_dir,
+            llm_api_key,
             debug_table_runtime: Mutex::new(None),
             host_session: Mutex::new(None),
             client_session: Mutex::new(None),
@@ -848,6 +858,27 @@ impl DesktopAppState {
             return Err("npcs list must not be empty".to_string());
         }
 
+        // Resolve profiles before locking the session.
+        let profiles_dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
+        let npc_configs: Vec<crate::npc::NpcConfig> = request
+            .npcs
+            .iter()
+            .map(|req| {
+                let profile = req.profile_id.as_deref().and_then(|id| {
+                    crate::npc::profile_store::load_profile(&profiles_dir, id)
+                        .map_err(|e| {
+                            eprintln!("[add_npc_players] could not load profile {id}: {e}");
+                        })
+                        .ok()
+                });
+                crate::npc::NpcConfig {
+                    display_name: req.display_name.clone(),
+                    style: req.style.clone(),
+                    profile,
+                }
+            })
+            .collect();
+
         let mut host_session = self
             .host_session
             .lock()
@@ -856,7 +887,6 @@ impl DesktopAppState {
             .as_mut()
             .ok_or_else(|| "no active host session".to_string())?;
 
-        // Validate phase and capacity.
         let authoritative = session
             .host_server
             .authoritative_state()
@@ -883,7 +913,6 @@ impl DesktopAppState {
             ));
         }
 
-        // Find the first open seat indices.
         let open_seats: Vec<u8> = authoritative
             .seats
             .iter()
@@ -896,8 +925,7 @@ impl DesktopAppState {
             return Err("not enough open seats for the requested NPCs".to_string());
         }
 
-        // Register, seat, and ready-up each NPC.
-        for (npc_config, &seat_index) in request.npcs.iter().zip(open_seats.iter()) {
+        for (npc_config, &seat_index) in npc_configs.iter().zip(open_seats.iter()) {
             let player_id = crate::npc::NpcConfig::player_id(seat_index);
             session
                 .host_server
@@ -913,16 +941,80 @@ impl DesktopAppState {
                 .map_err(|e| e.to_string())?;
         }
 
-        // Start the NPC auto-action runner, sharing the Arc<HostServer>.
         let stop = Arc::new(AtomicBool::new(false));
         let runner_handle = crate::npc::runner::start_npc_runner(
             Arc::clone(&session.host_server),
-            request.npcs.clone(),
+            npc_configs,
             Arc::clone(&stop),
+            Arc::clone(&self.llm_api_key),
         );
         session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(stop, runner_handle));
 
         session.status()
+    }
+
+    /// Save the Claude API key to disk and update the in-memory holder.
+    pub fn set_llm_api_key(&self, key: String) -> Result<(), String> {
+        let trimmed = key.trim().to_string();
+        if trimmed.is_empty() {
+            return Err("API key must not be empty".to_string());
+        }
+        crate::npc::api_key::save_api_key(&self.app_data_dir, &trimmed)
+            .map_err(|e| e.to_string())?;
+        *self
+            .llm_api_key
+            .lock()
+            .map_err(|_| "api key lock poisoned".to_string())? = Some(trimmed);
+        Ok(())
+    }
+
+    /// Clear the Claude API key from disk and memory.
+    pub fn clear_llm_api_key(&self) -> Result<(), String> {
+        crate::npc::api_key::save_api_key(&self.app_data_dir, "").map_err(|e| e.to_string())?;
+        *self
+            .llm_api_key
+            .lock()
+            .map_err(|_| "api key lock poisoned".to_string())? = None;
+        Ok(())
+    }
+
+    /// Returns true if a Claude API key is currently configured.
+    pub fn llm_api_key_configured(&self) -> bool {
+        self.llm_api_key
+            .lock()
+            .map(|g| g.is_some())
+            .unwrap_or(false)
+    }
+
+    /// List all NPC profiles from the profiles directory.
+    pub fn list_npc_profiles(&self) -> Result<Vec<crate::npc::NpcProfile>, String> {
+        let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
+        crate::npc::profile_store::list_profiles(&dir).map_err(|e| e.to_string())
+    }
+
+    /// Load a single NPC profile by ID.
+    pub fn get_npc_profile(&self, id: &str) -> Result<crate::npc::NpcProfile, String> {
+        let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
+        crate::npc::profile_store::load_profile(&dir, id).map_err(|e| e.to_string())
+    }
+
+    /// Save an NPC profile (validates before writing).
+    pub fn save_npc_profile(
+        &self,
+        id: &str,
+        content: &str,
+    ) -> Result<crate::npc::NpcProfile, String> {
+        let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
+        crate::npc::profile_store::save_profile(&dir, id, content).map_err(|e| e.to_string())
+    }
+
+    /// Delete an NPC profile by ID.  Refuses to delete built-in starter profiles.
+    pub fn delete_npc_profile(&self, id: &str) -> Result<(), String> {
+        if crate::npc::profile_store::BUILTIN_PROFILE_IDS.contains(&id) {
+            return Err(format!("built-in profile '{id}' cannot be deleted"));
+        }
+        let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
+        crate::npc::profile_store::delete_profile(&dir, id).map_err(|e| e.to_string())
     }
 
     pub fn host_start_tournament(&self) -> Result<HostSessionStatus, String> {
@@ -1709,6 +1801,13 @@ fn detect_profile_directory(instance_id: &str) -> PathBuf {
     base.join("desktop-poker")
         .join("profiles")
         .join(instance_id)
+}
+
+fn detect_app_data_dir() -> PathBuf {
+    data_local_dir()
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| Path::new(".").to_path_buf())
+        .join("desktop-poker")
 }
 
 struct DebugTableRuntime {

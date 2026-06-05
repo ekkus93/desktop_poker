@@ -19,6 +19,7 @@ import { MainTableScreen } from "../screens/MainTableScreen";
 import { RulesHelpScreen } from "../screens/RulesHelpScreen";
 import { TournamentCompleteScreen } from "../screens/TournamentCompleteScreen";
 import { TournamentLobbyScreen } from "../screens/TournamentLobbyScreen";
+import { NpcProfilesScreen } from "../screens/NpcProfilesScreen";
 import { useDesktopBootstrap } from "./useDesktopBootstrap";
 
 function hasScreenRoute(
@@ -197,6 +198,7 @@ export function AppShell() {
             />
           ) : null}
           <Route path="/settings" element={<DeviceSettingsScreen />} />
+          <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
           {completeRouteAvailable ? (
             <Route
               path="/complete"

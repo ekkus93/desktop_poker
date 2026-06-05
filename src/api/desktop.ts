@@ -154,6 +154,7 @@ export type DesktopBootstrapState = {
   parsedLaunchJoinPayload: JoinPayload | null;
   launchJoinPayloadError: string | null;
   debugToolsEnabled: boolean;
+  llmApiKeyConfigured: boolean;
   backendModules: BackendModuleDescriptor[];
   screens: ScreenDescriptor[];
 };
@@ -311,6 +312,7 @@ export type NpcStyle = "aggressive" | "conservative";
 export type NpcConfig = {
   displayName: string;
   style: NpcStyle;
+  profileId?: string | null;
 };
 
 export type AddNpcPlayersRequest = {
@@ -324,6 +326,38 @@ export function addNpcPlayers(request: AddNpcPlayersRequest) {
   }
 
   return invoke<HostSessionStatus>("add_npc_players", { request });
+}
+
+export type NpcProfile = {
+  id: string;
+  name: string;
+  style: string;
+  skill: string;
+  description: string;
+};
+
+export function listNpcProfiles(): Promise<NpcProfile[]> {
+  return invoke<NpcProfile[]>("list_npc_profiles");
+}
+
+export function getNpcProfile(id: string): Promise<NpcProfile> {
+  return invoke<NpcProfile>("get_npc_profile", { id });
+}
+
+export function saveNpcProfile(id: string, content: string): Promise<NpcProfile> {
+  return invoke<NpcProfile>("save_npc_profile", { id, content });
+}
+
+export function deleteNpcProfile(id: string): Promise<void> {
+  return invoke<void>("delete_npc_profile", { id });
+}
+
+export function setLlmApiKey(key: string): Promise<void> {
+  return invoke<void>("set_llm_api_key", { key });
+}
+
+export function clearLlmApiKey(): Promise<void> {
+  return invoke<void>("clear_llm_api_key");
 }
 
 export function validateJoinPayloadInput(payload: string) {
