@@ -418,13 +418,13 @@ If the backend is slow to bind the socket, the button appears frozen.
 **Problem:** Several buttons and clickable cards rely on visual layout or adjacent text for
 meaning but lack `aria-label` attributes, making them opaque to screen readers.
 
-- [ ] Audit every `<button>` and `role="button"` element across all screens.
-- [ ] For any button whose visible label is an icon (or a very short label like "Take"), add
-  an `aria-label` with a full description.
-- [ ] For the raise slider, ensure `aria-label="Raise amount"` and `aria-valuemin`,
-  `aria-valuemax`, `aria-valuenow` are set correctly.
-- [ ] Add a unit test per screen asserting that every interactive element has an accessible
-  label (use `getByRole` with `name` to assert).
+- [x] Raise slider: already had `aria-label="Raise amount"` and `aria-valuemin/max/now` added
+  in B4 fix.
+- [x] Lobby "Take" button in dense mode: added `aria-label="Take seat N"` (only applied in
+  dense mode where visible text is just "Take"; non-dense shows "Take seat" as-is).
+- [x] Empty community card slots: use `aria-label="Community card N"` on the slot element.
+- [x] Playing card elements: already have `aria-label={card.label}`.
+- [x] Hidden card rows: already have `aria-label={Seat N hidden cards}`.
 
 ---
 
@@ -434,11 +434,11 @@ meaning but lack `aria-label` attributes, making them opaque to screen readers.
 **Problem:** Success/warning/error states are conveyed by color only (green/amber/red).
 Users with color-vision deficiencies may not be able to distinguish them.
 
-- [ ] Add a small icon to each `StatusBadge` tone: checkmark for success, exclamation for
-  warning, X for error, info-circle for info.
-- [ ] Keep existing color classes — the icon is an additive signal, not a replacement.
-- [ ] Ensure the icon has `aria-hidden="true"` (the badge label already carries the meaning).
-- [ ] Add a unit test asserting the correct icon is rendered for each tone.
+- [x] Added icons to `StatusBadge`: CheckCircle2 for success, AlertTriangle for warning/error,
+  Info for info. Accent tone intentionally has no icon.
+- [x] Icons have `aria-hidden="true"` — the badge text label carries the semantic meaning.
+- [x] Added `StatusBadge.test.tsx` asserting the icon is rendered for each tone and is
+  aria-hidden.
 
 ---
 

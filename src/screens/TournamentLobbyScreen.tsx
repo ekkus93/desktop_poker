@@ -519,6 +519,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
                       {liveSession && liveLobbyActionsEnabled && seat.kind === "open" ? (
                         <button
+                          aria-label={denseLobbyLayout ? `Take seat ${seat.seatIndex}` : undefined}
                           className={`secondary-button compact-button ${denseLobbyLayout ? "dense-lobby-seat-action" : ""}`}
                           disabled={submitting}
                           onClick={() => {

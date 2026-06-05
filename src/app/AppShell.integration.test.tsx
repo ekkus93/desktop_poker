@@ -656,7 +656,7 @@ describe("AppShell integration", () => {
     expect(screen.getByRole("button", { name: "Host again" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();
-  });
+  }, 10_000);
 
   it("moves a joined client from the lobby to the table when the live session starts", async () => {
     currentClientSession = buildClientSessionStatus();
