@@ -4,6 +4,7 @@ import {
   getClientSessionStatus,
   getHostSessionStatus,
   hostSetLobbyReadyState,
+  stopHostSession,
   type HostSessionStatus,
 } from "../api/desktop";
 import { storageKey } from "../app/shell";
@@ -20,12 +21,14 @@ vi.mock("../api/desktop", async () => {
     getClientSessionStatus: vi.fn(),
     getHostSessionStatus: vi.fn(),
     hostSetLobbyReadyState: vi.fn(),
+    stopHostSession: vi.fn(),
   };
 });
 
 const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
+const mockedStopHostSession = vi.mocked(stopHostSession);
 
 function createHostSession(
   overrides: Partial<HostSessionStatus> = {},
@@ -71,6 +74,7 @@ describe("TournamentLobbyScreen", () => {
     mockedGetClientSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockReset();
     mockedHostSetLobbyReadyState.mockReset();
+    mockedStopHostSession.mockReset();
     mockedGetClientSessionStatus.mockResolvedValue(null);
     mockedGetHostSessionStatus.mockResolvedValue(createHostSession());
     mockedHostSetLobbyReadyState.mockImplementation(async (request) => {
@@ -146,5 +150,53 @@ describe("TournamentLobbyScreen", () => {
     expect(await screen.findByText("You: Ready")).toBeTruthy();
     expect(screen.getByText("Table: Ready")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Start tournament" })).toBeTruthy();
+  });
+
+  it("shows recovery actions when host stops before the table goes live (B5)", async () => {
+    // First poll returns a session, second poll returns null (host stopped)
+    mockedGetHostSessionStatus
+      .mockResolvedValueOnce(createHostSession())
+      .mockResolvedValue(null);
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    // Wait for recovery state to appear — there will be multiple "Host stopped" instances
+    // (badge + heading) which is expected
+    await waitFor(() => {
+      expect(screen.getAllByText("Host stopped").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByRole("button", { name: "Host again" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
+  });
+
+  it("keeps the leave dialog open with error and retry button after a backend failure (B7)", async () => {
+    mockedStopHostSession.mockRejectedValue(new Error("Network error"));
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+
+    // Open the leave dialog — there are two "Close table" buttons (toolbar + dialog).
+    // Click the first one (toolbar) to open the dialog.
+    const allCloseButtons = await screen.findAllByRole("button", { name: "Close table" });
+    fireEvent.click(allCloseButtons[0]);
+    expect(screen.getByText("Close this table?")).toBeTruthy();
+
+    // Attempt to leave via the dialog's own button (triggers the error)
+    const dialogCloseButtons = screen.getAllByRole("button", { name: "Close table" });
+    fireEvent.click(dialogCloseButtons[dialogCloseButtons.length - 1]);
+
+    // Dialog should stay open with error and retry available
+    await waitFor(() => {
+      expect(screen.getAllByText(/network error/i).length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("Close this table?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Stay here" })).toBeTruthy();
   });
 });

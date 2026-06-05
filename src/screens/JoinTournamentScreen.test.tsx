@@ -181,6 +181,23 @@ describe("JoinTournamentScreen", () => {
     });
   });
 
+  it("shows escape actions when auto-join from launch payload fails (B8)", async () => {
+    const bootstrap = createBootstrap({
+      launchJoinPayload: "pkr1_launch",
+      parsedLaunchJoinPayload: createParsedJoinPayload(),
+    });
+    mockedJoinHostSession.mockRejectedValueOnce(new Error("Host rejected the connection"));
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/join"],
+    });
+
+    expect(await screen.findByText(/host rejected the connection/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Clear and enter a different invite" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
+  });
+
   it("keeps keyboard focus moving through the join flow in a sane order", async () => {
     const bootstrap = createBootstrap();
     const user = userEvent.setup();

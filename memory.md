@@ -273,3 +273,12 @@
 ## 2026-05-15T15:16:33-07:00 - GPT-5.4 - Stabilize live action Rust tests
 - Commit `f12131fe985d79bab0e82ecb7b3c73f91fc88c06` stabilized the live-action Rust validation path by replacing clippy-triggering descending sort closures, extending the runtime command-connection wait under full-suite load, and relaxing the app-state live-action assertions to require observable view changes instead of a specific action-owner label flip.
 - Revalidated the repository with frontend lint/tests/geometry plus Rust tests and clippy after recovering disk space from generated build artifacts.
+
+## 2026-06-05T16:18:07Z - Claude Sonnet 4.6 - Full UI/UX review and improvements backlog
+
+- Conducted a full UI/UX review of all frontend screens, providers, shared components, and API bridge.
+- Created `docs/UIUX_IMPROVEMENTS3_TODO.md` with a detailed implementation backlog covering 8 bug fixes and 19 UX/workflow improvements.
+- Key bugs identified: eliminated players showing "0 chips" (B1), only first startup warning shown (B2), unbounded event feed (B3), raise slider NaN when bounds null (B4), host recovery error with no action (B5), polling never backs off (B6), leave dialog stuck on failure (B7), auto-join dead end on invalid launch payload (B8).
+- Highest-impact improvements: switch polling to Tauri event subscriptions (`desktop://session-update` and `desktop://table-update`) since the pattern already exists in `lib.rs:32` for bootstrap (H1); add optimistic updates for user actions (H2).
+- Other notable items: form validation for tournament name/port (F1/F2), table↔lobby navigation loop fix (W1), conditional "Host another table" button (W3), decoded metadata on invite pills (I1), ARIA/accessibility pass (A1/A2).
+- Added CLAUDE.md to the repo (adapts `.github/copilot-instructions.md` for Claude Code) and pushed to GitHub.

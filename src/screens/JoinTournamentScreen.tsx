@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, BadgeCheck, Clipboard, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
+import { ArrowRight, BadgeCheck, Clipboard, House, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
@@ -330,7 +330,38 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
               ) : null}
               {joinError ? (
-                <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{joinError}</p>
+                <>
+                  <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{joinError}</p>
+                  {launchJoinAttemptedForPayload.current ? (
+                    <div className="button-row">
+                      <button
+                        className="secondary-button"
+                        onClick={() => {
+                          setJoinPayloadDraft("");
+                          setValidationState({ status: "idle" });
+                          setJoinError(null);
+                          setInviteBanner(null);
+                        }}
+                        type="button"
+                      >
+                        <span className="button-content">
+                          <RotateCcw className="button-icon" strokeWidth={1.9} />
+                          <span>Clear and enter a different invite</span>
+                        </span>
+                      </button>
+                      <button
+                        className="secondary-button"
+                        onClick={() => navigate("/")}
+                        type="button"
+                      >
+                        <span className="button-content">
+                          <House className="button-icon" strokeWidth={1.9} />
+                          <span>Return home</span>
+                        </span>
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
             </div>

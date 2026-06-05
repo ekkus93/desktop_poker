@@ -116,7 +116,9 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                 <article className="list-panel compact-list-panel">
                   <div>
                     <strong>Storage needs attention</strong>
-                    <p className="field-hint">{startupWarnings[0]}</p>
+                    {startupWarnings.map((warning) => (
+                      <p key={warning} className="field-hint">{warning}</p>
+                    ))}
                   </div>
                   <div className="button-row">
                     <Link className="secondary-button" to="/errors">

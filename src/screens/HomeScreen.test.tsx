@@ -71,4 +71,21 @@ describe("HomeScreen", () => {
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Review" })).toBeTruthy();
   });
+
+  it("shows all startup warnings when multiple storage reads fail (B2)", () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    // Corrupt two separate storage keys to trigger two distinct warnings
+    localStorage.setItem(`${bootstrap.storageNamespace}:display-name`, "{bad-json");
+    localStorage.setItem(`${bootstrap.storageNamespace}:hand-history-summaries`, "{bad-json");
+
+    renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(screen.getByText("Storage needs attention")).toBeTruthy();
+    expect(
+      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/saved hand history was unreadable and has been ignored/i),
+    ).toBeTruthy();
+  });
 });

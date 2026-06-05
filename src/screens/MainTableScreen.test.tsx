@@ -270,6 +270,64 @@ describe("MainTableScreen", () => {
     });
   });
 
+  it("shows statusLabel not chip count for observer entries in standings (B1)", async () => {
+    mockedGetTableView.mockResolvedValue(createTableView());
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Table details" }));
+
+    // Riley is isObserver: true in the fixture — standings entry should show statusLabel.
+    // "Eliminated observer" text appears in both the seat card and the standings list.
+    expect(screen.getAllByText("Eliminated observer").length).toBeGreaterThan(0);
+
+    // Find Riley's standings row by rank heading and verify its field-hint contains
+    // the statusLabel, not a chip count.
+    const rileyRankHeading = screen.getByText(/#4 Riley/);
+    const rileyArticle = rileyRankHeading.closest("article");
+    expect(rileyArticle?.textContent).toContain("Eliminated observer");
+    expect(rileyArticle?.textContent).not.toMatch(/\d+ chips/);
+  });
+
+  it("caps the event feed at 50 entries and shows a note when capped (B3)", async () => {
+    const manyEvents = Array.from({ length: 55 }, (_, i) => ({
+      sequence: i,
+      kind: "public-event",
+      message: `Event number ${i}`,
+    }));
+    mockedGetTableView.mockResolvedValue(createTableView({ eventFeed: manyEvents }));
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Table details" }));
+
+    // Events 0-4 should be dropped (slice(-50) keeps 5-54)
+    expect(screen.queryByText("Event number 0")).toBeNull();
+    expect(screen.getByText("Event number 5")).toBeTruthy();
+    expect(screen.getByText("Event number 54")).toBeTruthy();
+    expect(screen.getByText(/showing last 50 events/i)).toBeTruthy();
+  });
+
+  it("hides the raise slider and shows no NaN labels when raise bounds are null (B4)", async () => {
+    mockedGetTableView.mockResolvedValue(
+      createTableView({
+        actionTray: {
+          ...createTableView().actionTray!,
+          minRaiseTo: null,
+          maxRaiseTo: null,
+        },
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    await screen.findByRole("button", { name: "Fold" });
+
+    expect(screen.queryByRole("slider", { name: /raise/i })).toBeNull();
+    expect(screen.queryByText("NaN")).toBeNull();
+    expect(screen.getByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
+  });
+
   it("keeps focus order sane across the main action tray", async () => {
     const bootstrap = createBootstrap();
     const user = userEvent.setup();

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { History, PanelRight, Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   getTableView,
   submitTableAction,
@@ -16,15 +16,21 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 const BOARD_SLOT_COUNT = 5;
-const TABLE_REFRESH_INTERVAL_MS = 800;
+const TABLE_POLL_NORMAL_MS = 800;
+const TABLE_POLL_SLOW_MS = 3000;
+const POLL_BACKOFF_THRESHOLD = 3;
+const POLL_ERROR_LIMIT = 10;
+const EVENT_FEED_CAP = 50;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
   const { displayName, persistHandHistory } = useDesktopShell();
+  const navigate = useNavigate();
   const viewerMode: TableViewerMode = "local";
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connectionSlow, setConnectionSlow] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(false);
@@ -32,45 +38,88 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   const [confirmation, setConfirmation] = useState<
     { actionKind: "betOrRaise" | "allIn"; label: string } | null
   >(null);
+  const consecutiveErrorsRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    const loadTableView = async (background: boolean) => {
-      if (!background) {
-        setLoading(true);
-        setError(null);
-        setActionError(null);
-        setConfirmation(null);
+    let timeoutId: number | undefined;
+
+    const scheduleNext = (delayMs: number) => {
+      if (cancelled) {
+        return;
       }
+
+      timeoutId = window.setTimeout(() => {
+        void poll();
+      }, delayMs);
+    };
+
+    const poll = async () => {
+      try {
+        const snapshot = await getTableView(viewerMode);
+        if (cancelled) {
+          return;
+        }
+
+        consecutiveErrorsRef.current = 0;
+        setTableView(snapshot);
+        setError(null);
+        setConnectionSlow(false);
+        scheduleNext(TABLE_POLL_NORMAL_MS);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        consecutiveErrorsRef.current += 1;
+        if (consecutiveErrorsRef.current >= POLL_ERROR_LIMIT) {
+          navigate("/errors", { replace: true });
+          return;
+        }
+
+        setConnectionSlow(consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD);
+        scheduleNext(
+          consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD
+            ? TABLE_POLL_SLOW_MS
+            : TABLE_POLL_NORMAL_MS,
+        );
+      }
+    };
+
+    const loadInitial = async () => {
+      setLoading(true);
+      setError(null);
+      setActionError(null);
+      setConfirmation(null);
 
       try {
         const snapshot = await getTableView(viewerMode);
         if (!cancelled) {
+          consecutiveErrorsRef.current = 0;
           setTableView(snapshot);
           setError(null);
+          setConnectionSlow(false);
         }
       } catch (caughtError: unknown) {
-        if (!cancelled && !background) {
+        if (!cancelled) {
           setError(getErrorMessage(caughtError));
           setTableView(null);
         }
       } finally {
-        if (!cancelled && !background) {
+        if (!cancelled) {
           setLoading(false);
+          scheduleNext(TABLE_POLL_NORMAL_MS);
         }
       }
     };
 
-    void loadTableView(false);
-    const intervalId = window.setInterval(() => {
-      void loadTableView(true);
-    }, TABLE_REFRESH_INTERVAL_MS);
+    void loadInitial();
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
-  }, [viewerMode]);
+  }, [navigate, viewerMode]);
 
   useEffect(() => {
     const actionTray = tableView?.actionTray;
@@ -197,6 +246,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           <SectionCard title="Loading table state">
             <span className="field-hint">Requesting the current table state from the host.</span>
           </SectionCard>
+        ) : null}
+
+        {connectionSlow ? (
+          <div className="inline-banner info">Connection slow — retrying…</div>
         ) : null}
 
         {error ? (
@@ -378,36 +431,41 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   ) : null}
                   {tableView.actionTray.maxRaiseTo === null ? (
                     <p className="field-hint">Raise unavailable until a legal raise size is offered for this spot.</p>
-                  ) : null}
-                  <div className="raise-controls">
-                    <label className="field" htmlFor="raise-slider">
-                      <span>Raise size</span>
-                      <input
-                        id="raise-slider"
-                        max={tableView.actionTray.maxRaiseTo ?? 0}
-                        min={tableView.actionTray.minRaiseTo ?? 0}
-                        onChange={(event) => setRaiseAmount(Number(event.target.value))}
-                        step={1}
-                        type="range"
-                        value={raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}
-                      />
-                    </label>
-                    <p className="field-hint">
-                      To <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Call {tableView.actionTray.callAmount} · Pot {tableView.actionTray.potTotal}
-                    </p>
-                    <div className="button-row quick-size-row">
-                      {quickSizes.map((option) => (
-                        <button
-                          key={option.label}
-                          className="secondary-button compact-button"
-                          onClick={() => setRaiseAmount(option.amount)}
-                          type="button"
-                        >
-                          {option.label}
-                        </button>
-                      ))}
+                  ) : (
+                    <div className="raise-controls">
+                      <label className="field" htmlFor="raise-slider">
+                        <span>Raise size</span>
+                        <input
+                          aria-label="Raise amount"
+                          aria-valuemax={tableView.actionTray.maxRaiseTo}
+                          aria-valuemin={tableView.actionTray.minRaiseTo ?? tableView.actionTray.maxRaiseTo}
+                          aria-valuenow={raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}
+                          id="raise-slider"
+                          max={tableView.actionTray.maxRaiseTo}
+                          min={tableView.actionTray.minRaiseTo ?? tableView.actionTray.maxRaiseTo}
+                          onChange={(event) => setRaiseAmount(Number(event.target.value))}
+                          step={1}
+                          type="range"
+                          value={raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}
+                        />
+                      </label>
+                      <p className="field-hint">
+                        To <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Call {tableView.actionTray.callAmount} · Pot {tableView.actionTray.potTotal}
+                      </p>
+                      <div className="button-row quick-size-row">
+                        {quickSizes.map((option) => (
+                          <button
+                            key={option.label}
+                            className="secondary-button compact-button"
+                            onClick={() => setRaiseAmount(option.amount)}
+                            type="button"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   {confirmation ? (
                     <div className="confirmation-card" role="status">
                       <strong>{confirmation.label}</strong>
@@ -450,7 +508,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                             #{entry.rank} {entry.isLocal ? `${displayName} (you)` : entry.displayName}
                           </strong>
                           <p className="field-hint">
-                            {entry.chipCount ?? 0} chips · {entry.statusLabel}
+                            {entry.isObserver ? entry.statusLabel : `${entry.chipCount ?? 0} chips`}
                           </p>
                           {entry.note ? <p className="field-hint">{entry.note}</p> : null}
                         </div>
@@ -461,7 +519,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
                 <SectionCard kicker="Table feed" title="Latest public events">
                   <div className="stacked-list event-feed-list">
-                    {tableView.eventFeed.map((event) => (
+                    {tableView.eventFeed.slice(-EVENT_FEED_CAP).map((event) => (
                       <article key={event.sequence} className="list-panel history-row">
                         <div>
                             <strong>{event.kind}</strong>
@@ -470,6 +528,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       </article>
                     ))}
                   </div>
+                  {tableView.eventFeed.length > EVENT_FEED_CAP ? (
+                    <p className="field-hint">Showing last {EVENT_FEED_CAP} events.</p>
+                  ) : null}
                 </SectionCard>
 
                 <SectionCard kicker="History" title="Latest settled hands">

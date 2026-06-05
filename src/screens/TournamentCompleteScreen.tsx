@@ -53,7 +53,7 @@ export function TournamentCompleteScreen() {
                     #{entry.rank} {entry.displayName}
                   </strong>
                   <p className="field-hint">
-                    {entry.chipCount ?? 0} chips · {entry.statusLabel}
+                    {entry.isObserver ? entry.statusLabel : `${entry.chipCount ?? 0} chips`}
                   </p>
                   {entry.note ? <p className="field-hint">{entry.note}</p> : null}
                 </div>

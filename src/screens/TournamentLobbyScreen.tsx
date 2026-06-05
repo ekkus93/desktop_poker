@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Clock3, LogOut, Play } from "lucide-react";
+import { Check, Clock3, LogOut, Play, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   clientClaimLobbySeat,
@@ -63,6 +63,11 @@ function buildLiveSeats(
   return seats;
 }
 
+const LOBBY_POLL_NORMAL_MS = 800;
+const LOBBY_POLL_SLOW_MS = 3000;
+const LOBBY_BACKOFF_THRESHOLD = 3;
+const LOBBY_ERROR_LIMIT = 10;
+
 export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
   const navigate = useNavigate();
@@ -72,8 +77,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const [sessionStatus, setSessionStatus] = useState<"loading" | "ready">("loading");
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(null);
+  const [connectionSlow, setConnectionSlow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const hostSessionRef = useRef<HostSessionStatus | null>(null);
+  const consecutiveErrorsRef = useRef(0);
 
   useEffect(() => {
     hostSessionRef.current = hostSession;
@@ -81,6 +88,15 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
   useEffect(() => {
     let active = true;
+    let timeoutId: number | undefined;
+
+    const scheduleNext = (delayMs: number) => {
+      if (!active) {
+        return;
+      }
+
+      timeoutId = window.setTimeout(refresh, delayMs);
+    };
 
     const refresh = () => {
       void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
@@ -88,6 +104,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           if (!active) {
             return;
           }
+
+          consecutiveErrorsRef.current = 0;
+          setConnectionSlow(false);
 
           const previousHostSession = hostSessionRef.current;
 
@@ -107,11 +126,21 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           setHostSession(nextHostSession);
           setClientSession(nextClientSession);
           setSessionStatus("ready");
+          scheduleNext(LOBBY_POLL_NORMAL_MS);
         })
         .catch((error: unknown) => {
           if (!active) {
             return;
           }
+
+          consecutiveErrorsRef.current += 1;
+
+          if (consecutiveErrorsRef.current >= LOBBY_ERROR_LIMIT) {
+            navigate("/errors", { replace: true });
+            return;
+          }
+
+          setConnectionSlow(consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD);
 
           const previousHostSession = hostSessionRef.current;
 
@@ -126,17 +155,21 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           setHostSession(null);
           setClientSession(null);
           setSessionStatus("ready");
+          scheduleNext(
+            consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD
+              ? LOBBY_POLL_SLOW_MS
+              : LOBBY_POLL_NORMAL_MS,
+          );
         });
     };
 
     refresh();
-    const intervalId = window.setInterval(refresh, 800);
 
     return () => {
       active = false;
-      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [navigate]);
 
   const liveSession = hostSession ?? clientSession;
   const liveLocalPlayerId = hostSession ? "local-player" : clientSession?.localPlayerId ?? null;
@@ -364,6 +397,12 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   {openSeatCount > 0 ? `${openSeatCount} open seats` : "Table full"}
                 </span>
               </div>
+              {connectionSlow ? (
+                <div className="inline-banner info">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Connection slow — retrying…
+                </div>
+              ) : null}
               <div className="button-row lobby-primary-actions workstation-actions compact-workstation-actions">
                 {liveLobbyActionsEnabled && liveLocalParticipant?.seatIndex !== null ? (
                   <button
