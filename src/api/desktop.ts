@@ -305,6 +305,26 @@ export function onTableUpdate(callback: () => void) {
   });
 }
 
+export type NpcStyle = "aggressive" | "conservative";
+
+export type NpcConfig = {
+  displayName: string;
+  style: NpcStyle;
+};
+
+export type AddNpcPlayersRequest = {
+  npcs: NpcConfig[];
+};
+
+export function addNpcPlayers(request: AddNpcPlayersRequest) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.addNpcPlayers) {
+    return browserMocks.addNpcPlayers(request);
+  }
+
+  return invoke<HostSessionStatus>("add_npc_players", { request });
+}
+
 export function validateJoinPayloadInput(payload: string) {
   const browserMocks = getBrowserMocks();
   if (browserMocks?.validateJoinPayloadInput) {

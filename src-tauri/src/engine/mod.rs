@@ -16,7 +16,7 @@ pub struct EngineError {
 }
 
 impl EngineError {
-    fn new(message: impl Into<String>) -> Self {
+    pub(crate) fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
@@ -437,7 +437,7 @@ fn select_odd_chip_recipient(odd_chip_order: &[String], winners: &[String]) -> S
         .unwrap_or_else(|| winners[0].clone())
 }
 
-fn evaluate_five_card_hand(cards: [Card; 5]) -> HandStrength {
+pub(crate) fn evaluate_five_card_hand(cards: [Card; 5]) -> HandStrength {
     let flush = cards.iter().all(|card| card.suit == cards[0].suit);
     let rank_values = cards
         .iter()

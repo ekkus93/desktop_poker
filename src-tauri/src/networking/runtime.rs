@@ -421,6 +421,47 @@ impl HostServer {
             .map_err(|_| NetworkingError::new("public event log lock poisoned"))
     }
 
+    /// Register a local NPC participant without requiring a TCP connection or real crypto keys.
+    ///
+    /// Must be called before `claim_seat` for the same player ID.
+    pub fn register_npc_participant(
+        &self,
+        player_id: &str,
+        display_name: &str,
+    ) -> Result<(), NetworkingError> {
+        use crate::domain::{
+            ConnectionState, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
+        };
+        self.update_lobby_state(|state| {
+            if state.participants.contains_key(player_id) {
+                return Err(NetworkingError::new(format!(
+                    "participant {player_id} is already registered"
+                )));
+            }
+            state.participants.insert(
+                player_id.to_string(),
+                ParticipantRegistryEntry {
+                    identity: PlayerIdentity {
+                        player_id: player_id.to_string(),
+                        display_name: display_name.to_string(),
+                        // NPCs use placeholder keys — they never sign or encrypt messages.
+                        signing_public_key: "npc".to_string(),
+                        encryption_public_key: "npc".to_string(),
+                        signing_key_fingerprint: "npc".to_string(),
+                    },
+                    state: ParticipantState::Admitted,
+                    connection_state: ConnectionState::Connected,
+                    seat_index: None,
+                    admitted_at_ms: now_epoch_ms(),
+                    reconnect_token: None,
+                    reconnect_expiry_ms: None,
+                    is_host: false,
+                },
+            );
+            Ok(())
+        })
+    }
+
     pub fn claim_seat(&self, player_id: &str, seat_index: u8) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_seat_claim(state, player_id, seat_index))?;
         self.sync_snapshots_to_clients()

@@ -139,6 +139,17 @@ pub fn client_set_lobby_ready_state(
 }
 
 #[tauri::command]
+pub fn add_npc_players(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+    request: crate::npc::AddNpcPlayersRequest,
+) -> Result<HostSessionStatus, String> {
+    let result = state.add_npc_players(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
+}
+
+#[tauri::command]
 pub fn resolve_host_lan_address() -> Result<String, String> {
     resolve_host_lan_address_inner(resolve_connectable_host_ip)
 }

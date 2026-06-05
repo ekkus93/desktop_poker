@@ -284,9 +284,10 @@ pub struct ClientSessionStatus {
 }
 
 struct DesktopHostSession {
-    host_server: networking::HostServer,
+    host_server: Arc<networking::HostServer>,
     config: domain::TournamentConfig,
     advertised_host: String,
+    npc_runner: Option<crate::npc::runner::NpcRunnerGuard>,
 }
 
 impl DesktopHostSession {
@@ -837,6 +838,93 @@ impl DesktopAppState {
         session.status()
     }
 
+    pub fn add_npc_players(
+        &self,
+        request: crate::npc::AddNpcPlayersRequest,
+    ) -> Result<HostSessionStatus, String> {
+        use std::sync::atomic::AtomicBool;
+
+        if request.npcs.is_empty() {
+            return Err("npcs list must not be empty".to_string());
+        }
+
+        let mut host_session = self
+            .host_session
+            .lock()
+            .map_err(|_| "host session lock poisoned".to_string())?;
+        let session = host_session
+            .as_mut()
+            .ok_or_else(|| "no active host session".to_string())?;
+
+        // Validate phase and capacity.
+        let authoritative = session
+            .host_server
+            .authoritative_state()
+            .map_err(|e| e.to_string())?;
+
+        if !matches!(
+            authoritative.phase,
+            domain::TournamentPhase::WaitingForPlayers | domain::TournamentPhase::ReadyCheck
+        ) {
+            return Err("NPCs can only be added before the tournament starts".to_string());
+        }
+
+        let occupied = authoritative
+            .seats
+            .iter()
+            .filter(|s| s.occupancy == domain::SeatOccupancyState::Occupied)
+            .count() as u8;
+        let capacity = session.config.max_players;
+        let total_after = occupied.saturating_add(request.npcs.len() as u8);
+        if total_after > capacity {
+            return Err(format!(
+                "not enough open seats: {occupied} occupied, {capacity} max, {} NPCs requested",
+                request.npcs.len()
+            ));
+        }
+
+        // Find the first open seat indices.
+        let open_seats: Vec<u8> = authoritative
+            .seats
+            .iter()
+            .filter(|s| s.occupancy == domain::SeatOccupancyState::Empty)
+            .map(|s| s.seat_index)
+            .take(request.npcs.len())
+            .collect();
+
+        if open_seats.len() < request.npcs.len() {
+            return Err("not enough open seats for the requested NPCs".to_string());
+        }
+
+        // Register, seat, and ready-up each NPC.
+        for (npc_config, &seat_index) in request.npcs.iter().zip(open_seats.iter()) {
+            let player_id = crate::npc::NpcConfig::player_id(seat_index);
+            session
+                .host_server
+                .register_npc_participant(&player_id, &npc_config.display_name)
+                .map_err(|e| e.to_string())?;
+            session
+                .host_server
+                .claim_seat(&player_id, seat_index)
+                .map_err(|e| e.to_string())?;
+            session
+                .host_server
+                .set_ready_state(&player_id, true)
+                .map_err(|e| e.to_string())?;
+        }
+
+        // Start the NPC auto-action runner, sharing the Arc<HostServer>.
+        let stop = Arc::new(AtomicBool::new(false));
+        let runner_handle = crate::npc::runner::start_npc_runner(
+            Arc::clone(&session.host_server),
+            request.npcs.clone(),
+            Arc::clone(&stop),
+        );
+        session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(stop, runner_handle));
+
+        session.status()
+    }
+
     pub fn host_start_tournament(&self) -> Result<HostSessionStatus, String> {
         let mut host_session = self
             .host_session
@@ -1022,9 +1110,10 @@ impl DesktopAppState {
             .lock()
             .map_err(|_| "host session lock poisoned".to_string())?;
         *host_session = Some(DesktopHostSession {
-            host_server,
+            host_server: Arc::new(host_server),
             config,
             advertised_host: host_address.to_string(),
+            npc_runner: None,
         });
 
         host_session

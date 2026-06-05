@@ -5,13 +5,14 @@ pub mod domain;
 pub mod engine;
 pub mod interop;
 pub mod networking;
+pub mod npc;
 pub mod protocol;
 pub mod storage;
 pub mod tournament;
 
 use app_state::DesktopAppState;
 use commands::{
-    client_claim_lobby_seat, client_set_lobby_ready_state, get_bootstrap_state,
+    add_npc_players, client_claim_lobby_seat, client_set_lobby_ready_state, get_bootstrap_state,
     get_client_session_status, get_debug_state, get_host_session_status, get_table_view,
     host_claim_lobby_seat, host_set_lobby_ready_state, host_start_tournament, join_host_session,
     launch_additional_client_instance, leave_client_session, list_screen_catalog,
@@ -51,7 +52,8 @@ pub fn run() {
             get_table_view,
             submit_table_action,
             get_debug_state,
-            launch_additional_client_instance
+            launch_additional_client_instance,
+            add_npc_players
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");
