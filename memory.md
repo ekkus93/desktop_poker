@@ -274,6 +274,19 @@
 - Commit `f12131fe985d79bab0e82ecb7b3c73f91fc88c06` stabilized the live-action Rust validation path by replacing clippy-triggering descending sort closures, extending the runtime command-connection wait under full-suite load, and relaxing the app-state live-action assertions to require observable view changes instead of a specific action-owner label flip.
 - Revalidated the repository with frontend lint/tests/geometry plus Rust tests and clippy after recovering disk space from generated build artifacts.
 
+## 2026-06-05T17:38:46Z - Claude Sonnet 4.6 - Implement full UIUX_IMPROVEMENTS3_TODO in Ralph Loop
+
+- Implemented all 19 deliverables from `docs/UIUX_IMPROVEMENTS3_TODO.md` across 6 commits.
+- **Bugs fixed (B1–B8):** eliminated-player standings, all startup warnings shown, event feed capped at 50, raise slider null guard, host recovery actions, polling backoff with connection-slow banner, leave dialog retry, auto-join escape actions.
+- **H1:** Switched lobby and table from 800ms `setInterval` polling to Tauri event subscriptions (`desktop://session-update` / `desktop://table-update`) with 5s fallback poll. Rust commands emit events after mutations.
+- **H2:** Optimistic ready-toggle in lobby; table action tray already had instant disable via `submitting` state.
+- **F1-F3:** Tournament name validation, port range feedback, 10s invite validation timeout.
+- **W1-W5:** Pre-hand table message updated, join error copy improved, wasHost-conditional "Host another table" button, confirmation dialogs for destructive settings, side panel state persisted in shell.
+- **I1-I4:** Decoded invite pill labels, empty card slot ARIA/no visible text, player count + hands played on complete screen, hand number in observer banner.
+- **E1-E3:** Context-aware help screen highlights relevant section, error labels already human-friendly, start hosting loading state.
+- **A1-A2:** Dense lobby "Take" button aria-label, StatusBadge tone icons (aria-hidden).
+- Frontend: 179 tests pass, lint clean. Rust: clippy clean; live TCP tests are intermittently flaky due to port contention (pre-existing).
+
 ## 2026-06-05T16:18:07Z - Claude Sonnet 4.6 - Full UI/UX review and improvements backlog
 
 - Conducted a full UI/UX review of all frontend screens, providers, shared components, and API bridge.
