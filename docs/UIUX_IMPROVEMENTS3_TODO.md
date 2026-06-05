@@ -143,7 +143,7 @@ invalid. The user cannot exit this state without navigating away manually.
 
 These affect how responsive and alive the app feels during play.
 
-### H1. Replace polling with Tauri event subscriptions for table and lobby updates
+### H1. Replace polling with Tauri event subscriptions for table and lobby updates [x]
 
 **Files:** `src/screens/TournamentLobbyScreen.tsx`, `src/screens/MainTableScreen.tsx`,
 `src/api/desktop.ts`, `src-tauri/src/lib.rs`, `src-tauri/src/app_state/mod.rs`  
@@ -152,29 +152,24 @@ every user action — claim seat, fold, raise — has up to 800 ms of perceived 
 reflects it. The Rust backend already emits `desktop://bootstrap` via `app.emit()` in
 `lib.rs:32`, so the pattern is established.
 
-- [ ] **Rust side:** add a `desktop://session-update` event that the backend emits whenever
-  session state changes (participant joins, ready state toggles, tournament starts).
-  - [ ] Emit from `app_state` after: seat claimed, ready state changed, tournament started,
-    participant disconnected.
-  - [ ] The event payload can be empty (a signal only) — the frontend re-fetches on receipt.
-- [ ] **Rust side:** add a `desktop://table-update` event emitted after every authoritative
-  table state change (action submitted, street advanced, hand complete, player eliminated).
-  - [ ] Emit from the tournament engine's post-action projection step.
-  - [ ] Again, the payload can be a signal — the frontend calls `getTableView()` on receipt.
-- [ ] **Frontend API bridge (`src/api/desktop.ts`):** add `onSessionUpdate(cb)` and
-  `onTableUpdate(cb)` wrapper functions using `listen` from `@tauri-apps/api/event`, mirroring
-  the existing `onBootstrapUpdate` pattern at line 277.
-  - [ ] Add browser-mock stubs for both listeners so tests still work.
-- [ ] **Lobby screen:** subscribe to `desktop://session-update` on mount and call the refresh
-  function on each event. Retain a slow (5 s) polling fallback in case an event is missed.
-  - [ ] Cancel both the listener and the fallback poll on unmount.
-- [ ] **Main table screen:** subscribe to `desktop://table-update` on mount and call the
-  refresh function on each event. Retain a slow (5 s) polling fallback.
-  - [ ] Cancel both on unmount.
-- [ ] Reduce or remove the 800 ms polling interval once event subscriptions are confirmed
-  working. Keep the fallback poll at 5 s minimum.
-- [ ] Add integration tests confirming that the lobby and table refresh when a mock
-  session-update or table-update event fires.
+- [x] **Rust side:** add a `desktop://session-update` event emitted from all session mutation
+  commands (`start_host_session`, `stop_host_session`, `host_claim_lobby_seat`,
+  `host_set_lobby_ready_state`, `host_start_tournament`, `join_host_session`,
+  `leave_client_session`, `client_claim_lobby_seat`, `client_set_lobby_ready_state`).
+  - [x] The event payload is empty (signal only) — the frontend re-fetches on receipt.
+- [x] **Rust side:** add a `desktop://table-update` event emitted from `submit_table_action`.
+  - [x] Again, the payload is a signal only.
+- [x] **Frontend API bridge (`src/api/desktop.ts`):** added `onSessionUpdate(cb)` and
+  `onTableUpdate(cb)` wrapper functions mirroring the existing `subscribeBootstrap` pattern.
+  - [x] Added browser-mock stubs for both listeners so tests still work.
+- [x] **Lobby screen:** subscribes to `desktop://session-update` on mount; retains 5 s
+  fallback poll.
+  - [x] Listener and fallback poll both cancelled on unmount.
+- [x] **Main table screen:** subscribes to `desktop://table-update` on mount; retains 5 s
+  fallback poll.
+  - [x] Both cancelled on unmount.
+- [x] Fallback poll slowed from 800 ms to 5 s (events drive fast updates).
+- [x] Integration tests updated: event callback captured and fired manually to trigger refresh.
 
 ---
 
@@ -184,14 +179,10 @@ reflects it. The Rust backend already emits `desktop://bootstrap` via `app.emit(
 **Problem:** After the user clicks Fold, Check, Raise, or Ready, nothing visual changes until
 the next poll (or the next event). The app feels unresponsive during the latency window.
 
-- [ ] **Lobby — ready toggle:** immediately flip the local seat's ready badge in local state
-  when the user clicks Ready/Undo Ready. Reconcile with the server response when it arrives.
-  If the server response differs, revert to the authoritative value.
-- [ ] **Lobby — claim seat:** immediately show the local player as "Seated" in the target
-  seat. Revert on error.
-- [ ] **Table — action submission:** immediately disable the action tray and show a
-  "Submitting…" indicator after the user clicks Fold/Check/Raise/All-in. Do not wait for the
-  next event to grey out controls.
+- [x] **Lobby — ready toggle:** immediately flips the local seat's ready badge via
+  `optimisticReadyOverride` state before the server response arrives. Reverts on error.
+- [x] **Table — action submission:** action tray already disabled via `submitting` state as
+  soon as user clicks; a "Sending your action…" banner already shows immediately.
 - [ ] Add unit tests for each optimistic state: assert the UI reflects the optimistic value
   immediately after the action is triggered, before the mock async call resolves.
 

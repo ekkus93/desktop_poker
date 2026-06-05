@@ -6,6 +6,8 @@ type DesktopBrowserMocks = {
   subscribeBootstrap?: (
     onBootstrap: (bootstrap: DesktopBootstrapState) => void,
   ) => Promise<() => void>;
+  onSessionUpdate?: (callback: () => void) => Promise<() => void>;
+  onTableUpdate?: (callback: () => void) => Promise<() => void>;
   startHostSession?: (request: StartHostSessionRequest) => Promise<HostSessionStatus>;
   getHostSessionStatus?: () => Promise<HostSessionStatus | null>;
   stopHostSession?: () => Promise<void>;
@@ -256,6 +258,8 @@ export type DebugInspectorState = {
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";
+const SESSION_UPDATE_EVENT = "desktop://session-update";
+const TABLE_UPDATE_EVENT = "desktop://table-update";
 
 export function fetchBootstrapState() {
   const browserMocks = getBrowserMocks();
@@ -276,6 +280,28 @@ export function subscribeBootstrap(
 
   return listen<DesktopBootstrapState>(BOOTSTRAP_EVENT, (event) => {
     onBootstrap(event.payload);
+  });
+}
+
+export function onSessionUpdate(callback: () => void) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.onSessionUpdate) {
+    return browserMocks.onSessionUpdate(callback);
+  }
+
+  return listen(SESSION_UPDATE_EVENT, () => {
+    callback();
+  });
+}
+
+export function onTableUpdate(callback: () => void) {
+  const browserMocks = getBrowserMocks();
+  if (browserMocks?.onTableUpdate) {
+    return browserMocks.onTableUpdate(callback);
+  }
+
+  return listen(TABLE_UPDATE_EVENT, () => {
+    callback();
   });
 }
 

@@ -1,6 +1,6 @@
 use std::{fmt::Display, net::IpAddr};
 
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::{
     app_state::{
@@ -33,10 +33,13 @@ pub fn validate_join_payload_input(payload: String) -> Result<JoinPayload, Strin
 
 #[tauri::command]
 pub fn start_host_session(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: StartHostSessionRequest,
 ) -> Result<HostSessionStatus, String> {
-    state.start_host_session(request)
+    let result = state.start_host_session(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
@@ -47,39 +50,53 @@ pub fn get_host_session_status(
 }
 
 #[tauri::command]
-pub fn stop_host_session(state: State<'_, DesktopAppState>) -> Result<(), String> {
-    state.stop_host_session()
+pub fn stop_host_session(app: AppHandle, state: State<'_, DesktopAppState>) -> Result<(), String> {
+    state.stop_host_session()?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(())
 }
 
 #[tauri::command]
 pub fn host_claim_lobby_seat(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: ClaimLobbySeatRequest,
 ) -> Result<HostSessionStatus, String> {
-    state.host_claim_lobby_seat(request)
+    let result = state.host_claim_lobby_seat(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn host_set_lobby_ready_state(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: SetLobbyReadyStateRequest,
 ) -> Result<HostSessionStatus, String> {
-    state.host_set_lobby_ready_state(request)
+    let result = state.host_set_lobby_ready_state(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn host_start_tournament(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
 ) -> Result<HostSessionStatus, String> {
-    state.host_start_tournament()
+    let result = state.host_start_tournament()?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn join_host_session(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: JoinHostSessionRequest,
 ) -> Result<ClientSessionStatus, String> {
-    state.join_host_session(request)
+    let result = state.join_host_session(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
@@ -90,24 +107,35 @@ pub fn get_client_session_status(
 }
 
 #[tauri::command]
-pub fn leave_client_session(state: State<'_, DesktopAppState>) -> Result<(), String> {
-    state.leave_client_session()
+pub fn leave_client_session(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+) -> Result<(), String> {
+    state.leave_client_session()?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(())
 }
 
 #[tauri::command]
 pub fn client_claim_lobby_seat(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: ClaimLobbySeatRequest,
 ) -> Result<ClientSessionStatus, String> {
-    state.client_claim_lobby_seat(request)
+    let result = state.client_claim_lobby_seat(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn client_set_lobby_ready_state(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: SetLobbyReadyStateRequest,
 ) -> Result<ClientSessionStatus, String> {
-    state.client_set_lobby_ready_state(request)
+    let result = state.client_set_lobby_ready_state(request)?;
+    let _ = app.emit("desktop://session-update", ());
+    Ok(result)
 }
 
 #[tauri::command]
@@ -127,19 +155,22 @@ pub fn get_table_view(
 
 #[tauri::command]
 pub fn submit_table_action(
+    app: AppHandle,
     state: State<'_, DesktopAppState>,
     viewer_mode: TableViewerMode,
     action_kind: DesktopTableActionKind,
     raise_to_amount: Option<u32>,
 ) -> Result<TableViewSnapshot, String> {
-    submit_table_action_inner(
+    let result = submit_table_action_inner(
         viewer_mode,
         action_kind,
         raise_to_amount,
         |next_viewer_mode, next_action_kind, next_raise_to_amount| {
             state.submit_table_action(next_viewer_mode, next_action_kind, next_raise_to_amount)
         },
-    )
+    )?;
+    let _ = app.emit("desktop://table-update", ());
+    Ok(result)
 }
 
 #[tauri::command]

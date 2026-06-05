@@ -15,6 +15,8 @@ import {
   hostStartTournament,
   joinHostSession,
   launchAdditionalClientInstance,
+  onSessionUpdate,
+  onTableUpdate,
   resolveHostLanAddress,
   stopHostSession,
   startHostSession,
@@ -51,6 +53,8 @@ vi.mock("../api/desktop", async () => {
     hostStartTournament: vi.fn(),
     joinHostSession: vi.fn(),
     launchAdditionalClientInstance: vi.fn(),
+    onSessionUpdate: vi.fn().mockResolvedValue(() => {}),
+    onTableUpdate: vi.fn().mockResolvedValue(() => {}),
     resolveHostLanAddress: vi.fn(),
     stopHostSession: vi.fn(),
     startHostSession: vi.fn(),
@@ -73,6 +77,8 @@ const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
 const mockedHostStartTournament = vi.mocked(hostStartTournament);
 const mockedJoinHostSession = vi.mocked(joinHostSession);
 const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
+const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
+const mockedOnTableUpdate = vi.mocked(onTableUpdate);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedStopHostSession = vi.mocked(stopHostSession);
 const mockedStartHostSession = vi.mocked(startHostSession);
@@ -248,6 +254,10 @@ describe("AppShell integration", () => {
     mockedHostStartTournament.mockReset();
     mockedJoinHostSession.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
+    mockedOnSessionUpdate.mockReset();
+    mockedOnSessionUpdate.mockResolvedValue(() => {});
+    mockedOnTableUpdate.mockReset();
+    mockedOnTableUpdate.mockResolvedValue(() => {});
     mockedResolveHostLanAddress.mockReset();
     mockedStopHostSession.mockReset();
     mockedStartHostSession.mockReset();
@@ -607,6 +617,13 @@ describe("AppShell integration", () => {
   });
 
   it("shows a host recovery path when the live host session stops before play starts", async () => {
+    // Capture the session-update callback so we can fire it manually
+    let capturedSessionUpdateCallback: (() => void) | undefined;
+    mockedOnSessionUpdate.mockImplementation((cb) => {
+      capturedSessionUpdateCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
     currentHostSession = buildHostSessionStatus({
       tournamentName: "Friday Night",
       displayName: "Host Alpha",
@@ -618,7 +635,10 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
 
+    // Simulate host session stopping and fire a session-update event to trigger re-poll
     currentHostSession = null;
+    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined());
+    capturedSessionUpdateCallback?.();
 
     expect(
       await screen.findByText(

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getTableView,
+  onTableUpdate,
   submitTableAction,
   type DesktopTableActionKind,
   type TableViewSnapshot,
@@ -21,11 +22,13 @@ vi.mock("../api/desktop", async () => {
     ...actual,
     getTableView: vi.fn(),
     submitTableAction: vi.fn(),
+    onTableUpdate: vi.fn().mockResolvedValue(() => {}),
   };
 });
 
 const mockedGetTableView = vi.mocked(getTableView);
 const mockedSubmitTableAction = vi.mocked(submitTableAction);
+const mockedOnTableUpdate = vi.mocked(onTableUpdate);
 
 const createTableView = createTableViewSnapshot;
 
@@ -33,6 +36,8 @@ describe("MainTableScreen", () => {
   beforeEach(() => {
     mockedGetTableView.mockReset();
     mockedSubmitTableAction.mockReset();
+    mockedOnTableUpdate.mockReset();
+    mockedOnTableUpdate.mockResolvedValue(() => {});
     vi.useRealTimers();
   });
 
@@ -176,6 +181,14 @@ describe("MainTableScreen", () => {
         },
       ],
     });
+
+    // Capture the table-update callback so we can fire it manually
+    let capturedTableUpdateCallback: (() => void) | undefined;
+    mockedOnTableUpdate.mockImplementation((cb) => {
+      capturedTableUpdateCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
     mockedGetTableView
       .mockResolvedValueOnce(initialView)
       .mockResolvedValue(refreshedView);
@@ -188,12 +201,13 @@ describe("MainTableScreen", () => {
     ).toBeTruthy();
     expect(await screen.findByText("Pot 120")).toBeTruthy();
 
+    // Fire the table-update event to trigger a refresh (simulates the Rust backend emitting)
+    await waitFor(() => expect(capturedTableUpdateCallback).toBeDefined());
+    capturedTableUpdateCallback?.();
+
     await waitFor(() => {
       expect(screen.getByText("Pot 240")).toBeTruthy();
     }, { timeout: 2000 });
-    await waitFor(() => {
-      expect(mockedGetTableView).toHaveBeenCalledTimes(2);
-    });
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
     expect(
       screen.getByText(/host called and the turn was published to every seat and observer/i),

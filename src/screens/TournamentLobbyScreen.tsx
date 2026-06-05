@@ -10,6 +10,7 @@ import {
   hostSetLobbyReadyState,
   hostStartTournament,
   leaveClientSession,
+  onSessionUpdate,
   stopHostSession,
   type ClientSessionStatus,
   type HostSessionStatus,
@@ -63,8 +64,8 @@ function buildLiveSeats(
   return seats;
 }
 
-const LOBBY_POLL_NORMAL_MS = 800;
-const LOBBY_POLL_SLOW_MS = 3000;
+const LOBBY_POLL_NORMAL_MS = 5000;
+const LOBBY_POLL_SLOW_MS = 10000;
 const LOBBY_BACKOFF_THRESHOLD = 3;
 const LOBBY_ERROR_LIMIT = 10;
 
@@ -79,6 +80,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(null);
   const [connectionSlow, setConnectionSlow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<boolean | null>(null);
   const hostSessionRef = useRef<HostSessionStatus | null>(null);
   const consecutiveErrorsRef = useRef(0);
 
@@ -165,9 +167,47 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
     refresh();
 
+    // Subscribe to session-update events for immediate refresh on state changes.
+    // The fallback poll above catches any missed events.
+    const unlistenPromise = onSessionUpdate(() => {
+      if (active) {
+        void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
+          .then(([nextHostSession, nextClientSession]) => {
+            if (!active) {
+              return;
+            }
+
+            consecutiveErrorsRef.current = 0;
+            setConnectionSlow(false);
+
+            const previousHostSession = hostSessionRef.current;
+            if (
+              previousHostSession
+              && previousHostSession.phase !== "running"
+              && !nextHostSession
+              && !nextClientSession
+            ) {
+              setHostRecoveryError(
+                "Hosting stopped before the table went live. Start hosting again or return home.",
+              );
+            } else if (nextHostSession) {
+              setHostRecoveryError(null);
+            }
+
+            setHostSession(nextHostSession);
+            setClientSession(nextClientSession);
+            setSessionStatus("ready");
+          })
+          .catch(() => {
+            // Ignore event-driven refresh errors; the fallback poll handles recovery
+          });
+      }
+    });
+
     return () => {
       active = false;
       window.clearTimeout(timeoutId);
+      void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [navigate]);
 
@@ -179,7 +219,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const participants = liveSession ? buildLiveSeats(liveSession) : [];
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const localSeat = participants.find((seat) => seat.isLocal);
-  const localSeatReady = localSeat?.ready ?? false;
+  const localSeatReady = optimisticReadyOverride ?? localSeat?.ready ?? false;
   const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready).length;
   const openSeatCount = liveSession?.openSeatCount ?? 0;
   const leaveTitle = localSeat?.kind === "host" ? "Close this table?" : "Leave this table?";
@@ -322,17 +362,21 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const toggleLiveReadyState = async () => {
     setSubmitting(true);
     setLobbyError(null);
+    const nextReady = !localSeatReady;
+    setOptimisticReadyOverride(nextReady);
 
     try {
       if (hostSession) {
-        setHostSession(await hostSetLobbyReadyState({ isReady: !localSeatReady }));
+        setHostSession(await hostSetLobbyReadyState({ isReady: nextReady }));
       } else if (clientSession) {
-        setClientSession(await clientSetLobbyReadyState({ isReady: !localSeatReady }));
+        setClientSession(await clientSetLobbyReadyState({ isReady: nextReady }));
       }
     } catch (error) {
       setLobbyError(error instanceof Error ? error.message : "Unable to change ready state.");
+      setOptimisticReadyOverride(null);
     } finally {
       setSubmitting(false);
+      setOptimisticReadyOverride(null);
     }
   };
 

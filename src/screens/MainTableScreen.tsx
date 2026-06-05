@@ -3,6 +3,7 @@ import { History, PanelRight, Trophy } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getTableView,
+  onTableUpdate,
   submitTableAction,
   type DesktopTableActionKind,
   type TableCardView,
@@ -16,8 +17,8 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 const BOARD_SLOT_COUNT = 5;
-const TABLE_POLL_NORMAL_MS = 800;
-const TABLE_POLL_SLOW_MS = 3000;
+const TABLE_POLL_NORMAL_MS = 5000;
+const TABLE_POLL_SLOW_MS = 10000;
 const POLL_BACKOFF_THRESHOLD = 3;
 const POLL_ERROR_LIMIT = 10;
 const EVENT_FEED_CAP = 50;
@@ -115,9 +116,31 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
     void loadInitial();
 
+    // Subscribe to table-update events for immediate refresh on state changes.
+    // The fallback poll above catches any missed events.
+    const unlistenPromise = onTableUpdate(() => {
+      if (cancelled) {
+        return;
+      }
+
+      void getTableView(viewerMode)
+        .then((snapshot) => {
+          if (!cancelled) {
+            consecutiveErrorsRef.current = 0;
+            setTableView(snapshot);
+            setError(null);
+            setConnectionSlow(false);
+          }
+        })
+        .catch(() => {
+          // Ignore event-driven refresh errors; the fallback poll handles recovery
+        });
+    });
+
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
+      void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [navigate, viewerMode]);
 

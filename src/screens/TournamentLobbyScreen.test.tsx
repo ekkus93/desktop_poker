@@ -4,6 +4,7 @@ import {
   getClientSessionStatus,
   getHostSessionStatus,
   hostSetLobbyReadyState,
+  onSessionUpdate,
   stopHostSession,
   type HostSessionStatus,
 } from "../api/desktop";
@@ -21,6 +22,7 @@ vi.mock("../api/desktop", async () => {
     getClientSessionStatus: vi.fn(),
     getHostSessionStatus: vi.fn(),
     hostSetLobbyReadyState: vi.fn(),
+    onSessionUpdate: vi.fn().mockResolvedValue(() => {}),
     stopHostSession: vi.fn(),
   };
 });
@@ -28,6 +30,7 @@ vi.mock("../api/desktop", async () => {
 const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
+const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
 const mockedStopHostSession = vi.mocked(stopHostSession);
 
 function createHostSession(
@@ -74,6 +77,8 @@ describe("TournamentLobbyScreen", () => {
     mockedGetClientSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockReset();
     mockedHostSetLobbyReadyState.mockReset();
+    mockedOnSessionUpdate.mockReset();
+    mockedOnSessionUpdate.mockResolvedValue(() => {});
     mockedStopHostSession.mockReset();
     mockedGetClientSessionStatus.mockResolvedValue(null);
     mockedGetHostSessionStatus.mockResolvedValue(createHostSession());
@@ -153,7 +158,14 @@ describe("TournamentLobbyScreen", () => {
   });
 
   it("shows recovery actions when host stops before the table goes live (B5)", async () => {
-    // First poll returns a session, second poll returns null (host stopped)
+    // Capture the session-update callback so we can fire it manually
+    let capturedSessionUpdateCallback: (() => void) | undefined;
+    mockedOnSessionUpdate.mockImplementation((cb) => {
+      capturedSessionUpdateCallback = cb;
+      return Promise.resolve(() => {});
+    });
+
+    // First poll returns a session; subsequent calls return null (host stopped)
     mockedGetHostSessionStatus
       .mockResolvedValueOnce(createHostSession())
       .mockResolvedValue(null);
@@ -164,8 +176,14 @@ describe("TournamentLobbyScreen", () => {
       initialEntries: ["/lobby"],
     });
 
-    // Wait for recovery state to appear — there will be multiple "Host stopped" instances
-    // (badge + heading) which is expected
+    // Wait for the initial lobby to render
+    expect(await screen.findByText("Friday Finals Live")).toBeTruthy();
+
+    // Fire session-update event to trigger a re-poll (which returns null → recovery)
+    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined());
+    capturedSessionUpdateCallback?.();
+
+    // Wait for recovery state to appear
     await waitFor(() => {
       expect(screen.getAllByText("Host stopped").length).toBeGreaterThan(0);
     });
