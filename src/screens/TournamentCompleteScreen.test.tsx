@@ -60,6 +60,26 @@ describe("TournamentCompleteScreen", () => {
     expect(screen.getByText(/won the tournament/i)).toBeTruthy();
   });
 
+  it("shows player count and hands played stats on the complete screen (I3)", async () => {
+    const bootstrap = createBootstrap();
+    mockedGetTableView.mockResolvedValue(
+      createTableViewSnapshot({
+        phaseLabel: "Complete",
+        currentHandNumber: 12,
+        standings: [
+          { rank: 1, displayName: "Maya", chipCount: 3000, statusLabel: "Winner", note: null, isLocal: false, isObserver: false },
+          { rank: 2, displayName: "You", chipCount: 0, statusLabel: "Eliminated", note: null, isLocal: true, isObserver: true },
+          { rank: 3, displayName: "Host", chipCount: 0, statusLabel: "Eliminated", note: null, isLocal: false, isObserver: true },
+        ],
+      }),
+    );
+
+    renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
+
+    expect(await screen.findByText(/3 players/i)).toBeTruthy();
+    expect(screen.getByText(/12 hands played/i)).toBeTruthy();
+  });
+
   it("shows statusLabel not chip count for observer standings entries (B1)", async () => {
     const bootstrap = createBootstrap();
     mockedGetTableView.mockResolvedValue(

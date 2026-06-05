@@ -45,6 +45,12 @@ export function TournamentCompleteScreen() {
               ? `${tableView.standings[0]?.displayName ?? "The winner"} wins ${hostDraft.tournamentName}.`
               : "Final order appears here when the tournament closes."}
           </p>
+          {tableView ? (
+            <p className="field-hint">
+              {tableView.standings.length} players
+              {tableView.currentHandNumber !== null ? ` · ${tableView.currentHandNumber} hands played` : ""}
+            </p>
+          ) : null}
           <div className="stacked-list scroll-list">
             {(tableView?.standings.length ? tableView.standings : []).map((entry) => (
               <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">

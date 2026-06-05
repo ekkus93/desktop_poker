@@ -322,6 +322,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <div className="inline-banner info observer-banner">
                     <strong>Observer mode</strong>
                     <span>{tableView.observerBanner}</span>
+                    {tableView.currentHandNumber !== null ? (
+                      <span>Watching hand #{tableView.currentHandNumber}</span>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -350,7 +353,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
                     <div className="community-cards centered-community-cards" aria-label="Community cards">
                       {boardCards.map((card, index) => (
-                        <PlayingCard key={index} card={card} placeholderLabel={`Board ${index + 1}`} size="board" />
+                        <PlayingCard key={index} card={card} placeholderAriaLabel={`Community card ${index + 1}`} size="board" />
                       ))}
                     </div>
                   </>
@@ -583,13 +586,13 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
 type PlayingCardProps = {
   card: TableCardView | null;
-  placeholderLabel?: string;
+  placeholderAriaLabel?: string;
   size: "board" | "local" | "compact";
 };
 
-function PlayingCard({ card, placeholderLabel, size }: PlayingCardProps) {
+function PlayingCard({ card, placeholderAriaLabel, size }: PlayingCardProps) {
   if (!card) {
-    return <div className={`card-slot ${size}`}>{placeholderLabel ?? "Waiting"}</div>;
+    return <div aria-label={placeholderAriaLabel} className={`card-slot ${size} empty-card-slot`} role="img" />;
   }
 
   const cornerRank = card.compactLabel.replace(card.suitSymbol, "");

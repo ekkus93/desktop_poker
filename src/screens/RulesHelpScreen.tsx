@@ -1,7 +1,27 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
 export function RulesHelpScreen() {
+  const location = useLocation();
+  const context = (location.state as { context?: string } | null)?.context ?? null;
+
+  useEffect(() => {
+    const scrollTo = (id: string) => {
+      const el = document.getElementById(id);
+      if (el?.scrollIntoView) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+
+    if (context === "join-failure") {
+      scrollTo("help-join-flow");
+    } else if (context === "lan-error") {
+      scrollTo("help-host-flow");
+    }
+  }, [context]);
+
   return (
     <ScreenShell
       title="Help"
@@ -18,22 +38,33 @@ export function RulesHelpScreen() {
           </ul>
         </SectionCard>
 
-        <SectionCard title="Host flow" className="support-card">
-          <ul>
-            <li>Start on Host Tournament and confirm the LAN address is ready.</li>
-            <li>Share the invite card with everyone joining the table.</li>
-            <li>Open the lobby only after the host machine shows a reachable address.</li>
-          </ul>
-        </SectionCard>
+        <div id="help-host-flow">
+          <SectionCard
+            title="Host flow"
+            className={`support-card${context === "lan-error" ? " help-section-highlighted" : ""}`}
+          >
+            <ul>
+              <li>Start on Host Tournament and confirm the LAN address is ready.</li>
+              <li>Share the invite card with everyone joining the table.</li>
+              <li>Open the lobby only after the host machine shows a reachable address.</li>
+              <li>If LAN detection fails, check that the device is connected to the same network as the other players.</li>
+            </ul>
+          </SectionCard>
+        </div>
 
-        <SectionCard title="Join flow" className="support-card">
-          <ul>
-            <li>The host shares an invite from the host screen.</li>
-            <li>Paste that invite on Join Tournament.</li>
-            <li>Check the table preview, then continue into the lobby.</li>
-            <li>The host computer needs a reachable LAN address before others can join.</li>
-          </ul>
-        </SectionCard>
+        <div id="help-join-flow">
+          <SectionCard
+            title="Join flow"
+            className={`support-card${context === "join-failure" ? " help-section-highlighted" : ""}`}
+          >
+            <ul>
+              <li>The host shares an invite from the host screen — ask for the invite code starting with <code>pkr1_</code>.</li>
+              <li>Paste that invite on Join Tournament and click Check invite.</li>
+              <li>Check the table preview, then continue into the lobby.</li>
+              <li>If the join fails, confirm the host is still running and sharing the same invite.</li>
+            </ul>
+          </SectionCard>
+        </div>
 
         <SectionCard title="Observers and history" className="support-card">
           <ul>

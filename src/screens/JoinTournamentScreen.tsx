@@ -46,12 +46,39 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const [pillMeta, setPillMeta] = useState<Map<string, { label: string; invalid?: boolean }>>(new Map());
   const launchJoinAttemptedForPayload = useRef<string | null>(null);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     return searchParams.get("payload");
   }, [location.search]);
+
+  // Decode recent invite pills for display labels
+  useEffect(() => {
+    let cancelled = false;
+
+    void Promise.all(
+      recentJoinPayloads.map(async (payload) => {
+        try {
+          const parsed = await validateJoinPayloadInput(payload);
+          const label = parsed.tableName
+            ? `${parsed.tableName} · ${parsed.hostAddress}`
+            : `${parsed.hostAddress}:${parsed.hostPort}`;
+          return [payload, { label }] as const;
+        } catch {
+          const truncated = payload.length > 20 ? `${payload.slice(0, 20)}…` : payload;
+          return [payload, { label: truncated, invalid: true }] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!cancelled) {
+        setPillMeta(new Map(entries));
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [recentJoinPayloads]);
 
   useEffect(() => {
     if (deepLinkPayload && deepLinkPayload !== joinPayloadDraft) {
@@ -419,33 +446,39 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     </button>
                   </div>
                   <div className="recent-pill-row">
-                    {recentJoinPayloads.map((payload) => (
-                      <button
-                        className="list-button recent-pill"
-                        key={payload}
-                        onClick={() => {
-                          setJoinPayloadDraft(payload);
-                          setValidationState({ status: "validating" });
-                          setInviteBanner(null);
+                    {recentJoinPayloads.map((payload) => {
+                      const meta = pillMeta.get(payload);
+                      const pillLabel = meta?.label ?? payload.slice(0, 20);
+                      const isInvalid = meta?.invalid ?? false;
+                      return (
+                        <button
+                          className={`list-button recent-pill${isInvalid ? " recent-pill-invalid" : ""}`}
+                          key={payload}
+                          onClick={() => {
+                            setJoinPayloadDraft(payload);
+                            setValidationState({ status: "validating" });
+                            setInviteBanner(null);
 
-                          void validateJoinPayloadInput(payload)
-                            .then((parsedPayload) => {
-                              setValidationState({ status: "valid", payload: parsedPayload });
-                              setInviteBanner("Loaded a recent invite.");
-                            })
-                            .catch((error: unknown) => {
-                              setValidationState({
-                                status: "invalid",
-                                message: normaliseError(error),
+                            void validateJoinPayloadInput(payload)
+                              .then((parsedPayload) => {
+                                setValidationState({ status: "valid", payload: parsedPayload });
+                                setInviteBanner("Loaded a recent invite.");
+                              })
+                              .catch((error: unknown) => {
+                                setValidationState({
+                                  status: "invalid",
+                                  message: normaliseError(error),
+                                });
+                                setInviteBanner(null);
                               });
-                              setInviteBanner(null);
-                            });
-                        }}
-                        type="button"
-                      >
-                        <span className="mono-value">{payload}</span>
-                      </button>
-                    ))}
+                          }}
+                          title={isInvalid ? "This invite may be outdated" : payload}
+                          type="button"
+                        >
+                          {pillLabel}
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
               ) : (

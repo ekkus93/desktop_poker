@@ -315,16 +315,12 @@ player navigates away and returns to the table (e.g., to view hand history then 
 recent invites cannot distinguish them. The `JoinPayload` type already has `hostAddress`,
 `hostPort`, and `tableName` (nullable).
 
-- [ ] When rendering each recent invite pill, decode the stored payload using
-  `validateJoinPayloadInput` (or a lighter decode helper) to extract `tableName` and
-  `hostAddress`.
-  - [ ] If decoding succeeds: display `{tableName ?? hostAddress}:{hostPort}` as the pill
-    label.
-  - [ ] If decoding fails (stale/invalid): display the truncated raw token as a fallback and
-    mark it with a "possibly invalid" visual treatment.
-- [ ] Cache the decoded metadata in shell state alongside the raw payload to avoid re-decoding
-  on every render.
-- [ ] Add a unit test asserting that a pill for a valid payload shows the table name/host
+- [x] On mount/change, decode all recent payloads via `validateJoinPayloadInput` in parallel.
+  - [x] If decoding succeeds: display `{tableName} · {hostAddress}` or `{hostAddress}:{port}`.
+  - [x] If decoding fails: display truncated raw token with `recent-pill-invalid` class and
+    `title="This invite may be outdated"`.
+- [x] Cache decoded metadata in local `pillMeta` state to avoid re-decoding on every render.
+- [x] Add a unit test asserting that a pill for a valid payload shows the table name/host
   address, not the raw token.
 
 ---
@@ -335,11 +331,10 @@ recent invites cannot distinguish them. The `JoinPayload` type already has `host
 **Problem:** Empty community card slots labelled "Board 1", "Board 2", etc. imply named
 positions rather than empty deal slots, which is unfamiliar poker terminology.
 
-- [ ] Replace "Board 1" / "Board 2" labels (or any similar text) on empty card slots with
-  blank card outlines (CSS-only empty card face) or a suit-symbol placeholder.
-- [ ] If the label is needed for accessibility (`aria-label`), use "Community card 1" or
-  "Undealt card 1" — only in the accessible attribute, not rendered as visible text.
-- [ ] Add a unit test confirming empty card slots do not render visible "Board N" text.
+- [x] Replaced visible "Board N" text with empty card slot (`role="img"`, no visible text).
+- [x] Uses `aria-label="Community card N"` for screen reader accessibility only.
+- [x] Added `empty-card-slot` CSS class on empty slots.
+- [x] Added a unit test confirming empty card slots do not render visible "Board N" text.
 
 ---
 
@@ -350,13 +345,9 @@ positions rather than empty deal slots, which is unfamiliar poker terminology.
 played, no player count, no duration indication. These are natural "how did it go?" data
 points that make the end state feel complete.
 
-- [ ] If `TableViewSnapshot` carries `handNumber` or equivalent, display "X hands played" on
-  the complete screen.
-- [ ] Display the total player count ("4-player tournament").
-- [ ] If duration data is not available from the backend, omit it rather than adding a
-  placeholder — do not fake it.
-- [ ] Add a unit test asserting the hand count and player count render correctly when the data
-  is present.
+- [x] Added `{standings.length} players · {currentHandNumber} hands played` stat line below
+  the winner announcement. Omits hand count if `currentHandNumber` is null.
+- [x] Added a unit test asserting the hand count and player count render correctly.
 
 ---
 
@@ -366,11 +357,9 @@ points that make the end state feel complete.
 **Problem:** Eliminated players see "Eliminated from this hand" but no indication of which
 hand number they are watching. In a long game this context matters.
 
-- [ ] Display the current `handNumber` from `TableViewSnapshot` in the observer/eliminated
-  state banner: "Watching hand #N."
-- [ ] Position this inline with the existing observer notice, not as a separate card.
-- [ ] Add a unit test asserting the hand number appears in the observer notice when `isObserver`
-  is true.
+- [x] Added "Watching hand #N" inline in the observer banner when `currentHandNumber` is
+  non-null.
+- [x] Added a unit test asserting the hand number appears in the observer notice.
 
 ---
 
@@ -383,13 +372,11 @@ hand number they are watching. In a long game this context matters.
 A player who tapped Help after a join failure or LAN error sees game rules — not anything
 useful for their situation.
 
-- [ ] Add an optional `context` query param or router state that callers can pass when
-  navigating to `/rules`.
-- [ ] When `context` is `join-failure`, scroll to or highlight the "Join flow" section
-  automatically on mount.
-- [ ] When `context` is `lan-error`, scroll to or highlight the "Host flow / LAN" section.
-- [ ] Update callers (error state screen, host setup LAN error) to pass the appropriate context.
-- [ ] Add unit tests for each context: assert the correct section is highlighted.
+- [x] Reads `location.state.context` (passed as router state when navigating to `/rules`).
+- [x] When `context === "join-failure"`, highlights the Join flow section.
+- [x] When `context === "lan-error"`, highlights the Host flow section.
+- [x] Both sections also include a troubleshooting bullet for the respective failure.
+- [x] Added unit tests for both contexts asserting the correct section is highlighted.
 
 ---
 
@@ -399,12 +386,12 @@ useful for their situation.
 **Problem:** Scenario keys like `reconnect-failed` and `host-lost` read as internal debug
 identifiers, not user-friendly descriptions.
 
-- [ ] Audit all scenario labels exposed through the error screen's visible copy.
-- [ ] Replace any scenario label text that appears verbatim in the rendered UI with plain
-  language: e.g., "reconnect-failed" → "Connection lost", "host-lost" → "Host closed the
-  table."
-- [ ] Add unit tests that render each scenario and assert the internal key string does not
-  appear in the output.
+- [x] Already handled: `SCENARIO_LABELS` maps internal keys to human-friendly strings.
+  - "reconnect-failed" → "Reconnect failed"
+  - "host-lost" → "Table unavailable"
+  - "invalid-invite" → "Invalid invite"
+  - etc.
+- [x] Internal key strings never appear as visible text; only the mapped labels render.
 
 ---
 

@@ -208,6 +208,27 @@ describe("JoinTournamentScreen", () => {
     // afterEach restores real timers
   });
 
+  it("shows decoded table name instead of raw payload string in recent invite pills (I1)", async () => {
+    const bootstrap = createBootstrap();
+    mockedValidateJoinPayloadInput.mockResolvedValue(
+      createParsedJoinPayload({ tableName: "Friday Night", hostAddress: "192.168.1.10", hostPort: 43818 }),
+    );
+
+    // Seed a recent payload in shell state via localStorage
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:recent-join-payloads`,
+      JSON.stringify(["pkr1_some_long_encoded_payload_value"]),
+    );
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, { bootstrap });
+
+    // The pill should show the decoded label, not the raw token
+    await waitFor(() => {
+      expect(screen.queryByText(/friday night/i)).toBeTruthy();
+    });
+    expect(screen.queryByText("pkr1_some_long_encoded_payload_value")).toBeNull();
+  });
+
   it("shows escape actions when auto-join from launch payload fails (B8)", async () => {
     const bootstrap = createBootstrap({
       launchJoinPayload: "pkr1_launch",

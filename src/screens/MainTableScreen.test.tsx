@@ -342,6 +342,32 @@ describe("MainTableScreen", () => {
     expect(screen.getByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
   });
 
+  it("renders empty community card slots without visible Board N text (I2)", async () => {
+    mockedGetTableView.mockResolvedValue(
+      createTableView({ boardCards: [], currentHandNumber: 3 }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    // Community cards section should appear but contain no "Board N" visible text
+    const communityCards = await screen.findByLabelText("Community cards");
+    expect(communityCards).toBeTruthy();
+    expect(communityCards.textContent).not.toMatch(/Board \d/);
+  });
+
+  it("shows hand number in observer banner when the local player is an observer (I4)", async () => {
+    mockedGetTableView.mockResolvedValue(
+      createTableView({
+        observerBanner: "You are watching as an observer.",
+        currentHandNumber: 7,
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+
+    expect(await screen.findByText(/watching hand #7/i)).toBeTruthy();
+  });
+
   it("keeps focus order sane across the main action tray", async () => {
     const bootstrap = createBootstrap();
     const user = userEvent.setup();

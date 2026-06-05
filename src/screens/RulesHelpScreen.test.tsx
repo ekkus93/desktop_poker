@@ -20,4 +20,33 @@ describe("RulesHelpScreen", () => {
     expect(screen.queryByText(/debug tools/i)).toBeNull();
     expect(screen.queryByText(/payload/i)).toBeNull();
   });
+
+  it("highlights the join flow section when context is join-failure (E1)", () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<RulesHelpScreen />, {
+      bootstrap,
+      initialEntries: [{ pathname: "/rules", state: { context: "join-failure" } }],
+    });
+
+    const joinSection = document.getElementById("help-join-flow");
+    expect(joinSection?.querySelector(".help-section-highlighted")).toBeTruthy();
+    // Host section should NOT be highlighted
+    const hostSection = document.getElementById("help-host-flow");
+    expect(hostSection?.querySelector(".help-section-highlighted")).toBeNull();
+  });
+
+  it("highlights the host flow section when context is lan-error (E1)", () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+
+    renderWithProviders(<RulesHelpScreen />, {
+      bootstrap,
+      initialEntries: [{ pathname: "/rules", state: { context: "lan-error" } }],
+    });
+
+    const hostSection = document.getElementById("help-host-flow");
+    expect(hostSection?.querySelector(".help-section-highlighted")).toBeTruthy();
+    const joinSection = document.getElementById("help-join-flow");
+    expect(joinSection?.querySelector(".help-section-highlighted")).toBeNull();
+  });
 });
