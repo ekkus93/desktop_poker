@@ -212,3 +212,122 @@ mod tests {
         assert!(matches!(at, ActionType::Call | ActionType::Fold));
     }
 }
+
+#[cfg(test)]
+mod ollama_live_tests {
+    use super::*;
+    use crate::domain::{ActionType, BlindLevel, StreetPhase};
+    use crate::npc::llm_client::LlmClient;
+    use crate::npc::profile::NpcProfile;
+    use crate::npc::prompt::GameStateSnapshot;
+    use crate::npc::provider::{LlmProviderConfig, LlmProviderType};
+    use crate::npc::strategy::Position;
+
+    fn ollama_cfg(model: &str) -> LlmProviderConfig {
+        LlmProviderConfig {
+            provider: LlmProviderType::Ollama,
+            api_key: None,
+            endpoint_url: None,
+            model: Some(model.to_string()),
+        }
+    }
+
+    fn balanced_profile() -> NpcProfile {
+        NpcProfile {
+            id: "balanced-sam".to_string(),
+            name: "Balanced Sam".to_string(),
+            style: "balanced".to_string(),
+            skill: "advanced".to_string(),
+            description: "You are Balanced Sam, a balanced Texas Hold'em player. Always respond with valid JSON only.".to_string(),
+            opponent_tendencies: None,
+            tilt_behaviour: None,
+        }
+    }
+
+    fn preflop_snap() -> GameStateSnapshot {
+        GameStateSnapshot {
+            hand_number: 1,
+            street: StreetPhase::Preflop,
+            board_cards: vec![],
+            hole_cards: vec![
+                crate::domain::Card {
+                    rank: crate::domain::Rank::Ace,
+                    suit: crate::domain::Suit::Spades,
+                },
+                crate::domain::Card {
+                    rank: crate::domain::Rank::King,
+                    suit: crate::domain::Suit::Hearts,
+                },
+            ],
+            pot_total: 30,
+            call_amount: 20,
+            min_raise_to: Some(40),
+            max_raise_to: Some(1000),
+            stack: 1000,
+            position: Position::Late,
+            active_player_count: 3,
+            legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
+            blind_level: BlindLevel {
+                level_index: 0,
+                label: "L1".into(),
+                small_blind: 10,
+                big_blind: 20,
+                ante: 0,
+                duration_seconds: 300,
+            },
+            street_history: vec![],
+            session_context: None,
+            opponent_context: None,
+            tilt_description: None,
+        }
+    }
+
+    /// Live integration test against running Ollama server.
+    /// Skipped automatically when Ollama is unreachable.
+    #[test]
+    #[ignore]
+    fn ollama_qwen25_returns_legal_poker_action() {
+        let cfg = ollama_cfg("qwen2.5-coder:3b");
+        let client = LlmClient::new(cfg);
+        let profile = balanced_profile();
+        let snap = preflop_snap();
+
+        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+
+        assert!(
+            snap.legal_actions.contains(&action_type),
+            "ollama returned illegal action: {action_type:?}"
+        );
+        if action_type == ActionType::Raise {
+            let amt = raise_to.unwrap_or(0);
+            assert!(
+                (40..=1000).contains(&amt),
+                "raise amount {amt} out of bounds"
+            );
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn ollama_qwen35_returns_legal_poker_action() {
+        let cfg = ollama_cfg("fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b");
+        let client = LlmClient::new(cfg);
+        let profile = balanced_profile();
+        let snap = preflop_snap();
+
+        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+
+        assert!(
+            snap.legal_actions.contains(&action_type),
+            "ollama returned illegal action: {action_type:?}"
+        );
+        if action_type == ActionType::Raise {
+            let amt = raise_to.unwrap_or(0);
+            assert!(
+                (40..=1000).contains(&amt),
+                "raise amount {amt} out of bounds"
+            );
+        }
+        eprintln!("qwen3.5 chose: {action_type:?} {raise_to:?}");
+    }
+}
