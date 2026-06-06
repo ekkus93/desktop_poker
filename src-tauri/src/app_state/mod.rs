@@ -204,6 +204,9 @@ pub struct DebugInspectorState {
     pub current_hand_number: Option<u32>,
     pub action_window_summary: Option<String>,
     pub launch_hint: String,
+    /// Maps NPC player_id → tilt level string ("none", "mild", "full").
+    /// Only populated when debug tools are enabled and a host session is active.
+    pub npc_tilt_levels: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -781,11 +784,24 @@ impl DesktopAppState {
             .debug_table_runtime
             .lock()
             .map_err(|_| "debug table runtime lock poisoned".to_string())?;
-        debug_table_runtime
+        let mut state = debug_table_runtime
             .get_or_insert_with(|| {
                 DebugTableRuntime::new().expect("debug table runtime should initialize")
             })
-            .debug_state(viewer_mode)
+            .debug_state(viewer_mode)?;
+
+        // Attach live tilt levels from the active host session's NPC runner.
+        if let Ok(host_session) = self.host_session.lock() {
+            if let Some(session) = host_session.as_ref() {
+                if let Some(runner) = session.npc_runner.as_ref() {
+                    if let Ok(tilt_map) = runner.tilt_levels.lock() {
+                        state.npc_tilt_levels = tilt_map.clone();
+                    }
+                }
+            }
+        }
+
+        Ok(state)
     }
 
     pub fn start_host_session(
@@ -942,13 +958,19 @@ impl DesktopAppState {
         }
 
         let stop = Arc::new(AtomicBool::new(false));
+        let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
         let runner_handle = crate::npc::runner::start_npc_runner(
             Arc::clone(&session.host_server),
             npc_configs,
             Arc::clone(&stop),
             Arc::clone(&self.llm_api_key),
+            Arc::clone(&tilt_levels),
         );
-        session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(stop, runner_handle));
+        session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
+            stop,
+            runner_handle,
+            tilt_levels,
+        ));
 
         session.status()
     }
@@ -1942,6 +1964,7 @@ impl DebugTableRuntime {
             action_window_summary,
             launch_hint: "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff."
                 .to_string(),
+            npc_tilt_levels: std::collections::BTreeMap::new(),
         })
     }
 

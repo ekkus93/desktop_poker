@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getDebugState,
   launchAdditionalClientInstance,
+  type DebugInspectorState,
 } from "../../api/desktop";
 import { createBootstrap, renderWithProviders } from "../../test/fixtures";
 import { DebugPanel } from "./DebugPanel";
@@ -25,19 +26,25 @@ const mockedLaunchAdditionalClientInstance = vi.mocked(
 );
 const clipboardWriteText = vi.fn();
 
+function baseDebugState(overrides: Partial<DebugInspectorState> = {}): DebugInspectorState {
+  return {
+    protocolLog: [],
+    snapshotJson: "{}",
+    currentSequence: 4,
+    currentHandNumber: 2,
+    actionWindowSummary: "You · call 20 · min 40 · max 200 · legal Fold, Call",
+    launchHint:
+      "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
+    npcTiltLevels: {},
+    ...overrides,
+  };
+}
+
 describe("DebugPanel", () => {
   beforeEach(() => {
     mockedGetDebugState.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
-    mockedGetDebugState.mockResolvedValue({
-      protocolLog: [],
-      snapshotJson: "{}",
-      currentSequence: 4,
-      currentHandNumber: 2,
-      actionWindowSummary: "You · call 20 · min 40 · max 200 · legal Fold, Call",
-      launchHint:
-        "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
-    });
+    mockedGetDebugState.mockResolvedValue(baseDebugState());
     mockedLaunchAdditionalClientInstance.mockResolvedValue("host-a-p100-client-1");
     clipboardWriteText.mockReset();
     clipboardWriteText.mockResolvedValue(undefined);
@@ -104,5 +111,35 @@ describe("DebugPanel", () => {
     expect(
       await screen.findByText(/copied join payload for another local instance/i),
     ).toBeTruthy();
+  });
+
+  it("shows NPC tilt section when at least one NPC is tilted", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        npcTiltLevels: { "npc-seat-0": "mild", "npc-seat-1": "none" },
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, { bootstrap });
+
+    const list = await screen.findByTestId("npc-tilt-list");
+    expect(list).toBeTruthy();
+    expect(list.textContent).toContain("npc-seat-0");
+    expect(list.textContent).toContain("mild");
+    // npc-seat-1 is "none" so should be filtered out.
+    expect(list.textContent).not.toContain("npc-seat-1");
+  });
+
+  it("hides NPC tilt section when all NPCs are at none", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        npcTiltLevels: { "npc-seat-0": "none" },
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, { bootstrap });
+
+    await screen.findByText("Rust backend module map");
+    expect(screen.queryByTestId("npc-tilt-list")).toBeNull();
   });
 });

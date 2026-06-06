@@ -542,32 +542,32 @@ see and edit opponent tendency and tilt behaviour text.
 
 ### 11.1 Show parsed sections in profile detail view
 
-- [ ] Update `NpcProfile` type in `src/api/desktop.ts` to include:
+- [x] Update `NpcProfile` type in `src/api/desktop.ts` to include:
   ```typescript
   opponentTendencies: string | null;
   tiltBehaviour: string | null;
   ```
-- [ ] In `NpcProfilesScreen`, when a profile is opened for editing, show the raw
+- [x] In `NpcProfilesScreen`, when a profile is opened for editing, show the raw
   Markdown content in the textarea (unchanged from Phase 2 — the raw file is edited
   in one block).
-- [ ] Below the editor, show a read-only expandable "Parsed sections" summary that
+- [x] Below the editor, show a read-only expandable "Parsed sections" summary that
   displays `opponentTendencies` and `tiltBehaviour` as formatted text when present.
   This helps the user verify that the section headings are correctly formatted.
 
 ### 11.2 Profile editor hint text
 
-- [ ] Add a collapsed `<details>` block under the profile textarea with the heading
+- [x] Add a collapsed `<details>` block under the profile textarea with the heading
   "Profile format help".
-- [ ] Inside the block, show a short template with the required frontmatter keys and
+- [x] Inside the block, show a short template with the required frontmatter keys and
   the optional `## Opponent tendencies` and `## Tilt behaviour` section headings.
 
 ### 11.3 Frontend tests
 
-- [ ] Test that the "Parsed sections" summary appears when a profile with
+- [x] Test that the "Parsed sections" summary appears when a profile with
   `opponentTendencies` set is opened.
-- [ ] Test that the "Parsed sections" summary is hidden when both optional fields are
+- [x] Test that the "Parsed sections" summary is hidden when both optional fields are
   `null`.
-- [ ] Test that the "Profile format help" details block is present in the editor.
+- [x] Test that the "Profile format help" details block is present in the editor.
 
 ---
 
@@ -583,21 +583,21 @@ does not affect gameplay correctness.
 
 ### 12.1 Backend: expose tilt state in `DebugInspectorState`
 
-- [ ] Add `npc_tilt_levels: BTreeMap<String, String>` to `DebugInspectorState`
+- [x] Add `npc_tilt_levels: BTreeMap<String, String>` to `DebugInspectorState`
   in `src-tauri/src/app_state/mod.rs`.
-- [ ] Populate it from the runner's `RunnerState` when `debugToolsEnabled` is true.
+- [x] Populate it from the runner's `RunnerState` when `debugToolsEnabled` is true.
   Keys are NPC player IDs, values are `"none"`, `"mild"`, or `"full"`.
 
 ### 12.2 Frontend: show tilt indicator in debug panel
 
-- [ ] In `DebugPanel.tsx`, when `npcTiltLevels` is non-empty, show a list of
+- [x] In `DebugPanel.tsx`, when `npcTiltLevels` is non-empty, show a list of
   `playerID → tiltLevel` entries.
-- [ ] Only show the section when at least one NPC has `tiltLevel !== "none"`.
+- [x] Only show the section when at least one NPC has `tiltLevel !== "none"`.
 
 ### 12.3 Frontend tests
 
-- [ ] Test that the tilt section appears in `DebugPanel` when at least one NPC is tilted.
-- [ ] Test that the tilt section is hidden when all NPCs are at `TiltLevel::None`.
+- [x] Test that the tilt section appears in `DebugPanel` when at least one NPC is tilted.
+- [x] Test that the tilt section is hidden when all NPCs are at `TiltLevel::None`.
 
 ---
 

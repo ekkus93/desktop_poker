@@ -368,6 +368,7 @@ describe("AppShell integration", () => {
       actionWindowSummary: "You · check or bet · min 60 · max 1520 · legal Fold, Check, Bet",
       launchHint:
         "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
+      npcTiltLevels: {},
     });
     mockedLaunchAdditionalClientInstance.mockResolvedValue("debug-child-1");
     mockedGetTableView.mockImplementation(async (viewerMode) =>

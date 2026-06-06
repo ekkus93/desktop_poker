@@ -238,6 +238,20 @@ export function DebugPanel({
         {launchStatus ? <div className="inline-banner info">{launchStatus}</div> : null}
       </SectionCard>
 
+      {debugState && Object.keys(debugState.npcTiltLevels).some((k) => debugState.npcTiltLevels[k] !== "none") ? (
+        <SectionCard title="NPC tilt state" data-testid="npc-tilt-section">
+          <ul data-testid="npc-tilt-list">
+            {Object.entries(debugState.npcTiltLevels)
+              .filter(([, level]) => level !== "none")
+              .map(([playerId, level]) => (
+                <li key={playerId}>
+                  <strong>{playerId}:</strong> {level}
+                </li>
+              ))}
+          </ul>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Rust backend module map">
         <ul>
           {bootstrap.backendModules.map((moduleInfo) => (

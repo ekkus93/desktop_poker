@@ -257,6 +257,8 @@ export type DebugInspectorState = {
   currentHandNumber: number | null;
   actionWindowSummary: string | null;
   launchHint: string;
+  /** Maps NPC player_id → tilt level ("none", "mild", "full"). Empty when no host session. */
+  npcTiltLevels: Record<string, string>;
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";
@@ -334,6 +336,8 @@ export type NpcProfile = {
   style: string;
   skill: string;
   description: string;
+  opponentTendencies: string | null;
+  tiltBehaviour: string | null;
 };
 
 export function listNpcProfiles(): Promise<NpcProfile[]> {

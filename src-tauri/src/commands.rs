@@ -388,6 +388,7 @@ mod tests {
             current_hand_number: Some(4),
             action_window_summary: Some("Alice to act".to_string()),
             launch_hint: "hint".to_string(),
+            npc_tilt_levels: std::collections::BTreeMap::new(),
         }
     }
 

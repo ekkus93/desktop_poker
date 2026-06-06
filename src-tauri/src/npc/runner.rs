@@ -39,10 +39,12 @@ struct RunnerState {
     last_hand_result_count: usize,
     /// Stack size of each NPC at the start of the most recent hand.
     pre_hand_stacks: BTreeMap<String, u32>,
+    /// Shared tilt level snapshot for the debug inspector (player_id → "none"/"mild"/"full").
+    shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
 }
 
 impl RunnerState {
-    fn new(npc_configs: &[NpcConfig]) -> Self {
+    fn new(npc_configs: &[NpcConfig], shared_tilt: Arc<Mutex<BTreeMap<String, String>>>) -> Self {
         let session_histories = npc_configs
             .iter()
             .enumerate()
@@ -54,21 +56,32 @@ impl RunnerState {
             opponent_stats: OpponentStatsTable::new(),
             last_hand_result_count: 0,
             pre_hand_stacks: BTreeMap::new(),
+            shared_tilt,
         }
     }
 }
 
 /// Start the NPC auto-action background thread.
+///
+/// Returns the join handle. The caller supplies `shared_tilt` and may read from it
+/// at any time to observe current tilt levels (e.g. for the debug inspector).
 pub fn start_npc_runner(
     host_server: Arc<HostServer>,
     npc_configs: Vec<NpcConfig>,
     stop: Arc<AtomicBool>,
     api_key_holder: Arc<Mutex<Option<String>>>,
+    shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
 ) -> thread::JoinHandle<()> {
     thread::Builder::new()
         .name("npc-runner".into())
         .spawn(move || {
-            npc_runner_loop(&host_server, &npc_configs, &stop, &api_key_holder);
+            npc_runner_loop(
+                &host_server,
+                &npc_configs,
+                &stop,
+                &api_key_holder,
+                shared_tilt,
+            );
         })
         .expect("failed to spawn npc-runner thread")
 }
@@ -79,7 +92,8 @@ pub fn run_npc_loop(
     stop: &AtomicBool,
     api_key_holder: &Arc<Mutex<Option<String>>>,
 ) {
-    npc_runner_loop(host_server, npc_configs, stop, api_key_holder);
+    let shared_tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    npc_runner_loop(host_server, npc_configs, stop, api_key_holder, shared_tilt);
 }
 
 fn npc_runner_loop(
@@ -87,9 +101,10 @@ fn npc_runner_loop(
     npc_configs: &[NpcConfig],
     stop: &AtomicBool,
     api_key_holder: &Arc<Mutex<Option<String>>>,
+    shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
-    let mut runner_state = RunnerState::new(npc_configs);
+    let mut runner_state = RunnerState::new(npc_configs, shared_tilt);
 
     loop {
         if stop.load(Ordering::SeqCst) {
@@ -248,6 +263,24 @@ fn process_completed_hands(
     }
 
     runner_state.last_hand_result_count = result_count;
+
+    // Publish updated tilt levels for the debug inspector.
+    if let Ok(mut tilt_map) = runner_state.shared_tilt.lock() {
+        tilt_map.clear();
+        for (seat_index, history) in runner_state.session_histories.iter().enumerate() {
+            let player_id = NpcConfig::player_id(seat_index as u8);
+            if npc_configs.get(seat_index).is_some() {
+                let tilt = TiltState::from_history(history);
+                let level_str = match tilt.level {
+                    super::tilt::TiltLevel::None => "none",
+                    super::tilt::TiltLevel::Mild => "mild",
+                    super::tilt::TiltLevel::Full => "full",
+                };
+                tilt_map.insert(player_id, level_str.to_string());
+            }
+        }
+    }
+
     // Snapshot stacks for the next hand.
     runner_state.pre_hand_stacks = current_stacks(state);
 }
@@ -653,13 +686,20 @@ fn hash_str(s: &str) -> u64 {
 pub struct NpcRunnerGuard {
     stop: Arc<AtomicBool>,
     handle: Mutex<Option<thread::JoinHandle<()>>>,
+    /// Shared tilt level snapshot; written by the runner, readable by the host session.
+    pub tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
 }
 
 impl NpcRunnerGuard {
-    pub fn new(stop: Arc<AtomicBool>, handle: thread::JoinHandle<()>) -> Self {
+    pub fn new(
+        stop: Arc<AtomicBool>,
+        handle: thread::JoinHandle<()>,
+        tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
+    ) -> Self {
         Self {
             stop,
             handle: Mutex::new(Some(handle)),
+            tilt_levels,
         }
     }
 }
@@ -783,7 +823,7 @@ mod tests {
     #[test]
     fn session_history_increments_after_one_completed_hand() {
         let configs = npc_configs();
-        let mut runner_state = RunnerState::new(&configs);
+        let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
 
         let mut state = minimal_state();
         state.hand_results.push(hand_result(
@@ -801,7 +841,7 @@ mod tests {
     #[test]
     fn consecutive_losses_increments_across_multiple_hands() {
         let configs = npc_configs();
-        let mut runner_state = RunnerState::new(&configs);
+        let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
 
         let mut state = minimal_state();
         // NPC loses hands 1, 2, 3.
@@ -819,7 +859,7 @@ mod tests {
     #[test]
     fn opponent_stats_has_entries_for_human_player_after_hand() {
         let configs = npc_configs();
-        let mut runner_state = RunnerState::new(&configs);
+        let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
 
         let mut state = minimal_state();
         state

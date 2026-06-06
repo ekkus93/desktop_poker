@@ -10,10 +10,25 @@ import { ScreenShell } from "./ScreenShell";
 
 const BUILTIN_PROFILE_IDS = ["aggressive-alice", "conservative-carlos", "balanced-sam"];
 
+const FORMAT_HELP = `---
+name: My Player
+style: loose-aggressive
+skill: intermediate
+---
+General strategy description here.
+
+## Opponent tendencies
+(Optional) How to adjust strategy based on observed opponent stats.
+
+## Tilt behaviour
+(Optional) How this player behaves after a losing streak.`;
+
 type ProfileDetailState = {
   id: string;
   name: string;
   content: string;
+  opponentTendencies: string | null;
+  tiltBehaviour: string | null;
 };
 
 export function NpcProfilesScreen() {
@@ -48,7 +63,13 @@ export function NpcProfilesScreen() {
 
   function handleOpenProfile(profile: NpcProfile) {
     const rawContent = `---\nname: ${profile.name}\nstyle: ${profile.style}\nskill: ${profile.skill}\n---\n${profile.description}`;
-    setDetail({ id: profile.id, name: profile.name, content: rawContent });
+    setDetail({
+      id: profile.id,
+      name: profile.name,
+      content: rawContent,
+      opponentTendencies: profile.opponentTendencies,
+      tiltBehaviour: profile.tiltBehaviour,
+    });
     setSaveError(null);
     setSaveSuccess(false);
     setDeleteError(null);
@@ -61,7 +82,16 @@ export function NpcProfilesScreen() {
     try {
       const updated = await saveNpcProfile(detail.id, detail.content);
       setSaveSuccess(true);
-      setDetail((prev) => (prev ? { ...prev, name: updated.name } : null));
+      setDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              name: updated.name,
+              opponentTendencies: updated.opponentTendencies,
+              tiltBehaviour: updated.tiltBehaviour,
+            }
+          : null,
+      );
       await reload();
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "Failed to save profile.");
@@ -96,6 +126,10 @@ export function NpcProfilesScreen() {
       setNewError(e instanceof Error ? e.message : "Failed to create profile.");
     }
   }
+
+  const hasParsedSections =
+    detail &&
+    (detail.opponentTendencies != null || detail.tiltBehaviour != null);
 
   return (
     <ScreenShell
@@ -168,7 +202,69 @@ export function NpcProfilesScreen() {
                 />
               </label>
             </div>
-            <div className="button-row">
+
+            <details style={{ marginTop: "0.75rem" }}>
+              <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.9em" }}>
+                Profile format help
+              </summary>
+              <pre
+                style={{
+                  fontSize: "0.78em",
+                  background: "var(--surface-2, #f5f5f5)",
+                  padding: "0.75rem",
+                  borderRadius: "4px",
+                  overflowX: "auto",
+                  marginTop: "0.5rem",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {FORMAT_HELP}
+              </pre>
+            </details>
+
+            {hasParsedSections ? (
+              <details style={{ marginTop: "0.75rem" }} data-testid="parsed-sections">
+                <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.9em" }}>
+                  Parsed sections
+                </summary>
+                <div style={{ marginTop: "0.5rem", fontSize: "0.88em" }}>
+                  {detail.opponentTendencies != null ? (
+                    <div style={{ marginBottom: "0.5rem" }}>
+                      <strong>Opponent tendencies</strong>
+                      <pre
+                        style={{
+                          background: "var(--surface-2, #f5f5f5)",
+                          padding: "0.5rem",
+                          borderRadius: "4px",
+                          whiteSpace: "pre-wrap",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        {detail.opponentTendencies}
+                      </pre>
+                    </div>
+                  ) : null}
+                  {detail.tiltBehaviour != null ? (
+                    <div>
+                      <strong>Tilt behaviour</strong>
+                      <pre
+                        style={{
+                          background: "var(--surface-2, #f5f5f5)",
+                          padding: "0.5rem",
+                          borderRadius: "4px",
+                          whiteSpace: "pre-wrap",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        {detail.tiltBehaviour}
+                      </pre>
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            ) : null}
+
+            <div className="button-row" style={{ marginTop: "1rem" }}>
               <button
                 className="primary-button"
                 onClick={handleSaveDetail}

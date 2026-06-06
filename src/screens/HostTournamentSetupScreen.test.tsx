@@ -407,7 +407,7 @@ describe("HostTournamentSetupScreen", () => {
 
   it("shows profile select when llmApiKeyConfigured is true and npcCount > 0", async () => {
     mockedListNpcProfiles.mockResolvedValue([
-      { id: "aggressive-alice", name: "Aggressive Alice", style: "loose-aggressive", skill: "intermediate", description: "" },
+      { id: "aggressive-alice", name: "Aggressive Alice", style: "loose-aggressive", skill: "intermediate", description: "", opponentTendencies: null, tiltBehaviour: null },
     ]);
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     localStorage.setItem(

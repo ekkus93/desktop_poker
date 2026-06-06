@@ -346,3 +346,15 @@
 - Rewrote `npc/runner.rs` with `RunnerState` (hand log, session histories, opponent stats, pre-hand stacks); `process_completed_hands` detects new `HandResult`s and updates all trackers; `try_npc_action` builds and passes context to LLM path; 3 integration tests added.
 - Fixed test helper literals in `llm_action.rs`, `llm_strategy.rs`, and `prompt.rs` for new struct fields.
 - 255 Rust tests pass; clippy and fmt clean. Parts 1-10 of Phase 3 TODO complete.
+
+## 2026-06-06T02:45:05Z - Claude Sonnet 4.6 - NPC Phase 3 frontend implementation (Parts 11-12)
+
+- Extended `NpcProfile` TypeScript type with `opponentTendencies: string | null` and `tiltBehaviour: string | null`.
+- Updated `NpcProfilesScreen.tsx`: shows "Parsed sections" collapsible panel when either optional field is non-null; added "Profile format help" collapsible with template; `ProfileDetailState` tracks both new fields; save propagates updated parsed fields.
+- Updated `NpcProfilesScreen.test.tsx`: 7 tests (3 original + 3 new for parsed sections / format help / hidden when null).
+- Added `npcTiltLevels: Record<string, string>` to `DebugInspectorState` TypeScript type and Rust `DebugInspectorState` struct.
+- Added `shared_tilt: Arc<Mutex<BTreeMap<String, String>>>` to `RunnerState` and `NpcRunnerGuard`; runner writes tilt levels after each hand; `DesktopAppState.debug_state` reads from the active host session's runner guard.
+- Updated `DebugPanel.tsx`: shows "NPC tilt state" section when any NPC has level != "none".
+- Updated `DebugPanel.test.tsx`: 4 tests (2 original + 2 new for tilt section show/hide).
+- Fixed AppShell integration test mock to include `npcTiltLevels: {}`.
+- 255 Rust tests; 201 frontend tests; clippy and fmt clean. Parts 11-12 complete. Only Part 13 (manual QA) remains.

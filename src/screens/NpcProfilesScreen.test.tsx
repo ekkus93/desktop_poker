@@ -30,6 +30,8 @@ function createProfile(overrides: Partial<NpcProfile> = {}): NpcProfile {
     style: "balanced",
     skill: "intermediate",
     description: "A test profile body.",
+    opponentTendencies: null,
+    tiltBehaviour: null,
     ...overrides,
   };
 }
@@ -101,5 +103,52 @@ describe("NpcProfilesScreen", () => {
 
     const deleteButton = screen.getByRole("button", { name: "Delete" });
     expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("shows Parsed sections when opponentTendencies is set", async () => {
+    const profile = createProfile({
+      id: "alice",
+      name: "Alice",
+      opponentTendencies: "Bluff tight players on the river.",
+    });
+    mockedListNpcProfiles.mockResolvedValue([profile]);
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+
+    await screen.findByText("Alice");
+    fireEvent.click(screen.getByRole("button", { name: /alice/i }));
+
+    expect(screen.getByTestId("parsed-sections")).toBeTruthy();
+    expect(screen.getByText("Opponent tendencies")).toBeTruthy();
+    expect(screen.getByText("Bluff tight players on the river.")).toBeTruthy();
+  });
+
+  it("hides Parsed sections when both optional fields are null", async () => {
+    const profile = createProfile({
+      id: "plain",
+      name: "Plain",
+      opponentTendencies: null,
+      tiltBehaviour: null,
+    });
+    mockedListNpcProfiles.mockResolvedValue([profile]);
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+
+    await screen.findByText("Plain");
+    fireEvent.click(screen.getByRole("button", { name: /plain/i }));
+
+    expect(screen.queryByTestId("parsed-sections")).toBeNull();
+  });
+
+  it("shows the Profile format help details block in the editor", async () => {
+    const profile = createProfile({ id: "alice", name: "Alice" });
+    mockedListNpcProfiles.mockResolvedValue([profile]);
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+
+    await screen.findByText("Alice");
+    fireEvent.click(screen.getByRole("button", { name: /alice/i }));
+
+    expect(screen.getByText("Profile format help")).toBeTruthy();
   });
 });
