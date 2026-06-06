@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
@@ -5,14 +6,18 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-use crate::domain::{ActionType, BlindLevel, StreetPhase, TournamentState};
+use crate::domain::{ActionType, BlindLevel, HandResult, StreetPhase, TournamentState};
 use crate::networking::HostServer;
 
+use super::hand_log::{HandActionRecord, HandLog};
 use super::llm_strategy::choose_llm_action;
+use super::opponent_stats::OpponentStatsTable;
 use super::postflop::postflop_hand_category;
 use super::preflop::preflop_hand_tier;
 use super::prompt::GameStateSnapshot;
+use super::session_history::{HandSummary, NpcSessionHistory};
 use super::strategy::{choose_postflop_action, choose_preflop_action, derive_position, NpcAction};
+use super::tilt::TiltState;
 use super::{NpcConfig, NpcStyle};
 
 /// Interval between polls when no NPC action is pending.
@@ -21,6 +26,37 @@ const POLL_INTERVAL_MS: u64 = 80;
 /// Range for the simulated thinking delay: [MIN_DELAY_MS, MAX_DELAY_MS].
 const MIN_DELAY_MS: u64 = 300;
 const MAX_DELAY_MS: u64 = 1200;
+
+/// Per-loop mutable state tracking hand history across the runner lifecycle.
+struct RunnerState {
+    /// Log of actions for the hand currently in progress.
+    hand_log: Option<HandLog>,
+    /// Per-NPC session history; indexed parallel to `npc_configs`.
+    session_histories: Vec<NpcSessionHistory>,
+    /// Accumulated opponent stats for every human player seen this session.
+    opponent_stats: OpponentStatsTable,
+    /// Number of HandResults seen so far (used to detect hand completion).
+    last_hand_result_count: usize,
+    /// Stack size of each NPC at the start of the most recent hand.
+    pre_hand_stacks: BTreeMap<String, u32>,
+}
+
+impl RunnerState {
+    fn new(npc_configs: &[NpcConfig]) -> Self {
+        let session_histories = npc_configs
+            .iter()
+            .enumerate()
+            .map(|(i, _)| NpcSessionHistory::new(NpcConfig::player_id(i as u8)))
+            .collect();
+        Self {
+            hand_log: None,
+            session_histories,
+            opponent_stats: OpponentStatsTable::new(),
+            last_hand_result_count: 0,
+            pre_hand_stacks: BTreeMap::new(),
+        }
+    }
+}
 
 /// Start the NPC auto-action background thread.
 pub fn start_npc_runner(
@@ -53,6 +89,7 @@ fn npc_runner_loop(
     api_key_holder: &Arc<Mutex<Option<String>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
+    let mut runner_state = RunnerState::new(npc_configs);
 
     loop {
         if stop.load(Ordering::SeqCst) {
@@ -73,7 +110,17 @@ fn npc_runner_loop(
 
         consecutive_errors = 0;
 
-        let acted = try_npc_action(host_server, &state, npc_configs, stop, api_key_holder);
+        // Process any newly completed hands before deciding the next action.
+        process_completed_hands(&state, npc_configs, &mut runner_state);
+
+        let acted = try_npc_action(
+            host_server,
+            &state,
+            npc_configs,
+            stop,
+            api_key_holder,
+            &mut runner_state,
+        );
 
         if !acted {
             thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
@@ -81,12 +128,138 @@ fn npc_runner_loop(
     }
 }
 
+/// Build a `player_id → display_name` map from the current tournament state.
+fn build_display_names(state: &TournamentState) -> BTreeMap<String, String> {
+    state
+        .seats
+        .iter()
+        .filter_map(|s| {
+            let pid = s.participant_id.as_deref()?;
+            let name = s.display_name.as_deref().unwrap_or(pid);
+            Some((pid.to_string(), name.to_string()))
+        })
+        .collect()
+}
+
+/// Build a `player_id → chip_count` snapshot from the current state.
+fn current_stacks(state: &TournamentState) -> BTreeMap<String, u32> {
+    state
+        .seats
+        .iter()
+        .filter_map(|s| {
+            let pid = s.participant_id.as_deref()?;
+            let chips = s.chip_count?;
+            Some((pid.to_string(), chips))
+        })
+        .collect()
+}
+
+/// Detect newly completed hands and update session histories and opponent stats.
+fn process_completed_hands(
+    state: &TournamentState,
+    npc_configs: &[NpcConfig],
+    runner_state: &mut RunnerState,
+) {
+    let result_count = state.hand_results.len();
+    if result_count <= runner_state.last_hand_result_count {
+        return;
+    }
+
+    // Process each newly completed hand.
+    let new_results: Vec<&HandResult> = state
+        .hand_results
+        .iter()
+        .skip(runner_state.last_hand_result_count)
+        .collect();
+
+    let display_names = build_display_names(state);
+    let empty_log = HandLog::new(0);
+    let hand_log = runner_state.hand_log.as_ref().unwrap_or(&empty_log);
+
+    for result in &new_results {
+        runner_state
+            .opponent_stats
+            .update_from_hand(hand_log, result, &display_names);
+
+        for (seat_index, history) in runner_state.session_histories.iter_mut().enumerate() {
+            let player_id = NpcConfig::player_id(seat_index as u8);
+            let npc_won = result.winning_player_ids.contains(&player_id);
+            let pot_size: u32 = result.pot_summaries.iter().map(|p| p.amount).sum();
+            let went_to_showdown = result.revealed_hands_by_player_id.contains_key(&player_id);
+
+            // Determine net chips from pre-hand stack vs. post-hand stack.
+            let pre_stack = runner_state
+                .pre_hand_stacks
+                .get(&player_id)
+                .copied()
+                .unwrap_or(0);
+            let post_stack = result
+                .final_stack_by_player_id
+                .get(&player_id)
+                .copied()
+                .unwrap_or(0);
+            let net_chips = post_stack as i32 - pre_stack as i32;
+
+            // Determine bluff caught: NPC lost at showdown and had post-flop aggression.
+            let npc_bluff_caught = if went_to_showdown && !npc_won {
+                hand_log.actions_by(&player_id).iter().any(|r| {
+                    matches!(
+                        r.street,
+                        StreetPhase::Flop | StreetPhase::Turn | StreetPhase::River
+                    ) && matches!(r.action_type, ActionType::Bet | ActionType::Raise)
+                })
+            } else {
+                false
+            };
+
+            // Determine bluffed: NPC bet/raised post-flop but did NOT go to showdown or
+            // went to showdown and lost with post-flop aggression.
+            let had_postflop_bet = hand_log.actions_by(&player_id).iter().any(|r| {
+                matches!(
+                    r.street,
+                    StreetPhase::Flop | StreetPhase::Turn | StreetPhase::River
+                ) && matches!(r.action_type, ActionType::Bet | ActionType::Raise)
+            });
+            let npc_bluffed = had_postflop_bet && (!went_to_showdown || npc_bluff_caught);
+
+            let opponent_ids: Vec<String> = result
+                .final_stack_by_player_id
+                .keys()
+                .filter(|id| *id != &player_id)
+                .cloned()
+                .collect();
+
+            let summary = HandSummary {
+                hand_number: result.hand_number,
+                npc_won,
+                pot_size,
+                net_chips,
+                npc_went_to_showdown: went_to_showdown,
+                npc_bluffed,
+                npc_bluff_caught,
+                opponent_ids_in_hand: opponent_ids,
+            };
+
+            // Only record if the NPC was in this hand (had a pre-hand stack).
+            if npc_configs.get(seat_index).is_some() {
+                history.record_hand(summary);
+            }
+        }
+    }
+
+    runner_state.last_hand_result_count = result_count;
+    // Snapshot stacks for the next hand.
+    runner_state.pre_hand_stacks = current_stacks(state);
+}
+
+#[allow(clippy::too_many_arguments)]
 fn try_npc_action(
     host_server: &HostServer,
     state: &TournamentState,
     npc_configs: &[NpcConfig],
     stop: &AtomicBool,
     api_key_holder: &Arc<Mutex<Option<String>>>,
+    runner_state: &mut RunnerState,
 ) -> bool {
     let hand = match &state.current_hand {
         Some(h) => h,
@@ -142,6 +315,20 @@ fn try_npc_action(
         None => return false,
     };
 
+    // Initialize or reset the hand log when we detect a new hand.
+    if runner_state
+        .hand_log
+        .as_ref()
+        .map(|l| l.hand_number != fresh_hand.hand_number)
+        .unwrap_or(true)
+    {
+        runner_state.hand_log = Some(HandLog::new(fresh_hand.hand_number));
+        // Snapshot pre-hand stacks if not already done for this hand.
+        if runner_state.pre_hand_stacks.is_empty() {
+            runner_state.pre_hand_stacks = current_stacks(&fresh_state);
+        }
+    }
+
     let hole_cards = fresh_hand
         .hole_cards_by_player_id
         .get(&fresh_window.player_id)
@@ -191,6 +378,31 @@ fn try_npc_action(
                 .cloned()
                 .unwrap_or_else(fallback_blind_level);
 
+            // Build session context.
+            let npc_seat_usize = npc_seat as usize;
+            let (session_ctx, tilt_desc) =
+                if let Some(history) = runner_state.session_histories.get(npc_seat_usize) {
+                    let ctx = if history.hands_played() > 0 {
+                        Some(history.render_context())
+                    } else {
+                        None
+                    };
+                    let tilt = TiltState::from_history(history);
+                    let desc = tilt.description();
+                    (ctx, desc)
+                } else {
+                    (None, None)
+                };
+
+            let opp_ctx = {
+                let ctx = runner_state.opponent_stats.render_context();
+                if ctx.is_empty() {
+                    None
+                } else {
+                    Some(ctx)
+                }
+            };
+
             let snapshot = GameStateSnapshot {
                 hand_number: fresh_hand.hand_number,
                 street,
@@ -206,10 +418,26 @@ fn try_npc_action(
                 legal_actions: legal_actions.clone(),
                 blind_level,
                 street_history: vec![],
+                session_context: session_ctx,
+                opponent_context: opp_ctx,
+                tilt_description: tilt_desc,
             };
 
-            let client = crate::npc::llm_client::LlmClient::new(key);
-            choose_llm_action(&client, profile, &snapshot)
+            let result = choose_llm_action(&client_for(&key), profile, &snapshot);
+
+            // Record the action into the hand log.
+            if let Some(log) = &mut runner_state.hand_log {
+                log.push(HandActionRecord {
+                    hand_number: fresh_hand.hand_number,
+                    street,
+                    player_id: fresh_window.player_id.clone(),
+                    action_type: result.0,
+                    amount: result.1,
+                    is_voluntary: true,
+                });
+            }
+
+            result
         } else {
             rule_based_decision(
                 style,
@@ -253,6 +481,22 @@ fn try_npc_action(
         )
     };
 
+    // Record the action into the hand log for rule-based path too (when LLM not used).
+    if let Some(log) = &mut runner_state.hand_log {
+        // Avoid double-logging: the LLM path already records when it executes.
+        // The rule-based path always falls through here, so record it.
+        if npc_config.and_then(|c| c.profile.as_ref()).is_none() {
+            log.push(HandActionRecord {
+                hand_number: fresh_hand.hand_number,
+                street,
+                player_id: fresh_window.player_id.clone(),
+                action_type,
+                amount: raise_to,
+                is_voluntary: !matches!(action_type, ActionType::AllIn) || call_amount == 0,
+            });
+        }
+    }
+
     let _ = host_server.submit_action(
         &fresh_window.player_id,
         fresh_window.action_window_id.clone(),
@@ -261,6 +505,10 @@ fn try_npc_action(
     );
 
     true
+}
+
+fn client_for(key: &str) -> crate::npc::llm_client::LlmClient {
+    crate::npc::llm_client::LlmClient::new(key.to_string())
 }
 
 fn fallback_blind_level() -> BlindLevel {
@@ -424,5 +672,171 @@ impl Drop for NpcRunnerGuard {
                 let _ = handle.join();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use crate::domain::{
+        BlindLevel, BlindSchedule, HandResult, PotSummary, SeatOccupancyState, SeatState,
+        TournamentConfig, TournamentPhase, TournamentSeatState, TournamentState,
+    };
+
+    use super::super::NpcConfig;
+    use super::*;
+
+    fn minimal_state() -> TournamentState {
+        TournamentState {
+            table_id: "t1".into(),
+            session_epoch: 1,
+            phase: TournamentPhase::Running,
+            config: TournamentConfig {
+                tournament_name: "test".into(),
+                table_name: None,
+                max_players: 4,
+                starting_stack: 1000,
+                turn_timer_seconds: 30,
+                blind_schedule: BlindSchedule {
+                    levels: vec![BlindLevel {
+                        level_index: 0,
+                        label: "L1".into(),
+                        small_blind: 10,
+                        big_blind: 20,
+                        ante: 0,
+                        duration_seconds: 300,
+                    }],
+                },
+            },
+            blind_schedule: BlindSchedule {
+                levels: vec![BlindLevel {
+                    level_index: 0,
+                    label: "L1".into(),
+                    small_blind: 10,
+                    big_blind: 20,
+                    ante: 0,
+                    duration_seconds: 300,
+                }],
+            },
+            blind_level_index: 0,
+            participants: BTreeMap::new(),
+            seats: vec![
+                SeatState {
+                    seat_index: 0,
+                    occupancy: SeatOccupancyState::Occupied,
+                    tournament_state: TournamentSeatState::Active,
+                    participant_id: Some("npc-seat-0".into()),
+                    display_name: Some("NPC".into()),
+                    chip_count: Some(1000),
+                    is_ready: true,
+                    marker: None,
+                },
+                SeatState {
+                    seat_index: 1,
+                    occupancy: SeatOccupancyState::Occupied,
+                    tournament_state: TournamentSeatState::Active,
+                    participant_id: Some("human-1".into()),
+                    display_name: Some("Human".into()),
+                    chip_count: Some(1000),
+                    is_ready: true,
+                    marker: None,
+                },
+            ],
+            current_hand: None,
+            hand_results: vec![],
+            placements: vec![],
+        }
+    }
+
+    fn hand_result(hand_number: u32, winner: &str, players: &[&str], pot: u32) -> HandResult {
+        let mut stacks = BTreeMap::new();
+        for p in players {
+            stacks.insert(p.to_string(), if *p == winner { 1500u32 } else { 500u32 });
+        }
+        HandResult {
+            hand_number,
+            winning_player_ids: vec![winner.to_string()],
+            pot_summaries: vec![PotSummary {
+                pot_index: 0,
+                amount: pot,
+                eligible_player_ids: players.iter().map(|s| s.to_string()).collect(),
+                winner_player_ids: vec![winner.to_string()],
+                odd_chip_count: 0,
+                odd_chip_awarded_to: None,
+            }],
+            board_cards: vec![],
+            revealed_hands_by_player_id: BTreeMap::new(),
+            eliminated_player_ids: vec![],
+            final_stack_by_player_id: stacks,
+        }
+    }
+
+    fn npc_configs() -> Vec<NpcConfig> {
+        vec![NpcConfig {
+            display_name: "NPC".into(),
+            style: NpcStyle::Aggressive,
+            profile: None,
+        }]
+    }
+
+    #[test]
+    fn session_history_increments_after_one_completed_hand() {
+        let configs = npc_configs();
+        let mut runner_state = RunnerState::new(&configs);
+
+        let mut state = minimal_state();
+        state.hand_results.push(hand_result(
+            1,
+            "npc-seat-0",
+            &["npc-seat-0", "human-1"],
+            200,
+        ));
+
+        process_completed_hands(&state, &configs, &mut runner_state);
+
+        assert_eq!(runner_state.session_histories[0].hands_played(), 1);
+    }
+
+    #[test]
+    fn consecutive_losses_increments_across_multiple_hands() {
+        let configs = npc_configs();
+        let mut runner_state = RunnerState::new(&configs);
+
+        let mut state = minimal_state();
+        // NPC loses hands 1, 2, 3.
+        for i in 1..=3 {
+            state
+                .hand_results
+                .push(hand_result(i, "human-1", &["npc-seat-0", "human-1"], 200));
+        }
+
+        process_completed_hands(&state, &configs, &mut runner_state);
+
+        assert_eq!(runner_state.session_histories[0].consecutive_losses(), 3);
+    }
+
+    #[test]
+    fn opponent_stats_has_entries_for_human_player_after_hand() {
+        let configs = npc_configs();
+        let mut runner_state = RunnerState::new(&configs);
+
+        let mut state = minimal_state();
+        state
+            .hand_results
+            .push(hand_result(1, "human-1", &["npc-seat-0", "human-1"], 200));
+
+        process_completed_hands(&state, &configs, &mut runner_state);
+
+        // "human-1" should have been tracked.
+        assert!(runner_state.opponent_stats.get("human-1").is_some());
+        assert_eq!(
+            runner_state
+                .opponent_stats
+                .get("human-1")
+                .unwrap()
+                .hands_observed,
+            1
+        );
     }
 }

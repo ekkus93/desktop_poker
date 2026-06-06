@@ -332,3 +332,17 @@
 - `shell.ts`: `HostDraft` gains `npcProfileId: string | null`; default `null`; normalization added.
 - All 219 Rust tests pass (2 pre-existing flaky networking tests pass in isolation). 195/196 frontend tests pass (1 pre-existing flaky timing test in AppShell integration tests; passes in isolation). Lint and fmt clean.
 - Parts 1-12 (automated tasks) complete. Manual QA (12.3) is the only remaining item.
+
+## 2026-06-06T02:30:58Z - Claude Sonnet 4.6 - NPC Phase 3 Rust implementation (Parts 1-10)
+
+- Created `docs/NPC1_PHASE3_TODO.md` with 13 parts and 129 subtasks.
+- Implemented `npc/hand_log.rs`: `HandActionRecord` + `HandLog` with `actions_on_street`/`actions_by` (3 tests).
+- Implemented `npc/session_history.rs`: `HandSummary` + `NpcSessionHistory` with streak tracking and `render_context` (6 tests).
+- Implemented `npc/opponent_stats.rs`: `OpponentStats` + `OpponentStatsTable` with VPIP, PFR, aggression factor, showdown win rate (5 tests).
+- Implemented `npc/tilt.rs`: `TiltLevel` / `TiltState` from session history with `description()` (7 tests).
+- Extended `npc/profile.rs`: `NpcProfile` gains `opponent_tendencies: Option<String>` and `tilt_behaviour: Option<String>`; `parse_profile` extracts `## Opponent tendencies` and `## Tilt behaviour` H2 sections from body (6 new tests, all 22 pass).
+- Updated starter profiles (`aggressive-alice.md`, `conservative-carlos.md`, `balanced-sam.md`) with both new sections.
+- Extended `npc/prompt.rs`: `GameStateSnapshot` gains `session_context`, `opponent_context`, `tilt_description`; `build_user_message` injects context blocks with 6 000-token limit guard and progressive truncation (8 new tests, 11 total).
+- Rewrote `npc/runner.rs` with `RunnerState` (hand log, session histories, opponent stats, pre-hand stacks); `process_completed_hands` detects new `HandResult`s and updates all trackers; `try_npc_action` builds and passes context to LLM path; 3 integration tests added.
+- Fixed test helper literals in `llm_action.rs`, `llm_strategy.rs`, and `prompt.rs` for new struct fields.
+- 255 Rust tests pass; clippy and fmt clean. Parts 1-10 of Phase 3 TODO complete.

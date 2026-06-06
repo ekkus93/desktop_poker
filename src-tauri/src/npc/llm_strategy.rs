@@ -98,6 +98,9 @@ mod tests {
             legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
             blind_level: blind(),
             street_history: vec![],
+            session_context: None,
+            opponent_context: None,
+            tilt_description: None,
         }
     }
 
@@ -108,6 +111,8 @@ mod tests {
             style: style.to_string(),
             skill: "intermediate".to_string(),
             description: "You must always raise preflop with premium hands.".to_string(),
+            opponent_tendencies: None,
+            tilt_behaviour: None,
         }
     }
 

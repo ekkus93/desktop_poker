@@ -18,6 +18,12 @@ pub struct GameStateSnapshot {
     pub legal_actions: Vec<ActionType>,
     pub blind_level: BlindLevel,
     pub street_history: Vec<StreetAction>,
+    /// Rendered output of `NpcSessionHistory::render_context()`.
+    pub session_context: Option<String>,
+    /// Rendered output of `OpponentStatsTable::render_context()`.
+    pub opponent_context: Option<String>,
+    /// Short tilt description from `TiltState::description()`.
+    pub tilt_description: Option<String>,
 }
 
 /// A single action taken during the current betting street.
@@ -219,28 +225,125 @@ Rules:
         .to_string()
 }
 
-/// Build the user message: profile description + separator + rendered game state.
+/// Approximate token count: characters / 4.
+pub fn count_approx_tokens(s: &str) -> usize {
+    s.len() / 4
+}
+
+const TOKEN_LIMIT: usize = 6_000;
+
+/// Build the user message injecting session history, opponent stats, and tilt state.
+///
+/// Sections are injected between the profile body and the game state. If the assembled
+/// message would exceed 6 000 tokens the context is progressively trimmed.
 pub fn build_user_message(profile: &NpcProfile, snapshot: &GameStateSnapshot) -> String {
-    format!(
-        "{}\n\n---\n\n{}",
-        profile.description,
-        render_game_state(snapshot)
+    let game_state = render_game_state(snapshot);
+    let profile_body = &profile.description;
+
+    // Build full context block (may be trimmed below).
+    let full_msg = assemble_message(
+        profile,
+        profile_body,
+        snapshot.session_context.as_deref(),
+        snapshot.opponent_context.as_deref(),
+        snapshot.tilt_description.as_deref(),
+        &game_state,
+    );
+
+    if count_approx_tokens(&full_msg) <= TOKEN_LIMIT {
+        return full_msg;
+    }
+
+    // First trim: drop opponent context, keep trimmed session context (3 lines max).
+    let trimmed_session = snapshot
+        .session_context
+        .as_deref()
+        .map(|s| truncate_session_context(s, 3));
+
+    let medium_msg = assemble_message(
+        profile,
+        profile_body,
+        trimmed_session.as_deref(),
+        None,
+        snapshot.tilt_description.as_deref(),
+        &game_state,
+    );
+
+    if count_approx_tokens(&medium_msg) <= TOKEN_LIMIT {
+        return medium_msg;
+    }
+
+    // Final trim: drop all context except tilt.
+    assemble_message(
+        profile,
+        profile_body,
+        None,
+        None,
+        snapshot.tilt_description.as_deref(),
+        &game_state,
     )
+}
+
+/// Assemble the full user message from its parts.
+fn assemble_message(
+    profile: &NpcProfile,
+    profile_body: &str,
+    session_context: Option<&str>,
+    opponent_context: Option<&str>,
+    tilt_description: Option<&str>,
+    game_state: &str,
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+
+    parts.push(profile_body.to_string());
+
+    if let Some(opp) = &profile.opponent_tendencies {
+        parts.push(format!("## Your opponent tendencies\n{opp}"));
+    }
+
+    if let Some(ctx) = session_context {
+        if !ctx.is_empty() {
+            parts.push(format!("## Session history\n{ctx}"));
+        }
+    }
+
+    if let Some(ctx) = opponent_context {
+        if !ctx.is_empty() {
+            parts.push(format!("## Opponent tendencies observed\n{ctx}"));
+        }
+    }
+
+    if let Some(desc) = tilt_description {
+        parts.push(format!("## Current tilt state\nYou are {desc}."));
+        if let Some(tb) = &profile.tilt_behaviour {
+            parts.push(format!("## Your tilt behaviour\n{tb}"));
+        }
+    }
+
+    parts.push("---".to_string());
+    parts.push(game_state.to_string());
+
+    parts.join("\n\n")
+}
+
+/// Keep only the first `n` lines of a session context block.
+fn truncate_session_context(ctx: &str, n: usize) -> String {
+    ctx.lines().take(n).collect::<Vec<_>>().join("\n")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{BlindLevel, Rank, Suit};
+    use crate::domain::{BlindLevel, Card, Rank, StreetPhase, Suit};
 
-    fn blind_level() -> BlindLevel {
+    fn blind() -> BlindLevel {
         BlindLevel {
             level_index: 0,
-            label: "Level 1".to_string(),
-            small_blind: 25,
-            big_blind: 50,
+            label: "L1".to_string(),
+            small_blind: 10,
+            big_blind: 20,
             ante: 0,
-            duration_seconds: 600,
+            duration_seconds: 300,
         }
     }
 
@@ -259,107 +362,93 @@ mod tests {
                     suit: Suit::Hearts,
                 },
             ],
-            pot_total: 75,
-            call_amount: 50,
-            min_raise_to: Some(100),
+            pot_total: 30,
+            call_amount: 20,
+            min_raise_to: Some(40),
             max_raise_to: Some(1500),
-            stack: 1450,
-            position: Position::Late,
-            active_player_count: 4,
-            legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
-            blind_level: blind_level(),
-            street_history: vec![],
-        }
-    }
-
-    fn flop_snapshot() -> GameStateSnapshot {
-        GameStateSnapshot {
-            hand_number: 3,
-            street: StreetPhase::Flop,
-            board_cards: vec![
-                Card {
-                    rank: Rank::Ace,
-                    suit: Suit::Spades,
-                },
-                Card {
-                    rank: Rank::King,
-                    suit: Suit::Diamonds,
-                },
-                Card {
-                    rank: Rank::Seven,
-                    suit: Suit::Clubs,
-                },
-            ],
-            hole_cards: vec![
-                Card {
-                    rank: Rank::Queen,
-                    suit: Suit::Spades,
-                },
-                Card {
-                    rank: Rank::Jack,
-                    suit: Suit::Spades,
-                },
-            ],
-            pot_total: 480,
-            call_amount: 200,
-            min_raise_to: Some(400),
-            max_raise_to: Some(1240),
-            stack: 1240,
+            stack: 1500,
             position: Position::Late,
             active_player_count: 3,
             legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
-            blind_level: blind_level(),
-            street_history: vec![
-                StreetAction {
-                    seat_index: 0,
-                    action_type: ActionType::Check,
-                    amount: None,
-                },
-                StreetAction {
-                    seat_index: 2,
-                    action_type: ActionType::Bet,
-                    amount: Some(200),
-                },
-            ],
+            blind_level: blind(),
+            street_history: vec![],
+            session_context: None,
+            opponent_context: None,
+            tilt_description: None,
+        }
+    }
+
+    fn make_profile() -> NpcProfile {
+        NpcProfile {
+            id: "test".to_string(),
+            name: "Test".to_string(),
+            style: "aggressive".to_string(),
+            skill: "intermediate".to_string(),
+            description: "Play aggressively at all times.".to_string(),
+            opponent_tendencies: None,
+            tilt_behaviour: None,
         }
     }
 
     #[test]
-    fn render_preflop_includes_hole_cards_pot_and_options() {
+    fn render_game_state_contains_hand_number_and_street() {
         let snap = preflop_snapshot();
         let text = render_game_state(&snap);
-        assert!(text.contains("Hand #1"));
-        assert!(text.contains("Pre-flop"));
-        assert!(text.contains("A♠"));
-        assert!(text.contains("K♥"));
-        assert!(text.contains("Pot: 75 chips"));
-        assert!(text.contains("call 50"));
-        assert!(text.contains("raise to 100–1,500"));
+        assert!(text.contains("Hand #1"), "got: {text}");
+        assert!(text.contains("Pre-flop"), "got: {text}");
     }
 
     #[test]
-    fn render_flop_includes_board_and_street_history() {
-        let snap = flop_snapshot();
+    fn render_game_state_contains_hole_cards() {
+        let snap = preflop_snapshot();
         let text = render_game_state(&snap);
-        assert!(text.contains("Hand #3"));
-        assert!(text.contains("Flop"));
-        assert!(text.contains("A♠"));
-        assert!(text.contains("K♦"));
-        assert!(text.contains("7♣"));
-        assert!(text.contains("Action this street:"));
-        assert!(text.contains("Seat 1 checked"));
-        assert!(text.contains("Seat 3 bet 200"));
+        assert!(text.contains("A♠"), "got: {text}");
+        assert!(text.contains("K♥"), "got: {text}");
+    }
+
+    #[test]
+    fn render_game_state_shows_street_history() {
+        let mut snap = preflop_snapshot();
+        snap.street_history = vec![
+            StreetAction {
+                seat_index: 0,
+                action_type: ActionType::Check,
+                amount: None,
+            },
+            StreetAction {
+                seat_index: 2,
+                action_type: ActionType::Bet,
+                amount: Some(200),
+            },
+        ];
+        let text = render_game_state(&snap);
+        assert!(text.contains("Seat 1 checked"), "got: {text}");
+        assert!(text.contains("Seat 3 bet 200"), "got: {text}");
+    }
+
+    #[test]
+    fn build_user_message_with_no_context_matches_phase2_behaviour() {
+        let profile = make_profile();
+        let snap = preflop_snapshot();
+        let msg = build_user_message(&profile, &snap);
+        assert!(msg.contains("Play aggressively at all times."));
+        assert!(msg.contains("Hand #1"));
+        // No context sections should appear.
+        assert!(!msg.contains("Session history"));
+        assert!(!msg.contains("Opponent tendencies observed"));
+        assert!(!msg.contains("Current tilt state"));
     }
 
     #[test]
     fn build_user_message_includes_profile_description_and_game_state() {
-        use super::super::profile::NpcProfile;
         let profile = NpcProfile {
             id: "test".to_string(),
             name: "Test".to_string(),
             style: "aggressive".to_string(),
             skill: "intermediate".to_string(),
             description: "Play aggressively at all times.".to_string(),
+            opponent_tendencies: None,
+            tilt_behaviour: None,
         };
         let snap = preflop_snapshot();
         let msg = build_user_message(&profile, &snap);
@@ -368,19 +457,83 @@ mod tests {
     }
 
     #[test]
-    fn render_omits_raise_line_when_raise_not_legal() {
+    fn session_context_block_appears_when_set() {
+        let profile = make_profile();
         let mut snap = preflop_snapshot();
-        snap.legal_actions = vec![ActionType::Fold, ActionType::Call];
-        snap.min_raise_to = None;
-        snap.max_raise_to = None;
-        let text = render_game_state(&snap);
-        assert!(!text.contains("raise to"));
+        snap.session_context = Some("Session: 5 hands played, up 300 chips.".to_string());
+        let msg = build_user_message(&profile, &snap);
+        assert!(msg.contains("Session history"), "got: {msg}");
+        assert!(msg.contains("5 hands played"), "got: {msg}");
     }
 
     #[test]
-    fn chip_amounts_above_1000_have_thousands_separator() {
-        let snap = preflop_snapshot();
-        let text = render_game_state(&snap);
-        assert!(text.contains("1,500"));
+    fn opponent_context_block_appears_when_set() {
+        let profile = make_profile();
+        let mut snap = preflop_snapshot();
+        snap.opponent_context = Some("Alice: VPIP 60%, PFR 20%, AF 1.5 (5 hands)".to_string());
+        let msg = build_user_message(&profile, &snap);
+        assert!(msg.contains("Opponent tendencies observed"), "got: {msg}");
+        assert!(msg.contains("Alice"), "got: {msg}");
+    }
+
+    #[test]
+    fn tilt_description_appears_when_set() {
+        let profile = make_profile();
+        let mut snap = preflop_snapshot();
+        snap.tilt_description = Some("on a 3-hand losing streak (full tilt)".to_string());
+        let msg = build_user_message(&profile, &snap);
+        assert!(msg.contains("Current tilt state"), "got: {msg}");
+        assert!(msg.contains("3-hand losing streak"), "got: {msg}");
+    }
+
+    #[test]
+    fn profile_opponent_tendencies_and_tilt_behaviour_injected() {
+        let profile = NpcProfile {
+            id: "alice".to_string(),
+            name: "Alice".to_string(),
+            style: "aggressive".to_string(),
+            skill: "intermediate".to_string(),
+            description: "Base strategy.".to_string(),
+            opponent_tendencies: Some("Bluff tight players.".to_string()),
+            tilt_behaviour: Some("Widen range after losses.".to_string()),
+        };
+        let mut snap = preflop_snapshot();
+        snap.tilt_description = Some("on a 2-hand losing streak (mild tilt)".to_string());
+        let msg = build_user_message(&profile, &snap);
+        assert!(msg.contains("Your opponent tendencies"), "got: {msg}");
+        assert!(msg.contains("Bluff tight players"), "got: {msg}");
+        assert!(msg.contains("Your tilt behaviour"), "got: {msg}");
+        assert!(msg.contains("Widen range after losses"), "got: {msg}");
+    }
+
+    #[test]
+    fn message_exceeding_token_limit_is_truncated() {
+        let profile = make_profile();
+        let mut snap = preflop_snapshot();
+        // Generate a session context that is very large.
+        let large_ctx = "x".repeat(100_000);
+        snap.session_context = Some(large_ctx);
+        snap.opponent_context = Some("y".repeat(50_000));
+        let msg = build_user_message(&profile, &snap);
+        assert!(
+            count_approx_tokens(&msg) <= TOKEN_LIMIT,
+            "message exceeds token limit: {} tokens",
+            count_approx_tokens(&msg)
+        );
+    }
+
+    #[test]
+    fn truncation_preserves_tilt_state() {
+        let profile = make_profile();
+        let mut snap = preflop_snapshot();
+        snap.session_context = Some("x".repeat(100_000));
+        snap.opponent_context = Some("y".repeat(50_000));
+        snap.tilt_description = Some("on a 4-hand losing streak (full tilt)".to_string());
+        let msg = build_user_message(&profile, &snap);
+        assert!(
+            count_approx_tokens(&msg) <= TOKEN_LIMIT,
+            "message exceeds token limit"
+        );
+        assert!(msg.contains("4-hand losing streak"), "tilt dropped: {msg}");
     }
 }

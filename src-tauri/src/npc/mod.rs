@@ -1,14 +1,18 @@
 pub mod api_key;
+pub mod hand_log;
 pub mod llm_action;
 pub mod llm_client;
 pub mod llm_strategy;
+pub mod opponent_stats;
 pub mod postflop;
 pub mod preflop;
 pub mod profile;
 pub mod profile_store;
 pub mod prompt;
 pub mod runner;
+pub mod session_history;
 pub mod strategy;
+pub mod tilt;
 
 use serde::{Deserialize, Serialize};
 

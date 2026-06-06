@@ -152,6 +152,9 @@ mod tests {
             legal_actions: legal,
             blind_level: blind(),
             street_history: vec![],
+            session_context: None,
+            opponent_context: None,
+            tilt_description: None,
         }
     }
 
