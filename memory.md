@@ -370,3 +370,9 @@
 - Frontend `desktop.ts`: added `LlmProviderType`, `LlmProviderConfig` types and bridge functions. `DesktopBootstrapState` gains `llmProviderType`.
 - `DeviceSettingsScreen.tsx`: replaced single API key input with provider selector (Anthropic / OpenAI / Ollama / llama-server), API key field (only for Anthropic/OpenAI), optional endpoint URL and model overrides.
 - 271 Rust tests, 202 frontend tests; clippy and fmt clean.
+
+## 2026-06-06T08:02:20Z - Claude Sonnet 4.6 - Ollama live tests and README update
+
+- Added two `#[ignore]` live integration tests in `npc/llm_strategy.rs` (`ollama_live_tests` module) that exercise `choose_llm_action` end-to-end against the running Ollama server. Tests cover `qwen2.5-coder:3b` and `fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b`. Both pass (`cargo test -- --ignored`). Tests are skipped in normal CI.
+- Confirmed Ollama OpenAI-compatible API (`/v1/chat/completions`) returns valid parseable poker actions for both models.
+- Updated `README.md` to document all NPC/AI work: rule-based and LLM-driven NPC engines, multi-provider LLM support table, `llm-provider.json` config file location and format, AI profile format with optional sections, session memory (hand history/opponent stats/tilt), prompt token budget and truncation, LLM fallback behaviour, updated supported/limitations lists, and LLM NPC manual QA item.
