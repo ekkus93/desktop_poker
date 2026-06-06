@@ -1,9 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearLlmApiKey, setLlmApiKey } from "../api/desktop";
+import {
+  clearLlmProviderConfig,
+  setLlmProviderConfig,
+  type LlmProviderConfig,
+  type LlmProviderType,
+} from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
+
+const PROVIDER_OPTIONS: { value: LlmProviderType; label: string }[] = [
+  { value: "anthropic", label: "Anthropic (Claude)" },
+  { value: "openAi", label: "OpenAI" },
+  { value: "ollama", label: "Ollama (local)" },
+  { value: "llamaServer", label: "llama-server (local)" },
+];
+
+const DEFAULT_ENDPOINTS: Record<LlmProviderType, string> = {
+  anthropic: "https://api.anthropic.com",
+  openAi: "https://api.openai.com",
+  ollama: "http://localhost:11434",
+  llamaServer: "http://localhost:8080",
+};
+
+const DEFAULT_MODELS: Record<LlmProviderType, string> = {
+  anthropic: "claude-haiku-4-5-20251001",
+  openAi: "gpt-4o-mini",
+  ollama: "llama3.2",
+  llamaServer: "",
+};
+
+function requiresApiKey(provider: LlmProviderType) {
+  return provider === "anthropic" || provider === "openAi";
+}
 
 export function DeviceSettingsScreen() {
   const {
@@ -20,40 +50,62 @@ export function DeviceSettingsScreen() {
   const [clearSuccess, setClearSuccess] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [apiKeyStatus, setApiKeyStatus] = useState<string | null>(null);
-  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
-  const [keySaving, setKeySaving] = useState(false);
-  const [keyClearing, setKeyClearing] = useState(false);
+  // Provider config form state.
+  const [selectedProvider, setSelectedProvider] = useState<LlmProviderType>(
+    (bootstrap.llmProviderType as LlmProviderType | null) ?? "anthropic",
+  );
+  const [apiKey, setApiKey] = useState("");
+  const [endpointUrl, setEndpointUrl] = useState("");
+  const [model, setModel] = useState("");
+  const [providerStatus, setProviderStatus] = useState<string | null>(null);
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
-  const keyConfigured = bootstrap.llmApiKeyConfigured;
+  const providerConfigured = bootstrap.llmApiKeyConfigured;
 
-  async function handleSaveKey() {
-    setApiKeyError(null);
-    setApiKeyStatus(null);
-    setKeySaving(true);
+  // Reset endpoint/model placeholders when provider changes.
+  useEffect(() => {
+    setEndpointUrl("");
+    setModel("");
+  }, [selectedProvider]);
+
+  async function handleSave() {
+    setProviderError(null);
+    setProviderStatus(null);
+    if (requiresApiKey(selectedProvider) && !apiKey.trim()) {
+      setProviderError("An API key is required for this provider.");
+      return;
+    }
+    setSaving(true);
     try {
-      await setLlmApiKey(apiKeyInput.trim());
-      setApiKeyInput("");
-      setApiKeyStatus("Key saved.");
+      const config: LlmProviderConfig = {
+        provider: selectedProvider,
+        apiKey: apiKey.trim() || null,
+        endpointUrl: endpointUrl.trim() || null,
+        model: model.trim() || null,
+      };
+      await setLlmProviderConfig(config);
+      setApiKey("");
+      setProviderStatus("Provider saved.");
     } catch (e) {
-      setApiKeyError(e instanceof Error ? e.message : "Failed to save key.");
+      setProviderError(e instanceof Error ? e.message : "Failed to save provider.");
     } finally {
-      setKeySaving(false);
+      setSaving(false);
     }
   }
 
-  async function handleClearKey() {
-    setApiKeyError(null);
-    setApiKeyStatus(null);
-    setKeyClearing(true);
+  async function handleClear() {
+    setProviderError(null);
+    setProviderStatus(null);
+    setClearing(true);
     try {
-      await clearLlmApiKey();
-      setApiKeyStatus("Key cleared.");
+      await clearLlmProviderConfig();
+      setProviderStatus("Provider cleared.");
     } catch (e) {
-      setApiKeyError(e instanceof Error ? e.message : "Failed to clear key.");
+      setProviderError(e instanceof Error ? e.message : "Failed to clear provider.");
     } finally {
-      setKeyClearing(false);
+      setClearing(false);
     }
   }
 
@@ -85,50 +137,105 @@ export function DeviceSettingsScreen() {
 
         <SectionCard
           kicker="AI Players"
-          title="Claude API key"
+          title="LLM provider"
           className="support-card device-settings-card"
         >
           <p className="field-hint">
             Status:{" "}
-            <strong>{keyConfigured ? "Key configured" : "No key set"}</strong>
+            <strong>
+              {providerConfigured
+                ? `Configured (${bootstrap.llmProviderType ?? "unknown"})`
+                : "Not configured"}
+            </strong>
           </p>
+
           <div className="form-grid">
             <label className="field">
-              API key
+              Provider
+              <select
+                value={selectedProvider}
+                onChange={(e) => setSelectedProvider(e.target.value as LlmProviderType)}
+                aria-label="LLM provider"
+              >
+                {PROVIDER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {requiresApiKey(selectedProvider) ? (
+              <label className="field">
+                API key
+                <input
+                  type="password"
+                  placeholder={
+                    selectedProvider === "anthropic"
+                      ? "sk-ant-..."
+                      : "sk-..."
+                  }
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  aria-label="API key"
+                />
+              </label>
+            ) : null}
+
+            <label className="field">
+              Endpoint URL{" "}
+              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
               <input
-                type="password"
-                placeholder="sk-ant-..."
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
+                value={endpointUrl}
+                onChange={(e) => setEndpointUrl(e.target.value)}
+                aria-label="Endpoint URL"
+              />
+            </label>
+
+            <label className="field">
+              Model{" "}
+              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+              <input
+                placeholder={DEFAULT_MODELS[selectedProvider] || "loaded model"}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                aria-label="Model"
               />
             </label>
           </div>
+
           <div className="button-row">
             <button
               className="primary-button"
-              onClick={handleSaveKey}
-              disabled={keySaving || apiKeyInput.trim().length === 0}
+              onClick={handleSave}
+              disabled={
+                saving ||
+                (requiresApiKey(selectedProvider) && !apiKey.trim())
+              }
               type="button"
             >
-              Save key
+              Save
             </button>
-            {keyConfigured ? (
+            {providerConfigured ? (
               <button
                 className="secondary-button"
-                onClick={handleClearKey}
-                disabled={keyClearing}
+                onClick={handleClear}
+                disabled={clearing}
                 type="button"
               >
-                Clear key
+                Clear
               </button>
             ) : null}
           </div>
-          {apiKeyStatus ? (
-            <p className="inline-banner success">{apiKeyStatus}</p>
+
+          {providerStatus ? (
+            <p className="inline-banner success">{providerStatus}</p>
           ) : null}
-          {apiKeyError ? (
-            <p className="inline-banner error">{apiKeyError}</p>
+          {providerError ? (
+            <p className="inline-banner error">{providerError}</p>
           ) : null}
+
           <div className="button-row">
             <button
               className="secondary-button"
@@ -170,7 +277,10 @@ export function DeviceSettingsScreen() {
             ) : (
               <button
                 className="secondary-button"
-                onClick={() => { setConfirmReset(true); setResetSuccess(false); }}
+                onClick={() => {
+                  setConfirmReset(true);
+                  setResetSuccess(false);
+                }}
                 type="button"
               >
                 Reset host setup
@@ -200,7 +310,10 @@ export function DeviceSettingsScreen() {
             ) : (
               <button
                 className="secondary-button"
-                onClick={() => { setConfirmClear(true); setClearSuccess(false); }}
+                onClick={() => {
+                  setConfirmClear(true);
+                  setClearSuccess(false);
+                }}
                 type="button"
               >
                 Clear saved invites ({recentJoinPayloads.length})
@@ -210,7 +323,8 @@ export function DeviceSettingsScreen() {
           {resetSuccess ? <p className="inline-banner success">Host setup reset.</p> : null}
           {clearSuccess ? <p className="inline-banner success">Saved invites cleared.</p> : null}
           <p className="field-hint">
-            {recentJoinPayloads.length} saved invite{recentJoinPayloads.length === 1 ? "" : "s"}.
+            {recentJoinPayloads.length} saved invite
+            {recentJoinPayloads.length === 1 ? "" : "s"}.
           </p>
         </SectionCard>
       </div>

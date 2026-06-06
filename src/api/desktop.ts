@@ -155,6 +155,7 @@ export type DesktopBootstrapState = {
   launchJoinPayloadError: string | null;
   debugToolsEnabled: boolean;
   llmApiKeyConfigured: boolean;
+  llmProviderType: string | null;
   backendModules: BackendModuleDescriptor[];
   screens: ScreenDescriptor[];
 };
@@ -362,6 +363,27 @@ export function setLlmApiKey(key: string): Promise<void> {
 
 export function clearLlmApiKey(): Promise<void> {
   return invoke<void>("clear_llm_api_key");
+}
+
+export type LlmProviderType = "anthropic" | "openAi" | "ollama" | "llamaServer";
+
+export type LlmProviderConfig = {
+  provider: LlmProviderType;
+  apiKey: string | null;
+  endpointUrl: string | null;
+  model: string | null;
+};
+
+export function getLlmProviderConfig(): Promise<LlmProviderConfig | null> {
+  return invoke<LlmProviderConfig | null>("get_llm_provider_config");
+}
+
+export function setLlmProviderConfig(config: LlmProviderConfig): Promise<void> {
+  return invoke<void>("set_llm_provider_config", { config });
+}
+
+export function clearLlmProviderConfig(): Promise<void> {
+  return invoke<void>("clear_llm_provider_config");
 }
 
 export function validateJoinPayloadInput(payload: string) {

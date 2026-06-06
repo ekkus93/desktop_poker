@@ -358,3 +358,15 @@
 - Updated `DebugPanel.test.tsx`: 4 tests (2 original + 2 new for tilt section show/hide).
 - Fixed AppShell integration test mock to include `npcTiltLevels: {}`.
 - 255 Rust tests; 201 frontend tests; clippy and fmt clean. Parts 11-12 complete. Only Part 13 (manual QA) remains.
+
+## 2026-06-06T04:24:22Z - Claude Sonnet 4.6 - Multi-provider LLM support (Anthropic, OpenAI, Ollama, llama-server)
+
+- Added `npc/provider.rs`: `LlmProviderType` enum (Anthropic, OpenAi, Ollama, LlamaServer) and `LlmProviderConfig` struct with `is_usable()`, `resolved_model()`, `resolved_endpoint()`. Ollama defaults to localhost:11434, llama-server to localhost:8080.
+- Added `npc/provider_storage.rs`: load/save `LlmProviderConfig` as JSON (`llm-provider.json`). Auto-migrates legacy `claude-api-key.txt` to an Anthropic config on first read.
+- Rewrote `npc/llm_client.rs`: `LlmClient::new` takes `LlmProviderConfig`. Dispatches to Anthropic path (`/v1/messages`) or OpenAI-compatible path (`/v1/chat/completions`). OpenAI/Ollama/llama-server all use the same path; Bearer auth is optional (Ollama/llama-server don't require it).
+- Updated `npc/runner.rs`: `api_key_holder` changed from `Arc<Mutex<Option<String>>>` to `Arc<Mutex<Option<LlmProviderConfig>>>`. Runner checks `cfg.is_usable()` before attempting LLM call.
+- Updated `app_state/mod.rs`: `llm_api_key` field replaced by `llm_provider: Arc<Mutex<Option<LlmProviderConfig>>>`. Added `set_llm_provider_config`, `clear_llm_provider_config`, `get_llm_provider_config`. Old `set_llm_api_key`/`clear_llm_api_key` now delegate to provider config (backward compat). `DesktopBootstrapState` gains `llm_provider_type: Option<String>`.
+- Added Tauri commands `get_llm_provider_config`, `set_llm_provider_config`, `clear_llm_provider_config`.
+- Frontend `desktop.ts`: added `LlmProviderType`, `LlmProviderConfig` types and bridge functions. `DesktopBootstrapState` gains `llmProviderType`.
+- `DeviceSettingsScreen.tsx`: replaced single API key input with provider selector (Anthropic / OpenAI / Ollama / llama-server), API key field (only for Anthropic/OpenAI), optional endpoint URL and model overrides.
+- 271 Rust tests, 202 frontend tests; clippy and fmt clean.

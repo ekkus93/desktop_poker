@@ -168,6 +168,34 @@ pub fn clear_llm_api_key(app: AppHandle, state: State<'_, DesktopAppState>) -> R
 }
 
 #[tauri::command]
+pub fn get_llm_provider_config(
+    state: State<'_, DesktopAppState>,
+) -> Result<Option<crate::npc::LlmProviderConfig>, String> {
+    state.get_llm_provider_config()
+}
+
+#[tauri::command]
+pub fn set_llm_provider_config(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+    config: crate::npc::LlmProviderConfig,
+) -> Result<(), String> {
+    state.set_llm_provider_config(config)?;
+    let _ = app.emit("desktop://bootstrap-update", ());
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_llm_provider_config(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+) -> Result<(), String> {
+    state.clear_llm_provider_config()?;
+    let _ = app.emit("desktop://bootstrap-update", ());
+    Ok(())
+}
+
+#[tauri::command]
 pub fn list_npc_profiles(
     state: State<'_, DesktopAppState>,
 ) -> Result<Vec<crate::npc::NpcProfile>, String> {
@@ -344,6 +372,7 @@ mod tests {
             launch_join_payload_error: None,
             debug_tools_enabled: true,
             llm_api_key_configured: false,
+            llm_provider_type: None,
             backend_modules: vec![ModuleDescriptor {
                 name: "protocol",
                 responsibility: "Owns protocol behavior.",

@@ -77,7 +77,11 @@ pub struct DesktopBootstrapState {
     pub parsed_launch_join_payload: Option<domain::JoinPayload>,
     pub launch_join_payload_error: Option<String>,
     pub debug_tools_enabled: bool,
+    /// True when a usable LLM provider config is present (any provider).
     pub llm_api_key_configured: bool,
+    /// Which LLM provider is configured, e.g. "anthropic", "openAi", "ollama", "llamaServer".
+    /// None when no provider is set.
+    pub llm_provider_type: Option<String>,
     pub backend_modules: Vec<ModuleDescriptor>,
     pub screens: Vec<ScreenDescriptor>,
 }
@@ -652,7 +656,7 @@ impl DesktopClientSession {
 pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
     app_data_dir: PathBuf,
-    llm_api_key: Arc<Mutex<Option<String>>>,
+    llm_provider: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>>,
     debug_table_runtime: Mutex<Option<DebugTableRuntime>>,
     host_session: Mutex<Option<DesktopHostSession>>,
     client_session: Mutex<Option<DesktopClientSession>>,
@@ -668,9 +672,15 @@ impl DesktopAppState {
         let (parsed_launch_join_payload, launch_join_payload_error) =
             parse_launch_join_payload(launch_join_payload.as_deref());
         let app_data_dir = detect_app_data_dir();
-        let loaded_api_key = crate::npc::api_key::load_api_key(&app_data_dir);
-        let llm_api_key_configured = loaded_api_key.is_some();
-        let llm_api_key = Arc::new(Mutex::new(loaded_api_key));
+        let loaded_provider = crate::npc::provider_storage::load_provider_config(&app_data_dir);
+        let llm_api_key_configured = loaded_provider.as_ref().is_some_and(|c| c.is_usable());
+        let llm_provider_type = loaded_provider.as_ref().map(|c| {
+            serde_json::to_value(&c.provider)
+                .ok()
+                .and_then(|v| v.as_str().map(|s| s.to_string()))
+                .unwrap_or_default()
+        });
+        let llm_provider = Arc::new(Mutex::new(loaded_provider));
 
         Self {
             bootstrap: DesktopBootstrapState {
@@ -694,11 +704,12 @@ impl DesktopAppState {
                 launch_join_payload_error,
                 debug_tools_enabled,
                 llm_api_key_configured,
+                llm_provider_type,
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
             },
             app_data_dir,
-            llm_api_key,
+            llm_provider,
             debug_table_runtime: Mutex::new(None),
             host_session: Mutex::new(None),
             client_session: Mutex::new(None),
@@ -963,7 +974,7 @@ impl DesktopAppState {
             Arc::clone(&session.host_server),
             npc_configs,
             Arc::clone(&stop),
-            Arc::clone(&self.llm_api_key),
+            Arc::clone(&self.llm_provider),
             Arc::clone(&tilt_levels),
         );
         session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
@@ -975,36 +986,59 @@ impl DesktopAppState {
         session.status()
     }
 
-    /// Save the Claude API key to disk and update the in-memory holder.
+    /// Save a provider config to disk and update the in-memory holder.
+    pub fn set_llm_provider_config(
+        &self,
+        config: crate::npc::LlmProviderConfig,
+    ) -> Result<(), String> {
+        crate::npc::provider_storage::save_provider_config(&self.app_data_dir, Some(&config))
+            .map_err(|e| e.to_string())?;
+        *self
+            .llm_provider
+            .lock()
+            .map_err(|_| "llm provider lock poisoned".to_string())? = Some(config);
+        Ok(())
+    }
+
+    /// Clear the provider config from disk and memory.
+    pub fn clear_llm_provider_config(&self) -> Result<(), String> {
+        crate::npc::provider_storage::save_provider_config(&self.app_data_dir, None)
+            .map_err(|e| e.to_string())?;
+        *self
+            .llm_provider
+            .lock()
+            .map_err(|_| "llm provider lock poisoned".to_string())? = None;
+        Ok(())
+    }
+
+    /// Return the current provider config (None if not set).
+    pub fn get_llm_provider_config(&self) -> Result<Option<crate::npc::LlmProviderConfig>, String> {
+        Ok(self
+            .llm_provider
+            .lock()
+            .map_err(|_| "llm provider lock poisoned".to_string())?
+            .clone())
+    }
+
+    /// Backward-compat: set the Anthropic API key (creates/overwrites an Anthropic provider).
     pub fn set_llm_api_key(&self, key: String) -> Result<(), String> {
         let trimmed = key.trim().to_string();
         if trimmed.is_empty() {
             return Err("API key must not be empty".to_string());
         }
-        crate::npc::api_key::save_api_key(&self.app_data_dir, &trimmed)
-            .map_err(|e| e.to_string())?;
-        *self
-            .llm_api_key
-            .lock()
-            .map_err(|_| "api key lock poisoned".to_string())? = Some(trimmed);
-        Ok(())
+        self.set_llm_provider_config(crate::npc::LlmProviderConfig::from_anthropic_key(trimmed))
     }
 
-    /// Clear the Claude API key from disk and memory.
+    /// Backward-compat: clear any configured provider.
     pub fn clear_llm_api_key(&self) -> Result<(), String> {
-        crate::npc::api_key::save_api_key(&self.app_data_dir, "").map_err(|e| e.to_string())?;
-        *self
-            .llm_api_key
-            .lock()
-            .map_err(|_| "api key lock poisoned".to_string())? = None;
-        Ok(())
+        self.clear_llm_provider_config()
     }
 
-    /// Returns true if a Claude API key is currently configured.
+    /// Returns true when any usable LLM provider is configured.
     pub fn llm_api_key_configured(&self) -> bool {
-        self.llm_api_key
+        self.llm_provider
             .lock()
-            .map(|g| g.is_some())
+            .map(|g| g.as_ref().is_some_and(|c| c.is_usable()))
             .unwrap_or(false)
     }
 

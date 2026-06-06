@@ -116,6 +116,15 @@ mod tests {
         }
     }
 
+    fn anthropic_cfg(key: &str) -> crate::npc::provider::LlmProviderConfig {
+        crate::npc::provider::LlmProviderConfig {
+            provider: crate::npc::provider::LlmProviderType::Anthropic,
+            api_key: Some(key.to_string()),
+            endpoint_url: None,
+            model: None,
+        }
+    }
+
     /// A test LlmClient that returns a fixed response via a mock server.
     fn valid_raise_client() -> LlmClient {
         use httpmock::prelude::*;
@@ -131,9 +140,9 @@ mod tests {
                 }));
         });
         // Keep the server alive by leaking it (test scope).
-        let url = format!("{}/v1/messages", server.base_url());
+        let url = server.base_url();
         std::mem::forget(server);
-        LlmClient::new("test-key".to_string()).with_base_url(url)
+        LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url)
     }
 
     fn timeout_client() -> LlmClient {
@@ -145,14 +154,9 @@ mod tests {
                 .delay(std::time::Duration::from_secs(10))
                 .json_body(serde_json::json!({"content": []}));
         });
-        let url = format!("{}/v1/messages", server.base_url());
+        let url = server.base_url();
         std::mem::forget(server);
-        LlmClient::with_options(
-            "test-key".to_string(),
-            "claude-haiku-4-5-20251001".to_string(),
-            1,
-        )
-        .with_base_url(url)
+        LlmClient::with_timeout_secs(anthropic_cfg("test-key"), 1, url)
     }
 
     #[test]
@@ -195,9 +199,9 @@ mod tests {
                     "stop_reason": "end_turn"
                 }));
         });
-        let url = format!("{}/v1/messages", server.base_url());
+        let url = server.base_url();
         std::mem::forget(server);
-        let client = LlmClient::new("test-key".to_string()).with_base_url(url);
+        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
 
         let profile = make_profile("balanced");
         let mut snap = snap_with_raise();

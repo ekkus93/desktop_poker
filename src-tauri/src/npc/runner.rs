@@ -10,11 +10,13 @@ use crate::domain::{ActionType, BlindLevel, HandResult, StreetPhase, TournamentS
 use crate::networking::HostServer;
 
 use super::hand_log::{HandActionRecord, HandLog};
+use super::llm_client::LlmClient;
 use super::llm_strategy::choose_llm_action;
 use super::opponent_stats::OpponentStatsTable;
 use super::postflop::postflop_hand_category;
 use super::preflop::preflop_hand_tier;
 use super::prompt::GameStateSnapshot;
+use super::provider::LlmProviderConfig;
 use super::session_history::{HandSummary, NpcSessionHistory};
 use super::strategy::{choose_postflop_action, choose_preflop_action, derive_position, NpcAction};
 use super::tilt::TiltState;
@@ -69,7 +71,7 @@ pub fn start_npc_runner(
     host_server: Arc<HostServer>,
     npc_configs: Vec<NpcConfig>,
     stop: Arc<AtomicBool>,
-    api_key_holder: Arc<Mutex<Option<String>>>,
+    api_key_holder: Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
 ) -> thread::JoinHandle<()> {
     thread::Builder::new()
@@ -90,7 +92,7 @@ pub fn run_npc_loop(
     host_server: &HostServer,
     npc_configs: &[NpcConfig],
     stop: &AtomicBool,
-    api_key_holder: &Arc<Mutex<Option<String>>>,
+    api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
 ) {
     let shared_tilt = Arc::new(Mutex::new(BTreeMap::new()));
     npc_runner_loop(host_server, npc_configs, stop, api_key_holder, shared_tilt);
@@ -100,7 +102,7 @@ fn npc_runner_loop(
     host_server: &HostServer,
     npc_configs: &[NpcConfig],
     stop: &AtomicBool,
-    api_key_holder: &Arc<Mutex<Option<String>>>,
+    api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
@@ -291,7 +293,7 @@ fn try_npc_action(
     state: &TournamentState,
     npc_configs: &[NpcConfig],
     stop: &AtomicBool,
-    api_key_holder: &Arc<Mutex<Option<String>>>,
+    api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     runner_state: &mut RunnerState,
 ) -> bool {
     let hand = match &state.current_hand {
@@ -398,11 +400,12 @@ fn try_npc_action(
     let dealer_seat = fresh_hand.dealer_seat_index;
     let position = derive_position(fresh_window.seat_index, dealer_seat, active_count.max(2));
 
-    // LLM path when the NPC has a profile and an API key is available.
+    // LLM path when the NPC has a profile and an usable provider config is available.
     let (action_type, raise_to) = if let Some(profile) = npc_config.and_then(|c| c.profile.as_ref())
     {
-        let api_key = api_key_holder.lock().ok().and_then(|g| g.clone());
-        if let Some(key) = api_key {
+        let provider_cfg = api_key_holder.lock().ok().and_then(|g| g.clone());
+        let usable_cfg = provider_cfg.filter(|c| c.is_usable());
+        if let Some(cfg) = usable_cfg {
             let blind_level = fresh_state
                 .config
                 .blind_schedule
@@ -456,7 +459,7 @@ fn try_npc_action(
                 tilt_description: tilt_desc,
             };
 
-            let result = choose_llm_action(&client_for(&key), profile, &snapshot);
+            let result = choose_llm_action(&LlmClient::new(cfg), profile, &snapshot);
 
             // Record the action into the hand log.
             if let Some(log) = &mut runner_state.hand_log {
@@ -538,10 +541,6 @@ fn try_npc_action(
     );
 
     true
-}
-
-fn client_for(key: &str) -> crate::npc::llm_client::LlmClient {
-    crate::npc::llm_client::LlmClient::new(key.to_string())
 }
 
 fn fallback_blind_level() -> BlindLevel {

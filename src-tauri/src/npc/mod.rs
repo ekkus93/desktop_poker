@@ -9,10 +9,14 @@ pub mod preflop;
 pub mod profile;
 pub mod profile_store;
 pub mod prompt;
+pub mod provider;
+pub mod provider_storage;
 pub mod runner;
 pub mod session_history;
 pub mod strategy;
 pub mod tilt;
+
+pub use provider::{LlmProviderConfig, LlmProviderType};
 
 use serde::{Deserialize, Serialize};
 
