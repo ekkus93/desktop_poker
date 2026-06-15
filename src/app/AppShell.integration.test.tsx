@@ -636,6 +636,18 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
 
+    // The generic Lobby heading can render before the live host session has
+    // been loaded. Wait for host-only lobby controls before simulating the
+    // session disappearing, otherwise the recovery branch has no prior live
+    // host session to recover from and the app correctly shows the generic
+    // unavailable lobby state instead.
+    expect(
+      await screen.findByRole("button", { name: "Start tournament" }),
+    ).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
+    });
+
     // Simulate host session stopping and fire a session-update event to trigger re-poll
     currentHostSession = null;
     await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined(), { timeout: 2000 });

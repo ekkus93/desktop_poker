@@ -6,6 +6,8 @@ import {
   getClientSessionStatus,
   getHostSessionStatus,
   getTableView,
+  onSessionUpdate,
+  onTableUpdate,
   resolveHostLanAddress,
   validateJoinPayloadInput,
 } from "../api/desktop";
@@ -29,6 +31,8 @@ vi.mock("../api/desktop", async () => {
     resolveHostLanAddress: vi.fn(),
     validateJoinPayloadInput: vi.fn(),
     getTableView: vi.fn(),
+    onSessionUpdate: vi.fn().mockResolvedValue(() => {}),
+    onTableUpdate: vi.fn().mockResolvedValue(() => {}),
   };
 });
 
@@ -37,6 +41,8 @@ const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
 const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
+const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
+const mockedOnTableUpdate = vi.mocked(onTableUpdate);
 const appCss = fs.readFileSync(path.resolve(process.cwd(), "src/App.css"), "utf8");
 
 describe("Layout contracts", () => {
@@ -46,7 +52,13 @@ describe("Layout contracts", () => {
     mockedResolveHostLanAddress.mockReset();
     mockedValidateJoinPayloadInput.mockReset();
     mockedGetTableView.mockReset();
+    mockedOnSessionUpdate.mockReset();
+    mockedOnTableUpdate.mockReset();
+
     mockedGetClientSessionStatus.mockResolvedValue(null);
+    mockedOnSessionUpdate.mockResolvedValue(() => {});
+    mockedOnTableUpdate.mockResolvedValue(() => {});
+
     mockedGetHostSessionStatus.mockResolvedValue({
       tournamentName: "Friday Finals",
       tableName: "Main Table",
@@ -79,6 +91,7 @@ describe("Layout contracts", () => {
         },
       ],
     });
+
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedValidateJoinPayloadInput.mockResolvedValue(createParsedJoinPayload());
     mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
