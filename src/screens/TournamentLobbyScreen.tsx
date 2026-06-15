@@ -153,7 +153,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           setSessionStatus("ready");
           scheduleNext(LOBBY_POLL_NORMAL_MS);
         })
-        .catch((error: unknown) => {
+        .catch(() => {
           if (!active) {
             return;
           }
@@ -165,22 +165,14 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             return;
           }
 
+          // Keep the last-known session on screen and surface the "connection
+          // slow" banner instead of dropping to the no-session/recovery screen on
+          // a transient poll failure. A genuine host-stop is detected on the
+          // success path (the poll resolves to null), so a thrown error here is
+          // treated as recoverable degradation, not a stopped session.
           setConnectionSlow(
             consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD,
           );
-
-          const previousHostSession = hostSessionRef.current;
-
-          if (previousHostSession && previousHostSession.phase !== "running") {
-            setHostRecoveryError(
-              error instanceof Error
-                ? error.message
-                : "Hosting stopped before the table went live. Start hosting again or return home.",
-            );
-          }
-
-          setHostSession(null);
-          setClientSession(null);
           setSessionStatus("ready");
           scheduleNext(
             consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD

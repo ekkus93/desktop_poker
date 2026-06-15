@@ -362,4 +362,38 @@ describe("TournamentLobbyScreen", () => {
 
     vi.useRealTimers();
   });
+
+  it("keeps the lobby visible and shows the connection-slow banner after 3 consecutive errors (B6)", async () => {
+    vi.useFakeTimers();
+    // First poll establishes the session; subsequent polls fail transiently.
+    mockedGetHostSessionStatus
+      .mockResolvedValueOnce(createHostSession())
+      .mockRejectedValue(new Error("host unreachable"));
+    mockedGetClientSessionStatus.mockResolvedValue(null);
+
+    const bootstrap = createBootstrap();
+    await act(async () => {
+      renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+        bootstrap,
+        initialEntries: ["/lobby"],
+      });
+    });
+
+    // Two failed polls stay on the normal interval with no banner yet.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(screen.queryByText(/connection slow/i)).toBeNull();
+
+    // The third consecutive failure shows the slow banner. The banner only
+    // exists inside the live-lobby view, so its presence proves the lobby stayed
+    // on screen instead of dropping to the no-session/recovery view.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText(/connection slow/i)).toBeTruthy();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
 });
