@@ -27,9 +27,9 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-24.04
-    # Hard cap: a healthy run finishes well under this. Prevents runaway billing
-    # if any step hangs.
-    timeout-minutes: 30
+    # A healthy run finishes in ~10-15 min; this is a safety cap (with headroom
+    # for a cold Rust compile), not the expected runtime. Prevents runaway billing.
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -68,9 +68,29 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium
+      # Apt deps for chromium (kept separate from the browser download so a
+      # stalled download can't waste the apt time on retry).
+      - name: Install Playwright system deps
+        timeout-minutes: 5
+        run: npx playwright install-deps chromium
+
+      # The browser binary is fetched from a CDN that occasionally accepts the
+      # connection then sends no data — Playwright has no per-download stall
+      # timeout, so it would hang indefinitely (previously to the 6-hour ceiling).
+      # Bound each attempt with `timeout` and retry with a fresh connection.
+      - name: Install Playwright browser (retry on stall)
+        timeout-minutes: 8
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 150 npx playwright install chromium; then
+              echo "Playwright browser installed on attempt $attempt"
+              exit 0
+            fi
+            echo "::warning::Playwright browser install attempt $attempt stalled or failed; retrying"
+            sleep 5
+          done
+          echo "::error::Playwright browser install failed after 3 attempts"
+          exit 1
 
       - name: Check formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -98,9 +118,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: verify
     runs-on: ubuntu-24.04
-    # Release builds a full Tauri bundle, so allow more headroom than verify —
-    # but still cap it well below the 6-hour default.
-    timeout-minutes: 60
+    # Release builds a full Tauri bundle (heavier than verify), but still capped
+    # well below the 6-hour default.
+    timeout-minutes: 30
     permissions:
       contents: write
 
