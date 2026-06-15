@@ -410,3 +410,10 @@
 - W1 (table↔lobby dead-end): added an integration test to `src/app/AppShell.integration.test.tsx` asserting a pre-hand `/table` route redirects to `/lobby` and does NOT loop back to `/table` (the lobby route has no phase-based redirect).
 - Checked off both items in `docs/UIUX_IMPROVEMENTS3_TODO.md` (B6 final box, W1 final box).
 - Verification: `npm run format:check`, `npm run lint` (`--max-warnings 0`), and `npm run test` all pass — 207 frontend tests (was 202, +5). Not committed; on branch `chore/dev-setup-and-flaky-test-fixes`.
+
+## 2026-06-15T19:26:01Z - Claude Opus 4.8 - Tuned Ollama NPC defaults; serialized live tests
+
+- Committed/pushed to master (`a744b6d`): default Ollama model `llama3.2` -> `llama3.2:3b` (`npc/provider.rs`); LLM request timeout 60s -> 20s (`npc/llm_client.rs`, headroom for CPU-only inference while keeping rule-based fallback snappy); README timeout note -> 20s.
+- `npc/llm_strategy.rs`: added a shared `static LIVE_OLLAMA_LOCK: Mutex<()>` (poison-tolerant via `unwrap_or_else(PoisonError::into_inner)`) and rewrote the two `#[ignore]`d live tests (`ollama_llama32_preflop_returns_legal_poker_action`, `ollama_llama32_postflop_returns_legal_poker_action`) to both target `llama3.2:3b` and serialize through the mutex — a single CPU Ollama instance can't serve concurrent requests, which caused timeouts when the two tests ran in parallel.
+- Verified: both live tests pass serialized at default parallelism (~11.6s, real LLM actions: postflop->Call, preflop->Fold). `cargo fmt --check` and `cargo clippy --all-targets --all-features -- -D warnings` clean.
+- Left UNCOMMITTED intentionally: diagnostic instrumentation in `app_state/mod.rs` (120s deadlines + `LIVE_TIMING` eprintln). It disables the real 5/15/20s deadline enforcement and must not be committed as-is.
