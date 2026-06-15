@@ -54,6 +54,8 @@ function createProbeBootstrap(): DesktopBootstrapState {
     parsedLaunchJoinPayload: null,
     launchJoinPayloadError: null,
     debugToolsEnabled: false,
+    llmApiKeyConfigured: false,
+    llmProviderType: null,
     backendModules: [],
     screens: [
       { id: "home", title: "Home", route: "/", surface: "primary" },
@@ -338,6 +340,7 @@ function installBrowserMocks(bootstrap: DesktopBootstrapState, surface: ProbeSur
       currentHandNumber: tableView.currentHandNumber,
       actionWindowSummary: null,
       launchHint: "layout-probe",
+      npcTiltLevels: {},
     } satisfies DebugInspectorState),
     launchAdditionalClientInstance: async () => "layout-probe-client",
   };

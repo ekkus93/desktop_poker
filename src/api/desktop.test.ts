@@ -85,6 +85,7 @@ function sampleDebugState(): DebugInspectorState {
     currentHandNumber: 2,
     actionWindowSummary: null,
     launchHint: "hint",
+    npcTiltLevels: {},
   };
 }
 
