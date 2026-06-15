@@ -104,7 +104,7 @@ the user no indication that the connection is degraded.
 - [x] After 10 consecutive errors, stop polling and navigate to `ErrorStateScreen` with the
   appropriate scenario (host-lost or reconnecting).
 - [x] On a successful response, reset the error counter and restore the normal interval.
-- [ ] Add unit tests for the backoff thresholds and the connection-lost navigation trigger.
+- [x] Add unit tests for the backoff thresholds and the connection-lost navigation trigger.
 
 ---
 
@@ -245,7 +245,7 @@ the live-route guard to immediately redirect back to `/table` because the sessio
 - [x] Updated the in-table "before first hand" message to remove the misleading suggestion
   to return to lobby. New message: "The tournament is live but the first hand has not started
   yet. The host will deal once all players are seated and ready."
-- [ ] Add an integration test that navigates from `/table` (pre-hand) to `/lobby` and asserts
+- [x] Add an integration test that navigates from `/table` (pre-hand) to `/lobby` and asserts
   the redirect does not loop back to `/table`.
 
 ---

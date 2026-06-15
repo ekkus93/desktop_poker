@@ -910,6 +910,40 @@ describe("AppShell integration", () => {
     ).toBeNull();
   });
 
+  it("does not loop back to the table when redirected from a pre-hand table route to the lobby (W1)", async () => {
+    // A live session exists but the first hand has not started (pre-hand phase),
+    // so /table must redirect to /lobby. The lobby route has no phase-based
+    // redirect, so it must NOT bounce back to /table.
+    currentHostSession = {
+      ...buildHostSessionStatus({ tournamentName: "Friday Night" }),
+      phase: "waitingForPlayers",
+    };
+
+    renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: false,
+    });
+
+    // The table guard redirects the pre-hand session to the lobby.
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
+
+    // Let the lobby's own status poll settle, then confirm we are still on the
+    // lobby and were never looped back to the table.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
+  });
+
   it("stops the live host session before leaving the lobby", async () => {
     currentHostSession = buildHostSessionStatus({
       tournamentName: "Friday Night",

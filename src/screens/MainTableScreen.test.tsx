@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -29,6 +29,20 @@ const mockedGetTableView = vi.mocked(getTableView);
 const mockedSubmitTableAction = vi.mocked(submitTableAction);
 const mockedOnTableUpdate = vi.mocked(onTableUpdate);
 
+const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+
+vi.mock("react-router-dom", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
+
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 const createTableView = createTableViewSnapshot;
 
 describe("MainTableScreen", () => {
@@ -37,6 +51,7 @@ describe("MainTableScreen", () => {
     mockedSubmitTableAction.mockReset();
     mockedOnTableUpdate.mockReset();
     mockedOnTableUpdate.mockResolvedValue(() => {});
+    mockNavigate.mockReset();
     vi.useRealTimers();
   });
 
@@ -472,5 +487,96 @@ describe("MainTableScreen", () => {
     expect(document.activeElement).toBe(raiseButton);
     await user.tab();
     expect(document.activeElement).toBe(allInButton);
+  });
+
+  it("backs off to the slow poll interval and shows the connection-slow banner after 3 consecutive poll errors (B6)", async () => {
+    vi.useFakeTimers();
+    const liveView = createTableView();
+    mockedGetTableView
+      .mockResolvedValueOnce(liveView) // initial load succeeds
+      .mockRejectedValue(new Error("network down")); // every poll fails
+
+    const bootstrap = createBootstrap();
+    await act(async () => {
+      renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+        bootstrap,
+      });
+    });
+
+    // The first two poll failures stay on the 5s interval with no slow banner.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.queryByText(/connection slow/i)).toBeNull();
+
+    // The third consecutive failure crosses the backoff threshold.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByText(/connection slow/i)).toBeTruthy();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it("stops polling and navigates to the error screen after 10 consecutive poll errors (B6)", async () => {
+    vi.useFakeTimers();
+    const liveView = createTableView();
+    mockedGetTableView
+      .mockResolvedValueOnce(liveView)
+      .mockRejectedValue(new Error("network down"));
+
+    const bootstrap = createBootstrap();
+    await act(async () => {
+      renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+        bootstrap,
+      });
+    });
+
+    // Drive past the 10-error limit (three failures at 5s, the rest at the 10s
+    // slow interval). The tenth failure triggers the error-screen navigation.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120000);
+    });
+    expect(mockNavigate).toHaveBeenCalledWith("/errors", { replace: true });
+
+    vi.useRealTimers();
+  });
+
+  it("resets the error counter and clears the slow banner after a successful poll (B6)", async () => {
+    vi.useFakeTimers();
+    const liveView = createTableView();
+    const failure = new Error("network down");
+    mockedGetTableView
+      .mockResolvedValueOnce(liveView) // initial load
+      .mockRejectedValueOnce(failure) // poll #1
+      .mockRejectedValueOnce(failure) // poll #2
+      .mockRejectedValueOnce(failure) // poll #3 -> slow banner
+      .mockResolvedValue(liveView); // poll #4 recovers
+
+    const bootstrap = createBootstrap();
+    await act(async () => {
+      renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+        bootstrap,
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000); // three failures at 5s each
+    });
+    expect(screen.getByText(/connection slow/i)).toBeTruthy();
+
+    // After backoff the next poll runs at the 10s slow interval and succeeds,
+    // resetting the counter and clearing the banner without navigating away.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(screen.queryByText(/connection slow/i)).toBeNull();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });

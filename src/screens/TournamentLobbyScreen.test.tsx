@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getClientSessionStatus,
@@ -31,6 +31,20 @@ const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
 const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
 const mockedStopHostSession = vi.mocked(stopHostSession);
+
+const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }));
+
+vi.mock("react-router-dom", async () => {
+  const actual =
+    await vi.importActual<typeof import("react-router-dom")>(
+      "react-router-dom",
+    );
+
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 function createHostSession(
   overrides: Partial<HostSessionStatus> = {},
@@ -79,6 +93,7 @@ describe("TournamentLobbyScreen", () => {
     mockedOnSessionUpdate.mockReset();
     mockedOnSessionUpdate.mockResolvedValue(() => {});
     mockedStopHostSession.mockReset();
+    mockNavigate.mockReset();
     mockedGetClientSessionStatus.mockResolvedValue(null);
     mockedGetHostSessionStatus.mockResolvedValue(createHostSession());
     mockedHostSetLobbyReadyState.mockImplementation(async (request) => {
@@ -318,5 +333,33 @@ describe("TournamentLobbyScreen", () => {
 
     // Only the real local player (Host Alpha) is waiting — NPC should not count
     expect(await screen.findByText("1 waiting")).toBeTruthy();
+  });
+
+  it("stops polling and navigates to the error screen after 10 consecutive status errors (B6)", async () => {
+    vi.useFakeTimers();
+    mockedGetHostSessionStatus.mockRejectedValue(new Error("host unreachable"));
+    mockedGetClientSessionStatus.mockResolvedValue(null);
+
+    const bootstrap = createBootstrap();
+    await act(async () => {
+      renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+        bootstrap,
+        initialEntries: ["/lobby"],
+      });
+    });
+
+    // A handful of early failures stay under the error limit and must not navigate.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Crossing the 10-error limit navigates to the dedicated error screen.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100000);
+    });
+    expect(mockNavigate).toHaveBeenCalledWith("/errors", { replace: true });
+
+    vi.useRealTimers();
   });
 });
