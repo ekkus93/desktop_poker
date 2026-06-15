@@ -282,52 +282,113 @@ mod ollama_live_tests {
         }
     }
 
-    /// Live integration test against running Ollama server.
-    /// Skipped automatically when Ollama is unreachable.
-    #[test]
-    #[ignore]
-    fn ollama_qwen25_returns_legal_poker_action() {
-        let cfg = ollama_cfg("qwen2.5-coder:3b");
-        let client = LlmClient::new(cfg);
-        let profile = balanced_profile();
-        let snap = preflop_snap();
+    // Serializes the live Ollama integration tests so they never run concurrently
+    // against a single (CPU-only) Ollama server. Two simultaneous requests force
+    // Ollama to load/run both at once and both miss the timeout; run one at a time
+    // each completes in seconds.
+    static LIVE_OLLAMA_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+    fn postflop_snap() -> GameStateSnapshot {
+        GameStateSnapshot {
+            hand_number: 1,
+            street: StreetPhase::Flop,
+            board_cards: vec![
+                crate::domain::Card {
+                    rank: crate::domain::Rank::Queen,
+                    suit: crate::domain::Suit::Hearts,
+                },
+                crate::domain::Card {
+                    rank: crate::domain::Rank::Jack,
+                    suit: crate::domain::Suit::Spades,
+                },
+                crate::domain::Card {
+                    rank: crate::domain::Rank::Two,
+                    suit: crate::domain::Suit::Clubs,
+                },
+            ],
+            hole_cards: vec![
+                crate::domain::Card {
+                    rank: crate::domain::Rank::Ace,
+                    suit: crate::domain::Suit::Spades,
+                },
+                crate::domain::Card {
+                    rank: crate::domain::Rank::King,
+                    suit: crate::domain::Suit::Hearts,
+                },
+            ],
+            pot_total: 120,
+            call_amount: 40,
+            min_raise_to: Some(80),
+            max_raise_to: Some(1000),
+            stack: 980,
+            position: Position::Late,
+            active_player_count: 2,
+            legal_actions: vec![ActionType::Fold, ActionType::Call, ActionType::Raise],
+            blind_level: BlindLevel {
+                level_index: 0,
+                label: "L1".into(),
+                small_blind: 10,
+                big_blind: 20,
+                ante: 0,
+                duration_seconds: 300,
+            },
+            street_history: vec![],
+            session_context: None,
+            opponent_context: None,
+            tilt_description: None,
+        }
+    }
 
+    fn assert_legal_live_action(
+        snap: &GameStateSnapshot,
+        action_type: ActionType,
+        raise_to: Option<u32>,
+    ) {
         assert!(
             snap.legal_actions.contains(&action_type),
             "ollama returned illegal action: {action_type:?}"
         );
-        if action_type == ActionType::Raise {
+        if matches!(action_type, ActionType::Raise | ActionType::Bet) {
             let amt = raise_to.unwrap_or(0);
+            let lo = snap.min_raise_to.unwrap_or(0);
+            let hi = snap.max_raise_to.unwrap_or(u32::MAX);
             assert!(
-                (40..=1000).contains(&amt),
-                "raise amount {amt} out of bounds"
+                (lo..=hi).contains(&amt),
+                "raise amount {amt} out of bounds [{lo}, {hi}]"
             );
         }
     }
 
+    /// Live integration test against a running Ollama server using the default
+    /// recommended model. Skipped automatically when Ollama is unreachable.
+    /// Serialized via LIVE_OLLAMA_LOCK so `-- --ignored` runs them one at a time.
     #[test]
     #[ignore]
-    fn ollama_qwen35_returns_legal_poker_action() {
-        let cfg = ollama_cfg("fredrezones55/Qwen3.5-Uncensored-HauhauCS-Aggressive:4b");
-        let client = LlmClient::new(cfg);
+    fn ollama_llama32_preflop_returns_legal_poker_action() {
+        let _guard = LIVE_OLLAMA_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let client = LlmClient::new(ollama_cfg("llama3.2:3b"));
         let profile = balanced_profile();
         let snap = preflop_snap();
 
         let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+        assert_legal_live_action(&snap, action_type, raise_to);
+        eprintln!("llama3.2 preflop chose: {action_type:?} {raise_to:?}");
+    }
 
-        assert!(
-            snap.legal_actions.contains(&action_type),
-            "ollama returned illegal action: {action_type:?}"
-        );
-        if action_type == ActionType::Raise {
-            let amt = raise_to.unwrap_or(0);
-            assert!(
-                (40..=1000).contains(&amt),
-                "raise amount {amt} out of bounds"
-            );
-        }
-        eprintln!("qwen3.5 chose: {action_type:?} {raise_to:?}");
+    #[test]
+    #[ignore]
+    fn ollama_llama32_postflop_returns_legal_poker_action() {
+        let _guard = LIVE_OLLAMA_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let client = LlmClient::new(ollama_cfg("llama3.2:3b"));
+        let profile = balanced_profile();
+        let snap = postflop_snap();
+
+        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+        assert_legal_live_action(&snap, action_type, raise_to);
+        eprintln!("llama3.2 postflop chose: {action_type:?} {raise_to:?}");
     }
 }

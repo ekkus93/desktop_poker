@@ -133,7 +133,7 @@ If the provider returns an error, a timeout, unparseable JSON, or an illegal act
 - **Transport framing:** length-prefixed JSON envelopes
 - **Default LAN host port:** `43818` to match the current Android default
 - **Per-instance storage:** profile namespace under a per-instance local data directory
-- **LLM timeout:** 5 seconds per request; failures fall back to rule-based engine
+- **LLM timeout:** 20 seconds per request (accommodates local CPU-only inference); failures fall back to rule-based engine
 
 ## Tooling
 

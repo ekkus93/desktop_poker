@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 const ANTHROPIC_DEFAULT_MODEL: &str = "claude-haiku-4-5-20251001";
 const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
-const OLLAMA_DEFAULT_MODEL: &str = "llama3.2";
+const OLLAMA_DEFAULT_MODEL: &str = "llama3.2:3b";
 const LLAMA_SERVER_DEFAULT_MODEL: &str = "default";
 
 const ANTHROPIC_DEFAULT_ENDPOINT: &str = "https://api.anthropic.com";

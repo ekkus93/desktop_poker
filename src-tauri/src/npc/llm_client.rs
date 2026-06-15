@@ -2,7 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use super::provider::{LlmProviderConfig, LlmProviderType};
 
-const DEFAULT_TIMEOUT_SECS: u64 = 5;
+// 20s gives ample headroom for local CPU-only inference (e.g. Ollama without a
+// GPU) with the recommended small instruction-tuned models (~1-5s/response) while
+// keeping fallback snappy. Requests that still exceed this fall back to the
+// rule-based engine.
+const DEFAULT_TIMEOUT_SECS: u64 = 20;
 const DEFAULT_MAX_TOKENS: u32 = 128;
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
