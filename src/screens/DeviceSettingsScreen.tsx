@@ -89,7 +89,9 @@ export function DeviceSettingsScreen() {
       setApiKey("");
       setProviderStatus("Provider saved.");
     } catch (e) {
-      setProviderError(e instanceof Error ? e.message : "Failed to save provider.");
+      setProviderError(
+        e instanceof Error ? e.message : "Failed to save provider.",
+      );
     } finally {
       setSaving(false);
     }
@@ -103,7 +105,9 @@ export function DeviceSettingsScreen() {
       await clearLlmProviderConfig();
       setProviderStatus("Provider cleared.");
     } catch (e) {
-      setProviderError(e instanceof Error ? e.message : "Failed to clear provider.");
+      setProviderError(
+        e instanceof Error ? e.message : "Failed to clear provider.",
+      );
     } finally {
       setClearing(false);
     }
@@ -154,7 +158,9 @@ export function DeviceSettingsScreen() {
               Provider
               <select
                 value={selectedProvider}
-                onChange={(e) => setSelectedProvider(e.target.value as LlmProviderType)}
+                onChange={(e) =>
+                  setSelectedProvider(e.target.value as LlmProviderType)
+                }
                 aria-label="LLM provider"
               >
                 {PROVIDER_OPTIONS.map((opt) => (
@@ -171,9 +177,7 @@ export function DeviceSettingsScreen() {
                 <input
                   type="password"
                   placeholder={
-                    selectedProvider === "anthropic"
-                      ? "sk-ant-..."
-                      : "sk-..."
+                    selectedProvider === "anthropic" ? "sk-ant-..." : "sk-..."
                   }
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
@@ -210,8 +214,7 @@ export function DeviceSettingsScreen() {
               className="primary-button"
               onClick={handleSave}
               disabled={
-                saving ||
-                (requiresApiKey(selectedProvider) && !apiKey.trim())
+                saving || (requiresApiKey(selectedProvider) && !apiKey.trim())
               }
               type="button"
             >
@@ -320,8 +323,12 @@ export function DeviceSettingsScreen() {
               </button>
             )}
           </div>
-          {resetSuccess ? <p className="inline-banner success">Host setup reset.</p> : null}
-          {clearSuccess ? <p className="inline-banner success">Saved invites cleared.</p> : null}
+          {resetSuccess ? (
+            <p className="inline-banner success">Host setup reset.</p>
+          ) : null}
+          {clearSuccess ? (
+            <p className="inline-banner success">Saved invites cleared.</p>
+          ) : null}
           <p className="field-hint">
             {recentJoinPayloads.length} saved invite
             {recentJoinPayloads.length === 1 ? "" : "s"}.

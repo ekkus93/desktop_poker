@@ -15,7 +15,9 @@ export function ScreenShell({
   className?: string;
 }) {
   return (
-    <section className={className ? `screen-shell ${className}` : "screen-shell"}>
+    <section
+      className={className ? `screen-shell ${className}` : "screen-shell"}
+    >
       <header className="screen-header">
         <div className="screen-copy">
           <p className="kicker">Desktop Poker</p>

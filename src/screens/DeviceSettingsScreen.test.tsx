@@ -1,14 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  clearLlmProviderConfig,
-  setLlmProviderConfig,
-} from "../api/desktop";
+import { clearLlmProviderConfig, setLlmProviderConfig } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { DeviceSettingsScreen } from "./DeviceSettingsScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
   return {
     ...actual,
     setLlmProviderConfig: vi.fn(),
@@ -32,8 +30,12 @@ describe("DeviceSettingsScreen", () => {
     renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
     expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
     expect(screen.getByLabelText("Display name")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /reset host setup/i })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /clear saved invites/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /reset host setup/i }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /clear saved invites/i }),
+    ).toBeTruthy();
     expect(screen.queryByText("Table basics")).toBeNull();
   });
 
@@ -112,7 +114,9 @@ describe("DeviceSettingsScreen", () => {
   });
 
   it("shows error when setLlmProviderConfig fails", async () => {
-    mockedSetLlmProviderConfig.mockRejectedValue(new Error("Connection refused"));
+    mockedSetLlmProviderConfig.mockRejectedValue(
+      new Error("Connection refused"),
+    );
     const bootstrap = createBootstrap({ llmApiKeyConfigured: false });
     renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
 

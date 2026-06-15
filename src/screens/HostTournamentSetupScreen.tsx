@@ -22,7 +22,17 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
-const NPC_BOT_NAMES = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota"];
+const NPC_BOT_NAMES = [
+  "Alpha",
+  "Beta",
+  "Gamma",
+  "Delta",
+  "Epsilon",
+  "Zeta",
+  "Eta",
+  "Theta",
+  "Iota",
+];
 
 function npcDisplayName(index: number): string {
   const suffix = NPC_BOT_NAMES[index] ?? String(index + 1);
@@ -30,7 +40,9 @@ function npcDisplayName(index: number): string {
 }
 
 function describeBlindOpening(firstLevel: string) {
-  const [smallBlind, bigBlind] = firstLevel.split("/").map((value) => value.trim());
+  const [smallBlind, bigBlind] = firstLevel
+    .split("/")
+    .map((value) => value.trim());
   return `Small blind ${smallBlind} · big blind ${bigBlind}`;
 }
 
@@ -44,10 +56,12 @@ function clampPort(value: string, fallbackPort: number) {
 }
 
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
-  const { displayName, hostDraft, setWasHost, updateHostDraft } = useDesktopShell();
+  const { displayName, hostDraft, setWasHost, updateHostDraft } =
+    useDesktopShell();
   const [resolvedHostIp, setResolvedHostIp] = useState<string | null>(null);
   const [lanError, setLanError] = useState<string | null>(null);
-  const [hostSession, setHostSession] = useState<Awaited<ReturnType<typeof getHostSessionStatus>>>(null);
+  const [hostSession, setHostSession] =
+    useState<Awaited<ReturnType<typeof getHostSessionStatus>>>(null);
   const [hostError, setHostError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [availableProfiles, setAvailableProfiles] = useState<NpcProfile[]>([]);
@@ -60,7 +74,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
   useEffect(() => {
     if (bootstrap.llmApiKeyConfigured) {
-      void listNpcProfiles().then(setAvailableProfiles).catch(() => {});
+      void listNpcProfiles()
+        .then(setAvailableProfiles)
+        .catch(() => {});
     }
   }, [bootstrap.llmApiKeyConfigured]);
 
@@ -99,7 +115,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
 
         setResolvedHostIp(null);
         setLanError(
-          error instanceof Error ? error.message : "Unable to resolve a LAN host address.",
+          error instanceof Error
+            ? error.message
+            : "Unable to resolve a LAN host address.",
         );
       });
 
@@ -133,7 +151,8 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const copyBlockedMessage = lanError
     ? "Invite copy is unavailable until the LAN address issue is fixed."
     : "Start hosting before copying the live invite.";
-  const summaryTournamentName = hostSession?.tournamentName ?? hostDraft.tournamentName;
+  const summaryTournamentName =
+    hostSession?.tournamentName ?? hostDraft.tournamentName;
   const summaryHostAddress = hostSession
     ? `${hostSession.advertisedHost}:${hostSession.hostPort}`
     : resolvedHostIp
@@ -176,7 +195,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
           setHostSession(npcStatus);
         } catch (npcErr) {
           setNpcError(
-            npcErr instanceof Error ? npcErr.message : "Unable to add NPC players.",
+            npcErr instanceof Error
+              ? npcErr.message
+              : "Unable to add NPC players.",
           );
           setHostSession(status);
         }
@@ -217,17 +238,19 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
       setCopyState(null);
       setFallbackInvite(null);
       setCopyError(
-        error instanceof Error ? error.message : "Unable to generate an invite.",
+        error instanceof Error
+          ? error.message
+          : "Unable to generate an invite.",
       );
     }
   };
 
   const tournamentNameIsBlank = hostDraft.tournamentName.trim().length === 0;
-  const canStartHosting = Boolean(resolvedHostIp) && !lanError && !starting && !tournamentNameIsBlank;
+  const canStartHosting =
+    Boolean(resolvedHostIp) && !lanError && !starting && !tournamentNameIsBlank;
 
   const handleTextField =
-    (field: "tournamentName") =>
-    (event: ChangeEvent<HTMLInputElement>) => {
+    (field: "tournamentName") => (event: ChangeEvent<HTMLInputElement>) => {
       updateHostDraft({ [field]: event.target.value });
       if (event.target.value.trim().length > 0) {
         setNameError(null);
@@ -260,7 +283,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     onChange={handleTextField("tournamentName")}
                     value={hostDraft.tournamentName}
                   />
-                  {nameError ? <span className="field-hint error-hint">{nameError}</span> : null}
+                  {nameError ? (
+                    <span className="field-hint error-hint">{nameError}</span>
+                  ) : null}
                 </label>
               </div>
 
@@ -312,7 +337,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   >
                     {BLIND_PRESETS.map((preset) => (
                       <option key={preset.id} value={preset.id}>
-                        {preset.label} · {describeBlindOpening(preset.firstLevel)} · {preset.summary}
+                        {preset.label} ·{" "}
+                        {describeBlindOpening(preset.firstLevel)} ·{" "}
+                        {preset.summary}
                       </option>
                     ))}
                   </select>
@@ -325,7 +352,10 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   <select
                     onChange={(event) => {
                       updateHostDraft({
-                        turnTimerSeconds: Number.parseInt(event.target.value, 10),
+                        turnTimerSeconds: Number.parseInt(
+                          event.target.value,
+                          10,
+                        ),
                       });
                     }}
                     value={hostDraft.turnTimerSeconds}
@@ -341,12 +371,17 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   Host port
                   <input
                     min={1}
-                      onChange={(event) => {
+                    onChange={(event) => {
                       const raw = event.target.value;
                       const parsed = Number.parseInt(raw, 10);
                       const clamped = clampPort(raw, bootstrap.defaultHostPort);
                       updateHostDraft({ hostPort: clamped });
-                      if (!raw || Number.isNaN(parsed) || parsed < 1 || parsed > 65535) {
+                      if (
+                        !raw ||
+                        Number.isNaN(parsed) ||
+                        parsed < 1 ||
+                        parsed > 65535
+                      ) {
                         setPortError("Port must be between 1 and 65535.");
                       } else {
                         setPortError(null);
@@ -355,7 +390,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     type="number"
                     value={hostDraft.hostPort}
                   />
-                  {portError ? <span className="field-hint error-hint">{portError}</span> : null}
+                  {portError ? (
+                    <span className="field-hint error-hint">{portError}</span>
+                  ) : null}
                 </label>
               </div>
               <div className="setup-grid-row compact-advanced-panel">
@@ -369,9 +406,14 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     }}
                     value={hostDraft.npcCount}
                   >
-                    {Array.from({ length: hostDraft.maxPlayers }, (_, i) => i).map((count) => (
+                    {Array.from(
+                      { length: hostDraft.maxPlayers },
+                      (_, i) => i,
+                    ).map((count) => (
                       <option key={count} value={count}>
-                        {count === 0 ? "None" : `${count} bot${count === 1 ? "" : "s"}`}
+                        {count === 0
+                          ? "None"
+                          : `${count} bot${count === 1 ? "" : "s"}`}
                       </option>
                     ))}
                   </select>
@@ -382,7 +424,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     <select
                       onChange={(event) => {
                         updateHostDraft({
-                          npcStyle: event.target.value as "aggressive" | "conservative",
+                          npcStyle: event.target.value as
+                            | "aggressive"
+                            | "conservative",
                         });
                       }}
                       value={hostDraft.npcStyle}
@@ -418,18 +462,28 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </p>
                 ) : null}
               </div>
-              {lanError ? <p className="inline-banner error">{lanError}</p> : null}
-              {npcError ? <p className="inline-banner error">{npcError}</p> : null}
+              {lanError ? (
+                <p className="inline-banner error">{lanError}</p>
+              ) : null}
+              {npcError ? (
+                <p className="inline-banner error">{npcError}</p>
+              ) : null}
             </div>
 
             <div className="workstation-side-panel">
-              <section className="compact-status-panel host-summary-panel" aria-label="Host share summary">
+              <section
+                className="compact-status-panel host-summary-panel"
+                aria-label="Host share summary"
+              >
                 <div className="status-row">
                   <div
                     className={`status-pill ${lanError ? "danger" : hostSession ? "success" : resolvedHostIp ? "info" : "info"}`}
                   >
                     {lanError ? (
-                      <TriangleAlert className="button-icon" strokeWidth={1.9} />
+                      <TriangleAlert
+                        className="button-icon"
+                        strokeWidth={1.9}
+                      />
                     ) : hostSession ? (
                       <Radio className="button-icon" strokeWidth={1.9} />
                     ) : (
@@ -441,7 +495,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                         ? `Live on ${hostSession.advertisedHost}`
                         : resolvedHostIp
                           ? `Ready on ${resolvedHostIp}`
-                        : "Checking LAN address"}
+                          : "Checking LAN address"}
                   </div>
                 </div>
                 <div className="host-summary-grid">
@@ -475,7 +529,13 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Radio className="button-icon" strokeWidth={1.9} />
-                    <span>{starting ? "Starting…" : hostSession ? "Restart hosting" : "Start hosting"}</span>
+                    <span>
+                      {starting
+                        ? "Starting…"
+                        : hostSession
+                          ? "Restart hosting"
+                          : "Start hosting"}
+                    </span>
                   </span>
                 </button>
                 <button
@@ -499,7 +559,11 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     </span>
                   </Link>
                 ) : (
-                  <button className="primary-button compact-button" disabled type="button">
+                  <button
+                    className="primary-button compact-button"
+                    disabled
+                    type="button"
+                  >
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
                       <span>Continue to lobby</span>
@@ -507,7 +571,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   </button>
                 )}
               </div>
-              {hostError ? <p className="inline-banner error">{hostError}</p> : null}
+              {hostError ? (
+                <p className="inline-banner error">{hostError}</p>
+              ) : null}
               {!inviteReady ? (
                 <p className="field-hint">{copyBlockedMessage}</p>
               ) : null}
@@ -515,7 +581,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 <p className="field-hint">{blockedProgressMessage}</p>
               ) : null}
 
-              {copyError ? <p className="inline-banner error">{copyError}</p> : null}
+              {copyError ? (
+                <p className="inline-banner error">{copyError}</p>
+              ) : null}
               {fallbackInvite ? (
                 <label className="field">
                   Invite

@@ -48,13 +48,17 @@ describe("shell helpers", () => {
   describe("createDefaultDisplayName", () => {
     it("derives the default player label from the bootstrap instance label", () => {
       expect(
-        createDefaultDisplayName(createBootstrap({ instanceLabel: "Client 7" })),
+        createDefaultDisplayName(
+          createBootstrap({ instanceLabel: "Client 7" }),
+        ),
       ).toBe("Player Client 7");
     });
 
     it("preserves unusual instance labels in the expected format", () => {
       expect(
-        createDefaultDisplayName(createBootstrap({ instanceLabel: "north-table/B" })),
+        createDefaultDisplayName(
+          createBootstrap({ instanceLabel: "north-table/B" }),
+        ),
       ).toBe("Player north-table/B");
     });
   });
@@ -228,15 +232,12 @@ describe("shell helpers", () => {
 
     it("reads stored values with fallback handling", () => {
       expect(readStoredValue<string>(null, "fallback")).toBe("fallback");
-      expect(readStoredValue("{\"name\":\"Alice\"}", { name: "fallback" })).toEqual(
+      expect(readStoredValue('{"name":"Alice"}', { name: "fallback" })).toEqual(
         { name: "Alice" },
       );
       expect(readStoredValue("not json", ["fallback"])).toEqual(["fallback"]);
       expect(readStoredValue<number>("7", 1)).toBe(7);
-      expect(readStoredValue<string[]>("[\"a\",\"b\"]", [])).toEqual([
-        "a",
-        "b",
-      ]);
+      expect(readStoredValue<string[]>('["a","b"]', [])).toEqual(["a", "b"]);
     });
   });
 });

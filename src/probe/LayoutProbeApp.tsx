@@ -63,7 +63,12 @@ function createProbeBootstrap(): DesktopBootstrapState {
       { id: "join", title: "Join", route: "/join", surface: "primary" },
       { id: "lobby", title: "Lobby", route: "/lobby", surface: "secondary" },
       { id: "table", title: "Table", route: "/table", surface: "primary" },
-      { id: "history", title: "History", route: "/history", surface: "support" },
+      {
+        id: "history",
+        title: "History",
+        route: "/history",
+        surface: "support",
+      },
       {
         id: "complete",
         title: "Complete",
@@ -71,7 +76,12 @@ function createProbeBootstrap(): DesktopBootstrapState {
         surface: "secondary",
       },
       { id: "rules", title: "Help", route: "/rules", surface: "support" },
-      { id: "settings", title: "Settings", route: "/settings", surface: "support" },
+      {
+        id: "settings",
+        title: "Settings",
+        route: "/settings",
+        surface: "support",
+      },
     ],
   };
 }
@@ -101,9 +111,24 @@ function createProbeTableView(): TableViewSnapshot {
     blindLevelLabel: "Level 1 · 10 / 20",
     currentHandNumber: 9,
     boardCards: [
-      { label: "Ace of spades", compactLabel: "A♠", suitSymbol: "♠", tone: "dark" },
-      { label: "King of hearts", compactLabel: "K♥", suitSymbol: "♥", tone: "red" },
-      { label: "Ten of clubs", compactLabel: "10♣", suitSymbol: "♣", tone: "dark" },
+      {
+        label: "Ace of spades",
+        compactLabel: "A♠",
+        suitSymbol: "♠",
+        tone: "dark",
+      },
+      {
+        label: "King of hearts",
+        compactLabel: "K♥",
+        suitSymbol: "♥",
+        tone: "red",
+      },
+      {
+        label: "Ten of clubs",
+        compactLabel: "10♣",
+        suitSymbol: "♣",
+        tone: "dark",
+      },
     ],
     potTotal: 120,
     actionOwnerLabel: "You",
@@ -124,8 +149,18 @@ function createProbeTableView(): TableViewSnapshot {
         isCompact: false,
         cardsHidden: false,
         holeCards: [
-          { label: "Ace of spades", compactLabel: "A♠", suitSymbol: "♠", tone: "dark" },
-          { label: "Queen of spades", compactLabel: "Q♠", suitSymbol: "♠", tone: "dark" },
+          {
+            label: "Ace of spades",
+            compactLabel: "A♠",
+            suitSymbol: "♠",
+            tone: "dark",
+          },
+          {
+            label: "Queen of spades",
+            compactLabel: "Q♠",
+            suitSymbol: "♠",
+            tone: "dark",
+          },
         ],
         detailLines: ["Probe local player"],
       },
@@ -177,7 +212,11 @@ function createProbeTableView(): TableViewSnapshot {
       },
     ],
     eventFeed: [
-      { sequence: 18, kind: "public-event", message: "The flop was published to every seat and observer." },
+      {
+        sequence: 18,
+        kind: "public-event",
+        message: "The flop was published to every seat and observer.",
+      },
     ],
     actionTray: {
       ownerLabel: "You",
@@ -200,8 +239,18 @@ function createDenseProbeTableView(): TableViewSnapshot {
     const isLocal = seatIndex === 1;
     const compactCards = isLocal
       ? [
-          { label: "Ace of spades", compactLabel: "A♠", suitSymbol: "♠", tone: "dark" as const },
-          { label: "Queen of spades", compactLabel: "Q♠", suitSymbol: "♠", tone: "dark" as const },
+          {
+            label: "Ace of spades",
+            compactLabel: "A♠",
+            suitSymbol: "♠",
+            tone: "dark" as const,
+          },
+          {
+            label: "Queen of spades",
+            compactLabel: "Q♠",
+            suitSymbol: "♠",
+            tone: "dark" as const,
+          },
         ]
       : [];
 
@@ -210,7 +259,14 @@ function createDenseProbeTableView(): TableViewSnapshot {
       displayName: isLocal ? "You" : `Seat ${seatIndex}`,
       chipCount: 1200 + (10 - seatIndex) * 25,
       statusLabel: seatIndex === 4 ? "All-in" : "Active",
-      markerLabel: seatIndex === 1 ? "Dealer" : seatIndex === 2 ? "Small blind" : seatIndex === 3 ? "Big blind" : null,
+      markerLabel:
+        seatIndex === 1
+          ? "Dealer"
+          : seatIndex === 2
+            ? "Small blind"
+            : seatIndex === 3
+              ? "Big blind"
+              : null,
       contribution: seatIndex <= 4 ? 20 * seatIndex : 0,
       isLocal,
       isActing: isLocal,
@@ -219,7 +275,9 @@ function createDenseProbeTableView(): TableViewSnapshot {
       isCompact: !isLocal,
       cardsHidden: !isLocal,
       holeCards: compactCards,
-      detailLines: [isLocal ? "Probe local player" : `Remote player ${seatIndex}`],
+      detailLines: [
+        isLocal ? "Probe local player" : `Remote player ${seatIndex}`,
+      ],
     };
   });
 
@@ -233,10 +291,30 @@ function createDenseProbeTableView(): TableViewSnapshot {
     blindLevelLabel: "Level 3 · 50 / 100",
     currentHandNumber: 18,
     boardCards: [
-      { label: "Ace of hearts", compactLabel: "A♥", suitSymbol: "♥", tone: "red" },
-      { label: "King of clubs", compactLabel: "K♣", suitSymbol: "♣", tone: "dark" },
-      { label: "Ten of diamonds", compactLabel: "10♦", suitSymbol: "♦", tone: "red" },
-      { label: "Five of spades", compactLabel: "5♠", suitSymbol: "♠", tone: "dark" },
+      {
+        label: "Ace of hearts",
+        compactLabel: "A♥",
+        suitSymbol: "♥",
+        tone: "red",
+      },
+      {
+        label: "King of clubs",
+        compactLabel: "K♣",
+        suitSymbol: "♣",
+        tone: "dark",
+      },
+      {
+        label: "Ten of diamonds",
+        compactLabel: "10♦",
+        suitSymbol: "♦",
+        tone: "red",
+      },
+      {
+        label: "Five of spades",
+        compactLabel: "5♠",
+        suitSymbol: "♠",
+        tone: "dark",
+      },
     ],
     potTotal: 860,
     actionOwnerLabel: "You",
@@ -263,8 +341,16 @@ function createDenseProbeTableView(): TableViewSnapshot {
       },
     ],
     eventFeed: [
-      { sequence: 38, kind: "public-event", message: "The turn was published to every seat and observer." },
-      { sequence: 39, kind: "public-event", message: "Seat 4 is all-in for 315 chips." },
+      {
+        sequence: 38,
+        kind: "public-event",
+        message: "The turn was published to every seat and observer.",
+      },
+      {
+        sequence: 39,
+        kind: "public-event",
+        message: "Seat 4 is all-in for 315 chips.",
+      },
     ],
     actionTray: {
       ownerLabel: "You",
@@ -281,43 +367,50 @@ function createDenseProbeTableView(): TableViewSnapshot {
   };
 }
 
-function installBrowserMocks(bootstrap: DesktopBootstrapState, surface: ProbeSurface) {
+function installBrowserMocks(
+  bootstrap: DesktopBootstrapState,
+  surface: ProbeSurface,
+) {
   const joinPayload = createProbeJoinPayload();
-  const tableView = surface === "table-dense" ? createDenseProbeTableView() : createProbeTableView();
-  const hostSession: HostSessionStatus | null = surface === "lobby"
-    ? {
-        tournamentName: "Friday Finals",
-        tableName: "Main Table",
-        tableId: "layout-probe-table",
-        sessionEpoch: 1,
-        advertisedHost: "192.168.1.10",
-        hostPort: 43818,
-        invite: "pkr1_layout_probe_invite",
-        phase: "waitingForPlayers",
-        activeSeatCount: 2,
-        openSeatCount: 8,
-        participants: [
-          {
-            playerId: "local-player",
-            displayName: "Player layout-probe",
-            seatIndex: 0,
-            isHost: true,
-            isReady: false,
-            connectionState: "connected",
-            participantState: "seated",
-          },
-          {
-            playerId: "player-b",
-            displayName: "Maya",
-            seatIndex: 1,
-            isHost: false,
-            isReady: false,
-            connectionState: "connected",
-            participantState: "seated",
-          },
-        ],
-      }
-    : null;
+  const tableView =
+    surface === "table-dense"
+      ? createDenseProbeTableView()
+      : createProbeTableView();
+  const hostSession: HostSessionStatus | null =
+    surface === "lobby"
+      ? {
+          tournamentName: "Friday Finals",
+          tableName: "Main Table",
+          tableId: "layout-probe-table",
+          sessionEpoch: 1,
+          advertisedHost: "192.168.1.10",
+          hostPort: 43818,
+          invite: "pkr1_layout_probe_invite",
+          phase: "waitingForPlayers",
+          activeSeatCount: 2,
+          openSeatCount: 8,
+          participants: [
+            {
+              playerId: "local-player",
+              displayName: "Player layout-probe",
+              seatIndex: 0,
+              isHost: true,
+              isReady: false,
+              connectionState: "connected",
+              participantState: "seated",
+            },
+            {
+              playerId: "player-b",
+              displayName: "Maya",
+              seatIndex: 1,
+              isHost: false,
+              isReady: false,
+              connectionState: "connected",
+              participantState: "seated",
+            },
+          ],
+        }
+      : null;
   const noopUnsubscribe = async () => () => {};
 
   window.__DESKTOP_POKER_BROWSER_MOCKS__ = {
@@ -333,15 +426,16 @@ function installBrowserMocks(bootstrap: DesktopBootstrapState, surface: ProbeSur
       actionTray: null,
       actionOwnerLabel: "Maya",
     }),
-    getDebugState: async () => ({
-      protocolLog: [],
-      snapshotJson: "{}",
-      currentSequence: 1,
-      currentHandNumber: tableView.currentHandNumber,
-      actionWindowSummary: null,
-      launchHint: "layout-probe",
-      npcTiltLevels: {},
-    } satisfies DebugInspectorState),
+    getDebugState: async () =>
+      ({
+        protocolLog: [],
+        snapshotJson: "{}",
+        currentSequence: 1,
+        currentHandNumber: tableView.currentHandNumber,
+        actionWindowSummary: null,
+        launchHint: "layout-probe",
+        npcTiltLevels: {},
+      }) satisfies DebugInspectorState,
     launchAdditionalClientInstance: async () => "layout-probe-client",
   };
 }
@@ -361,10 +455,16 @@ function seedProbeShellState(
     storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
     JSON.stringify([createProbeJoinPayload().joinToken]),
   );
-  persistHandHistory(bootstrap.storageNamespace, createProbeTableView().handHistory);
+  persistHandHistory(
+    bootstrap.storageNamespace,
+    createProbeTableView().handHistory,
+  );
 }
 
-function renderProbeSurface(surface: ProbeSurface, bootstrap: DesktopBootstrapState) {
+function renderProbeSurface(
+  surface: ProbeSurface,
+  bootstrap: DesktopBootstrapState,
+) {
   switch (surface) {
     case "host":
       return <HostTournamentSetupScreen bootstrap={bootstrap} />;

@@ -25,7 +25,11 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
       })
       .catch((caughtError: unknown) => {
         if (!cancelled) {
-          setError(caughtError instanceof Error ? caughtError.message : "Unknown history error");
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unknown history error",
+          );
         }
       });
 
@@ -41,17 +45,23 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
       className="support-screen-shell"
     >
       <div className="history-station-layout">
-        <SectionCard kicker="History" title="Recent hands" className="support-card history-primary-card">
+        <SectionCard
+          kicker="History"
+          title="Recent hands"
+          className="support-card history-primary-card"
+        >
           {error ? <p>{error}</p> : null}
-          {!tableView?.handHistory.length && persistedHistory?.entries.length ? (
-            <p className="field-hint">
-              Saved on this device.
-            </p>
+          {!tableView?.handHistory.length &&
+          persistedHistory?.entries.length ? (
+            <p className="field-hint">Saved on this device.</p>
           ) : null}
           <div className="stacked-list scroll-list">
             {historyEntries.length ? (
               historyEntries.map((entry) => (
-                <article key={entry.handNumber} className="list-panel history-row">
+                <article
+                  key={entry.handNumber}
+                  className="list-panel history-row"
+                >
                   <div>
                     <strong>
                       <span className="button-content">
@@ -60,7 +70,8 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                       </span>
                     </strong>
                     <p className="field-hint">
-                      Hand {entry.handNumber} · Pot {entry.potTotal} · Winners: {entry.winningPlayers.join(", ")}
+                      Hand {entry.handNumber} · Pot {entry.potTotal} · Winners:{" "}
+                      {entry.winningPlayers.join(", ")}
                     </p>
                     {entry.eliminatedPlayers.length ? (
                       <p className="field-hint">
@@ -85,10 +96,17 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         <div className="history-side-stack">
-          <SectionCard kicker="Standings" title="Order" className="support-card">
+          <SectionCard
+            kicker="Standings"
+            title="Order"
+            className="support-card"
+          >
             <div className="stacked-list scroll-list">
               {tableView?.standings.map((entry) => (
-                <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
+                <article
+                  key={`${entry.rank}-${entry.displayName}`}
+                  className="list-panel history-row"
+                >
                   <div>
                     <strong>
                       #{entry.rank} {entry.displayName}
@@ -96,7 +114,9 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                     <p className="field-hint">
                       {entry.chipCount ?? 0} chips · {entry.statusLabel}
                     </p>
-                    {entry.note ? <p className="field-hint">{entry.note}</p> : null}
+                    {entry.note ? (
+                      <p className="field-hint">{entry.note}</p>
+                    ) : null}
                   </div>
                 </article>
               ))}
@@ -106,7 +126,10 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           <SectionCard kicker="Feed" title="Events" className="support-card">
             <div className="stacked-list scroll-list">
               {tableView?.eventFeed.map((event) => (
-                <article key={event.sequence} className="list-panel history-row">
+                <article
+                  key={event.sequence}
+                  className="list-panel history-row"
+                >
                   <div>
                     <strong>{event.message}</strong>
                     <p className="field-hint">{event.kind}</p>

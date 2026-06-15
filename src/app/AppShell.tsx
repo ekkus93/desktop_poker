@@ -87,7 +87,10 @@ function LiveSessionRoute({
         <section className="loading-card">
           <p className="kicker">Checking session</p>
           <h2>Verifying live table state</h2>
-          <p>Waiting for the desktop runtime to confirm the current session route.</p>
+          <p>
+            Waiting for the desktop runtime to confirm the current session
+            route.
+          </p>
         </section>
       </main>
     );
@@ -124,7 +127,9 @@ export function AppShell() {
         <section className="error-card">
           <p className="kicker">Backend bridge error</p>
           <h2>Desktop bootstrap unavailable</h2>
-          <p>{error ?? "No bootstrap payload was returned by the Rust backend."}</p>
+          <p>
+            {error ?? "No bootstrap payload was returned by the Rust backend."}
+          </p>
         </section>
       </main>
     );
@@ -174,21 +179,21 @@ export function AppShell() {
           {lobbyRouteAvailable ? (
             <Route
               path="/lobby"
-              element={(
+              element={
                 <LiveSessionRoute mode="lobby">
                   <TournamentLobbyScreen bootstrap={bootstrap} />
                 </LiveSessionRoute>
-              )}
+              }
             />
           ) : null}
           {tableRouteAvailable ? (
             <Route
               path="/table"
-              element={(
+              element={
                 <LiveSessionRoute mode="table">
                   <MainTableScreen bootstrap={bootstrap} />
                 </LiveSessionRoute>
-              )}
+              }
             />
           ) : null}
           {historyRouteAvailable ? (
@@ -200,13 +205,13 @@ export function AppShell() {
           <Route path="/settings" element={<DeviceSettingsScreen />} />
           <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
           {completeRouteAvailable ? (
-            <Route
-              path="/complete"
-              element={<TournamentCompleteScreen />}
-            />
+            <Route path="/complete" element={<TournamentCompleteScreen />} />
           ) : null}
           <Route path="/rules" element={<RulesHelpScreen />} />
-          <Route path="/errors" element={<ErrorStateScreen bootstrap={bootstrap} />} />
+          <Route
+            path="/errors"
+            element={<ErrorStateScreen bootstrap={bootstrap} />}
+          />
           {bootstrap.debugToolsEnabled ? (
             <Route
               path="/debug"
@@ -215,7 +220,9 @@ export function AppShell() {
           ) : null}
           <Route
             path="*"
-            element={<Navigate replace to={homeRouteAvailable ? "/" : "/settings"} />}
+            element={
+              <Navigate replace to={homeRouteAvailable ? "/" : "/settings"} />
+            }
           />
         </Routes>
       </AppFrame>

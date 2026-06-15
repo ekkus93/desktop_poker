@@ -11,9 +11,8 @@ import { DesktopBootstrapProvider } from "./DesktopBootstrapProvider";
 import { useDesktopBootstrap } from "./useDesktopBootstrap";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -96,7 +95,9 @@ describe("DesktopBootstrapProvider", () => {
       </DesktopBootstrapProvider>,
     );
 
-    expect(await screen.findByText("Error: backend bootstrap offline")).toBeTruthy();
+    expect(
+      await screen.findByText("Error: backend bootstrap offline"),
+    ).toBeTruthy();
     expect(screen.getByText("Loading: no")).toBeTruthy();
     expect(screen.getByText("Instance: none")).toBeTruthy();
   });

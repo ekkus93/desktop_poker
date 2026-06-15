@@ -23,7 +23,9 @@ describe("ScreenShell", () => {
     expect(screen.getByText("45s timer")).toBeTruthy();
     expect(screen.getByText("2 participants")).toBeTruthy();
     expect(screen.getByText("Child content")).toBeTruthy();
-    expect(container.firstElementChild?.className).toContain("ready-room-shell");
+    expect(container.firstElementChild?.className).toContain(
+      "ready-room-shell",
+    );
   });
 
   it("omits optional lead copy and badges when they are not provided", () => {

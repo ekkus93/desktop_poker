@@ -6,9 +6,8 @@ import { createTableViewSnapshot } from "../test/appIntegrationFixtures";
 import { TournamentCompleteScreen } from "./TournamentCompleteScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -67,9 +66,33 @@ describe("TournamentCompleteScreen", () => {
         phaseLabel: "Complete",
         currentHandNumber: 12,
         standings: [
-          { rank: 1, displayName: "Maya", chipCount: 3000, statusLabel: "Winner", note: null, isLocal: false, isObserver: false },
-          { rank: 2, displayName: "You", chipCount: 0, statusLabel: "Eliminated", note: null, isLocal: true, isObserver: true },
-          { rank: 3, displayName: "Host", chipCount: 0, statusLabel: "Eliminated", note: null, isLocal: false, isObserver: true },
+          {
+            rank: 1,
+            displayName: "Maya",
+            chipCount: 3000,
+            statusLabel: "Winner",
+            note: null,
+            isLocal: false,
+            isObserver: false,
+          },
+          {
+            rank: 2,
+            displayName: "You",
+            chipCount: 0,
+            statusLabel: "Eliminated",
+            note: null,
+            isLocal: true,
+            isObserver: true,
+          },
+          {
+            rank: 3,
+            displayName: "Host",
+            chipCount: 0,
+            statusLabel: "Eliminated",
+            note: null,
+            isLocal: false,
+            isObserver: true,
+          },
         ],
       }),
     );

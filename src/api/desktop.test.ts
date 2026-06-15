@@ -247,17 +247,24 @@ describe("desktop API bridge", () => {
       mockedInvoke.mockResolvedValue(status);
 
       await expect(startHostSession(request)).resolves.toEqual(status);
-      expect(mockedInvoke).toHaveBeenCalledWith("start_host_session", { request });
+      expect(mockedInvoke).toHaveBeenCalledWith("start_host_session", {
+        request,
+      });
     });
 
     it("invokes get_host_session_status and stop_host_session", async () => {
       const status = sampleHostSessionStatus();
-      mockedInvoke.mockResolvedValueOnce(status).mockResolvedValueOnce(undefined);
+      mockedInvoke
+        .mockResolvedValueOnce(status)
+        .mockResolvedValueOnce(undefined);
 
       await expect(getHostSessionStatus()).resolves.toEqual(status);
       await expect(stopHostSession()).resolves.toBeUndefined();
 
-      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "get_host_session_status");
+      expect(mockedInvoke).toHaveBeenNthCalledWith(
+        1,
+        "get_host_session_status",
+      );
       expect(mockedInvoke).toHaveBeenNthCalledWith(2, "stop_host_session");
     });
 
@@ -271,15 +278,21 @@ describe("desktop API bridge", () => {
         .mockResolvedValueOnce(status);
 
       await expect(hostClaimLobbySeat(seatRequest)).resolves.toEqual(status);
-      await expect(hostSetLobbyReadyState(readyRequest)).resolves.toEqual(status);
+      await expect(hostSetLobbyReadyState(readyRequest)).resolves.toEqual(
+        status,
+      );
       await expect(hostStartTournament()).resolves.toEqual(status);
 
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "host_claim_lobby_seat", {
         request: seatRequest,
       });
-      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "host_set_lobby_ready_state", {
-        request: readyRequest,
-      });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(
+        2,
+        "host_set_lobby_ready_state",
+        {
+          request: readyRequest,
+        },
+      );
       expect(mockedInvoke).toHaveBeenNthCalledWith(3, "host_start_tournament");
     });
 
@@ -295,8 +308,13 @@ describe("desktop API bridge", () => {
       await expect(getClientSessionStatus()).resolves.toEqual(status);
       await expect(leaveClientSession()).resolves.toBeUndefined();
 
-      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "join_host_session", { request });
-      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "get_client_session_status");
+      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "join_host_session", {
+        request,
+      });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(
+        2,
+        "get_client_session_status",
+      );
       expect(mockedInvoke).toHaveBeenNthCalledWith(3, "leave_client_session");
     });
 
@@ -304,26 +322,36 @@ describe("desktop API bridge", () => {
       const seatRequest = sampleClaimLobbySeatRequest();
       const readyRequest = sampleSetLobbyReadyStateRequest();
       const status = sampleClientSessionStatus();
-      mockedInvoke
-        .mockResolvedValueOnce(status)
-        .mockResolvedValueOnce(status);
+      mockedInvoke.mockResolvedValueOnce(status).mockResolvedValueOnce(status);
 
       await expect(clientClaimLobbySeat(seatRequest)).resolves.toEqual(status);
-      await expect(clientSetLobbyReadyState(readyRequest)).resolves.toEqual(status);
+      await expect(clientSetLobbyReadyState(readyRequest)).resolves.toEqual(
+        status,
+      );
 
-      expect(mockedInvoke).toHaveBeenNthCalledWith(1, "client_claim_lobby_seat", {
-        request: seatRequest,
-      });
-      expect(mockedInvoke).toHaveBeenNthCalledWith(2, "client_set_lobby_ready_state", {
-        request: readyRequest,
-      });
+      expect(mockedInvoke).toHaveBeenNthCalledWith(
+        1,
+        "client_claim_lobby_seat",
+        {
+          request: seatRequest,
+        },
+      );
+      expect(mockedInvoke).toHaveBeenNthCalledWith(
+        2,
+        "client_set_lobby_ready_state",
+        {
+          request: readyRequest,
+        },
+      );
     });
 
     it("invokes validate_join_payload_input with the raw payload string", async () => {
       const payload = sampleJoinPayload();
       mockedInvoke.mockResolvedValue(payload);
 
-      await expect(validateJoinPayloadInput("  pkr1_join  ")).resolves.toEqual(payload);
+      await expect(validateJoinPayloadInput("  pkr1_join  ")).resolves.toEqual(
+        payload,
+      );
       expect(mockedInvoke).toHaveBeenCalledWith("validate_join_payload_input", {
         payload: "  pkr1_join  ",
       });
@@ -337,17 +365,35 @@ describe("desktop API bridge", () => {
     });
 
     it("lets browser mocks override join and host utility commands", async () => {
-      const startHostMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
-      const getHostStatusMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
+      const startHostMock = vi
+        .fn()
+        .mockResolvedValue(sampleHostSessionStatus());
+      const getHostStatusMock = vi
+        .fn()
+        .mockResolvedValue(sampleHostSessionStatus());
       const stopHostMock = vi.fn().mockResolvedValue(undefined);
-      const hostClaimSeatMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
-      const hostReadyMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
-      const hostStartMock = vi.fn().mockResolvedValue(sampleHostSessionStatus());
-      const joinHostMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
-      const getClientStatusMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
+      const hostClaimSeatMock = vi
+        .fn()
+        .mockResolvedValue(sampleHostSessionStatus());
+      const hostReadyMock = vi
+        .fn()
+        .mockResolvedValue(sampleHostSessionStatus());
+      const hostStartMock = vi
+        .fn()
+        .mockResolvedValue(sampleHostSessionStatus());
+      const joinHostMock = vi
+        .fn()
+        .mockResolvedValue(sampleClientSessionStatus());
+      const getClientStatusMock = vi
+        .fn()
+        .mockResolvedValue(sampleClientSessionStatus());
       const leaveClientMock = vi.fn().mockResolvedValue(undefined);
-      const clientClaimSeatMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
-      const clientReadyMock = vi.fn().mockResolvedValue(sampleClientSessionStatus());
+      const clientClaimSeatMock = vi
+        .fn()
+        .mockResolvedValue(sampleClientSessionStatus());
+      const clientReadyMock = vi
+        .fn()
+        .mockResolvedValue(sampleClientSessionStatus());
       const validateMock = vi.fn().mockResolvedValue(sampleJoinPayload());
       const hostIpMock = vi.fn().mockResolvedValue("10.0.0.4");
       setBrowserMocks({
@@ -380,17 +426,27 @@ describe("desktop API bridge", () => {
       await validateJoinPayloadInput("pkr1_mock");
       await resolveHostLanAddress();
 
-      expect(startHostMock).toHaveBeenCalledWith(sampleStartHostSessionRequest());
+      expect(startHostMock).toHaveBeenCalledWith(
+        sampleStartHostSessionRequest(),
+      );
       expect(getHostStatusMock).toHaveBeenCalledTimes(1);
       expect(stopHostMock).toHaveBeenCalledTimes(1);
-      expect(hostClaimSeatMock).toHaveBeenCalledWith(sampleClaimLobbySeatRequest());
-      expect(hostReadyMock).toHaveBeenCalledWith(sampleSetLobbyReadyStateRequest());
+      expect(hostClaimSeatMock).toHaveBeenCalledWith(
+        sampleClaimLobbySeatRequest(),
+      );
+      expect(hostReadyMock).toHaveBeenCalledWith(
+        sampleSetLobbyReadyStateRequest(),
+      );
       expect(hostStartMock).toHaveBeenCalledTimes(1);
       expect(joinHostMock).toHaveBeenCalledWith(sampleJoinHostSessionRequest());
       expect(getClientStatusMock).toHaveBeenCalledTimes(1);
       expect(leaveClientMock).toHaveBeenCalledTimes(1);
-      expect(clientClaimSeatMock).toHaveBeenCalledWith(sampleClaimLobbySeatRequest());
-      expect(clientReadyMock).toHaveBeenCalledWith(sampleSetLobbyReadyStateRequest());
+      expect(clientClaimSeatMock).toHaveBeenCalledWith(
+        sampleClaimLobbySeatRequest(),
+      );
+      expect(clientReadyMock).toHaveBeenCalledWith(
+        sampleSetLobbyReadyStateRequest(),
+      );
       expect(validateMock).toHaveBeenCalledWith("pkr1_mock");
       expect(hostIpMock).toHaveBeenCalledTimes(1);
       expect(mockedInvoke).not.toHaveBeenCalled();
@@ -497,9 +553,9 @@ describe("desktop API bridge", () => {
       const launchMock = vi.fn().mockResolvedValue("child-mock");
       setBrowserMocks({ launchAdditionalClientInstance: launchMock });
 
-      await expect(launchAdditionalClientInstance("pkr1_browser")).resolves.toBe(
-        "child-mock",
-      );
+      await expect(
+        launchAdditionalClientInstance("pkr1_browser"),
+      ).resolves.toBe("child-mock");
       expect(launchMock).toHaveBeenCalledWith("pkr1_browser");
       expect(mockedInvoke).not.toHaveBeenCalled();
     });

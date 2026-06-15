@@ -1,5 +1,13 @@
 import type { ReactNode } from "react";
-import { ChevronLeft, CircleHelp, Flag, History, Home, LogIn, Settings } from "lucide-react";
+import {
+  ChevronLeft,
+  CircleHelp,
+  Flag,
+  History,
+  Home,
+  LogIn,
+  Settings,
+} from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
@@ -39,28 +47,40 @@ export function AppFrame({
 }) {
   const { displayName } = useDesktopShell();
   const location = useLocation();
-  const inTournament = ["/lobby", "/table", "/complete"].includes(location.pathname);
+  const inTournament = ["/lobby", "/table", "/complete"].includes(
+    location.pathname,
+  );
   const supportRoutes = new Set(["/history", "/rules", "/settings"]);
-  const supportNavigation = navigation.filter((item) => supportRoutes.has(item.to));
+  const supportNavigation = navigation.filter((item) =>
+    supportRoutes.has(item.to),
+  );
   const tournamentPlayRoutes = new Set(["/", "/lobby"]);
   const tournamentNavigation = navigation.filter(
-    (item) => tournamentPlayRoutes.has(item.to) && item.to !== location.pathname,
+    (item) =>
+      tournamentPlayRoutes.has(item.to) && item.to !== location.pathname,
   );
-  const currentSurfaceRoute = navigation.find((item) => item.to === location.pathname);
+  const currentSurfaceRoute = navigation.find(
+    (item) => item.to === location.pathname,
+  );
   const landingNavigation = navigation.filter(
     (item) => item.to === "/host" && item.to !== location.pathname,
   );
 
   if (!inTournament) {
     return (
-      <div className="app-frame landing-frame" style={{ height: "100dvh", overflow: "hidden" }}>
+      <div
+        className="app-frame landing-frame"
+        style={{ height: "100dvh", overflow: "hidden" }}
+      >
         <header className="topbar">
           <div className="topbar-brand">
             <p className="kicker">Desktop Poker</p>
             <h1>{bootstrap.appName}</h1>
           </div>
 
-          {location.pathname === "/" ? <div className="topbar-spacer" aria-hidden="true" /> : (
+          {location.pathname === "/" ? (
+            <div className="topbar-spacer" aria-hidden="true" />
+          ) : (
             <nav aria-label="Desktop poker navigation" className="topbar-nav">
               <NavLink className="nav-link topbar-link" to="/">
                 <span className="button-content">
@@ -69,11 +89,17 @@ export function AppFrame({
                 </span>
               </NavLink>
               {landingNavigation.map((item) => (
-                <NavLink key={item.to} className="nav-link topbar-link" to={item.to}>
+                <NavLink
+                  key={item.to}
+                  className="nav-link topbar-link"
+                  to={item.to}
+                >
                   <span className="button-content">
                     {(() => {
                       const Icon = getNavigationIcon(item.label);
-                      return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                      return Icon ? (
+                        <Icon className="button-icon" strokeWidth={1.8} />
+                      ) : null;
                     })()}
                     <span>{item.label}</span>
                   </span>
@@ -83,7 +109,9 @@ export function AppFrame({
                 <span className="topbar-current-surface">
                   {(() => {
                     const Icon = getNavigationIcon(currentSurfaceRoute.label);
-                    return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                    return Icon ? (
+                      <Icon className="button-icon" strokeWidth={1.8} />
+                    ) : null;
                   })()}
                   <span>{currentSurfaceRoute.label}</span>
                 </span>
@@ -96,32 +124,47 @@ export function AppFrame({
           </div>
         </header>
 
-        <main className="content" style={{ height: "100%", overflow: "hidden" }}>{children}</main>
+        <main
+          className="content"
+          style={{ height: "100%", overflow: "hidden" }}
+        >
+          {children}
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="app-frame tournament-frame" style={{ height: "100dvh", overflow: "hidden" }}>
+    <div
+      className="app-frame tournament-frame"
+      style={{ height: "100dvh", overflow: "hidden" }}
+    >
       <header className="topbar tournament-topbar">
         <div className="topbar-brand">
           <p className="kicker">Desktop Poker</p>
           <h1>{bootstrap.appName}</h1>
         </div>
 
-        <nav aria-label="Desktop poker navigation" className="topbar-nav tournament-play-nav">
+        <nav
+          aria-label="Desktop poker navigation"
+          className="topbar-nav tournament-play-nav"
+        >
           {tournamentNavigation.map((item) => (
             <NavLink
               key={item.to}
               className={({ isActive }) =>
-                isActive ? "nav-link topbar-link active" : "nav-link topbar-link"
+                isActive
+                  ? "nav-link topbar-link active"
+                  : "nav-link topbar-link"
               }
               to={item.to}
             >
               <span className="button-content">
                 {(() => {
                   const Icon = getNavigationIcon(item.label);
-                  return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                  return Icon ? (
+                    <Icon className="button-icon" strokeWidth={1.8} />
+                  ) : null;
                 })()}
                 <span>{item.label}</span>
               </span>
@@ -130,19 +173,26 @@ export function AppFrame({
         </nav>
 
         <div className="topbar-meta tournament-topbar-meta">
-          <nav aria-label="Desktop poker support navigation" className="topbar-support-links">
+          <nav
+            aria-label="Desktop poker support navigation"
+            className="topbar-support-links"
+          >
             {supportNavigation.map((item) => (
               <NavLink
                 key={item.to}
                 className={({ isActive }) =>
-                  isActive ? "nav-link support-link active" : "nav-link support-link"
+                  isActive
+                    ? "nav-link support-link active"
+                    : "nav-link support-link"
                 }
                 to={item.to}
               >
                 <span className="button-content">
                   {(() => {
                     const Icon = getNavigationIcon(item.label);
-                    return Icon ? <Icon className="button-icon" strokeWidth={1.8} /> : null;
+                    return Icon ? (
+                      <Icon className="button-icon" strokeWidth={1.8} />
+                    ) : null;
                   })()}
                   <span>{item.label}</span>
                 </span>
@@ -153,7 +203,9 @@ export function AppFrame({
         </div>
       </header>
 
-      <main className="content" style={{ height: "100%", overflow: "hidden" }}>{children}</main>
+      <main className="content" style={{ height: "100%", overflow: "hidden" }}>
+        {children}
+      </main>
     </div>
   );
 }

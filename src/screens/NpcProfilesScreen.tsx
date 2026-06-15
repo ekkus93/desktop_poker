@@ -8,7 +8,11 @@ import {
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
-const BUILTIN_PROFILE_IDS = ["aggressive-alice", "conservative-carlos", "balanced-sam"];
+const BUILTIN_PROFILE_IDS = [
+  "aggressive-alice",
+  "conservative-carlos",
+  "balanced-sam",
+];
 
 const FORMAT_HELP = `---
 name: My Player
@@ -105,7 +109,9 @@ export function NpcProfilesScreen() {
       setDetail(null);
       await reload();
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "Failed to delete profile.");
+      setDeleteError(
+        e instanceof Error ? e.message : "Failed to delete profile.",
+      );
     }
   }
 
@@ -159,7 +165,13 @@ export function NpcProfilesScreen() {
                     type="button"
                   >
                     {p.name}
-                    <span style={{ marginLeft: "0.5rem", opacity: 0.6, fontSize: "0.85em" }}>
+                    <span
+                      style={{
+                        marginLeft: "0.5rem",
+                        opacity: 0.6,
+                        fontSize: "0.85em",
+                      }}
+                    >
                       {p.style} · {p.skill}
                     </span>
                   </button>
@@ -204,7 +216,13 @@ export function NpcProfilesScreen() {
             </div>
 
             <details style={{ marginTop: "0.75rem" }}>
-              <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.9em" }}>
+              <summary
+                style={{
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: "0.9em",
+                }}
+              >
                 Profile format help
               </summary>
               <pre
@@ -223,8 +241,17 @@ export function NpcProfilesScreen() {
             </details>
 
             {hasParsedSections ? (
-              <details style={{ marginTop: "0.75rem" }} data-testid="parsed-sections">
-                <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.9em" }}>
+              <details
+                style={{ marginTop: "0.75rem" }}
+                data-testid="parsed-sections"
+              >
+                <summary
+                  style={{
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    fontSize: "0.9em",
+                  }}
+                >
                   Parsed sections
                 </summary>
                 <div style={{ marginTop: "0.5rem", fontSize: "0.88em" }}>

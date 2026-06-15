@@ -24,22 +24,12 @@ const tauriWindowMock = vi.hoisted(() => {
     maximize: vi.fn(async () => {
       state.maximized = true;
     }),
-    setSize: vi.fn(
-      async (size: {
-        width: number;
-        height: number;
-      }) => {
-        state.size = { width: size.width, height: size.height };
-      },
-    ),
-    setPosition: vi.fn(
-      async (position: {
-        x: number;
-        y: number;
-      }) => {
-        state.position = { x: position.x, y: position.y };
-      },
-    ),
+    setSize: vi.fn(async (size: { width: number; height: number }) => {
+      state.size = { width: size.width, height: size.height };
+    }),
+    setPosition: vi.fn(async (position: { x: number; y: number }) => {
+      state.position = { x: position.x, y: position.y };
+    }),
     innerSize: vi.fn(async () => state.size),
     outerPosition: vi.fn(async () => state.position),
     isMaximized: vi.fn(async () => state.maximized),
@@ -199,9 +189,7 @@ describe("persistence", () => {
     cleanup();
 
     expect(tauriWindowMock.appWindow.setSize).not.toHaveBeenCalled();
-    expect(
-      localStorage.getItem("desktop-poker:test:window-state"),
-    ).toBeNull();
+    expect(localStorage.getItem("desktop-poker:test:window-state")).toBeNull();
   });
 
   it("restores and persists window bounds for the current namespace", async () => {
@@ -414,7 +402,9 @@ describe("persistence", () => {
       }),
     );
 
-    const firstCleanup = initializeWindowStatePersistence("desktop-poker:host-a");
+    const firstCleanup = initializeWindowStatePersistence(
+      "desktop-poker:host-a",
+    );
     await flushWindowPersistence();
     expect(tauriWindowMock.appWindow.setSize).toHaveBeenLastCalledWith(
       expect.objectContaining({ width: 900, height: 700 }),
@@ -422,7 +412,9 @@ describe("persistence", () => {
     firstCleanup();
 
     tauriWindowMock.reset();
-    const secondCleanup = initializeWindowStatePersistence("desktop-poker:client-b");
+    const secondCleanup = initializeWindowStatePersistence(
+      "desktop-poker:client-b",
+    );
     await flushWindowPersistence();
     expect(tauriWindowMock.appWindow.setSize).toHaveBeenLastCalledWith(
       expect.objectContaining({ width: 640, height: 480 }),

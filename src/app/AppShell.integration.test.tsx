@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -34,9 +40,8 @@ import { DesktopBootstrapProvider } from "./DesktopBootstrapProvider";
 import { AppShell } from "./AppShell";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -76,7 +81,9 @@ const mockedLeaveClientSession = vi.mocked(leaveClientSession);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
 const mockedHostStartTournament = vi.mocked(hostStartTournament);
 const mockedJoinHostSession = vi.mocked(joinHostSession);
-const mockedLaunchAdditionalClientInstance = vi.mocked(launchAdditionalClientInstance);
+const mockedLaunchAdditionalClientInstance = vi.mocked(
+  launchAdditionalClientInstance,
+);
 const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
 const mockedOnTableUpdate = vi.mocked(onTableUpdate);
 const mockedResolveHostLanAddress = vi.mocked(resolveHostLanAddress);
@@ -141,7 +148,8 @@ function buildClientSessionStatus() {
     participants: [
       {
         playerId: "local-player",
-        displayName: currentHostSession?.participants[0]?.displayName ?? "Host Alpha",
+        displayName:
+          currentHostSession?.participants[0]?.displayName ?? "Host Alpha",
         seatIndex: 0,
         isHost: true,
         isReady: false,
@@ -161,18 +169,25 @@ function buildClientSessionStatus() {
   };
 }
 
-function syncLiveSessions(participants: NonNullable<typeof currentHostSession>["participants"], forcedPhase?: string) {
+function syncLiveSessions(
+  participants: NonNullable<typeof currentHostSession>["participants"],
+  forcedPhase?: string,
+) {
   const totalSeats = currentHostSession
     ? currentHostSession.activeSeatCount + currentHostSession.openSeatCount
     : currentClientSession
-      ? currentClientSession.activeSeatCount + currentClientSession.openSeatCount
+      ? currentClientSession.activeSeatCount +
+        currentClientSession.openSeatCount
       : 6;
-  const activeSeatCount = participants.filter((participant) => participant.seatIndex !== null).length;
-  const phase = forcedPhase
-    ?? (activeSeatCount >= 2
-      && participants
-        .filter((participant) => participant.seatIndex !== null)
-        .every((participant) => participant.isReady)
+  const activeSeatCount = participants.filter(
+    (participant) => participant.seatIndex !== null,
+  ).length;
+  const phase =
+    forcedPhase ??
+    (activeSeatCount >= 2 &&
+    participants
+      .filter((participant) => participant.seatIndex !== null)
+      .every((participant) => participant.isReady)
       ? "readyCheck"
       : "waitingForPlayers");
 
@@ -189,7 +204,9 @@ function syncLiveSessions(participants: NonNullable<typeof currentHostSession>["
   if (currentClientSession) {
     currentClientSession = {
       ...currentClientSession,
-      tournamentName: currentHostSession?.tournamentName ?? currentClientSession.tournamentName,
+      tournamentName:
+        currentHostSession?.tournamentName ??
+        currentClientSession.tournamentName,
       participants,
       activeSeatCount,
       openSeatCount: totalSeats - activeSeatCount,
@@ -204,11 +221,10 @@ function renderAppShell(
   options?: { allowImplicitTableSession?: boolean },
 ) {
   if (
-    options?.allowImplicitTableSession !== false
-    &&
-    initialEntry === "/table"
-    && !currentHostSession
-    && !currentClientSession
+    options?.allowImplicitTableSession !== false &&
+    initialEntry === "/table" &&
+    !currentHostSession &&
+    !currentClientSession
   ) {
     currentHostSession = {
       ...buildHostSessionStatus({
@@ -265,8 +281,12 @@ describe("AppShell integration", () => {
     mockedGetTableView.mockReset();
     mockedSubmitTableAction.mockReset();
     clipboardWriteText.mockReset();
-    mockedGetClientSessionStatus.mockImplementation(async () => currentClientSession);
-    mockedGetHostSessionStatus.mockImplementation(async () => currentHostSession);
+    mockedGetClientSessionStatus.mockImplementation(
+      async () => currentClientSession,
+    );
+    mockedGetHostSessionStatus.mockImplementation(
+      async () => currentHostSession,
+    );
     mockedStartHostSession.mockImplementation(async (request) => {
       currentHostSession = buildHostSessionStatus({
         tournamentName: request.tournamentName,
@@ -287,15 +307,16 @@ describe("AppShell integration", () => {
         throw new Error("No active host session");
       }
 
-      const nextParticipants = currentHostSession.participants.map((participant) =>
-        participant.playerId === "local-player"
-          ? {
-              ...participant,
-              seatIndex: request.seatIndex,
-              isReady: false,
-              participantState: "seated",
-            }
-          : participant,
+      const nextParticipants = currentHostSession.participants.map(
+        (participant) =>
+          participant.playerId === "local-player"
+            ? {
+                ...participant,
+                seatIndex: request.seatIndex,
+                isReady: false,
+                participantState: "seated",
+              }
+            : participant,
       );
       syncLiveSessions(nextParticipants);
       return currentHostSession;
@@ -305,10 +326,15 @@ describe("AppShell integration", () => {
         throw new Error("No active host session");
       }
 
-      const nextParticipants = currentHostSession.participants.map((participant) =>
-        participant.playerId === "local-player"
-          ? { ...participant, isReady: request.isReady, participantState: "seated" }
-          : participant,
+      const nextParticipants = currentHostSession.participants.map(
+        (participant) =>
+          participant.playerId === "local-player"
+            ? {
+                ...participant,
+                isReady: request.isReady,
+                participantState: "seated",
+              }
+            : participant,
       );
       syncLiveSessions(nextParticipants);
       return currentHostSession;
@@ -332,15 +358,16 @@ describe("AppShell integration", () => {
         throw new Error("No active client session");
       }
 
-      const nextParticipants = currentClientSession.participants.map((participant) =>
-        participant.playerId === "player-test-instance"
-          ? {
-              ...participant,
-              seatIndex: request.seatIndex,
-              isReady: false,
-              participantState: "seated",
-            }
-          : participant,
+      const nextParticipants = currentClientSession.participants.map(
+        (participant) =>
+          participant.playerId === "player-test-instance"
+            ? {
+                ...participant,
+                seatIndex: request.seatIndex,
+                isReady: false,
+                participantState: "seated",
+              }
+            : participant,
       );
       syncLiveSessions(nextParticipants);
       return currentClientSession;
@@ -350,10 +377,15 @@ describe("AppShell integration", () => {
         throw new Error("No active client session");
       }
 
-      const nextParticipants = currentClientSession.participants.map((participant) =>
-        participant.playerId === "player-test-instance"
-          ? { ...participant, isReady: request.isReady, participantState: "seated" }
-          : participant,
+      const nextParticipants = currentClientSession.participants.map(
+        (participant) =>
+          participant.playerId === "player-test-instance"
+            ? {
+                ...participant,
+                isReady: request.isReady,
+                participantState: "seated",
+              }
+            : participant,
       );
       syncLiveSessions(nextParticipants);
       return currentClientSession;
@@ -365,7 +397,8 @@ describe("AppShell integration", () => {
       snapshotJson: "{}",
       currentSequence: 17,
       currentHandNumber: 9,
-      actionWindowSummary: "You · check or bet · min 60 · max 1520 · legal Fold, Check, Bet",
+      actionWindowSummary:
+        "You · check or bet · min 60 · max 1520 · legal Fold, Check, Bet",
       launchHint:
         "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
       npcTiltLevels: {},
@@ -429,7 +462,9 @@ describe("AppShell integration", () => {
       target: { value: "Friday Finals" },
     });
 
-    expect(screen.getByRole("region", { name: /host share summary/i })).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: /host share summary/i }),
+    ).toBeTruthy();
     expect(screen.getByText("Friday Finals")).toBeTruthy();
     expect(screen.getByText(/192\.168\.1\.10:43818/i)).toBeTruthy();
 
@@ -437,9 +472,7 @@ describe("AppShell integration", () => {
     await waitFor(() => {
       expect(mockedStartHostSession).toHaveBeenCalled();
     });
-    fireEvent.click(
-      screen.getByRole("link", { name: "Continue to lobby" }),
-    );
+    fireEvent.click(screen.getByRole("link", { name: "Continue to lobby" }));
 
     expect(
       await screen.findByRole("heading", {
@@ -467,9 +500,7 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue to lobby" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue to lobby" }));
 
     expect(
       await screen.findByRole("heading", {
@@ -479,9 +510,9 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
 
     expect(
-      (await screen.findByRole("button", { name: "Start tournament" })).hasAttribute(
-        "disabled",
-      ),
+      (
+        await screen.findByRole("button", { name: "Start tournament" })
+      ).hasAttribute("disabled"),
     ).toBe(true);
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "I'm ready" })).toBeNull();
@@ -499,7 +530,9 @@ describe("AppShell integration", () => {
       target: { value: "pkr1_good" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Continue to lobby" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue to lobby" }),
+    );
 
     expect(
       await screen.findByRole("heading", {
@@ -508,17 +541,23 @@ describe("AppShell integration", () => {
       }),
     ).toBeTruthy();
 
-    fireEvent.click((await screen.findAllByRole("button", { name: "Take seat" }))[0]);
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: "Take seat" }))[0],
+    );
 
     await waitFor(() => {
       expect(mockedClientClaimLobbySeat).toHaveBeenCalledWith({ seatIndex: 2 });
     });
-    expect(await screen.findByRole("button", { name: "I'm ready" })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "I'm ready" }),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     await waitFor(() => {
-      expect(mockedClientSetLobbyReadyState).toHaveBeenCalledWith({ isReady: true });
+      expect(mockedClientSetLobbyReadyState).toHaveBeenCalledWith({
+        isReady: true,
+      });
     });
     expect(screen.getByText("You: Ready")).toBeTruthy();
   });
@@ -558,7 +597,11 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(false);
+      expect(
+        screen
+          .getByRole("button", { name: "Start tournament" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Start tournament" }));
@@ -599,7 +642,9 @@ describe("AppShell integration", () => {
       ],
       "readyCheck",
     );
-    mockedHostStartTournament.mockRejectedValueOnce(new Error("host start rejected"));
+    mockedHostStartTournament.mockRejectedValueOnce(
+      new Error("host start rejected"),
+    );
 
     renderAppShell("/lobby");
 
@@ -607,14 +652,22 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Start tournament" }).hasAttribute("disabled")).toBe(false);
+      expect(
+        screen
+          .getByRole("button", { name: "Start tournament" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Start tournament" }));
 
     expect(await screen.findByText("host start rejected")).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
-    expect(screen.getByRole("heading", { level: 2, name: "Lobby" })).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
   });
 
   it("shows a host recovery path when the live host session stops before play starts", async () => {
@@ -650,7 +703,9 @@ describe("AppShell integration", () => {
 
     // Simulate host session stopping and fire a session-update event to trigger re-poll
     currentHostSession = null;
-    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined(), { timeout: 2000 });
+    await waitFor(() => expect(capturedSessionUpdateCallback).toBeDefined(), {
+      timeout: 2000,
+    });
     // Wrap in act to flush the async Promise.all inside the callback
     await act(async () => {
       capturedSessionUpdateCallback?.();
@@ -668,7 +723,9 @@ describe("AppShell integration", () => {
     );
     expect(screen.getByRole("button", { name: "Host again" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Start tournament" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Start tournament" }),
+    ).toBeNull();
   }, 10_000);
 
   it("moves a joined client from the lobby to the table when the live session starts", async () => {
@@ -783,8 +840,16 @@ describe("AppShell integration", () => {
       }),
     ).toBeTruthy();
     expect(await screen.findByText("No reachable LAN IP")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Continue to lobby" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText(/resolve the lan address before continuing to the lobby/i)).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Continue to lobby" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      screen.getByText(
+        /resolve the lan address before continuing to the lobby/i,
+      ),
+    ).toBeTruthy();
   });
 
   it("joins a launch-attached invite straight into the live lobby flow", async () => {
@@ -810,17 +875,23 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Lobby" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeNull();
     expect(screen.queryByText("You: Waiting")).toBeNull();
   });
 
   it("keeps the table route behind an active live session", async () => {
-    renderAppShell("/table", createAppBootstrap(), { allowImplicitTableSession: false });
+    renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: false,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
   });
 
   it("keeps the table route behind an active running session", async () => {
@@ -834,11 +905,15 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
   });
 
   it("stops the live host session before leaving the lobby", async () => {
-    currentHostSession = buildHostSessionStatus({ tournamentName: "Friday Night" });
+    currentHostSession = buildHostSessionStatus({
+      tournamentName: "Friday Night",
+    });
 
     renderAppShell("/lobby");
 
@@ -880,12 +955,17 @@ describe("AppShell integration", () => {
   });
 
   it("reroutes removed ready-room paths back to the home screen", async () => {
-    renderAppShell("/ready-room", createAppBootstrap({ debugToolsEnabled: true }));
+    renderAppShell(
+      "/ready-room",
+      createAppBootstrap({ debugToolsEnabled: true }),
+    );
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Ready Room" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Ready Room" }),
+    ).toBeNull();
   });
 
   it("applies bootstrap subscription updates and reroutes away from routes removed by the new catalog", async () => {
@@ -909,7 +989,9 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 2, name: "Main Table" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Main Table" }),
+    ).toBeNull();
     expect(screen.queryByRole("link", { name: "Lobby" })).toBeNull();
   });
 
@@ -930,7 +1012,9 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
     ).toBeTruthy();
     expect(await screen.findByText("Invite signature mismatch")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Continue to lobby" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Continue to lobby" }),
+    ).toBeTruthy();
 
     await act(async () => {
       bootstrapSubscriptionHandler?.(
@@ -975,9 +1059,7 @@ describe("AppShell integration", () => {
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue to lobby" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Continue to lobby" }));
     expect(
       await screen.findByRole("heading", {
         level: 2,
@@ -994,7 +1076,9 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
-    fireEvent.click(await screen.findByRole("link", { name: "Tournament complete" }));
+    fireEvent.click(
+      await screen.findByRole("link", { name: "Tournament complete" }),
+    );
 
     expect(
       await screen.findByRole("heading", {
@@ -1004,7 +1088,9 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(screen.getByText(/1 hand summaries saved/i)).toBeTruthy();
     expect(
-      Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
+      Object.keys(localStorage).some((key) =>
+        key.toLowerCase().includes("reconnect"),
+      ),
     ).toBe(false);
 
     firstRender.unmount();
@@ -1016,12 +1102,14 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Hand History" }),
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
+    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
     expect(
-      screen.getByText(/saved on this device/i),
-    ).toBeTruthy();
-    expect(screen.getAllByText(/host won 210 chip\(s\)\./i).length).toBeGreaterThan(0);
+      screen.getAllByText(/host won 210 chip\(s\)\./i).length,
+    ).toBeGreaterThan(0);
     expect(
-      Object.keys(localStorage).some((key) => key.toLowerCase().includes("reconnect")),
+      Object.keys(localStorage).some((key) =>
+        key.toLowerCase().includes("reconnect"),
+      ),
     ).toBe(false);
   });
 
@@ -1035,7 +1123,9 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
     expect(await screen.findByLabelText("Ace of spades")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Observer preview" }),
+    ).toBeNull();
     firstRender.unmount();
 
     renderAppShell("/table", createAppBootstrap({ debugToolsEnabled: true }));
@@ -1043,7 +1133,9 @@ describe("AppShell integration", () => {
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
 
-    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Observer preview" }),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: "Hand history" }));
     expect(
@@ -1079,11 +1171,14 @@ describe("AppShell integration", () => {
     expect(
       screen.getAllByText(
         (_, element) =>
-          element?.textContent?.includes("Player Alice Instance (you)") ?? false,
+          element?.textContent?.includes("Player Alice Instance (you)") ??
+          false,
       ).length,
     ).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
-    expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
+    expect(
+      screen.getByText("The flop was published to every seat and observer."),
+    ).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
     aliceRender.unmount();
@@ -1161,7 +1256,9 @@ describe("AppShell integration", () => {
       ).length,
     ).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
-    expect(screen.getByText("The flop was published to every seat and observer.")).toBeTruthy();
+    expect(
+      screen.getByText("The flop was published to every seat and observer."),
+    ).toBeTruthy();
     expect(screen.getByText("Host won 210 chip(s).")).toBeTruthy();
     expect(screen.getByText("Maya")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
@@ -1180,7 +1277,8 @@ describe("AppShell integration", () => {
             {
               sequence: 19,
               kind: "public-event",
-              message: "Maya called and the turn was published to every seat and observer.",
+              message:
+                "Maya called and the turn was published to every seat and observer.",
             },
           ],
           handHistory: [
@@ -1215,7 +1313,11 @@ describe("AppShell integration", () => {
 
     expect((await screen.findAllByText(/Pot 240/)).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
-    expect(screen.getByText(/maya called and the turn was published to every seat and observer/i)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /maya called and the turn was published to every seat and observer/i,
+      ),
+    ).toBeTruthy();
     expect(screen.queryByText("Action window expired.")).toBeNull();
   });
 
@@ -1256,7 +1358,9 @@ describe("AppShell integration", () => {
     });
 
     mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
-    mockedSubmitTableAction.mockRejectedValueOnce(new Error("Action window expired."));
+    mockedSubmitTableAction.mockRejectedValueOnce(
+      new Error("Action window expired."),
+    );
 
     const aliceRender = renderAppShell("/table", aliceBootstrap);
 
@@ -1271,7 +1375,9 @@ describe("AppShell integration", () => {
     ).toBeTruthy();
     expect(screen.queryByText("Action window expired.")).toBeNull();
     expect((await screen.findAllByText(/Pot 120/)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/player acting shell b \(you\)/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/player acting shell b \(you\)/i).length,
+    ).toBeGreaterThan(0);
   });
 
   it("ignores reconnect metadata at boot when a live table snapshot is still available", async () => {
@@ -1292,7 +1398,9 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
     expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
-    expect(localStorage.getItem(bootstrap.reconnectNamespace)).toContain("stale-token");
+    expect(localStorage.getItem(bootstrap.reconnectNamespace)).toContain(
+      "stale-token",
+    );
   });
 
   it("ignores stale reconnect metadata and falls back to the normal table-unavailable surface", async () => {
@@ -1314,7 +1422,9 @@ describe("AppShell integration", () => {
     renderAppShell("/table", bootstrap);
 
     expect(
-      await screen.findByText("Host connection lost. Reopen the lobby or rejoin."),
+      await screen.findByText(
+        "Host connection lost. Reopen the lobby or rejoin.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("Table unavailable")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Return to lobby" })).toBeTruthy();
@@ -1372,8 +1482,12 @@ describe("AppShell integration", () => {
     expect(screen.getByText(/saved on this device/i)).toBeTruthy();
     expect(screen.getByText(/reconnect b won 300 chip\(s\)\./i)).toBeTruthy();
     expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
-    expect(localStorage.getItem(firstBootstrap.reconnectNamespace)).toContain("first-token");
-    expect(localStorage.getItem(secondBootstrap.reconnectNamespace)).toContain("second-token");
+    expect(localStorage.getItem(firstBootstrap.reconnectNamespace)).toContain(
+      "first-token",
+    );
+    expect(localStorage.getItem(secondBootstrap.reconnectNamespace)).toContain(
+      "second-token",
+    );
   });
 
   it("enters the real debug surface and reflects a payload-free child launch without corrupting the current shell state", async () => {
@@ -1401,25 +1515,32 @@ describe("AppShell integration", () => {
     expect(await screen.findByText("Debug Parent")).toBeTruthy();
     expect(await screen.findByText(/Spawn another debug client/i)).toBeTruthy();
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes("Host draft: Night Debug") ?? false,
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Host draft: Night Debug") ?? false,
       ).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes("Current sequence: 17") ?? false,
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Current sequence: 17") ?? false,
       ).length,
     ).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Launch extra client" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Launch extra client" }),
+    );
 
     expect(await screen.findByText("Launched debug-child-1")).toBeTruthy();
     expect(mockedLaunchAdditionalClientInstance).toHaveBeenCalledWith(null);
     expect(clipboardWriteText).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Launch extra client" })).toBeTruthy();
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes("Host draft: Night Debug") ?? false,
+      screen.getByRole("button", { name: "Launch extra client" }),
+    ).toBeTruthy();
+    expect(
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Host draft: Night Debug") ?? false,
       ).length,
     ).toBeGreaterThan(0);
   });
@@ -1435,12 +1556,16 @@ describe("AppShell integration", () => {
 
     renderAppShell("/debug", bootstrap);
 
-    expect(await screen.findByDisplayValue("pkr1_attached_payload")).toBeTruthy();
+    expect(
+      await screen.findByDisplayValue("pkr1_attached_payload"),
+    ).toBeTruthy();
     expect(await screen.findByText(/legal Fold, Check, Bet/i)).toBeTruthy();
 
     await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "Launch extra client with payload" }),
+        screen.getByRole("button", {
+          name: "Launch extra client with payload",
+        }),
       );
     });
 
@@ -1454,11 +1579,14 @@ describe("AppShell integration", () => {
       "pkr1_attached_payload",
     );
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes("Current sequence: 17") ?? false,
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Current sequence: 17") ?? false,
       ).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Launch extra client with payload" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Launch extra client with payload" }),
+    ).toBeTruthy();
   });
 
   it("keeps launch-driven namespace continuity isolated across parent and child shell instances", async () => {
@@ -1525,10 +1653,20 @@ describe("AppShell integration", () => {
     const parentRender = renderAppShell("/debug", parentBootstrap);
 
     expect(await screen.findByText("Launch Parent")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Launch extra client" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Launch extra client" }),
+    );
     expect(await screen.findByText("Launched debug-child-1")).toBeTruthy();
-    expect(localStorage.getItem(storageKey(parentBootstrap.storageNamespace, "ready-seats"))).toBe("[2]");
-    expect(localStorage.getItem(storageKey(childBootstrap.storageNamespace, "ready-seats"))).toBe("[1]");
+    expect(
+      localStorage.getItem(
+        storageKey(parentBootstrap.storageNamespace, "ready-seats"),
+      ),
+    ).toBe("[2]");
+    expect(
+      localStorage.getItem(
+        storageKey(childBootstrap.storageNamespace, "ready-seats"),
+      ),
+    ).toBe("[1]");
     parentRender.unmount();
 
     const childDebugRender = renderAppShell("/debug", childBootstrap);
@@ -1536,8 +1674,9 @@ describe("AppShell integration", () => {
     expect(await screen.findByText("Launch Child")).toBeTruthy();
     expect(await screen.findByText(/Spawn another debug client/i)).toBeTruthy();
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes("Host draft: Child Room") ?? false,
+      screen.getAllByText(
+        (_, element) =>
+          element?.textContent?.includes("Host draft: Child Room") ?? false,
       ).length,
     ).toBeGreaterThan(0);
     expect(screen.queryByText("Parent Room")).toBeNull();
@@ -1571,7 +1710,9 @@ describe("AppShell integration", () => {
 
     expect(await screen.findByText("Join payload rejected")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Continue to lobby" }).hasAttribute("disabled"),
+      screen
+        .getByRole("button", { name: "Continue to lobby" })
+        .hasAttribute("disabled"),
     ).toBe(true);
 
     mockedGetTableView.mockRejectedValue(
@@ -1583,7 +1724,11 @@ describe("AppShell integration", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
     ).toBeTruthy();
-    expect(await screen.findByText("Host connection lost. Reopen the lobby or rejoin.")).toBeTruthy();
+    expect(
+      await screen.findByText(
+        "Host connection lost. Reopen the lobby or rejoin.",
+      ),
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: "Hand history" }));
     expect(
@@ -1665,9 +1810,7 @@ describe("AppShell integration", () => {
     expect(screen.getByText(/you busted on hand 9/i)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("link", { name: "Hand history" }));
-    expect(
-      await screen.findByText(/maya won 240 chip\(s\)\./i),
-    ).toBeTruthy();
+    expect(await screen.findByText(/maya won 240 chip\(s\)\./i)).toBeTruthy();
   });
 
   it("keeps the desktop shell fixed to the viewport so all primary UI controls remain reachable", async () => {

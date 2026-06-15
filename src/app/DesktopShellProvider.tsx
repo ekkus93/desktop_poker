@@ -68,7 +68,9 @@ export function DesktopShellProvider({
   const storedDisplayName = useMemo(
     () =>
       readStoredValueWithStatus<string>(
-        localStorage.getItem(storageKey(bootstrap.storageNamespace, "display-name")),
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "display-name"),
+        ),
         defaultDisplayName,
       ),
     [bootstrap.storageNamespace, defaultDisplayName],
@@ -76,7 +78,9 @@ export function DesktopShellProvider({
   const storedHostDraft = useMemo(
     () =>
       readStoredValueWithStatus<unknown>(
-        localStorage.getItem(storageKey(bootstrap.storageNamespace, "host-draft")),
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "host-draft"),
+        ),
         defaultHostDraft,
       ),
     [bootstrap.storageNamespace, defaultHostDraft],
@@ -84,7 +88,9 @@ export function DesktopShellProvider({
   const storedJoinDraft = useMemo(
     () =>
       readStoredValueWithStatus<string>(
-        localStorage.getItem(storageKey(bootstrap.storageNamespace, "join-draft")),
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "join-draft"),
+        ),
         bootstrap.launchJoinPayload ?? "",
       ),
     [bootstrap.launchJoinPayload, bootstrap.storageNamespace],
@@ -92,7 +98,9 @@ export function DesktopShellProvider({
   const storedReadySeats = useMemo(
     () =>
       readStoredValueWithStatus<number[]>(
-        localStorage.getItem(storageKey(bootstrap.storageNamespace, "ready-seats")),
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "ready-seats"),
+        ),
         [],
       ),
     [bootstrap.storageNamespace],
@@ -100,7 +108,9 @@ export function DesktopShellProvider({
   const storedRecentJoinPayloads = useMemo(
     () =>
       readStoredValueWithStatus<string[]>(
-        localStorage.getItem(storageKey(bootstrap.storageNamespace, "recent-join-payloads")),
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
+        ),
         [],
       ),
     [bootstrap.storageNamespace],
@@ -146,7 +156,9 @@ export function DesktopShellProvider({
   const [hostDraft, setHostDraft] = useState(() =>
     normalizeHostDraft(storedHostDraft.value, defaultHostDraft),
   );
-  const [joinPayloadDraft, setJoinPayloadDraft] = useState(() => storedJoinDraft.value);
+  const [joinPayloadDraft, setJoinPayloadDraft] = useState(
+    () => storedJoinDraft.value,
+  );
   const [readySeats, setReadySeats] = useState(() => storedReadySeats.value);
   const [recentJoinPayloads, setRecentJoinPayloads] = useState(
     () => storedRecentJoinPayloads.value,
@@ -155,9 +167,10 @@ export function DesktopShellProvider({
     () => storedHandHistory.history?.entries.length ?? 0,
   );
 
-  useEffect(() => initializeWindowStatePersistence(bootstrap.storageNamespace), [
-    bootstrap.storageNamespace,
-  ]);
+  useEffect(
+    () => initializeWindowStatePersistence(bootstrap.storageNamespace),
+    [bootstrap.storageNamespace],
+  );
 
   useEffect(() => {
     localStorage.setItem(
@@ -223,10 +236,12 @@ export function DesktopShellProvider({
           return;
         }
 
-        setRecentJoinPayloads((currentPayloads) => [
-          trimmed,
-          ...currentPayloads.filter((payload) => payload !== trimmed),
-        ].slice(0, 5));
+        setRecentJoinPayloads((currentPayloads) =>
+          [
+            trimmed,
+            ...currentPayloads.filter((payload) => payload !== trimmed),
+          ].slice(0, 5),
+        );
       },
       clearRecentJoinPayloads: () => setRecentJoinPayloads([]),
       toggleSeatReady: (seatIndex) => {

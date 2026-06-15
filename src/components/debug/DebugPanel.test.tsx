@@ -9,9 +9,10 @@ import { createBootstrap, renderWithProviders } from "../../test/fixtures";
 import { DebugPanel } from "./DebugPanel";
 
 vi.mock("../../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../../api/desktop")>(
-    "../../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../../api/desktop")>(
+      "../../api/desktop",
+    );
 
   return {
     ...actual,
@@ -26,7 +27,9 @@ const mockedLaunchAdditionalClientInstance = vi.mocked(
 );
 const clipboardWriteText = vi.fn();
 
-function baseDebugState(overrides: Partial<DebugInspectorState> = {}): DebugInspectorState {
+function baseDebugState(
+  overrides: Partial<DebugInspectorState> = {},
+): DebugInspectorState {
   return {
     protocolLog: [],
     snapshotJson: "{}",
@@ -45,7 +48,9 @@ describe("DebugPanel", () => {
     mockedGetDebugState.mockReset();
     mockedLaunchAdditionalClientInstance.mockReset();
     mockedGetDebugState.mockResolvedValue(baseDebugState());
-    mockedLaunchAdditionalClientInstance.mockResolvedValue("host-a-p100-client-1");
+    mockedLaunchAdditionalClientInstance.mockResolvedValue(
+      "host-a-p100-client-1",
+    );
     clipboardWriteText.mockReset();
     clipboardWriteText.mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -109,7 +114,9 @@ describe("DebugPanel", () => {
     });
     expect(mockedLaunchAdditionalClientInstance).not.toHaveBeenCalled();
     expect(
-      await screen.findByText(/copied join payload for another local instance/i),
+      await screen.findByText(
+        /copied join payload for another local instance/i,
+      ),
     ).toBeTruthy();
   });
 
@@ -120,7 +127,9 @@ describe("DebugPanel", () => {
       }),
     );
     const bootstrap = createBootstrap();
-    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     const list = await screen.findByTestId("npc-tilt-list");
     expect(list).toBeTruthy();
@@ -137,7 +146,9 @@ describe("DebugPanel", () => {
       }),
     );
     const bootstrap = createBootstrap();
-    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     await screen.findByText("Rust backend module map");
     expect(screen.queryByTestId("npc-tilt-list")).toBeNull();

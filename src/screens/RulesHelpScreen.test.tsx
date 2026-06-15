@@ -26,11 +26,15 @@ describe("RulesHelpScreen", () => {
 
     renderWithProviders(<RulesHelpScreen />, {
       bootstrap,
-      initialEntries: [{ pathname: "/rules", state: { context: "join-failure" } }],
+      initialEntries: [
+        { pathname: "/rules", state: { context: "join-failure" } },
+      ],
     });
 
     const joinSection = document.getElementById("help-join-flow");
-    expect(joinSection?.querySelector(".help-section-highlighted")).toBeTruthy();
+    expect(
+      joinSection?.querySelector(".help-section-highlighted"),
+    ).toBeTruthy();
     // Host section should NOT be highlighted
     const hostSection = document.getElementById("help-host-flow");
     expect(hostSection?.querySelector(".help-section-highlighted")).toBeNull();
@@ -45,7 +49,9 @@ describe("RulesHelpScreen", () => {
     });
 
     const hostSection = document.getElementById("help-host-flow");
-    expect(hostSection?.querySelector(".help-section-highlighted")).toBeTruthy();
+    expect(
+      hostSection?.querySelector(".help-section-highlighted"),
+    ).toBeTruthy();
     const joinSection = document.getElementById("help-join-flow");
     expect(joinSection?.querySelector(".help-section-highlighted")).toBeNull();
   });

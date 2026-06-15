@@ -9,9 +9,8 @@ import {
 import { HandHistoryScreen } from "./HandHistoryScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -67,12 +66,12 @@ describe("HandHistoryScreen", () => {
     );
     mockedGetTableView.mockRejectedValue(new Error("offline"));
 
-    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(await screen.findByText("offline")).toBeTruthy();
-    expect(
-      screen.getByText(/saved on this device/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
   });
 
@@ -89,7 +88,9 @@ describe("HandHistoryScreen", () => {
       }),
     );
 
-    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(await screen.findByText(/live summary/i)).toBeTruthy();
     expect(screen.queryByText(/cached summary/i)).toBeNull();
@@ -107,11 +108,11 @@ describe("HandHistoryScreen", () => {
       }),
     );
 
-    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    expect(
-      await screen.findByText(/no settled hands yet\./i),
-    ).toBeTruthy();
+    expect(await screen.findByText(/no settled hands yet\./i)).toBeTruthy();
   });
 
   it("ignores malformed cached history and still renders safely on fetch failure", async () => {
@@ -125,11 +126,11 @@ describe("HandHistoryScreen", () => {
     );
     mockedGetTableView.mockRejectedValue(new Error("offline"));
 
-    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(await screen.findByText("offline")).toBeTruthy();
-    expect(
-      screen.getByText(/no settled hands yet\./i),
-    ).toBeTruthy();
+    expect(screen.getByText(/no settled hands yet\./i)).toBeTruthy();
   });
 });

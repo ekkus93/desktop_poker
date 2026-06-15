@@ -25,7 +25,12 @@ const EVENT_FEED_CAP = 50;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
-  const { displayName, persistHandHistory, tableSidePanelOpen, setTableSidePanelOpen } = useDesktopShell();
+  const {
+    displayName,
+    persistHandHistory,
+    tableSidePanelOpen,
+    setTableSidePanelOpen,
+  } = useDesktopShell();
   const navigate = useNavigate();
   const viewerMode: TableViewerMode = "local";
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
@@ -35,9 +40,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null);
-  const [confirmation, setConfirmation] = useState<
-    { actionKind: "betOrRaise" | "allIn"; label: string } | null
-  >(null);
+  const [confirmation, setConfirmation] = useState<{
+    actionKind: "betOrRaise" | "allIn";
+    label: string;
+  } | null>(null);
   const consecutiveErrorsRef = useRef(0);
 
   useEffect(() => {
@@ -77,7 +83,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           return;
         }
 
-        setConnectionSlow(consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD);
+        setConnectionSlow(
+          consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD,
+        );
         scheduleNext(
           consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD
             ? TABLE_POLL_SLOW_MS
@@ -151,7 +159,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     }
 
     setRaiseAmount((currentAmount) => {
-      if (currentAmount !== null && isWithinRaiseBounds(currentAmount, actionTray)) {
+      if (
+        currentAmount !== null &&
+        isWithinRaiseBounds(currentAmount, actionTray)
+      ) {
         return currentAmount;
       }
 
@@ -169,10 +180,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
   const boardCards = useMemo(() => {
     const visibleCards = tableView?.boardCards ?? [];
-    return Array.from({ length: BOARD_SLOT_COUNT }, (_, index) => visibleCards[index] ?? null);
+    return Array.from(
+      { length: BOARD_SLOT_COUNT },
+      (_, index) => visibleCards[index] ?? null,
+    );
   }, [tableView]);
 
-  const quickSizes = useMemo(() => buildQuickSizes(tableView?.actionTray), [tableView]);
+  const quickSizes = useMemo(
+    () => buildQuickSizes(tableView?.actionTray),
+    [tableView],
+  );
   const handStarted = tableView?.currentHandNumber !== null;
   const denseSeatMap = (tableView?.seats.length ?? 0) > 6;
 
@@ -183,7 +200,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     setSubmitting(true);
     setActionError(null);
     try {
-      const snapshot = await submitTableAction(viewerMode, actionKind, nextRaiseAmount);
+      const snapshot = await submitTableAction(
+        viewerMode,
+        actionKind,
+        nextRaiseAmount,
+      );
       setTableView(snapshot);
       setConfirmation(null);
     } catch (caughtError) {
@@ -193,7 +214,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     }
   };
 
-  const queueConfirmation = (actionKind: "betOrRaise" | "allIn", label: string) => {
+  const queueConfirmation = (
+    actionKind: "betOrRaise" | "allIn",
+    label: string,
+  ) => {
     setConfirmation({ actionKind, label });
     setActionError(null);
   };
@@ -204,7 +228,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     }
 
     const nextRaiseAmount =
-      confirmation.actionKind === "betOrRaise" ? raiseAmount ?? undefined : undefined;
+      confirmation.actionKind === "betOrRaise"
+        ? (raiseAmount ?? undefined)
+        : undefined;
     await submitAction(confirmation.actionKind, nextRaiseAmount);
   };
 
@@ -214,7 +240,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         return;
       }
 
-      await submitAction(actionKind, raiseAmount ?? defaultRaiseAmount(tableView.actionTray));
+      await submitAction(
+        actionKind,
+        raiseAmount ?? defaultRaiseAmount(tableView.actionTray),
+      );
       return;
     }
 
@@ -229,10 +258,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   return (
     <ScreenShell
       title="Main Table"
-      badges={[handStarted ? tableView?.blindLevelLabel ?? "Loading table" : tableView?.phaseLabel ?? "Loading table"]}
+      badges={[
+        handStarted
+          ? (tableView?.blindLevelLabel ?? "Loading table")
+          : (tableView?.phaseLabel ?? "Loading table"),
+      ]}
       className="table-screen-layout"
     >
-      <div className={`table-screen-shell ${denseSeatMap ? "dense-table-screen-shell" : ""}`}>
+      <div
+        className={`table-screen-shell ${denseSeatMap ? "dense-table-screen-shell" : ""}`}
+      >
         <div className="table-top-row">
           <div className="button-row">
             <button
@@ -242,7 +277,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
             >
               <span className="button-content">
                 <PanelRight className="button-icon" strokeWidth={1.9} />
-                <span>{tableSidePanelOpen ? "Hide details" : "Table details"}</span>
+                <span>
+                  {tableSidePanelOpen ? "Hide details" : "Table details"}
+                </span>
               </span>
             </button>
           </div>
@@ -266,7 +303,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
         {loading ? (
           <SectionCard title="Loading table state">
-            <span className="field-hint">Requesting the current table state from the host.</span>
+            <span className="field-hint">
+              Requesting the current table state from the host.
+            </span>
           </SectionCard>
         ) : null}
 
@@ -289,11 +328,25 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         ) : null}
 
         {tableView ? (
-          <div className={`desktop-table-layout ${tableSidePanelOpen ? "with-side-panel" : ""}`}>
-            <div className={`table-main-column ${denseSeatMap ? "dense-table-main-column" : ""}`}>
-              <section className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}>
-                <div className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}>
-                  <p className="kicker">{handStarted ? (tableView.actionTray ? "Your move" : "Waiting") : "Not started"}</p>
+          <div
+            className={`desktop-table-layout ${tableSidePanelOpen ? "with-side-panel" : ""}`}
+          >
+            <div
+              className={`table-main-column ${denseSeatMap ? "dense-table-main-column" : ""}`}
+            >
+              <section
+                className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}
+              >
+                <div
+                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
+                >
+                  <p className="kicker">
+                    {handStarted
+                      ? tableView.actionTray
+                        ? "Your move"
+                        : "Waiting"
+                      : "Not started"}
+                  </p>
                   <h3>
                     {handStarted
                       ? tableView.actionTray
@@ -308,13 +361,20 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     <p className="kicker">{tableView.tableName}</p>
                     <h3>{tableView.tournamentName}</h3>
                     <p className="field-hint">
-                      Hand {tableView.currentHandNumber ?? "—"} · {tableView.phaseLabel}
+                      Hand {tableView.currentHandNumber ?? "—"} ·{" "}
+                      {tableView.phaseLabel}
                     </p>
                   </div>
                   <div className="badge-row">
-                    <StatusBadge tone="success">{tableView.streetLabel}</StatusBadge>
-                    <StatusBadge tone="info">{tableView.blindLevelLabel}</StatusBadge>
-                    <StatusBadge tone="accent">Pot {tableView.potTotal}</StatusBadge>
+                    <StatusBadge tone="success">
+                      {tableView.streetLabel}
+                    </StatusBadge>
+                    <StatusBadge tone="info">
+                      {tableView.blindLevelLabel}
+                    </StatusBadge>
+                    <StatusBadge tone="accent">
+                      Pot {tableView.potTotal}
+                    </StatusBadge>
                   </div>
                 </header>
 
@@ -332,7 +392,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <>
                     {denseSeatMap ? (
                       <p className="field-hint dense-table-note">
-                        Action: {tableView.actionOwnerLabel}. {tableView.eliminationSummary}
+                        Action: {tableView.actionOwnerLabel}.{" "}
+                        {tableView.eliminationSummary}
                       </p>
                     ) : (
                       <div className="table-summary-row">
@@ -351,21 +412,35 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       </div>
                     )}
 
-                    <div className="community-cards centered-community-cards" aria-label="Community cards">
+                    <div
+                      className="community-cards centered-community-cards"
+                      aria-label="Community cards"
+                    >
                       {boardCards.map((card, index) => (
-                        <PlayingCard key={index} card={card} placeholderAriaLabel={`Community card ${index + 1}`} size="board" />
+                        <PlayingCard
+                          key={index}
+                          card={card}
+                          placeholderAriaLabel={`Community card ${index + 1}`}
+                          size="board"
+                        />
                       ))}
                     </div>
                   </>
                 ) : (
                   <SectionCard title="Before the first hand">
-                    <p>The tournament is live but the first hand has not started yet. The host will deal once all players are seated and ready.</p>
+                    <p>
+                      The tournament is live but the first hand has not started
+                      yet. The host will deal once all players are seated and
+                      ready.
+                    </p>
                   </SectionCard>
                 )}
 
                 <div className="seat-grid enhanced-seat-grid">
                   {tableView.seats.map((seat) => {
-                    const seatLabel = seat.isLocal ? `${displayName} (you)` : seat.displayName;
+                    const seatLabel = seat.isLocal
+                      ? `${displayName} (you)`
+                      : seat.displayName;
                     return (
                       <article
                         key={seat.seatIndex}
@@ -376,25 +451,45 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                             <strong>Seat {seat.seatIndex}</strong>
                             <span>{seatLabel}</span>
                           </div>
-                          {seat.markerLabel ? <StatusBadge>{seat.markerLabel}</StatusBadge> : null}
+                          {seat.markerLabel ? (
+                            <StatusBadge>{seat.markerLabel}</StatusBadge>
+                          ) : null}
                         </div>
                         <p className="seat-status-line">
                           <span>{seat.statusLabel}</span>
-                          {seat.chipCount !== null ? <span>{seat.chipCount} chips</span> : null}
+                          {seat.chipCount !== null ? (
+                            <span>{seat.chipCount} chips</span>
+                          ) : null}
                         </p>
                         <p className="seat-detail">
-                          {seat.isObserver ? "Watching public action" : seat.isEliminated ? "Eliminated from this hand" : `In for ${seat.contribution}`}
+                          {seat.isObserver
+                            ? "Watching public action"
+                            : seat.isEliminated
+                              ? "Eliminated from this hand"
+                              : `In for ${seat.contribution}`}
                         </p>
-                        <div className={`seat-card-grid ${seat.isLocal ? "show-local-cards" : ""}`}>
+                        <div
+                          className={`seat-card-grid ${seat.isLocal ? "show-local-cards" : ""}`}
+                        >
                           {seat.cardsHidden ? (
-                            <div className="hidden-card-row" aria-label={`Seat ${seat.seatIndex} hidden cards`}>
+                            <div
+                              className="hidden-card-row"
+                              aria-label={`Seat ${seat.seatIndex} hidden cards`}
+                            >
                               <HiddenCard />
                               <HiddenCard />
                             </div>
                           ) : (
-                            <div className="seat-hole-cards" aria-label={`Seat ${seat.seatIndex} hole cards`}>
+                            <div
+                              className="seat-hole-cards"
+                              aria-label={`Seat ${seat.seatIndex} hole cards`}
+                            >
                               {seat.holeCards.map((card) => (
-                                <PlayingCard key={card.compactLabel} card={card} size={seat.isLocal ? "local" : "compact"} />
+                                <PlayingCard
+                                  key={card.compactLabel}
+                                  card={card}
+                                  size={seat.isLocal ? "local" : "compact"}
+                                />
                               ))}
                             </div>
                           )}
@@ -413,7 +508,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
               </section>
 
               {tableView.actionTray ? (
-                <SectionCard kicker="Action" title="Play this spot" className="table-action-card">
+                <SectionCard
+                  kicker="Action"
+                  title="Play this spot"
+                  className="table-action-card"
+                >
                   <div className="action-owner-banner">
                     <strong>{tableView.actionTray.ownerLabel}</strong>
                   </div>
@@ -436,7 +535,9 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     </button>
                     <button
                       className="secondary-button"
-                      disabled={submitting || tableView.actionTray.maxRaiseTo === null}
+                      disabled={
+                        submitting || tableView.actionTray.maxRaiseTo === null
+                      }
                       onClick={() => void handlePrimaryAction("betOrRaise")}
                       type="button"
                     >
@@ -452,10 +553,15 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     </button>
                   </div>
                   {submitting ? (
-                    <div className="inline-banner info">Sending your action to the host…</div>
+                    <div className="inline-banner info">
+                      Sending your action to the host…
+                    </div>
                   ) : null}
                   {tableView.actionTray.maxRaiseTo === null ? (
-                    <p className="field-hint">Raise unavailable until a legal raise size is offered for this spot.</p>
+                    <p className="field-hint">
+                      Raise unavailable until a legal raise size is offered for
+                      this spot.
+                    </p>
                   ) : (
                     <div className="raise-controls">
                       <label className="field" htmlFor="raise-slider">
@@ -463,19 +569,39 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                         <input
                           aria-label="Raise amount"
                           aria-valuemax={tableView.actionTray.maxRaiseTo}
-                          aria-valuemin={tableView.actionTray.minRaiseTo ?? tableView.actionTray.maxRaiseTo}
-                          aria-valuenow={raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}
+                          aria-valuemin={
+                            tableView.actionTray.minRaiseTo ??
+                            tableView.actionTray.maxRaiseTo
+                          }
+                          aria-valuenow={
+                            raiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)
+                          }
                           id="raise-slider"
                           max={tableView.actionTray.maxRaiseTo}
-                          min={tableView.actionTray.minRaiseTo ?? tableView.actionTray.maxRaiseTo}
-                          onChange={(event) => setRaiseAmount(Number(event.target.value))}
+                          min={
+                            tableView.actionTray.minRaiseTo ??
+                            tableView.actionTray.maxRaiseTo
+                          }
+                          onChange={(event) =>
+                            setRaiseAmount(Number(event.target.value))
+                          }
                           step={1}
                           type="range"
-                          value={raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}
+                          value={
+                            raiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)
+                          }
                         />
                       </label>
                       <p className="field-hint">
-                        To <strong>{raiseAmount ?? defaultRaiseAmount(tableView.actionTray)}</strong> · Call {tableView.actionTray.callAmount} · Pot {tableView.actionTray.potTotal}
+                        To{" "}
+                        <strong>
+                          {raiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)}
+                        </strong>{" "}
+                        · Call {tableView.actionTray.callAmount} · Pot{" "}
+                        {tableView.actionTray.potTotal}
                       </p>
                       <div className="button-row quick-size-row">
                         {quickSizes.map((option) => (
@@ -500,19 +626,35 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                           : "Commit the remaining stack as an all-in action?"}
                       </p>
                       <div className="button-row">
-                        <button className="primary-button" disabled={submitting} onClick={() => void confirmQueuedAction()} type="button">
+                        <button
+                          className="primary-button"
+                          disabled={submitting}
+                          onClick={() => void confirmQueuedAction()}
+                          type="button"
+                        >
                           Confirm
                         </button>
-                        <button className="secondary-button" disabled={submitting} onClick={() => setConfirmation(null)} type="button">
+                        <button
+                          className="secondary-button"
+                          disabled={submitting}
+                          onClick={() => setConfirmation(null)}
+                          type="button"
+                        >
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : null}
-                  {actionError ? <div className="inline-banner error">{actionError}</div> : null}
+                  {actionError ? (
+                    <div className="inline-banner error">{actionError}</div>
+                  ) : null}
                 </SectionCard>
               ) : (
-                <SectionCard kicker="Action" title="Waiting" className="table-action-card">
+                <SectionCard
+                  kicker="Action"
+                  title="Waiting"
+                  className="table-action-card"
+                >
                   <p>
                     {handStarted
                       ? "Waiting for the next action from the host."
@@ -527,15 +669,25 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 <SectionCard kicker="Standings" title="Chip order">
                   <div className="stacked-list" id="standings-panel">
                     {tableView.standings.map((entry) => (
-                      <article key={`${entry.rank}-${entry.displayName}`} className="list-panel standings-row">
+                      <article
+                        key={`${entry.rank}-${entry.displayName}`}
+                        className="list-panel standings-row"
+                      >
                         <div>
                           <strong>
-                            #{entry.rank} {entry.isLocal ? `${displayName} (you)` : entry.displayName}
+                            #{entry.rank}{" "}
+                            {entry.isLocal
+                              ? `${displayName} (you)`
+                              : entry.displayName}
                           </strong>
                           <p className="field-hint">
-                            {entry.isObserver ? entry.statusLabel : `${entry.chipCount ?? 0} chips`}
+                            {entry.isObserver
+                              ? entry.statusLabel
+                              : `${entry.chipCount ?? 0} chips`}
                           </p>
-                          {entry.note ? <p className="field-hint">{entry.note}</p> : null}
+                          {entry.note ? (
+                            <p className="field-hint">{entry.note}</p>
+                          ) : null}
                         </div>
                       </article>
                     ))}
@@ -545,16 +697,21 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 <SectionCard kicker="Table feed" title="Latest public events">
                   <div className="stacked-list event-feed-list">
                     {tableView.eventFeed.slice(-EVENT_FEED_CAP).map((event) => (
-                      <article key={event.sequence} className="list-panel history-row">
+                      <article
+                        key={event.sequence}
+                        className="list-panel history-row"
+                      >
                         <div>
-                            <strong>{event.kind}</strong>
+                          <strong>{event.kind}</strong>
                           <p className="field-hint">{event.message}</p>
                         </div>
                       </article>
                     ))}
                   </div>
                   {tableView.eventFeed.length > EVENT_FEED_CAP ? (
-                    <p className="field-hint">Showing last {EVENT_FEED_CAP} events.</p>
+                    <p className="field-hint">
+                      Showing last {EVENT_FEED_CAP} events.
+                    </p>
                   ) : null}
                 </SectionCard>
 
@@ -562,11 +719,17 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                   <div className="stacked-list">
                     {tableView.handHistory.length > 0 ? (
                       tableView.handHistory.map((entry) => (
-                        <article key={entry.handNumber} className="list-panel history-row">
+                        <article
+                          key={entry.handNumber}
+                          className="list-panel history-row"
+                        >
                           <div>
                             <strong>Hand {entry.handNumber}</strong>
                             <p className="field-hint">{entry.summary}</p>
-                            <p className="field-hint">Pot {entry.potTotal} · Winners: {entry.winningPlayers.join(", ")}</p>
+                            <p className="field-hint">
+                              Pot {entry.potTotal} · Winners:{" "}
+                              {entry.winningPlayers.join(", ")}
+                            </p>
                           </div>
                         </article>
                       ))
@@ -592,13 +755,22 @@ type PlayingCardProps = {
 
 function PlayingCard({ card, placeholderAriaLabel, size }: PlayingCardProps) {
   if (!card) {
-    return <div aria-label={placeholderAriaLabel} className={`card-slot ${size} empty-card-slot`} role="img" />;
+    return (
+      <div
+        aria-label={placeholderAriaLabel}
+        className={`card-slot ${size} empty-card-slot`}
+        role="img"
+      />
+    );
   }
 
   const cornerRank = card.compactLabel.replace(card.suitSymbol, "");
 
   return (
-    <div className={`playing-card ${size} ${card.tone}`} aria-label={card.label}>
+    <div
+      className={`playing-card ${size} ${card.tone}`}
+      aria-label={card.label}
+    >
       <div className="playing-card-corner top-left">
         <span>{card.compactLabel}</span>
         <small>{card.suitSymbol}</small>
@@ -618,32 +790,54 @@ function HiddenCard() {
   return <div className="hidden-card" aria-hidden="true" />;
 }
 
-function buildQuickSizes(actionTray: TableViewSnapshot["actionTray"] | undefined) {
-  if (!actionTray || actionTray.minRaiseTo === null || actionTray.maxRaiseTo === null) {
+function buildQuickSizes(
+  actionTray: TableViewSnapshot["actionTray"] | undefined,
+) {
+  if (
+    !actionTray ||
+    actionTray.minRaiseTo === null ||
+    actionTray.maxRaiseTo === null
+  ) {
     return [];
   }
 
   return [
-    { label: "Min", amount: clampRaiseAmount(actionTray.minRaiseTo, actionTray) },
+    {
+      label: "Min",
+      amount: clampRaiseAmount(actionTray.minRaiseTo, actionTray),
+    },
     {
       label: "1/2 Pot",
       amount: clampRaiseAmount(Math.round(actionTray.potTotal / 2), actionTray),
     },
     { label: "Pot", amount: clampRaiseAmount(actionTray.potTotal, actionTray) },
-    { label: "Max", amount: clampRaiseAmount(actionTray.maxRaiseTo, actionTray) },
+    {
+      label: "Max",
+      amount: clampRaiseAmount(actionTray.maxRaiseTo, actionTray),
+    },
   ];
 }
 
-function clampRaiseAmount(amount: number, actionTray: NonNullable<TableViewSnapshot["actionTray"]>) {
+function clampRaiseAmount(
+  amount: number,
+  actionTray: NonNullable<TableViewSnapshot["actionTray"]>,
+) {
   if (actionTray.minRaiseTo === null || actionTray.maxRaiseTo === null) {
     return amount;
   }
 
-  return Math.min(actionTray.maxRaiseTo, Math.max(actionTray.minRaiseTo, amount));
+  return Math.min(
+    actionTray.maxRaiseTo,
+    Math.max(actionTray.minRaiseTo, amount),
+  );
 }
 
-function defaultRaiseAmount(actionTray: NonNullable<TableViewSnapshot["actionTray"]>) {
-  return actionTray.minRaiseTo ?? actionTray.maxRaiseTo ?? actionTray.currentBet;
+function defaultRaiseAmount(
+  actionTray: NonNullable<TableViewSnapshot["actionTray"]>,
+) {
+  return (
+    actionTray.minRaiseTo ?? actionTray.maxRaiseTo ?? actionTray.currentBet
+  );
 }
 
 function isWithinRaiseBounds(
@@ -658,5 +852,7 @@ function isWithinRaiseBounds(
 }
 
 function getErrorMessage(caughtError: unknown) {
-  return caughtError instanceof Error ? caughtError.message : "Unknown table error";
+  return caughtError instanceof Error
+    ? caughtError.message
+    : "Unknown table error";
 }

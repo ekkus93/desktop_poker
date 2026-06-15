@@ -10,7 +10,8 @@ import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { NpcProfilesScreen } from "./NpcProfilesScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
   return {
     ...actual,
     listNpcProfiles: vi.fn(),
@@ -93,7 +94,10 @@ describe("NpcProfilesScreen", () => {
   });
 
   it("Delete button is disabled for built-in starter profiles", async () => {
-    const profile = createProfile({ id: "aggressive-alice", name: "Aggressive Alice" });
+    const profile = createProfile({
+      id: "aggressive-alice",
+      name: "Aggressive Alice",
+    });
     mockedListNpcProfiles.mockResolvedValue([profile]);
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });

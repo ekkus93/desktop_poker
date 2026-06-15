@@ -24,7 +24,9 @@ export function DebugPanel({
     setJoinPayloadDraft,
   } = useDesktopShell();
   const [viewerMode, setViewerMode] = useState<TableViewerMode>("local");
-  const [debugState, setDebugState] = useState<DebugInspectorState | null>(null);
+  const [debugState, setDebugState] = useState<DebugInspectorState | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [launchStatus, setLaunchStatus] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -41,7 +43,11 @@ export function DebugPanel({
       })
       .catch((caughtError: unknown) => {
         if (!cancelled) {
-          setError(caughtError instanceof Error ? caughtError.message : "Unknown debug error");
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unknown debug error",
+          );
         }
       });
 
@@ -68,7 +74,9 @@ export function DebugPanel({
       );
     } catch (caughtError) {
       setLaunchStatus(
-        caughtError instanceof Error ? caughtError.message : "Could not launch client",
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not launch client",
       );
     }
   };
@@ -85,7 +93,9 @@ export function DebugPanel({
       setCopyStatus("Copied join payload for another local instance.");
     } catch (caughtError) {
       setCopyStatus(
-        caughtError instanceof Error ? caughtError.message : "Could not copy payload",
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not copy payload",
       );
     }
   };
@@ -94,20 +104,29 @@ export function DebugPanel({
     <div className={asScreen ? "screen-shell" : "debug-panel"}>
       <SectionCard kicker="Internal only" title="Debug tools">
         <p className="field-hint">
-          These tools are for development and QA. They should stay outside the normal player path.
+          These tools are for development and QA. They should stay outside the
+          normal player path.
         </p>
       </SectionCard>
 
       <div className="button-row">
         <button
-          className={viewerMode === "local" ? "primary-button compact-button" : "secondary-button compact-button"}
+          className={
+            viewerMode === "local"
+              ? "primary-button compact-button"
+              : "secondary-button compact-button"
+          }
           onClick={() => setViewerMode("local")}
           type="button"
         >
           Inspect local view
         </button>
         <button
-          className={viewerMode === "observer" ? "primary-button compact-button" : "secondary-button compact-button"}
+          className={
+            viewerMode === "observer"
+              ? "primary-button compact-button"
+              : "secondary-button compact-button"
+          }
           onClick={() => setViewerMode("observer")}
           type="button"
         >
@@ -133,7 +152,8 @@ export function DebugPanel({
             <strong>Instance label:</strong> {bootstrap.instanceLabel}
           </li>
           <li>
-            <strong>Profile ID:</strong> <span className="mono-value">{bootstrap.instanceId}</span>
+            <strong>Profile ID:</strong>{" "}
+            <span className="mono-value">{bootstrap.instanceId}</span>
           </li>
           <li>
             <strong>Storage namespace:</strong>{" "}
@@ -170,13 +190,17 @@ export function DebugPanel({
             <strong>Screen catalog size:</strong> {bootstrap.screens.length}
           </li>
           <li>
-            <strong>Current sequence:</strong> {debugState?.currentSequence ?? "—"}
+            <strong>Current sequence:</strong>{" "}
+            {debugState?.currentSequence ?? "—"}
           </li>
           <li>
-            <strong>Current hand:</strong> {debugState?.currentHandNumber ?? "—"}
+            <strong>Current hand:</strong>{" "}
+            {debugState?.currentHandNumber ?? "—"}
           </li>
         </ul>
-        <pre className="debug-pre">{debugState?.snapshotJson ?? "Loading snapshot…"}</pre>
+        <pre className="debug-pre">
+          {debugState?.snapshotJson ?? "Loading snapshot…"}
+        </pre>
       </SectionCard>
 
       <SectionCard title="Protocol log viewer">
@@ -196,7 +220,8 @@ export function DebugPanel({
 
       <SectionCard title="Action-window inspector">
         <p className="field-hint">
-          {debugState?.actionWindowSummary ?? "No open action window at the moment."}
+          {debugState?.actionWindowSummary ??
+            "No open action window at the moment."}
         </p>
       </SectionCard>
 
@@ -215,7 +240,11 @@ export function DebugPanel({
           />
         </label>
         <div className="button-row">
-          <button className="secondary-button" onClick={() => void handleCopyPayload()} type="button">
+          <button
+            className="secondary-button"
+            onClick={() => void handleCopyPayload()}
+            type="button"
+          >
             Copy payload
           </button>
           <button
@@ -234,11 +263,18 @@ export function DebugPanel({
             Launch extra client
           </button>
         </div>
-        {copyStatus ? <div className="inline-banner success">{copyStatus}</div> : null}
-        {launchStatus ? <div className="inline-banner info">{launchStatus}</div> : null}
+        {copyStatus ? (
+          <div className="inline-banner success">{copyStatus}</div>
+        ) : null}
+        {launchStatus ? (
+          <div className="inline-banner info">{launchStatus}</div>
+        ) : null}
       </SectionCard>
 
-      {debugState && Object.keys(debugState.npcTiltLevels).some((k) => debugState.npcTiltLevels[k] !== "none") ? (
+      {debugState &&
+      Object.keys(debugState.npcTiltLevels).some(
+        (k) => debugState.npcTiltLevels[k] !== "none",
+      ) ? (
         <SectionCard title="NPC tilt state" data-testid="npc-tilt-section">
           <ul data-testid="npc-tilt-list">
             {Object.entries(debugState.npcTiltLevels)

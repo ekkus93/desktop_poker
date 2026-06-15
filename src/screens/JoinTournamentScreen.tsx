@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, BadgeCheck, Clipboard, House, Link as LinkIcon, RotateCcw, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Clipboard,
+  House,
+  Link as LinkIcon,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
@@ -26,7 +34,9 @@ function looksLikeHostShareDetails(value: string) {
 }
 
 function normaliseError(error: unknown) {
-  return error instanceof Error ? error.message : "The invite could not be checked.";
+  return error instanceof Error
+    ? error.message
+    : "The invite could not be checked.";
 }
 
 export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
@@ -46,7 +56,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
-  const [pillMeta, setPillMeta] = useState<Map<string, { label: string; invalid?: boolean }>>(new Map());
+  const [pillMeta, setPillMeta] = useState<
+    Map<string, { label: string; invalid?: boolean }>
+  >(new Map());
   const launchJoinAttemptedForPayload = useRef<string | null>(null);
 
   const deepLinkPayload = useMemo(() => {
@@ -67,7 +79,8 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
             : `${parsed.hostAddress}:${parsed.hostPort}`;
           return [payload, { label }] as const;
         } catch {
-          const truncated = payload.length > 20 ? `${payload.slice(0, 20)}…` : payload;
+          const truncated =
+            payload.length > 20 ? `${payload.slice(0, 20)}…` : payload;
           return [payload, { label: truncated, invalid: true }] as const;
         }
       }),
@@ -77,7 +90,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       }
     });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [recentJoinPayloads]);
 
   useEffect(() => {
@@ -231,7 +246,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
         window.setTimeout(() => {
-          reject(new Error("Validation timed out — check your connection and try again."));
+          reject(
+            new Error(
+              "Validation timed out — check your connection and try again.",
+            ),
+          );
         }, 10_000);
       });
       const parsedPayload = await Promise.race([
@@ -262,10 +281,12 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       : "Paste an invite";
   const previewTableName =
     validationState.status === "valid"
-      ? validationState.payload.tableName ?? validationState.payload.tableId
+      ? (validationState.payload.tableName ?? validationState.payload.tableId)
       : null;
   const canContinueToLobby = validationState.status === "valid";
-  const canCheckInvite = joinPayloadDraft.trim().length > 0 && validationState.status !== "validating";
+  const canCheckInvite =
+    joinPayloadDraft.trim().length > 0 &&
+    validationState.status !== "validating";
   const continueHint = canContinueToLobby
     ? joining
       ? "Joining the live host session..."
@@ -304,7 +325,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       className="pregame-screen-shell"
     >
       <div className="pregame-workstation join-station-layout">
-        <SectionCard kicker="Join station" title="Join" className="workstation-main-card">
+        <SectionCard
+          kicker="Join station"
+          title="Join"
+          className="workstation-main-card"
+        >
           <div className="workstation-grid join-workstation-grid">
             <div className="form-grid compact-form-grid invite-input-panel">
               <label className="field">
@@ -331,7 +356,11 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                 >
                   <span className="button-content">
                     <Clipboard className="button-icon" strokeWidth={1.9} />
-                    <span>{validationState.status === "validating" ? "Checking invite" : "Check invite"}</span>
+                    <span>
+                      {validationState.status === "validating"
+                        ? "Checking invite"
+                        : "Check invite"}
+                    </span>
                   </span>
                 </button>
                 {canContinueToLobby ? (
@@ -345,11 +374,17 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   >
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
-                      <span>{joining ? "Joining lobby" : "Continue to lobby"}</span>
+                      <span>
+                        {joining ? "Joining lobby" : "Continue to lobby"}
+                      </span>
                     </span>
                   </button>
                 ) : (
-                  <button className="primary-button ghost-primary-button" disabled type="button">
+                  <button
+                    className="primary-button ghost-primary-button"
+                    disabled
+                    type="button"
+                  >
                     <span className="button-content">
                       <ArrowRight className="button-icon" strokeWidth={1.9} />
                       <span>Continue to lobby</span>
@@ -359,14 +394,22 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               </div>
               <p className="field-hint">{continueHint}</p>
               {validationState.status === "validating" ? (
-                <p className="inline-banner info">Checking the invite and host details…</p>
+                <p className="inline-banner info">
+                  Checking the invite and host details…
+                </p>
               ) : null}
               {validationState.status === "invalid" ? (
-                <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{validationState.message}</p>
+                <p className="inline-banner error">
+                  <TriangleAlert className="button-icon" strokeWidth={1.9} />
+                  {validationState.message}
+                </p>
               ) : null}
               {joinError ? (
                 <>
-                  <p className="inline-banner error"><TriangleAlert className="button-icon" strokeWidth={1.9} />{joinError}</p>
+                  <p className="inline-banner error">
+                    <TriangleAlert className="button-icon" strokeWidth={1.9} />
+                    {joinError}
+                  </p>
                   {launchJoinAttemptedForPayload.current ? (
                     <div className="button-row">
                       <button
@@ -380,7 +423,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                         type="button"
                       >
                         <span className="button-content">
-                          <RotateCcw className="button-icon" strokeWidth={1.9} />
+                          <RotateCcw
+                            className="button-icon"
+                            strokeWidth={1.9}
+                          />
                           <span>Clear and enter a different invite</span>
                         </span>
                       </button>
@@ -398,19 +444,31 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   ) : null}
                 </>
               ) : null}
-              {inviteBanner ? <p className="inline-banner success"><BadgeCheck className="button-icon" strokeWidth={1.9} />{inviteBanner}</p> : null}
+              {inviteBanner ? (
+                <p className="inline-banner success">
+                  <BadgeCheck className="button-icon" strokeWidth={1.9} />
+                  {inviteBanner}
+                </p>
+              ) : null}
             </div>
 
             <div className="workstation-side-panel join-preview-panel">
               {validationState.status === "valid" ? (
-                <section aria-label="Invite preview" className="invite-card compact-invite-card">
+                <section
+                  aria-label="Invite preview"
+                  className="invite-card compact-invite-card"
+                >
                   <p className="kicker">Invite looks good</p>
                   <h4>{previewTableName}</h4>
                   <div className="invite-stat-grid compact-invite-stat-grid">
                     <div>
                       <span className="invite-stat-label">Host</span>
                       <strong>
-                        <span className="detail-value-with-icon"><LinkIcon className="button-icon" strokeWidth={1.9} />{validationState.payload.hostAddress}:{validationState.payload.hostPort}</span>
+                        <span className="detail-value-with-icon">
+                          <LinkIcon className="button-icon" strokeWidth={1.9} />
+                          {validationState.payload.hostAddress}:
+                          {validationState.payload.hostPort}
+                        </span>
                       </strong>
                     </div>
                     <div>
@@ -461,7 +519,10 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
 
                             void validateJoinPayloadInput(payload)
                               .then((parsedPayload) => {
-                                setValidationState({ status: "valid", payload: parsedPayload });
+                                setValidationState({
+                                  status: "valid",
+                                  payload: parsedPayload,
+                                });
                                 setInviteBanner("Loaded a recent invite.");
                               })
                               .catch((error: unknown) => {
@@ -472,7 +533,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                                 setInviteBanner(null);
                               });
                           }}
-                          title={isInvalid ? "This invite may be outdated" : payload}
+                          title={
+                            isInvalid ? "This invite may be outdated" : payload
+                          }
                           type="button"
                         >
                           {pillLabel}

@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { House, RefreshCw, RotateCcw, TriangleAlert, WifiOff } from "lucide-react";
+import {
+  House,
+  RefreshCw,
+  RotateCcw,
+  TriangleAlert,
+  WifiOff,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { resolveHostLanAddress } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -54,7 +60,9 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
         }
 
         const message =
-          error instanceof Error ? error.message : "Unable to resolve a connectable LAN IP.";
+          error instanceof Error
+            ? error.message
+            : "Unable to resolve a connectable LAN IP.";
         setHostLanError(message);
         if (!bootstrap.launchJoinPayloadError) {
           setScenario("invalid-lan-ip");
@@ -67,36 +75,84 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
   }, [bootstrap.launchJoinPayloadError]);
 
   const scenarioMessage: Record<ErrorScenario, string> = {
-    reconnecting:
-      "Reconnecting to the table.",
-    "reconnect-success":
-      "Back at the table.",
+    reconnecting: "Reconnecting to the table.",
+    "reconnect-success": "Back at the table.",
     "reconnect-failed":
       "Could not restore this session. Rejoin if the game is still open.",
-    "host-lost":
-      "The host is gone or the table closed.",
+    "host-lost": "The host is gone or the table closed.",
     "invalid-invite": bootstrap.launchJoinPayloadError
       ? `Invite error: ${bootstrap.launchJoinPayloadError}`
       : "Invite error.",
-    "persistence-reset": startupWarnings[0]
-      ?? "Some saved local data was unreadable and has been reset.",
-    "invalid-lan-ip": hostLanError ?? "Hosting requires a reachable LAN IP address.",
+    "persistence-reset":
+      startupWarnings[0] ??
+      "Some saved local data was unreadable and has been reset.",
+    "invalid-lan-ip":
+      hostLanError ?? "Hosting requires a reachable LAN IP address.",
     "join-failed": joinPayloadDraft.trim()
       ? "The host did not accept the connection."
       : "No valid invite was available.",
   };
 
   const scenarioAction = {
-    reconnecting: { primaryLabel: "Back to lobby", primaryTo: "/lobby", secondaryLabel: "Return home", secondaryTo: "/" },
-    "reconnect-success": { primaryLabel: "Open table", primaryTo: "/table", secondaryLabel: "Open history", secondaryTo: "/history" },
-    "reconnect-failed": { primaryLabel: "Join tournament", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
-    "host-lost": { primaryLabel: "Open history", primaryTo: "/history", secondaryLabel: "Return home", secondaryTo: "/" },
-    "invalid-invite": { primaryLabel: "Fix invite", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
-    "persistence-reset": { primaryLabel: "Return home", primaryTo: "/", secondaryLabel: "Open settings", secondaryTo: "/settings" },
-    "invalid-lan-ip": { primaryLabel: "Open host setup", primaryTo: "/host", secondaryLabel: "Return home", secondaryTo: "/" },
-    "join-failed": { primaryLabel: "Try joining again", primaryTo: "/join", secondaryLabel: "Return home", secondaryTo: "/" },
+    reconnecting: {
+      primaryLabel: "Back to lobby",
+      primaryTo: "/lobby",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
+    "reconnect-success": {
+      primaryLabel: "Open table",
+      primaryTo: "/table",
+      secondaryLabel: "Open history",
+      secondaryTo: "/history",
+    },
+    "reconnect-failed": {
+      primaryLabel: "Join tournament",
+      primaryTo: "/join",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
+    "host-lost": {
+      primaryLabel: "Open history",
+      primaryTo: "/history",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
+    "invalid-invite": {
+      primaryLabel: "Fix invite",
+      primaryTo: "/join",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
+    "persistence-reset": {
+      primaryLabel: "Return home",
+      primaryTo: "/",
+      secondaryLabel: "Open settings",
+      secondaryTo: "/settings",
+    },
+    "invalid-lan-ip": {
+      primaryLabel: "Open host setup",
+      primaryTo: "/host",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
+    "join-failed": {
+      primaryLabel: "Try joining again",
+      primaryTo: "/join",
+      secondaryLabel: "Return home",
+      secondaryTo: "/",
+    },
   }[scenario];
-  const PrimaryIcon = scenario === "reconnecting" || scenario === "reconnect-success" ? RefreshCw : scenario === "host-lost" ? WifiOff : scenario === "invalid-invite" || scenario === "invalid-lan-ip" || scenario === "persistence-reset" ? TriangleAlert : RotateCcw;
+  const PrimaryIcon =
+    scenario === "reconnecting" || scenario === "reconnect-success"
+      ? RefreshCw
+      : scenario === "host-lost"
+        ? WifiOff
+        : scenario === "invalid-invite" ||
+            scenario === "invalid-lan-ip" ||
+            scenario === "persistence-reset"
+          ? TriangleAlert
+          : RotateCcw;
 
   return (
     <ScreenShell
@@ -105,7 +161,11 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
       className="support-screen-shell"
     >
       <div className="recovery-grid">
-        <SectionCard kicker="Current state" title={SCENARIO_LABELS[scenario]} className="support-card">
+        <SectionCard
+          kicker="Current state"
+          title={SCENARIO_LABELS[scenario]}
+          className="support-card"
+        >
           <p
             className={`inline-banner ${
               scenario === "reconnect-success"
@@ -134,20 +194,30 @@ export function ErrorStateScreen({ bootstrap }: ScreenProps) {
         </SectionCard>
 
         {bootstrap.debugToolsEnabled ? (
-          <SectionCard kicker="Development only" title="Scenario picker" className="support-card">
+          <SectionCard
+            kicker="Development only"
+            title="Scenario picker"
+            className="support-card"
+          >
             <div className="button-row">
-              {(Object.keys(SCENARIO_LABELS) as ErrorScenario[]).map((candidate) => (
-                <button
-                  className={candidate === scenario ? "primary-button compact-button" : "secondary-button compact-button"}
-                  key={candidate}
-                  onClick={() => {
-                    setScenario(candidate);
-                  }}
-                  type="button"
-                >
-                  {SCENARIO_LABELS[candidate]}
-                </button>
-              ))}
+              {(Object.keys(SCENARIO_LABELS) as ErrorScenario[]).map(
+                (candidate) => (
+                  <button
+                    className={
+                      candidate === scenario
+                        ? "primary-button compact-button"
+                        : "secondary-button compact-button"
+                    }
+                    key={candidate}
+                    onClick={() => {
+                      setScenario(candidate);
+                    }}
+                    type="button"
+                  >
+                    {SCENARIO_LABELS[candidate]}
+                  </button>
+                ),
+              )}
             </div>
           </SectionCard>
         ) : null}

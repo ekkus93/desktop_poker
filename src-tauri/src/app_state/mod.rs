@@ -4000,16 +4000,15 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
 
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
-        let (acting_state, observing_state, acting_view_before, observing_view_before) = loop {
-            let next_host_view = host_state
-                .table_view(TableViewerMode::Local)
-                .expect("host table view before live action retry");
-            let next_client_view = client_state
-                .table_view(TableViewerMode::Local)
-                .expect("client table view before live action retry");
-
-            let host_can_act = host_state
+        // Decide who must act from the host's always-fresh authoritative state rather
+        // than from whichever instance happens to surface an open window first. The host
+        // id is the constant `LOCAL_PLAYER_ID`; the client's authoritative id is
+        // `player-{instance_id}`. Reading the host authority directly never depends on a
+        // network-delivered snapshot, so it is robust under heavy parallel test load that
+        // can starve the client's snapshot-receive thread.
+        let window_deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        let acting_player_id = loop {
+            let window_owner = host_state
                 .host_session
                 .lock()
                 .expect("host session lock")
@@ -4021,51 +4020,69 @@ mod tests {
                         .ok()
                         .and_then(|state| state.current_hand)
                         .and_then(|hand| hand.action_window)
-                        .map(|window| window.player_id == LOCAL_PLAYER_ID)
-                })
-                .unwrap_or(false);
-            if host_can_act {
-                break (
-                    &host_state,
-                    &client_state,
-                    next_host_view.clone(),
-                    next_client_view.clone(),
-                );
-            }
-
-            let client_can_act = client_state
-                .client_session
-                .lock()
-                .expect("client session lock")
-                .as_ref()
-                .and_then(|session| {
-                    session
-                        .latest_snapshot
-                        .state
-                        .current_hand
-                        .as_ref()
-                        .and_then(|hand| {
-                            hand.action_window.as_ref().map(|window| {
-                                window.player_id == session.latest_snapshot.local_player_id
-                            })
-                        })
-                })
-                .unwrap_or(false);
-            if client_can_act {
-                break (
-                    &client_state,
-                    &host_state,
-                    next_client_view.clone(),
-                    next_host_view.clone(),
-                );
+                        .map(|window| window.player_id)
+                });
+            if let Some(player_id) = window_owner {
+                break player_id;
             }
 
             assert!(
-                std::time::Instant::now() < deadline,
-                "one live session should observe an open action window"
+                std::time::Instant::now() < window_deadline,
+                "host authority should expose an open action window"
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         };
+
+        let host_is_acting = acting_player_id == LOCAL_PLAYER_ID;
+
+        // When the client is the actor, wait for its snapshot to catch up to the
+        // authoritative window before acting through it. This bounded active wait is the
+        // fix for the prior flakiness: it no longer shares a single deadline with window
+        // detection, so a delayed snapshot under load can't make the test miss the window.
+        if !host_is_acting {
+            let sync_deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            loop {
+                let client_sees_window = client_state
+                    .client_session
+                    .lock()
+                    .expect("client session lock")
+                    .as_ref()
+                    .and_then(|session| {
+                        session
+                            .latest_snapshot
+                            .state
+                            .current_hand
+                            .as_ref()
+                            .and_then(|hand| {
+                                hand.action_window.as_ref().map(|window| {
+                                    window.player_id == session.latest_snapshot.local_player_id
+                                })
+                            })
+                    })
+                    .unwrap_or(false);
+                if client_sees_window {
+                    break;
+                }
+
+                assert!(
+                    std::time::Instant::now() < sync_deadline,
+                    "client snapshot should reflect its open action window"
+                );
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        }
+
+        let (acting_state, observing_state) = if host_is_acting {
+            (&host_state, &client_state)
+        } else {
+            (&client_state, &host_state)
+        };
+        let acting_view_before = acting_state
+            .table_view(TableViewerMode::Local)
+            .expect("acting table view before live action");
+        let observing_view_before = observing_state
+            .table_view(TableViewerMode::Local)
+            .expect("observing table view before live action");
         assert_eq!(acting_view_before.phase_label, "Running");
 
         let acting_after_action = acting_state

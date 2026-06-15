@@ -55,7 +55,8 @@ export const TURN_TIMER_OPTIONS = [15, 30, 45, 60];
 
 export function getBlindPreset(blindPresetId: string) {
   return (
-    BLIND_PRESETS.find((preset) => preset.id === blindPresetId) ?? BLIND_PRESETS[0]
+    BLIND_PRESETS.find((preset) => preset.id === blindPresetId) ??
+    BLIND_PRESETS[0]
   );
 }
 
@@ -84,7 +85,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isValidPortNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 65535;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 65535
+  );
 }
 
 export function normalizeHostDraft(
@@ -110,29 +116,35 @@ export function normalizeHostDraft(
         ? value.tournamentName
         : fallbackDraft.tournamentName,
     maxPlayers:
-      typeof value.maxPlayers === "number" && MAX_PLAYER_OPTIONS.includes(value.maxPlayers)
+      typeof value.maxPlayers === "number" &&
+      MAX_PLAYER_OPTIONS.includes(value.maxPlayers)
         ? value.maxPlayers
         : fallbackDraft.maxPlayers,
     startingStack:
-      typeof value.startingStack === "number" && STARTING_STACK_OPTIONS.includes(value.startingStack)
+      typeof value.startingStack === "number" &&
+      STARTING_STACK_OPTIONS.includes(value.startingStack)
         ? value.startingStack
         : fallbackDraft.startingStack,
     blindPresetId:
       typeof value.blindPresetId === "string" &&
       BLIND_PRESETS.some((preset) => preset.id === value.blindPresetId)
         ? value.blindPresetId
-        : legacyBlindPresetId && BLIND_PRESETS.some((preset) => preset.id === legacyBlindPresetId)
+        : legacyBlindPresetId &&
+            BLIND_PRESETS.some((preset) => preset.id === legacyBlindPresetId)
           ? legacyBlindPresetId
-        : fallbackDraft.blindPresetId,
+          : fallbackDraft.blindPresetId,
     turnTimerSeconds:
-      typeof value.turnTimerSeconds === "number" && TURN_TIMER_OPTIONS.includes(value.turnTimerSeconds)
+      typeof value.turnTimerSeconds === "number" &&
+      TURN_TIMER_OPTIONS.includes(value.turnTimerSeconds)
         ? value.turnTimerSeconds
         : fallbackDraft.turnTimerSeconds,
     hostPort: isValidPortNumber(value.hostPort)
       ? value.hostPort
       : fallbackDraft.hostPort,
     npcCount:
-      typeof value.npcCount === "number" && Number.isInteger(value.npcCount) && value.npcCount >= 0
+      typeof value.npcCount === "number" &&
+      Number.isInteger(value.npcCount) &&
+      value.npcCount >= 0
         ? value.npcCount
         : fallbackDraft.npcCount,
     npcStyle:

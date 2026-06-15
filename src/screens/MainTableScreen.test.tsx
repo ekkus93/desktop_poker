@@ -14,9 +14,8 @@ import { createTableViewSnapshot } from "../test/appIntegrationFixtures";
 import { MainTableScreen } from "./MainTableScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -46,19 +45,26 @@ describe("MainTableScreen", () => {
     mockedGetTableView.mockResolvedValue(localView);
 
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
-    const firstRender = renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
-      bootstrap,
-    });
+    const firstRender = renderWithProviders(
+      <MainTableScreen bootstrap={bootstrap} />,
+      {
+        bootstrap,
+      },
+    );
 
     expect(
-      (await screen.findByRole("button", { name: "Fold" })) as HTMLButtonElement,
+      (await screen.findByRole("button", {
+        name: "Fold",
+      })) as HTMLButtonElement,
     ).toHaveProperty("disabled", false);
     expect(
       screen.getByRole("button", { name: "Check" }) as HTMLButtonElement,
     ).toHaveProperty("disabled", false);
     expect(screen.getByText("A♠")).toBeTruthy();
 
-    expect(screen.queryByRole("button", { name: "Observer preview" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Observer preview" }),
+    ).toBeNull();
     firstRender.unmount();
   });
 
@@ -76,10 +82,16 @@ describe("MainTableScreen", () => {
     );
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(await screen.findByText("Tournament has not started")).toBeTruthy();
-    expect(screen.getByText(/the tournament is live but the first hand has not started yet/i)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /the tournament is live but the first hand has not started yet/i,
+      ),
+    ).toBeTruthy();
     expect(screen.queryByLabelText("Community cards")).toBeNull();
     expect(screen.queryByRole("button", { name: "Fold" })).toBeNull();
   });
@@ -90,7 +102,12 @@ describe("MainTableScreen", () => {
       streetLabel: "Turn",
       boardCards: [
         ...createTableView().boardCards,
-        { label: "Jack of spades", compactLabel: "J♠", suitSymbol: "♠", tone: "dark" },
+        {
+          label: "Jack of spades",
+          compactLabel: "J♠",
+          suitSymbol: "♠",
+          tone: "dark",
+        },
       ],
       potTotal: 240,
       actionOwnerLabel: "Waiting for settlement",
@@ -127,8 +144,16 @@ describe("MainTableScreen", () => {
         ...createTableView().handHistory,
       ],
       eventFeed: [
-        { sequence: 18, kind: "public-event", message: "The turn was published to every seat and observer." },
-        { sequence: 19, kind: "settlement", message: "Hand 9 settled: Maya collected the pot." },
+        {
+          sequence: 18,
+          kind: "public-event",
+          message: "The turn was published to every seat and observer.",
+        },
+        {
+          sequence: 19,
+          kind: "settlement",
+          message: "Hand 9 settled: Maya collected the pot.",
+        },
       ],
       actionTray: null,
     });
@@ -146,13 +171,17 @@ describe("MainTableScreen", () => {
     );
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     fireEvent.click(await screen.findByRole("button", { name: "Check" }));
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
 
     expect(
-      await screen.findByText(/the turn was published to every seat and observer/i),
+      await screen.findByText(
+        /the turn was published to every seat and observer/i,
+      ),
     ).toBeTruthy();
     expect(screen.getByText("Pot 240")).toBeTruthy();
     expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
@@ -177,7 +206,8 @@ describe("MainTableScreen", () => {
         {
           sequence: 19,
           kind: "public-event",
-          message: "Host called and the turn was published to every seat and observer.",
+          message:
+            "Host called and the turn was published to every seat and observer.",
         },
       ],
     });
@@ -194,7 +224,9 @@ describe("MainTableScreen", () => {
       .mockResolvedValue(refreshedView);
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
@@ -205,12 +237,17 @@ describe("MainTableScreen", () => {
     await waitFor(() => expect(capturedTableUpdateCallback).toBeDefined());
     capturedTableUpdateCallback?.();
 
-    await waitFor(() => {
-      expect(screen.getByText("Pot 240")).toBeTruthy();
-    }, { timeout: 2000 });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Pot 240")).toBeTruthy();
+      },
+      { timeout: 2000 },
+    );
     fireEvent.click(screen.getByRole("button", { name: "Table details" }));
     expect(
-      screen.getByText(/host called and the turn was published to every seat and observer/i),
+      screen.getByText(
+        /host called and the turn was published to every seat and observer/i,
+      ),
     ).toBeTruthy();
   });
 
@@ -222,9 +259,13 @@ describe("MainTableScreen", () => {
     );
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    fireEvent.click(await screen.findByRole("button", { name: /bet \/ raise/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /bet \/ raise/i }),
+    );
 
     await waitFor(() => {
       expect(mockedSubmitTableAction).toHaveBeenCalledWith(
@@ -237,7 +278,9 @@ describe("MainTableScreen", () => {
 
     mockedSubmitTableAction.mockClear();
     mockedGetTableView.mockResolvedValue(initialView);
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     fireEvent.click(await screen.findByRole("button", { name: "All-in" }));
     expect(await screen.findByText(/confirm all-in/i)).toBeTruthy();
@@ -269,15 +312,29 @@ describe("MainTableScreen", () => {
     );
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    expect(await screen.findByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /bet \/ raise/i }).hasAttribute("disabled")).toBe(true);
+    expect(
+      await screen.findByText(
+        /raise unavailable until a legal raise size is offered for this spot/i,
+      ),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: /bet \/ raise/i })
+        .hasAttribute("disabled"),
+    ).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Fold" }));
-    expect(await screen.findByText(/sending your action to the host/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/sending your action to the host/i),
+    ).toBeTruthy();
 
-    resolveAction(createTableView({ actionTray: null, actionOwnerLabel: "Maya" }));
+    resolveAction(
+      createTableView({ actionTray: null, actionOwnerLabel: "Maya" }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText(/sending your action to the host/i)).toBeNull();
@@ -287,13 +344,19 @@ describe("MainTableScreen", () => {
   it("shows statusLabel not chip count for observer entries in standings (B1)", async () => {
     mockedGetTableView.mockResolvedValue(createTableView());
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Table details" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Table details" }),
+    );
 
     // Riley is isObserver: true in the fixture — standings entry should show statusLabel.
     // "Eliminated observer" text appears in both the seat card and the standings list.
-    expect(screen.getAllByText("Eliminated observer").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Eliminated observer").length).toBeGreaterThan(
+      0,
+    );
 
     // Find Riley's standings row by rank heading and verify its field-hint contains
     // the statusLabel, not a chip count.
@@ -309,11 +372,17 @@ describe("MainTableScreen", () => {
       kind: "public-event",
       message: `Event number ${i}`,
     }));
-    mockedGetTableView.mockResolvedValue(createTableView({ eventFeed: manyEvents }));
+    mockedGetTableView.mockResolvedValue(
+      createTableView({ eventFeed: manyEvents }),
+    );
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Table details" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Table details" }),
+    );
 
     // Events 0-4 should be dropped (slice(-50) keeps 5-54)
     expect(screen.queryByText("Event number 0")).toBeNull();
@@ -333,13 +402,19 @@ describe("MainTableScreen", () => {
       }),
     );
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     await screen.findByRole("button", { name: "Fold" });
 
     expect(screen.queryByRole("slider", { name: /raise/i })).toBeNull();
     expect(screen.queryByText("NaN")).toBeNull();
-    expect(screen.getByText(/raise unavailable until a legal raise size is offered for this spot/i)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /raise unavailable until a legal raise size is offered for this spot/i,
+      ),
+    ).toBeTruthy();
   });
 
   it("renders empty community card slots without visible Board N text (I2)", async () => {
@@ -347,7 +422,9 @@ describe("MainTableScreen", () => {
       createTableView({ boardCards: [], currentHandNumber: 3 }),
     );
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     // Community cards section should appear but contain no "Board N" visible text
     const communityCards = await screen.findByLabelText("Community cards");
@@ -363,7 +440,9 @@ describe("MainTableScreen", () => {
       }),
     );
     const bootstrap = createBootstrap();
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     expect(await screen.findByText(/watching hand #7/i)).toBeTruthy();
   });
@@ -373,7 +452,9 @@ describe("MainTableScreen", () => {
     const user = userEvent.setup();
     mockedGetTableView.mockResolvedValue(createTableView());
 
-    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<MainTableScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     const foldButton = await screen.findByRole("button", { name: "Fold" });
     const checkButton = screen.getByRole("button", { name: "Check" });

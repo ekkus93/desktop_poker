@@ -4,6 +4,15 @@
 
 Build a **real desktop poker client/host** with **Tauri + Rust** for **single-table Sit 'n Go No-Limit Texas Hold'em**. This app is not just a mock UI or simulator shell. It must support real LAN play and multi-instance local testing.
 
+## Build, test, and run
+
+Rust backend lives in `src-tauri/` (single crate, not a workspace) — Cargo commands need `--manifest-path src-tauri/Cargo.toml`. Frontend is React 19 + TypeScript + Vite, driven via npm.
+
+- Rust: `cargo fmt --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`, `cargo test --manifest-path src-tauri/Cargo.toml`.
+- Frontend: `npm run lint` (ESLint, `--max-warnings 0`), `npm run format` (Prettier), `npm run test` (Vitest), `npm run build` (`tsc && vite build`).
+- Run the app: `npm run tauri dev` (debug) / `npm run tauri build` (release bundle).
+- LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --manifest-path src-tauri/Cargo.toml -- --ignored`.
+
 ## Core architecture rules
 
 - Use **Rust** as the source of truth for:
@@ -119,6 +128,8 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 - Keep per-instance identity, reconnect data, and local storage isolated.
 - Both **debug and release** desktop builds should default to the **real LAN runtime path**.
 - Debug or simulator tools must be **opt-in** and must not masquerade as the production path.
+- Run a second local instance against the already-running Vite dev server with `cargo run --manifest-path src-tauri/Cargo.toml --no-default-features`; do **not** run `npm run tauri dev` twice (both try to bind Vite port 1420).
+- Per-instance identity/storage is keyed by `DESKTOP_POKER_INSTANCE_ID`; `DESKTOP_POKER_JOIN_PAYLOAD` pre-fills a `pkr1_...` join payload for testing.
 
 ## Implementation guidance
 
@@ -132,6 +143,8 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
   - `storage`
   - `interop`
   - `app_state`
+  - `npc` (rule-based + LLM-driven computer players)
+- The `npc` module drives computer players via a rule-based strategy plus an optional LLM path (multi-provider: Anthropic, OpenAI, Ollama, llama-server). LLM calls have a hard timeout and fall back to the rule-based strategy on any error — never block a hand on an LLM.
 - Reuse helpers and shared abstractions instead of duplicating protocol or projection logic.
 - Add tests for any protocol, crypto, reconnect, replay-protection, projection, or poker-rule change.
 - Do **not** create mock-only tests that fail to execute meaningful production code. If a test only proves that fabricated doubles behave as configured, it does not count as validation and should not be added.

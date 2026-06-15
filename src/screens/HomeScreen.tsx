@@ -6,13 +6,19 @@ import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function HomeScreen({ bootstrap }: ScreenProps) {
-  const { hostDraft, recentJoinPayloads, persistedHandHistoryCount, startupWarnings } =
-    useDesktopShell();
+  const {
+    hostDraft,
+    recentJoinPayloads,
+    persistedHandHistoryCount,
+    startupWarnings,
+  } = useDesktopShell();
   const hasSavedProgress =
     recentJoinPayloads.length > 0 ||
     persistedHandHistoryCount > 0 ||
     startupWarnings.length > 0;
-  const hasLaunchPayload = Boolean(bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError);
+  const hasLaunchPayload = Boolean(
+    bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError,
+  );
   const hasSavedHistory = persistedHandHistoryCount > 0;
   const hasSavedInvites = recentJoinPayloads.length > 0 || hasLaunchPayload;
   const hasStartupWarnings = startupWarnings.length > 0;
@@ -24,7 +30,10 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
       className="pregame-screen-shell home-screen-shell"
     >
       <div className={`home-stage${hasSavedProgress ? " has-recovery" : ""}`}>
-        <SectionCard title="Host or join" className="home-hero-card pregame-hero-card">
+        <SectionCard
+          title="Host or join"
+          className="home-hero-card pregame-hero-card"
+        >
           <div className="button-row">
             <Link className="primary-button" to="/host">
               <span className="button-content">
@@ -97,9 +106,15 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
               {hasLaunchPayload ? (
                 <article className="list-panel compact-list-panel">
                   <div>
-                    <strong>{bootstrap.launchJoinPayloadError ? "Invite needs attention" : "Invite ready"}</strong>
+                    <strong>
+                      {bootstrap.launchJoinPayloadError
+                        ? "Invite needs attention"
+                        : "Invite ready"}
+                    </strong>
                     {bootstrap.launchJoinPayloadError ? (
-                      <p className="field-hint">{bootstrap.launchJoinPayloadError}</p>
+                      <p className="field-hint">
+                        {bootstrap.launchJoinPayloadError}
+                      </p>
                     ) : null}
                   </div>
                   <div className="button-row">
@@ -117,7 +132,9 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                   <div>
                     <strong>Storage needs attention</strong>
                     {startupWarnings.map((warning) => (
-                      <p key={warning} className="field-hint">{warning}</p>
+                      <p key={warning} className="field-hint">
+                        {warning}
+                      </p>
                     ))}
                   </div>
                   <div className="button-row">

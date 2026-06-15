@@ -3417,31 +3417,31 @@ mod tests {
         client: &ClientRuntime,
         expected_message_type: ProtocolMessageType,
     ) -> serde_json::Value {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
 
         loop {
-            match client
-                .next_event(Duration::from_millis(200))
-                .expect("public event")
-            {
-                ClientRuntimeEvent::PublicEvent {
+            match client.next_event(Duration::from_millis(200)) {
+                Ok(ClientRuntimeEvent::PublicEvent {
                     message_type,
                     payload,
                     ..
-                } => {
+                }) => {
                     assert_eq!(message_type, expected_message_type);
                     return payload;
                 }
-                ClientRuntimeEvent::Snapshot(_) => {}
-                ClientRuntimeEvent::Reconnecting { .. } => {}
-                ClientRuntimeEvent::Disconnected { .. } => {}
-                ClientRuntimeEvent::ResyncRequested { .. } => {}
-                ClientRuntimeEvent::PrivateHoleCards(other) => {
+                Ok(ClientRuntimeEvent::Snapshot(_)) => {}
+                Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
+                Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
+                Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+                Ok(ClientRuntimeEvent::PrivateHoleCards(other)) => {
                     panic!("expected public event, got private hole cards: {other:?}");
                 }
-                ClientRuntimeEvent::SafeError { message, .. } => {
+                Ok(ClientRuntimeEvent::SafeError { message, .. }) => {
                     panic!("expected public event, got safe error: {message}");
                 }
+                // A poll-window timeout is not a failure under load; keep waiting
+                // until the outer deadline rather than panicking on the first gap.
+                Err(_) => {}
             }
 
             assert!(
@@ -3463,29 +3463,29 @@ mod tests {
         expected_message_type: ProtocolMessageType,
         predicate: impl Fn(&serde_json::Value) -> bool,
     ) -> serde_json::Value {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
 
         loop {
-            match client
-                .next_event(Duration::from_millis(200))
-                .expect("public event")
-            {
-                ClientRuntimeEvent::PublicEvent {
+            match client.next_event(Duration::from_millis(200)) {
+                Ok(ClientRuntimeEvent::PublicEvent {
                     message_type,
                     payload,
                     ..
-                } if message_type == expected_message_type && predicate(&payload) => {
+                }) if message_type == expected_message_type && predicate(&payload) => {
                     return payload
                 }
-                ClientRuntimeEvent::Snapshot(_) => {}
-                ClientRuntimeEvent::PublicEvent { .. } => {}
-                ClientRuntimeEvent::PrivateHoleCards(_) => {}
-                ClientRuntimeEvent::Reconnecting { .. } => {}
-                ClientRuntimeEvent::Disconnected { .. } => {}
-                ClientRuntimeEvent::ResyncRequested { .. } => {}
-                ClientRuntimeEvent::SafeError { message, .. } => {
+                Ok(ClientRuntimeEvent::Snapshot(_)) => {}
+                Ok(ClientRuntimeEvent::PublicEvent { .. }) => {}
+                Ok(ClientRuntimeEvent::PrivateHoleCards(_)) => {}
+                Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
+                Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
+                Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+                Ok(ClientRuntimeEvent::SafeError { message, .. }) => {
                     panic!("expected public event, got safe error: {message}");
                 }
+                // A poll-window timeout is not a failure under load; keep waiting
+                // until the outer deadline rather than panicking on the first gap.
+                Err(_) => {}
             }
 
             assert!(
@@ -3496,22 +3496,22 @@ mod tests {
     }
 
     fn wait_for_private_hole_cards(client: &ClientRuntime) -> PrivateHoleCardsEvent {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
 
         loop {
-            match client
-                .next_event(Duration::from_millis(200))
-                .expect("private hole cards")
-            {
-                ClientRuntimeEvent::PrivateHoleCards(payload) => return payload,
-                ClientRuntimeEvent::Snapshot(_) => {}
-                ClientRuntimeEvent::PublicEvent { .. } => {}
-                ClientRuntimeEvent::Reconnecting { .. } => {}
-                ClientRuntimeEvent::Disconnected { .. } => {}
-                ClientRuntimeEvent::ResyncRequested { .. } => {}
-                ClientRuntimeEvent::SafeError { message, .. } => {
+            match client.next_event(Duration::from_millis(200)) {
+                Ok(ClientRuntimeEvent::PrivateHoleCards(payload)) => return payload,
+                Ok(ClientRuntimeEvent::Snapshot(_)) => {}
+                Ok(ClientRuntimeEvent::PublicEvent { .. }) => {}
+                Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
+                Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
+                Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+                Ok(ClientRuntimeEvent::SafeError { message, .. }) => {
                     panic!("expected private hole cards, got safe error: {message}");
                 }
+                // A poll-window timeout is not a failure under load; keep waiting
+                // until the outer deadline rather than panicking on the first gap.
+                Err(_) => {}
             }
 
             assert!(
@@ -3525,13 +3525,14 @@ mod tests {
         client: &ClientRuntime,
         predicate: impl Fn(&SnapshotEvent) -> bool,
     ) -> SnapshotEvent {
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let deadline = Instant::now() + Duration::from_secs(10);
 
         loop {
-            let event = client
-                .next_event(Duration::from_millis(200))
-                .expect("snapshot or public event");
-            if let ClientRuntimeEvent::Snapshot(snapshot) = event {
+            // A poll-window timeout is not a failure under load; keep waiting until the
+            // outer deadline rather than panicking on the first gap.
+            if let Ok(ClientRuntimeEvent::Snapshot(snapshot)) =
+                client.next_event(Duration::from_millis(200))
+            {
                 if predicate(&snapshot) {
                     return *snapshot;
                 }

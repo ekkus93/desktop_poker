@@ -32,19 +32,24 @@ function buildLiveSeats(
   liveSession: HostSessionStatus | ClientSessionStatus,
 ): LobbySeatView[] {
   const totalSeats = liveSession.activeSeatCount + liveSession.openSeatCount;
-  const seats: LobbySeatView[] = Array.from({ length: totalSeats }, (_, index) => ({
-    seatIndex: index + 1,
-    label: "Open seat",
-    detail: "",
-    kind: "open",
-    isLocal: false,
-    ready: false,
-    isNpc: false,
-  }));
-  const localPlayerId = "localPlayerId" in liveSession ? liveSession.localPlayerId : "local-player";
+  const seats: LobbySeatView[] = Array.from(
+    { length: totalSeats },
+    (_, index) => ({
+      seatIndex: index + 1,
+      label: "Open seat",
+      detail: "",
+      kind: "open",
+      isLocal: false,
+      ready: false,
+      isNpc: false,
+    }),
+  );
+  const localPlayerId =
+    "localPlayerId" in liveSession ? liveSession.localPlayerId : "local-player";
 
   for (const participant of liveSession.participants) {
-    const preferredIndex = participant.seatIndex ?? seats.findIndex((seat) => seat.kind === "open");
+    const preferredIndex =
+      participant.seatIndex ?? seats.findIndex((seat) => seat.kind === "open");
     if (preferredIndex < 0 || preferredIndex >= seats.length) {
       continue;
     }
@@ -52,7 +57,10 @@ function buildLiveSeats(
     const isNpc = participant.playerId.startsWith("npc-seat-");
     seats[preferredIndex] = {
       seatIndex: preferredIndex + 1,
-      label: participant.playerId === localPlayerId ? "You" : participant.displayName,
+      label:
+        participant.playerId === localPlayerId
+          ? "You"
+          : participant.displayName,
       detail: isNpc
         ? "(AI) · Always ready"
         : participant.seatIndex === null
@@ -79,14 +87,23 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
   const navigate = useNavigate();
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
-  const [hostSession, setHostSession] = useState<HostSessionStatus | null>(null);
-  const [clientSession, setClientSession] = useState<ClientSessionStatus | null>(null);
-  const [sessionStatus, setSessionStatus] = useState<"loading" | "ready">("loading");
+  const [hostSession, setHostSession] = useState<HostSessionStatus | null>(
+    null,
+  );
+  const [clientSession, setClientSession] =
+    useState<ClientSessionStatus | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<"loading" | "ready">(
+    "loading",
+  );
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(null);
+  const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(
+    null,
+  );
   const [connectionSlow, setConnectionSlow] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<boolean | null>(null);
+  const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<
+    boolean | null
+  >(null);
   const hostSessionRef = useRef<HostSessionStatus | null>(null);
   const consecutiveErrorsRef = useRef(0);
 
@@ -119,10 +136,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           const previousHostSession = hostSessionRef.current;
 
           if (
-            previousHostSession
-            && previousHostSession.phase !== "running"
-            && !nextHostSession
-            && !nextClientSession
+            previousHostSession &&
+            previousHostSession.phase !== "running" &&
+            !nextHostSession &&
+            !nextClientSession
           ) {
             setHostRecoveryError(
               "Hosting stopped before the table went live. Start hosting again or return home.",
@@ -148,7 +165,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             return;
           }
 
-          setConnectionSlow(consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD);
+          setConnectionSlow(
+            consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD,
+          );
 
           const previousHostSession = hostSessionRef.current;
 
@@ -188,10 +207,10 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
             const previousHostSession = hostSessionRef.current;
             if (
-              previousHostSession
-              && previousHostSession.phase !== "running"
-              && !nextHostSession
-              && !nextClientSession
+              previousHostSession &&
+              previousHostSession.phase !== "running" &&
+              !nextHostSession &&
+              !nextClientSession
             ) {
               setHostRecoveryError(
                 "Hosting stopped before the table went live. Start hosting again or return home.",
@@ -218,33 +237,47 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   }, [navigate]);
 
   const liveSession = hostSession ?? clientSession;
-  const liveLocalPlayerId = hostSession ? "local-player" : clientSession?.localPlayerId ?? null;
-  const liveLocalParticipant = liveSession?.participants.find(
-    (participant) => participant.playerId === liveLocalPlayerId,
-  ) ?? null;
+  const liveLocalPlayerId = hostSession
+    ? "local-player"
+    : (clientSession?.localPlayerId ?? null);
+  const liveLocalParticipant =
+    liveSession?.participants.find(
+      (participant) => participant.playerId === liveLocalPlayerId,
+    ) ?? null;
   const participants = liveSession ? buildLiveSeats(liveSession) : [];
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const localSeat = participants.find((seat) => seat.isLocal);
   const localSeatReady = optimisticReadyOverride ?? localSeat?.ready ?? false;
-  const seatsStillWaiting = activeSeats.filter((seat) => !seat.ready && !seat.isNpc).length;
+  const seatsStillWaiting = activeSeats.filter(
+    (seat) => !seat.ready && !seat.isNpc,
+  ).length;
   const openSeatCount = liveSession?.openSeatCount ?? 0;
-  const leaveTitle = localSeat?.kind === "host" ? "Close this table?" : "Leave this table?";
-  const leaveActionLabel = localSeat?.kind === "host" ? "Close table" : "Leave table";
+  const leaveTitle =
+    localSeat?.kind === "host" ? "Close this table?" : "Leave this table?";
+  const leaveActionLabel =
+    localSeat?.kind === "host" ? "Close table" : "Leave table";
   const tournamentName = liveSession?.tournamentName ?? "Lobby";
   const totalSeats = liveSession
     ? liveSession.activeSeatCount + liveSession.openSeatCount
     : 0;
   const denseLobbyLayout = totalSeats > 8;
-  const liveCanStart = Boolean(hostSession && liveSession?.phase === "readyCheck" && liveLocalParticipant?.isHost);
-  const liveLobbyActionsEnabled = Boolean(liveSession && liveSession.phase !== "running");
+  const liveCanStart = Boolean(
+    hostSession &&
+    liveSession?.phase === "readyCheck" &&
+    liveLocalParticipant?.isHost,
+  );
+  const liveLobbyActionsEnabled = Boolean(
+    liveSession && liveSession.phase !== "running",
+  );
   const tableReady = liveSession?.phase === "running" || liveCanStart;
-  const lobbyBadge = liveSession?.phase === "running"
-    ? "Table live"
-    : tableReady
-      ? "Ready to deal"
-      : liveSession
-        ? `${activeSeats.length}/${totalSeats} connected`
-        : "Checking session";
+  const lobbyBadge =
+    liveSession?.phase === "running"
+      ? "Table live"
+      : tableReady
+        ? "Ready to deal"
+        : liveSession
+          ? `${activeSeats.length}/${totalSeats} connected`
+          : "Checking session";
 
   useEffect(() => {
     if (liveSession?.phase === "running") {
@@ -254,17 +287,16 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
   if (hostRecoveryError && !liveSession) {
     return (
-      <ScreenShell
-        title="Lobby"
-        badges={["Host stopped"]}
-      >
+      <ScreenShell title="Lobby" badges={["Host stopped"]}>
         <div className="content-grid lobby-shell-grid">
           <section className="section-card lobby-stage-card">
             <div className="lobby-stage-layout">
               <div className="lobby-stage-summary">
                 <div className="lobby-table-meta">
                   <strong className="lobby-table-name">Host stopped</strong>
-                  <span className="field-hint">Recovery required before players can join again.</span>
+                  <span className="field-hint">
+                    Recovery required before players can join again.
+                  </span>
                 </div>
                 <p className="inline-banner error">{hostRecoveryError}</p>
                 <div className="button-row workstation-actions compact-workstation-actions">
@@ -303,9 +335,12 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             <div className="lobby-stage-layout">
               <div className="lobby-stage-summary">
                 <div className="lobby-table-meta">
-                  <strong className="lobby-table-name">Loading live lobby</strong>
+                  <strong className="lobby-table-name">
+                    Loading live lobby
+                  </strong>
                   <span className="field-hint">
-                    Waiting for the desktop runtime to publish the active session.
+                    Waiting for the desktop runtime to publish the active
+                    session.
                   </span>
                 </div>
               </div>
@@ -324,9 +359,12 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             <div className="lobby-stage-layout">
               <div className="lobby-stage-summary">
                 <div className="lobby-table-meta">
-                  <strong className="lobby-table-name">No live lobby session</strong>
+                  <strong className="lobby-table-name">
+                    No live lobby session
+                  </strong>
                   <span className="field-hint">
-                    This screen only works when a real host or client session is active.
+                    This screen only works when a real host or client session is
+                    active.
                   </span>
                 </div>
                 <div className="button-row workstation-actions compact-workstation-actions">
@@ -359,7 +397,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
         setClientSession(await clientClaimLobbySeat({ seatIndex }));
       }
     } catch (error) {
-      setLobbyError(error instanceof Error ? error.message : "Unable to claim that seat.");
+      setLobbyError(
+        error instanceof Error ? error.message : "Unable to claim that seat.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -375,10 +415,16 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       if (hostSession) {
         setHostSession(await hostSetLobbyReadyState({ isReady: nextReady }));
       } else if (clientSession) {
-        setClientSession(await clientSetLobbyReadyState({ isReady: nextReady }));
+        setClientSession(
+          await clientSetLobbyReadyState({ isReady: nextReady }),
+        );
       }
     } catch (error) {
-      setLobbyError(error instanceof Error ? error.message : "Unable to change ready state.");
+      setLobbyError(
+        error instanceof Error
+          ? error.message
+          : "Unable to change ready state.",
+      );
       setOptimisticReadyOverride(null);
     } finally {
       setSubmitting(false);
@@ -393,7 +439,11 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     try {
       setHostSession(await hostStartTournament());
     } catch (error) {
-      setLobbyError(error instanceof Error ? error.message : "Unable to start the tournament.");
+      setLobbyError(
+        error instanceof Error
+          ? error.message
+          : "Unable to start the tournament.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -415,36 +465,53 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       setShowLeaveFlow(false);
       navigate("/", { replace: true });
     } catch (error) {
-      setLobbyError(error instanceof Error ? error.message : "Unable to leave the current table.");
+      setLobbyError(
+        error instanceof Error
+          ? error.message
+          : "Unable to leave the current table.",
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <ScreenShell
-      title="Lobby"
-      badges={[lobbyBadge]}
-    >
+    <ScreenShell title="Lobby" badges={[lobbyBadge]}>
       <div className="content-grid lobby-shell-grid">
         <section className="section-card lobby-stage-card">
-          <div className={`lobby-stage-layout ${denseLobbyLayout ? "dense-lobby-stage-layout" : ""}`}>
+          <div
+            className={`lobby-stage-layout ${denseLobbyLayout ? "dense-lobby-stage-layout" : ""}`}
+          >
             <div className="lobby-stage-summary">
               <div className="lobby-table-meta">
                 <strong className="lobby-table-name">{tournamentName}</strong>
                 <span className="field-hint">{totalSeats} seats</span>
               </div>
               <div className="lobby-status-row">
-                <span className={`status-badge ${localSeatReady ? "success" : "info"}`}>
-                  {localSeatReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                <span
+                  className={`status-badge ${localSeatReady ? "success" : "info"}`}
+                >
+                  {localSeatReady ? (
+                    <Check className="button-icon" strokeWidth={1.9} />
+                  ) : (
+                    <Clock3 className="button-icon" strokeWidth={1.9} />
+                  )}
                   {localSeatReady ? "You: Ready" : "You: Waiting"}
                 </span>
-                <span className={`status-badge ${tableReady ? "success" : "info"}`}>
-                  {tableReady ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                <span
+                  className={`status-badge ${tableReady ? "success" : "info"}`}
+                >
+                  {tableReady ? (
+                    <Check className="button-icon" strokeWidth={1.9} />
+                  ) : (
+                    <Clock3 className="button-icon" strokeWidth={1.9} />
+                  )}
                   {tableReady ? "Table: Ready" : `${seatsStillWaiting} waiting`}
                 </span>
                 <span className="status-badge accent">
-                  {openSeatCount > 0 ? `${openSeatCount} open seats` : "Table full"}
+                  {openSeatCount > 0
+                    ? `${openSeatCount} open seats`
+                    : "Table full"}
                 </span>
               </div>
               {connectionSlow ? (
@@ -454,9 +521,14 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 </div>
               ) : null}
               <div className="button-row lobby-primary-actions workstation-actions compact-workstation-actions">
-                {liveLobbyActionsEnabled && liveLocalParticipant?.seatIndex !== null ? (
+                {liveLobbyActionsEnabled &&
+                liveLocalParticipant?.seatIndex !== null ? (
                   <button
-                    className={localSeatReady ? "primary-button compact-button" : "secondary-button compact-button"}
+                    className={
+                      localSeatReady
+                        ? "primary-button compact-button"
+                        : "secondary-button compact-button"
+                    }
                     disabled={submitting}
                     onClick={() => {
                       void toggleLiveReadyState();
@@ -481,10 +553,18 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     </span>
                   </button>
                 ) : (
-                  <button className="primary-button compact-button" disabled type="button">
+                  <button
+                    className="primary-button compact-button"
+                    disabled
+                    type="button"
+                  >
                     <span className="button-content">
                       <Play className="button-icon" strokeWidth={1.9} />
-                      <span>{liveSession.phase === "running" ? "Tournament live" : "Start tournament"}</span>
+                      <span>
+                        {liveSession.phase === "running"
+                          ? "Tournament live"
+                          : "Start tournament"}
+                      </span>
                     </span>
                   </button>
                 )}
@@ -501,11 +581,20 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                   </span>
                 </button>
               </div>
-                {lobbyError ? <p className="inline-banner error">{lobbyError}</p> : null}
+              {lobbyError ? (
+                <p className="inline-banner error">{lobbyError}</p>
+              ) : null}
             </div>
-            <div className={`seat-grid lobby-seat-grid ${denseLobbyLayout ? "dense-lobby-seat-grid" : ""}`}>
+            <div
+              className={`seat-grid lobby-seat-grid ${denseLobbyLayout ? "dense-lobby-seat-grid" : ""}`}
+            >
               {participants.map((seat) => {
-                const seatState = seat.kind === "open" ? "Open" : seat.ready ? "Ready" : "Waiting";
+                const seatState =
+                  seat.kind === "open"
+                    ? "Open"
+                    : seat.ready
+                      ? "Ready"
+                      : "Waiting";
 
                 return (
                   <article
@@ -517,25 +606,40 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                         <strong>Seat {seat.seatIndex}</strong>
                         <span>{seat.label}</span>
                       </div>
-                      <span className={`status-badge ${seat.kind === "open" ? "accent" : seat.ready ? "success" : "info"}`}>
-                        {seat.kind === "open" ? null : seat.ready ? <Check className="button-icon" strokeWidth={1.9} /> : <Clock3 className="button-icon" strokeWidth={1.9} />}
+                      <span
+                        className={`status-badge ${seat.kind === "open" ? "accent" : seat.ready ? "success" : "info"}`}
+                      >
+                        {seat.kind === "open" ? null : seat.ready ? (
+                          <Check className="button-icon" strokeWidth={1.9} />
+                        ) : (
+                          <Clock3 className="button-icon" strokeWidth={1.9} />
+                        )}
                         {seatState}
                       </span>
                     </div>
-                    {seat.kind === "open" ? null : seat.detail ? <p className="seat-detail">{seat.detail}</p> : null}
-                      {liveSession && liveLobbyActionsEnabled && seat.kind === "open" && !seat.isNpc ? (
-                        <button
-                          aria-label={denseLobbyLayout ? `Take seat ${seat.seatIndex}` : undefined}
-                          className={`secondary-button compact-button ${denseLobbyLayout ? "dense-lobby-seat-action" : ""}`}
-                          disabled={submitting}
-                          onClick={() => {
-                            void claimLiveSeat(seat.seatIndex - 1);
-                          }}
-                          type="button"
-                        >
-                          {denseLobbyLayout ? "Take" : "Take seat"}
-                        </button>
-                      ) : null}
+                    {seat.kind === "open" ? null : seat.detail ? (
+                      <p className="seat-detail">{seat.detail}</p>
+                    ) : null}
+                    {liveSession &&
+                    liveLobbyActionsEnabled &&
+                    seat.kind === "open" &&
+                    !seat.isNpc ? (
+                      <button
+                        aria-label={
+                          denseLobbyLayout
+                            ? `Take seat ${seat.seatIndex}`
+                            : undefined
+                        }
+                        className={`secondary-button compact-button ${denseLobbyLayout ? "dense-lobby-seat-action" : ""}`}
+                        disabled={submitting}
+                        onClick={() => {
+                          void claimLiveSeat(seat.seatIndex - 1);
+                        }}
+                        type="button"
+                      >
+                        {denseLobbyLayout ? "Take" : "Take seat"}
+                      </button>
+                    ) : null}
                   </article>
                 );
               })}
@@ -545,9 +649,13 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
       </div>
       {showLeaveFlow ? (
         <section className="dialog-card">
-          <p className="kicker">{localSeat?.kind === "host" ? "Close" : "Leave"}</p>
+          <p className="kicker">
+            {localSeat?.kind === "host" ? "Close" : "Leave"}
+          </p>
           <h3>{leaveTitle}</h3>
-          {lobbyError ? <p className="inline-banner error">{lobbyError}</p> : null}
+          {lobbyError ? (
+            <p className="inline-banner error">{lobbyError}</p>
+          ) : null}
           <div className="button-row">
             <button
               className="primary-button"

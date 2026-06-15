@@ -50,7 +50,10 @@ function ShellHookProbe() {
       <button onClick={() => setJoinPayloadDraft("pkr1_beta")} type="button">
         Set join draft
       </button>
-      <button onClick={() => rememberJoinPayload("  pkr1_alpha  ")} type="button">
+      <button
+        onClick={() => rememberJoinPayload("  pkr1_alpha  ")}
+        type="button"
+      >
         Remember join
       </button>
       <button onClick={() => clearRecentJoinPayloads()} type="button">
@@ -75,7 +78,9 @@ function renderShellHook(bootstrap = createBootstrap()) {
 
 describe("useDesktopShell", () => {
   it("fails clearly when used outside the shell provider", () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     expect(() => render(<ShellHookProbe />)).toThrow(
       "useDesktopShell must be used inside the shell provider.",
@@ -92,7 +97,10 @@ describe("useDesktopShell", () => {
       launchJoinPayload: "pkr1_launch",
     });
 
-    localStorage.setItem("desktop-poker:host-a:display-name", JSON.stringify("Saved Alice"));
+    localStorage.setItem(
+      "desktop-poker:host-a:display-name",
+      JSON.stringify("Saved Alice"),
+    );
     localStorage.setItem(
       "desktop-poker:host-a:host-draft",
       JSON.stringify({
@@ -104,8 +112,14 @@ describe("useDesktopShell", () => {
         hostPort: 49000,
       }),
     );
-    localStorage.setItem("desktop-poker:host-a:join-draft", JSON.stringify("pkr1_saved"));
-    localStorage.setItem("desktop-poker:host-a:ready-seats", JSON.stringify([1, 2]));
+    localStorage.setItem(
+      "desktop-poker:host-a:join-draft",
+      JSON.stringify("pkr1_saved"),
+    );
+    localStorage.setItem(
+      "desktop-poker:host-a:ready-seats",
+      JSON.stringify([1, 2]),
+    );
     localStorage.setItem(
       "desktop-poker:host-a:recent-join-payloads",
       JSON.stringify(["pkr1_recent"]),
@@ -170,12 +184,16 @@ describe("useDesktopShell", () => {
     expect(localStorage.getItem("desktop-poker:host-b:join-draft")).toContain(
       "pkr1_beta",
     );
-    expect(localStorage.getItem("desktop-poker:host-b:ready-seats")).toContain("2");
+    expect(localStorage.getItem("desktop-poker:host-b:ready-seats")).toContain(
+      "2",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Reset host" }));
     fireEvent.click(screen.getByRole("button", { name: "Clear recents" }));
 
-    expect(screen.getByText("Host name: Desktop Sit 'n Go Host B")).toBeTruthy();
+    expect(
+      screen.getByText("Host name: Desktop Sit 'n Go Host B"),
+    ).toBeTruthy();
     expect(screen.getByText("Recent: empty")).toBeTruthy();
   });
 
@@ -201,11 +219,13 @@ describe("useDesktopShell", () => {
 
     renderShellHook(bootstrap);
 
-    expect(screen.getByText("Host name: Desktop Sit 'n Go Legacy Host")).toBeTruthy();
+    expect(
+      screen.getByText("Host name: Desktop Sit 'n Go Legacy Host"),
+    ).toBeTruthy();
     expect(screen.getByText("Host players: 6")).toBeTruthy();
-    expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).toContain(
-      '"hostPort":43818',
-    );
+    expect(
+      localStorage.getItem("desktop-poker:legacy-host:host-draft"),
+    ).toContain('"hostPort":43818');
     expect(screen.getByText("Warnings: none")).toBeTruthy();
   });
 
@@ -216,7 +236,10 @@ describe("useDesktopShell", () => {
       storageNamespace: "desktop-poker:broken-storage",
     });
 
-    localStorage.setItem("desktop-poker:broken-storage:display-name", "{not-json");
+    localStorage.setItem(
+      "desktop-poker:broken-storage:display-name",
+      "{not-json",
+    );
     localStorage.setItem(
       "desktop-poker:broken-storage:hand-history-summaries",
       "{still-not-json",
@@ -226,10 +249,14 @@ describe("useDesktopShell", () => {
 
     expect(screen.getByText("Display: Player Broken Storage")).toBeTruthy();
     expect(
-      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+      screen.getByText(
+        /some saved local preferences were unreadable and were reset to safe defaults/i,
+      ),
     ).toBeTruthy();
     expect(
-      screen.getByText(/saved hand history was unreadable and has been ignored for this session/i),
+      screen.getByText(
+        /saved hand history was unreadable and has been ignored for this session/i,
+      ),
     ).toBeTruthy();
   });
 

@@ -9,17 +9,29 @@ type DesktopBrowserMocks = {
   onSessionUpdate?: (callback: () => void) => Promise<() => void>;
   onTableUpdate?: (callback: () => void) => Promise<() => void>;
   addNpcPlayers?: (request: AddNpcPlayersRequest) => Promise<HostSessionStatus>;
-  startHostSession?: (request: StartHostSessionRequest) => Promise<HostSessionStatus>;
+  startHostSession?: (
+    request: StartHostSessionRequest,
+  ) => Promise<HostSessionStatus>;
   getHostSessionStatus?: () => Promise<HostSessionStatus | null>;
   stopHostSession?: () => Promise<void>;
-  hostClaimLobbySeat?: (request: ClaimLobbySeatRequest) => Promise<HostSessionStatus>;
-  hostSetLobbyReadyState?: (request: SetLobbyReadyStateRequest) => Promise<HostSessionStatus>;
+  hostClaimLobbySeat?: (
+    request: ClaimLobbySeatRequest,
+  ) => Promise<HostSessionStatus>;
+  hostSetLobbyReadyState?: (
+    request: SetLobbyReadyStateRequest,
+  ) => Promise<HostSessionStatus>;
   hostStartTournament?: () => Promise<HostSessionStatus>;
-  joinHostSession?: (request: JoinHostSessionRequest) => Promise<ClientSessionStatus>;
+  joinHostSession?: (
+    request: JoinHostSessionRequest,
+  ) => Promise<ClientSessionStatus>;
   getClientSessionStatus?: () => Promise<ClientSessionStatus | null>;
   leaveClientSession?: () => Promise<void>;
-  clientClaimLobbySeat?: (request: ClaimLobbySeatRequest) => Promise<ClientSessionStatus>;
-  clientSetLobbyReadyState?: (request: SetLobbyReadyStateRequest) => Promise<ClientSessionStatus>;
+  clientClaimLobbySeat?: (
+    request: ClaimLobbySeatRequest,
+  ) => Promise<ClientSessionStatus>;
+  clientSetLobbyReadyState?: (
+    request: SetLobbyReadyStateRequest,
+  ) => Promise<ClientSessionStatus>;
   validateJoinPayloadInput?: (payload: string) => Promise<JoinPayload>;
   resolveHostLanAddress?: () => Promise<string>;
   getTableView?: (viewerMode: TableViewerMode) => Promise<TableViewSnapshot>;
@@ -29,7 +41,9 @@ type DesktopBrowserMocks = {
     raiseToAmount?: number,
   ) => Promise<TableViewSnapshot>;
   getDebugState?: (viewerMode: TableViewerMode) => Promise<DebugInspectorState>;
-  launchAdditionalClientInstance?: (joinPayload?: string | null) => Promise<string>;
+  launchAdditionalClientInstance?: (
+    joinPayload?: string | null,
+  ) => Promise<string>;
 };
 
 declare global {
@@ -349,7 +363,10 @@ export function getNpcProfile(id: string): Promise<NpcProfile> {
   return invoke<NpcProfile>("get_npc_profile", { id });
 }
 
-export function saveNpcProfile(id: string, content: string): Promise<NpcProfile> {
+export function saveNpcProfile(
+  id: string,
+  content: string,
+): Promise<NpcProfile> {
   return invoke<NpcProfile>("save_npc_profile", { id, content });
 }
 
@@ -491,7 +508,9 @@ export function clientSetLobbyReadyState(request: SetLobbyReadyStateRequest) {
     return browserMocks.clientSetLobbyReadyState(request);
   }
 
-  return invoke<ClientSessionStatus>("client_set_lobby_ready_state", { request });
+  return invoke<ClientSessionStatus>("client_set_lobby_ready_state", {
+    request,
+  });
 }
 
 export function resolveHostLanAddress() {

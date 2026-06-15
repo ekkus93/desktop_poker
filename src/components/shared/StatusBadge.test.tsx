@@ -10,7 +10,9 @@ describe("StatusBadge", () => {
   });
 
   it("renders an icon for each tone without exposing it to screen readers (A2)", () => {
-    const { rerender } = render(<StatusBadge tone="success">Active</StatusBadge>);
+    const { rerender } = render(
+      <StatusBadge tone="success">Active</StatusBadge>,
+    );
     // Icon is aria-hidden — it does not appear as an accessible element
     let badge = screen.getByText("Active").closest("span")!;
     expect(badge.querySelector("[aria-hidden='true']")).toBeTruthy();

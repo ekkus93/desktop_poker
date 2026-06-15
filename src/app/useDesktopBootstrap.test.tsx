@@ -11,9 +11,8 @@ import { DesktopBootstrapProvider } from "./DesktopBootstrapProvider";
 import { useDesktopBootstrap } from "./useDesktopBootstrap";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -45,7 +44,9 @@ describe("useDesktopBootstrap", () => {
   });
 
   it("fails clearly when used outside the provider", () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     expect(() => render(<BootstrapHookProbe />)).toThrow(
       "useDesktopBootstrap must be used inside the provider.",

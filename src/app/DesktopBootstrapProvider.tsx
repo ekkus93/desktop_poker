@@ -26,7 +26,9 @@ export function DesktopBootstrapProvider({
 }: {
   children: ReactNode;
 }) {
-  const [bootstrap, setBootstrap] = useState<DesktopBootstrapState | null>(null);
+  const [bootstrap, setBootstrap] = useState<DesktopBootstrapState | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 

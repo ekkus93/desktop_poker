@@ -1,5 +1,9 @@
 import type { TableCardView, TableHistoryEntryView } from "../api/desktop";
-import { readStoredValue, readStoredValueWithStatus, storageKey } from "./shell";
+import {
+  readStoredValue,
+  readStoredValueWithStatus,
+  storageKey,
+} from "./shell";
 
 export type PersistedHandHistory = {
   updatedAtMs: number;
@@ -26,7 +30,9 @@ function isFiniteNumber(value: unknown): value is number {
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === "string")
+  );
 }
 
 function isTableCardView(value: unknown): value is TableCardView {
@@ -39,7 +45,9 @@ function isTableCardView(value: unknown): value is TableCardView {
   );
 }
 
-function isTableHistoryEntryView(value: unknown): value is TableHistoryEntryView {
+function isTableHistoryEntryView(
+  value: unknown,
+): value is TableHistoryEntryView {
   return (
     isRecord(value) &&
     isFiniteNumber(value.handNumber) &&
@@ -149,7 +157,9 @@ export function initializeWindowStatePersistence(storageNamespace: string) {
   const cleanupCallbacks: Array<() => void> = [];
   const storedState = normalizePersistedWindowState(
     readStoredValue<unknown>(
-      localStorage.getItem(storageKey(storageNamespace, WINDOW_STATE_STORAGE_SUFFIX)),
+      localStorage.getItem(
+        storageKey(storageNamespace, WINDOW_STATE_STORAGE_SUFFIX),
+      ),
       null,
     ),
   );
@@ -199,7 +209,9 @@ export function initializeWindowStatePersistence(storageNamespace: string) {
       };
 
       await captureWindowState();
-      cleanupCallbacks.push(await appWindow.onMoved(() => void captureWindowState()));
+      cleanupCallbacks.push(
+        await appWindow.onMoved(() => void captureWindowState()),
+      );
       cleanupCallbacks.push(
         await appWindow.onResized(() => void captureWindowState()),
       );

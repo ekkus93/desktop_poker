@@ -22,7 +22,11 @@ export function TournamentCompleteScreen() {
       })
       .catch((caughtError: unknown) => {
         if (!cancelled) {
-          setError(caughtError instanceof Error ? caughtError.message : "Unable to load final standings.");
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unable to load final standings.",
+          );
         }
       });
 
@@ -38,7 +42,11 @@ export function TournamentCompleteScreen() {
       className="support-screen-shell"
     >
       <div className="complete-grid">
-        <SectionCard kicker="Result" title="Final result" className="support-card history-primary-card">
+        <SectionCard
+          kicker="Result"
+          title="Final result"
+          className="support-card history-primary-card"
+        >
           {error ? <p className="inline-banner error">{error}</p> : null}
           <p>
             {tableView?.phaseLabel.toLowerCase().includes("complete")
@@ -48,23 +56,34 @@ export function TournamentCompleteScreen() {
           {tableView ? (
             <p className="field-hint">
               {tableView.standings.length} players
-              {tableView.currentHandNumber !== null ? ` · ${tableView.currentHandNumber} hands played` : ""}
+              {tableView.currentHandNumber !== null
+                ? ` · ${tableView.currentHandNumber} hands played`
+                : ""}
             </p>
           ) : null}
           <div className="stacked-list scroll-list">
-            {(tableView?.standings.length ? tableView.standings : []).map((entry) => (
-              <article key={`${entry.rank}-${entry.displayName}`} className="list-panel history-row">
-                <div>
-                  <strong>
-                    #{entry.rank} {entry.displayName}
-                  </strong>
-                  <p className="field-hint">
-                    {entry.isObserver ? entry.statusLabel : `${entry.chipCount ?? 0} chips`}
-                  </p>
-                  {entry.note ? <p className="field-hint">{entry.note}</p> : null}
-                </div>
-              </article>
-            ))}
+            {(tableView?.standings.length ? tableView.standings : []).map(
+              (entry) => (
+                <article
+                  key={`${entry.rank}-${entry.displayName}`}
+                  className="list-panel history-row"
+                >
+                  <div>
+                    <strong>
+                      #{entry.rank} {entry.displayName}
+                    </strong>
+                    <p className="field-hint">
+                      {entry.isObserver
+                        ? entry.statusLabel
+                        : `${entry.chipCount ?? 0} chips`}
+                    </p>
+                    {entry.note ? (
+                      <p className="field-hint">{entry.note}</p>
+                    ) : null}
+                  </div>
+                </article>
+              ),
+            )}
           </div>
         </SectionCard>
 
@@ -94,7 +113,10 @@ export function TournamentCompleteScreen() {
             <div className="stacked-list scroll-list">
               {tableView?.handHistory.length ? (
                 tableView.handHistory.slice(0, 3).map((entry) => (
-                  <article key={entry.handNumber} className="list-panel history-row">
+                  <article
+                    key={entry.handNumber}
+                    className="list-panel history-row"
+                  >
                     <div>
                       <strong>{entry.summary}</strong>
                       <p className="field-hint">Hand {entry.handNumber}</p>

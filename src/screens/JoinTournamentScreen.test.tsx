@@ -11,9 +11,8 @@ import { createParsedJoinPayload } from "../test/appIntegrationFixtures";
 import { JoinTournamentScreen } from "./JoinTournamentScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -68,7 +67,9 @@ describe("JoinTournamentScreen", () => {
       ).toBe("pkr1_link");
     });
     expect(screen.getByText(/imported from a deep-link launch/i)).toBeTruthy();
-    expect(await screen.findByRole("button", { name: "Continue to lobby" })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "Continue to lobby" }),
+    ).toBeTruthy();
   });
 
   it("joins immediately for a valid launch-attached invite", async () => {
@@ -83,7 +84,9 @@ describe("JoinTournamentScreen", () => {
     });
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
-    expect(await screen.findByText(/joining the attached invite now/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/joining the attached invite now/i),
+    ).toBeTruthy();
     await waitFor(() => {
       expect(mockedJoinHostSession).toHaveBeenCalledWith({
         joinPayload: "pkr1_launch",
@@ -107,8 +110,12 @@ describe("JoinTournamentScreen", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
-    expect(await screen.findByText("invalid compact join payload")).toBeTruthy();
-    expect(screen.getByText(/fix the invite above before continuing to the lobby/i)).toBeTruthy();
+    expect(
+      await screen.findByText("invalid compact join payload"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/fix the invite above before continuing to the lobby/i),
+    ).toBeTruthy();
   });
 
   it("explains when pasted host share details are not a compact invite (W2)", async () => {
@@ -175,7 +182,9 @@ describe("JoinTournamentScreen", () => {
       target: { value: "pkr1_good" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Continue to lobby" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue to lobby" }),
+    );
 
     await waitFor(() => {
       expect(mockedJoinHostSession).toHaveBeenCalledWith({
@@ -192,9 +201,13 @@ describe("JoinTournamentScreen", () => {
     );
 
     const bootstrap = createBootstrap();
-    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
-    fireEvent.change(screen.getByLabelText("Invite"), { target: { value: "pkr1_slow" } });
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_slow" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
 
     // Advance past the 10-second timeout inside act() to flush React state updates.
@@ -203,7 +216,9 @@ describe("JoinTournamentScreen", () => {
     });
 
     expect(
-      screen.queryByText(/validation timed out — check your connection and try again/i),
+      screen.queryByText(
+        /validation timed out — check your connection and try again/i,
+      ),
     ).not.toBeNull();
     // afterEach restores real timers
   });
@@ -211,7 +226,11 @@ describe("JoinTournamentScreen", () => {
   it("shows decoded table name instead of raw payload string in recent invite pills (I1)", async () => {
     const bootstrap = createBootstrap();
     mockedValidateJoinPayloadInput.mockResolvedValue(
-      createParsedJoinPayload({ tableName: "Friday Night", hostAddress: "192.168.1.10", hostPort: 43818 }),
+      createParsedJoinPayload({
+        tableName: "Friday Night",
+        hostAddress: "192.168.1.10",
+        hostPort: 43818,
+      }),
     );
 
     // Seed a recent payload in shell state via localStorage
@@ -220,13 +239,17 @@ describe("JoinTournamentScreen", () => {
       JSON.stringify(["pkr1_some_long_encoded_payload_value"]),
     );
 
-    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, { bootstrap });
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
 
     // The pill should show the decoded label, not the raw token
     await waitFor(() => {
       expect(screen.queryByText(/friday night/i)).toBeTruthy();
     });
-    expect(screen.queryByText("pkr1_some_long_encoded_payload_value")).toBeNull();
+    expect(
+      screen.queryByText("pkr1_some_long_encoded_payload_value"),
+    ).toBeNull();
   });
 
   it("shows escape actions when auto-join from launch payload fails (B8)", async () => {
@@ -234,15 +257,23 @@ describe("JoinTournamentScreen", () => {
       launchJoinPayload: "pkr1_launch",
       parsedLaunchJoinPayload: createParsedJoinPayload(),
     });
-    mockedJoinHostSession.mockRejectedValueOnce(new Error("Host rejected the connection"));
+    mockedJoinHostSession.mockRejectedValueOnce(
+      new Error("Host rejected the connection"),
+    );
 
     renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
       bootstrap,
       initialEntries: ["/join"],
     });
 
-    expect(await screen.findByText(/host rejected the connection/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Clear and enter a different invite" })).toBeTruthy();
+    expect(
+      await screen.findByText(/host rejected the connection/i),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Clear and enter a different invite",
+      }),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
   });
 
@@ -256,7 +287,9 @@ describe("JoinTournamentScreen", () => {
     });
 
     const inviteField = screen.getByLabelText("Invite");
-    const checkInviteButton = screen.getByRole("button", { name: "Check invite" });
+    const checkInviteButton = screen.getByRole("button", {
+      name: "Check invite",
+    });
 
     await user.tab();
     expect(document.activeElement).toBe(inviteField);
@@ -267,7 +300,9 @@ describe("JoinTournamentScreen", () => {
 
     await user.keyboard("[Enter]");
 
-    const continueLink = await screen.findByRole("button", { name: "Continue to lobby" });
+    const continueLink = await screen.findByRole("button", {
+      name: "Continue to lobby",
+    });
     await user.tab();
     expect(document.activeElement).toBe(continueLink);
   });

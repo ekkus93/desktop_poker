@@ -17,7 +17,9 @@ describe("HomeScreen", () => {
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Help" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Settings" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { level: 3, name: "Resume" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 3, name: "Resume" }),
+    ).toBeNull();
     expect(screen.queryByRole("link", { name: "Internal Tools" })).toBeNull();
   });
 
@@ -53,7 +55,9 @@ describe("HomeScreen", () => {
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(screen.getByText("2 hands")).toBeTruthy();
-    expect(screen.getByRole("heading", { level: 3, name: "Resume" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "Resume" }),
+    ).toBeTruthy();
   });
 
   it("surfaces unreadable startup storage as a recovery card", () => {
@@ -67,7 +71,9 @@ describe("HomeScreen", () => {
 
     expect(screen.getByText("Storage needs attention")).toBeTruthy();
     expect(
-      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+      screen.getByText(
+        /some saved local preferences were unreadable and were reset to safe defaults/i,
+      ),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Review" })).toBeTruthy();
   });
@@ -75,17 +81,27 @@ describe("HomeScreen", () => {
   it("shows all startup warnings when multiple storage reads fail (B2)", () => {
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
     // Corrupt two separate storage keys to trigger two distinct warnings
-    localStorage.setItem(`${bootstrap.storageNamespace}:display-name`, "{bad-json");
-    localStorage.setItem(`${bootstrap.storageNamespace}:hand-history-summaries`, "{bad-json");
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:display-name`,
+      "{bad-json",
+    );
+    localStorage.setItem(
+      `${bootstrap.storageNamespace}:hand-history-summaries`,
+      "{bad-json",
+    );
 
     renderWithProviders(<HomeScreen bootstrap={bootstrap} />, { bootstrap });
 
     expect(screen.getByText("Storage needs attention")).toBeTruthy();
     expect(
-      screen.getByText(/some saved local preferences were unreadable and were reset to safe defaults/i),
+      screen.getByText(
+        /some saved local preferences were unreadable and were reset to safe defaults/i,
+      ),
     ).toBeTruthy();
     expect(
-      screen.getByText(/saved hand history was unreadable and has been ignored/i),
+      screen.getByText(
+        /saved hand history was unreadable and has been ignored/i,
+      ),
     ).toBeTruthy();
   });
 });

@@ -85,9 +85,9 @@ describe("DesktopShellProvider", () => {
     expect(localStorage.getItem("desktop-poker:host-a:display-name")).toContain(
       "Alice",
     );
-    expect(localStorage.getItem("desktop-poker:client-b:display-name")).toContain(
-      "Bob",
-    );
+    expect(
+      localStorage.getItem("desktop-poker:client-b:display-name"),
+    ).toContain("Bob");
   });
 
   it("normalizes legacy host drafts so critical controls stay visible", () => {
@@ -114,11 +114,11 @@ describe("DesktopShellProvider", () => {
 
     renderWithProviders(<StorageHarness />, { bootstrap });
 
-    expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).toContain(
-      '"tournamentName":"Legacy Sit \'n Go"',
-    );
-    expect(localStorage.getItem("desktop-poker:legacy-host:host-draft")).not.toContain(
-      '"advancedOpen":false',
-    );
+    expect(
+      localStorage.getItem("desktop-poker:legacy-host:host-draft"),
+    ).toContain('"tournamentName":"Legacy Sit \'n Go"');
+    expect(
+      localStorage.getItem("desktop-poker:legacy-host:host-draft"),
+    ).not.toContain('"advancedOpen":false');
   });
 });

@@ -13,9 +13,8 @@ import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { TournamentLobbyScreen } from "./TournamentLobbyScreen";
 
 vi.mock("../api/desktop", async () => {
-  const actual = await vi.importActual<typeof import("../api/desktop")>(
-    "../api/desktop",
-  );
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
 
   return {
     ...actual,
@@ -87,7 +86,10 @@ describe("TournamentLobbyScreen", () => {
         participants: createHostSession().participants.map((participant) =>
           participant.playerId === "local-player"
             ? { ...participant, isReady: request.isReady }
-            : { ...participant, isReady: request.isReady ? true : participant.isReady },
+            : {
+                ...participant,
+                isReady: request.isReady ? true : participant.isReady,
+              },
         ),
         phase: request.isReady ? "readyCheck" : "waitingForPlayers",
       });
@@ -150,11 +152,15 @@ describe("TournamentLobbyScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
 
     await waitFor(() => {
-      expect(mockedHostSetLobbyReadyState).toHaveBeenCalledWith({ isReady: true });
+      expect(mockedHostSetLobbyReadyState).toHaveBeenCalledWith({
+        isReady: true,
+      });
     });
     expect(await screen.findByText("You: Ready")).toBeTruthy();
     expect(screen.getByText("Table: Ready")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Start tournament" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Start tournament" }),
+    ).toBeTruthy();
   });
 
   it("shows recovery actions when host stops before the table goes live (B5)", async () => {
@@ -202,12 +208,16 @@ describe("TournamentLobbyScreen", () => {
 
     // Open the leave dialog — there are two "Close table" buttons (toolbar + dialog).
     // Click the first one (toolbar) to open the dialog.
-    const allCloseButtons = await screen.findAllByRole("button", { name: "Close table" });
+    const allCloseButtons = await screen.findAllByRole("button", {
+      name: "Close table",
+    });
     fireEvent.click(allCloseButtons[0]);
     expect(screen.getByText("Close this table?")).toBeTruthy();
 
     // Attempt to leave via the dialog's own button (triggers the error)
-    const dialogCloseButtons = screen.getAllByRole("button", { name: "Close table" });
+    const dialogCloseButtons = screen.getAllByRole("button", {
+      name: "Close table",
+    });
     fireEvent.click(dialogCloseButtons[dialogCloseButtons.length - 1]);
 
     // Dialog should stay open with error and retry available
