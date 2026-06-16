@@ -75,7 +75,14 @@ jobs:
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 
       - name: Test Rust
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        # The real-TCP integration tests each spawn several background threads
+        # (accept loop, per-connection, host tick, client receive). On the
+        # runner's limited cores, default test parallelism oversubscribes the
+        # CPU and starves those threads, making the live-session timing tests
+        # flaky (a client snapshot can miss its wait window). Bound the test
+        # threads so the networking/tick threads get scheduled promptly. This
+        # matches runner capacity; it does not change product behaviour.
+        run: cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2
 
       - name: Lint frontend
         run: npm run lint
