@@ -68,30 +68,6 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # Apt deps for chromium (kept separate from the browser download so a
-      # stalled download can't waste the apt time on retry).
-      - name: Install Playwright system deps
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium
-
-      # The browser binary is fetched from a CDN that occasionally accepts the
-      # connection then sends no data — Playwright has no per-download stall
-      # timeout, so it would hang indefinitely (previously to the 6-hour ceiling).
-      # Bound each attempt with `timeout` and retry with a fresh connection.
-      - name: Install Playwright browser (retry on stall)
-        timeout-minutes: 8
-        run: |
-          for attempt in 1 2 3; do
-            if timeout 150 npx playwright install chromium; then
-              echo "Playwright browser installed on attempt $attempt"
-              exit 0
-            fi
-            echo "::warning::Playwright browser install attempt $attempt stalled or failed; retrying"
-            sleep 5
-          done
-          echo "::error::Playwright browser install failed after 3 attempts"
-          exit 1
-
       - name: Check formatting
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
 
@@ -107,11 +83,35 @@ jobs:
       - name: Test frontend
         run: npm run test
 
-      - name: Test browser geometry
-        run: npm run test:geometry
-
       - name: Build frontend
         run: npm run build
+
+  # Browser-geometry tests run in Microsoft's prebuilt Playwright image, which
+  # ships the matching browser binaries (pinned to our @playwright/test version).
+  # This avoids the runtime `playwright install` download, which deterministically
+  # hung after fetching chromium on the hosted runner and ran jobs to the 6-hour
+  # ceiling. Keep the image tag in sync with the @playwright/test version.
+  geometry:
+    name: Browser geometry
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Test browser geometry
+        run: npm run test:geometry
 
   release:
     name: Release bundle
