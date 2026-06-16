@@ -505,7 +505,25 @@ export function LayoutProbeApp({ surface }: { surface: string }) {
   return (
     <MemoryRouter initialEntries={["/"]}>
       <DesktopShellProvider bootstrap={bootstrap}>
-        {renderProbeSurface(surface as ProbeSurface, bootstrap)}
+        {/* Render inside the same viewport-locked .content region the real app
+            uses (AppFrame), minus the topbar chrome and sidebar grid, so the
+            probe measures screens under their real height constraint and page
+            padding instead of at unbounded natural height. */}
+        <div
+          style={{
+            height: "100dvh",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <main
+            className="content"
+            style={{ height: "100%", overflow: "hidden" }}
+          >
+            {renderProbeSurface(surface as ProbeSurface, bootstrap)}
+          </main>
+        </div>
       </DesktopShellProvider>
     </MemoryRouter>
   );

@@ -423,6 +423,15 @@ dt {
   gap: var(--shell-gap);
 }
 
+/* Fill the viewport-locked content area so screens whose layouts declare an
+   internal scroll row (auto / minmax(0, 1fr) + overflow:auto regions) actually
+   bound that row to the frame. Without this the screen-shell takes its natural
+   height and dense screens (host setup, 10-seat table) overflow the frame. */
+.content > .screen-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .tournament-frame .screen-shell {
   gap: 0.55rem;
 }
@@ -430,6 +439,9 @@ dt {
 .pregame-screen-shell {
   align-content: stretch;
   grid-template-rows: auto minmax(0, 1fr);
+  /* Reserve a little bottom clearance so the populated card never sits flush
+     against the viewport edge on short screens (where page padding shrinks). */
+  padding-bottom: 0.35rem;
 }
 
 .screen-header {
@@ -1234,7 +1246,7 @@ dt,
 }
 
 .dense-table-screen-shell {
-  gap: 0.4rem;
+  gap: 0.25rem;
 }
 
 .table-top-row {
@@ -1404,13 +1416,13 @@ dt,
 }
 
 .dense-table-surface {
-  gap: 0.55rem;
-  padding: 0.8rem;
+  gap: 0.35rem;
+  padding: 0.55rem;
 }
 
 .dense-table-surface .table-headline-card {
   gap: 0.3rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.5rem 0.85rem;
 }
 
 .dense-table-surface .table-surface-header {
@@ -1433,11 +1445,11 @@ dt,
 
 .dense-table-surface .pot-summary-card {
   gap: 0.25rem;
-  padding: 0.55rem 0.65rem;
+  padding: 0.4rem 0.65rem;
 }
 
 .dense-table-surface .centered-community-cards {
-  grid-template-columns: repeat(5, minmax(3.2rem, 3.9rem));
+  grid-template-columns: repeat(5, minmax(2.8rem, 3.3rem));
   gap: 0.35rem;
 }
 
@@ -1447,9 +1459,9 @@ dt,
 }
 
 .dense-table-surface .enhanced-seat-card {
-  gap: 0.25rem;
+  gap: 0.2rem;
   min-height: 0;
-  padding: 0.42rem;
+  padding: 0.32rem;
 }
 
 .dense-table-surface .seat-card-header {
@@ -1503,7 +1515,7 @@ dt,
 
 .dense-table-surface .card-slot,
 .dense-table-surface .playing-card {
-  padding: 0.35rem;
+  padding: 0.22rem;
 }
 
 .dense-table-surface .playing-card-corner span {
@@ -1519,7 +1531,7 @@ dt,
 }
 
 .dense-table-surface .playing-card.local {
-  width: 2.85rem;
+  width: 2.45rem;
 }
 
 .dense-table-surface .playing-card.compact,
