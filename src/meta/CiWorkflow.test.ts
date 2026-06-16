@@ -10,9 +10,24 @@ describe("CI workflow smoke coverage", () => {
     expect(workflow).toContain("- name: Test Rust");
     expect(workflow).toContain("- name: Lint frontend");
     expect(workflow).toContain("- name: Test frontend");
-    expect(workflow).toContain("- name: Install Playwright browser");
     expect(workflow).toContain("- name: Test browser geometry");
     expect(workflow).toContain("- name: Build frontend");
+  });
+
+  it("runs browser geometry in the prebuilt Playwright container (no runtime browser download)", () => {
+    // The runtime `playwright install` deterministically hung on the hosted
+    // runner; the geometry job must use the prebuilt image instead.
+    expect(workflow).toContain("image: mcr.microsoft.com/playwright:");
+    // No runtime browser-install command (the comment may mention it; the
+    // invoked command must not appear).
+    expect(workflow).not.toContain("npx playwright install");
+  });
+
+  it("caps every job's runtime so a hung step can't bill to the 6-hour ceiling", () => {
+    // At least one timeout-minutes per job (verify, geometry, release).
+    const caps = workflow.match(/timeout-minutes:/g) ?? [];
+    expect(caps.length).toBeGreaterThanOrEqual(3);
+    expect(workflow).toContain("cancel-in-progress: true");
   });
 
   it("keeps release publishing gated to version tags only", () => {
