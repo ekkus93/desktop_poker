@@ -13,11 +13,6 @@ use super::provider::{LlmProviderConfig, LlmProviderType};
 /// Ollama with small models) while ensuring the system doesn't hang on
 /// unresponsive servers.
 ///
-/// # Example
-/// ```rust
-/// use crate::npc::llm_client::DEFAULT_TIMEOUT_SECS;
-/// assert_eq!(DEFAULT_TIMEOUT_SECS, 20);
-/// ```
 pub const DEFAULT_TIMEOUT_SECS: u64 = 20;
 const DEFAULT_MAX_TOKENS: u32 = 128;
 const ANTHROPIC_VERSION: &str = "2023-06-01";
