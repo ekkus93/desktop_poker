@@ -110,7 +110,7 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 - Legacy raw JSON payload parsing may be supported for compatibility, but the compact format is the default path.
 - Current Android default host port is **43818**.
 
-## Gameplay and rules rules
+## Gameplay and rules
 
 - Match Android tournament and hand semantics exactly where compatibility matters.
 - Preserve:
@@ -155,6 +155,21 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 ## What to avoid
 
 - Do not build a fake same-process-only happy path and present it as LAN support.
+
+## Memory file
+- You have access to a persistent memory file, memory.md, that stores context about the project, previous interactions, and user preferences.
+- Use this memory to inform your decisions, remember user preferences, and maintain continuity across sessions. 
+- Before sending back a response, update memory.md with any new relevant information learned during the interaction. Make sure to timestamp and format entries clearly.
+- Include the GitHub Copilot model used in the entry in the heading line so memory history records both time and model (for example: `## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses`).
+- **NEVER fabricate or guess timestamps.** Always obtain the current time by running `date -u +"%Y-%m-%dT%H:%M:%SZ"` in the terminal immediately before writing the entry. If the entry describes a specific commit, use `git log -1 --format="%aI" <hash>` for that commit's actual timestamp.
+- For each entry, add an ISO 8601 timestamp and a brief description of the information added. For example:
+```
+
+## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses
+- User has expressed a preference for concise, to-the-point answers without unnecessary elaboration.
+```
+
+
 - Do not default debug builds to simulator mode.
 - Do not expose unfinished room-code discovery as if it is production-ready.
 - Do not leak private hole-card data into public or observer projections.

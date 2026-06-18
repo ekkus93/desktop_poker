@@ -6,7 +6,19 @@ use super::provider::{LlmProviderConfig, LlmProviderType};
 // GPU) with the recommended small instruction-tuned models (~1-5s/response) while
 // keeping fallback snappy. Requests that still exceed this fall back to the
 // rule-based engine.
-const DEFAULT_TIMEOUT_SECS: u64 = 20;
+/// Default timeout for LLM requests in seconds.
+///
+/// This timeout is configurable via reqwest's Client builder. The default
+/// value of 20 seconds provides sufficient time for local inference (e.g.,
+/// Ollama with small models) while ensuring the system doesn't hang on
+/// unresponsive servers.
+///
+/// # Example
+/// ```rust
+/// use crate::npc::llm_client::DEFAULT_TIMEOUT_SECS;
+/// assert_eq!(DEFAULT_TIMEOUT_SECS, 20);
+/// ```
+pub const DEFAULT_TIMEOUT_SECS: u64 = 20;
 const DEFAULT_MAX_TOKENS: u32 = 128;
 const ANTHROPIC_VERSION: &str = "2023-06-01";
 
@@ -104,14 +116,23 @@ impl LlmClient {
     }
 
     /// Override the API base URL (used in tests with a mock server).
-    #[cfg(test)]
     pub fn with_endpoint_override(mut self, url: String) -> Self {
         self.endpoint_override = Some(url);
         self
     }
 
-    /// Construct a client with a custom timeout (for tests that verify timeout behaviour).
+    /// Set the endpoint override after creation (convenience method for tests).
+    pub fn set_endpoint_override(&mut self, url: String) {
+        self.endpoint_override = Some(url);
+    }
+
+    /// Check if an endpoint override is set.
     #[cfg(test)]
+    pub fn has_endpoint_override(&self) -> bool {
+        self.endpoint_override.is_some()
+    }
+
+    /// Construct a client with a custom timeout (for tests that verify timeout behaviour).
     pub fn with_timeout_secs(
         config: LlmProviderConfig,
         timeout_secs: u64,

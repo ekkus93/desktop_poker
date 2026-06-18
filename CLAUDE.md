@@ -1,4 +1,4 @@
-# CLAUDE.md — Desktop Poker
+# Copilot Instructions for `desktop_poker`
 
 ## Project goal
 

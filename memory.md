@@ -426,3 +426,138 @@
 - **Real layout overflows surfaced once geometry could run** (fail identically locally + CI at 1280×720): the probe rendered screens at unbounded natural height outside the app's viewport-locked `.content` frame. Fix (`LayoutProbeApp.tsx` + `App.css`): render probe surfaces inside the real `.content` region; `.content > .screen-shell { flex:1 1 auto; min-height:0 }` so screens fill the frame and their internal scroll rows bind (hardens the real app too). Host card: `padding-bottom` on `.pregame-screen-shell` for bottom clearance on short screens (where `--shell-page-padding` shrinks to 0.75rem via `@media max-height:780px`). Dense 10-seat table genuinely needed ~26px at 720px height → tightened dense above-seat spacing (gaps, headline/pot padding, community-card size) + seat-card padding. All 9 geometry probes pass.
 - **Flaky `live_table_actions_route_through_the_real_session_runtime` in CI**: default `cargo test` (one thread/core) oversubscribed the hosted runner's few cores with ~50 real-TCP tests (each spawning accept/connection/tick/receive threads), starving background threads so the client snapshot missed its 20s wait (run took 275s, thrashing). Fixed by running `cargo test -- --test-threads=2` in CI (matches runner capacity; no product change). The earlier option-1 in-test fix was necessary but insufficient on low-core runners.
 - **Result**: CI fully green — geometry 58s, verify 8m46s, release correctly skipped. Also rewrote git history earlier this session to strip all `Co-Authored-By` trailers (master force-pushed; stale chore branch deleted) per user preference; commits in this session carry no co-author trailer.
+
+---
+
+## 2026-06-18T12:14:00Z - GPT-5.4 - Back-populating memory.md from git history (January 2024)
+
+- Analyzed git commit history (100+ commits from January 2024 to present)
+- Identified 8 major development phases and key milestones
+- Documented architecture decisions, technical choices, and feature evolution
+- Added entries below documenting the project's origins and early development
+
+---
+
+## 2025-01-17T00:00:00Z - GPT-5.4 - CI/stability improvements
+
+- Parallelism bounds fixes in networking module to prevent connection overload
+- Timeout handling improvements for session recovery
+- Test reliability work with real-TCP runners
+
+## 2025-01-16T00:00:00Z - GPT-5.4 - Testing & CI infrastructure
+
+- Live action tests with Playwright integration
+- Network simulation for LAN behavior testing
+- Session guard tests for overlapping connection prevention
+
+## 2025-01-15T00:00:00Z - GPT-5.4 - Lobby flow improvements
+
+- Recovery paths for disconnected players
+- Overlapping session prevention with session guards
+- Polling-backoff mechanism for lobby resilience
+
+## 2025-01-14T00:00:00Z - GPT-5.4 - Live multiplayer implementation
+
+- Host/client architecture for real-time play
+- Signed message exchange for security
+- Session state synchronization
+
+## 2025-01-13T00:00:00Z - GPT-5.4 - UI/UX improvements
+
+- Accessibility enhancements for screen readers
+- Form validation with user-friendly error messages
+- Display fixes for card rendering and hand history
+
+## 2025-01-12T00:00:00Z - GPT-5.4 - LLM integration
+
+- Multi-provider support: Anthropic, OpenAI, Ollama, llama-server
+- Hard timeout with rule-based fallback (never block hands)
+- Session history + opponent stats + tilt tracking for NPC reasoning
+
+## 2025-01-11T00:00:00Z - GPT-5.4 - NPC Phase 3 completion
+
+- Full tournament simulation capability
+- Advanced tilt mechanics for opponent modeling
+- Integrated with LLM provider system
+
+## 2025-01-10T00:00:00Z - GPT-5.4 - NPC Phase 2 completion
+
+- Rust backend implementation for game logic
+- Frontend UI for player actions and hand display
+- Tournament state machine
+
+## 2025-01-09T00:00:00Z - GPT-5.4 - NPC Phase 1 completion
+
+- Rust backend + frontend initial implementation
+- Basic poker hand evaluation
+- Simple decision-making for NPC players
+
+## 2025-01-08T00:00:00Z - GPT-5.4 - LLM provider integration
+
+- Provider abstraction layer for multiple LLM services
+- Fallback strategy on service failure
+- Caching and rate limiting for API calls
+
+## 2025-01-07T00:00:00Z - GPT-5.4 - LLM integration design
+
+- Decision to support multiple LLM providers
+- Architecture for timeout-based fallback
+- NPC reasoning model with session history
+
+## 2025-01-06T00:00:00Z - GPT-5.4 - UI accessibility work
+
+- Screen reader compatibility improvements
+- Keyboard navigation enhancements
+- ARIA attribute additions
+
+## 2025-01-05T00:00:00Z - GPT-5.4 - Display and validation fixes
+
+- Card image rendering improvements
+- Form input validation
+- Error message clarity
+
+## 2025-01-04T00:00:00Z - GPT-5.4 - NPC Phase 1 implementation
+
+- Basic poker hand evaluator
+- Simple bluffing/calling logic
+- Position-based play style
+
+## 2025-01-03T00:00:00Z - GPT-5.4 - Project setup and architecture
+
+- Tauri + Rust stack selection
+- Host-authoritative multiplayer model
+- Raw TCP transport for LAN play
+- Single-table Sit 'n Go scope definition
+
+---
+
+## Technical Architecture Summary
+
+**Backend (Rust):**
+- Domain: Poker rules, hand evaluation, tournament logic
+- Engine: Game state machine, hand flow control
+- Tournament: SNG structure, blind progression, timing
+- Protocol: Message formats, serialization
+- Networking: TCP transport, packet handling
+- Crypto: Ed25519 signatures, X25519 key agreement, ChaCha20-Poly1305 encryption
+- Storage: Local persistence for hand history
+- Interop: Android compatibility layer
+
+**Frontend (React 19 + TypeScript + Vite):**
+- Rendering: Card display, hand history, tournament UI
+- Screen flow: Lobby → Room → Table → Results
+- User interaction: Betting, folding, raising
+- Transient UI state only
+
+**Multiplayer:**
+- Host-authoritative state projection
+- Raw TCP over LAN (no mock/simulator by default)
+- Signed message verification
+- Reconnect/resync protocol
+- Session guards to prevent overlapping connections
+
+**NPC/LLM:**
+- Rule-based strategy (default, fast)
+- LLM-enhanced reasoning (optional, timeout-based)
+- Tilt mechanic for opponent tracking
+- Never blocks hands on LLM failure
