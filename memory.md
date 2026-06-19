@@ -625,3 +625,10 @@
 - Tests -> 3 files: AppShell.host (host/lobby), AppShell.session (client/routing), AppShell.table (table/debug), 12 tests each, all <700. Test bodies reference harness symbols via `h.` (h.renderAppShell, h.mockedX, h.ctx.currentHostSession, h.syncLiveSessions, h.buildHostSessionStatus, etc.).
 - Verified: tsc build clean, eslint clean, prettier clean, all 36 AppShell tests pass across the 3 files, full frontend suite 211 passed (28 files).
 - ALL 8 oversized files now <700: runtime.rs, app_state/mod.rs, tournament/mod.rs, App.css, protocol/models.rs, engine/mod.rs, MainTableScreen.tsx, AppShell.integration.test.tsx. Largest remaining code files are now comfortably under 700.
+
+## (npc/runner split) - Claude Opus 4.8 - Split npc/runner.rs (881 lines)
+
+- Caught a file I'd missed in the earlier "remaining >700" enumeration: npc/runner.rs (881). Split it: runner.rs -> runner/ directory module. mod.rs (581; loop + process_completed_hands + try_npc_action + RunnerState + NpcRunnerGuard), decision.rs (147; fallback_blind_level + rule_based_decision + hash_str), tests.rs (163).
+- decision.rs is a grandchild of npc, so its `use super::X` imports (npc siblings: hand_log, strategy, etc.) became `use super::super::X`. Decision fns are pub(crate), glob-re-exported from mod.rs.
+- Verified: clippy -D warnings clean, rustfmt clean, 3 runner tests pass.
+- CONFIRMED: no tracked code file (.rs/.ts/.tsx/.css/.js) now exceeds 700 lines. The <700-per-file goal is fully met across the repo.
