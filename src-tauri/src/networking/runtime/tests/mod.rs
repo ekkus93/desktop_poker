@@ -1,5 +1,6 @@
 mod support;
 
+mod end_to_end;
 mod join;
 mod misc;
 mod reconnect;

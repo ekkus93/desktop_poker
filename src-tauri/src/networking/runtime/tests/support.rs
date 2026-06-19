@@ -71,6 +71,22 @@ pub(super) fn bind_test_host(
     table_id: &str,
     session_epoch: u64,
 ) -> HostServer {
+    bind_test_host_with_state(
+        provider,
+        table_id,
+        session_epoch,
+        sample_tournament_state(table_id, session_epoch),
+    )
+}
+
+/// Bind a test host with a caller-supplied initial state, so tests can tune the
+/// config (stacks, blinds, turn timer) for end-to-end scenarios.
+pub(super) fn bind_test_host_with_state(
+    provider: &DefaultCryptoProvider,
+    table_id: &str,
+    session_epoch: u64,
+    snapshot_state: TournamentState,
+) -> HostServer {
     let host_signing_keys = Arc::new(provider.generate_signing_keypair());
     let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
 
@@ -83,7 +99,7 @@ pub(super) fn bind_test_host(
         join_token: "join-token".to_string(),
         host_signing_keys,
         host_encryption_keys,
-        snapshot_state: sample_tournament_state(table_id, session_epoch),
+        snapshot_state,
         runtime_mode: HostRuntimeMode::Test,
     })
     .expect("host should bind")
