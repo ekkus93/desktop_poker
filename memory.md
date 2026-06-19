@@ -601,3 +601,11 @@
 - Same recipe as runtime.rs: struct defs in mod.rs so sibling submodules reach private fields; moved free fns pub(crate) + glob-re-exported; cross-module impl methods (session/debug) bumped to pub(crate); `start_host_session_with_mode` made pub(crate) for tests; `InstanceProfile` bumped to pub(crate). Gotcha hit: relative grep offsets are off-by-one vs absolute lines (add_npc_players was at 878 not 879) — regenerated app.rs/app_npc.rs from the git HEAD copy with correct absolute boundaries.
 - Verified: clippy -D warnings clean, rustfmt clean, 32 app_state tests pass (incl. the flaky live_table_actions, which passed at low load).
 - Remaining large files: tournament/mod.rs (2173), App.css (2040), AppShell.integration.test.tsx (1959, but +the NPC test I added), MainTableScreen.tsx (858), engine/mod.rs (853), protocol/models.rs (708).
+
+## (tournament split) - Claude Opus 4.8 - Split tournament/mod.rs (2173 lines)
+
+- Split the 2173-line tournament/mod.rs: the single ~1371-line `impl TournamentController` was divided into three impl-block files — controller_core.rs (new/state/start/submit/advance + blind/betting setup, 537), controller_hand.rs (apply_action through process_eliminations, 516), controller_query.rs (complete_tournament + seat/stack/participation query helpers, 366). mod.rs keeps imports, const, TournamentError, the structs (RegisteredPlayer/ActionRequest/ActiveHandRuntime/TournamentController), and descriptor() (95 lines).
+- Private methods bumped to pub(crate) so the three impl files call each other.
+- Tests -> tournament/tests/: support.rs + progression.rs + endgame.rs.
+- Gotcha: `use super::super::*` (grandchild test files) does NOT pull in mod.rs's private `use crate::domain::{...}` aliases the way the original direct-child `use super::*` did, so test headers needed explicit `use crate::domain::*; use crate::engine::Deck;`.
+- Verified: clippy -D warnings clean, rustfmt clean, 11 tournament engine tests pass. (A `tournament::` test-filter also matches networking's npc_opponent test, which is the known load-flaky one — unrelated.)
