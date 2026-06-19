@@ -26,18 +26,18 @@ the rule-based NPC, all on the real code paths.
 ## 0. Scope, conventions, and guardrails
 
 ### 0.1 Ground rules (apply to every task below)
-- [ ] Tests must exercise **real production functions** — no fabricated doubles
+- [x] Tests must exercise **real production functions** — no fabricated doubles
       that only prove a mock behaves as configured (per `CLAUDE.md`).
-- [ ] No new `#[ignore]` tests except where they require an external service
+- [x] No new `#[ignore]` tests except where they require an external service
       (none expected here).
-- [ ] Keep each test focused: one behavior per `#[test]`, descriptive names.
-- [ ] Reuse existing in-file test helpers (e.g. engine's `card(rank, suit)`)
+- [x] Keep each test focused: one behavior per `#[test]`, descriptive names.
+- [x] Reuse existing in-file test helpers (e.g. engine's `card(rank, suit)`)
       before adding new ones; add a helper only when it removes duplication
       across ≥2 tests.
-- [ ] For crypto, where behavior must match Android, add a comment citing the
+- [x] For crypto, where behavior must match Android, add a comment citing the
       Android contract (mirror the style of
       `chacha_key_derivation_matches_android_hkdf_contract`).
-- [ ] Every new test file/module keeps the file under 700 lines (split into a
+- [x] Every new test file/module keeps the file under 700 lines (split into a
       `tests/` submodule dir if it would exceed that).
 
 ### 0.2 File placement decisions
@@ -53,9 +53,9 @@ the rule-based NPC, all on the real code paths.
       test module via `use super::*`.
 
 ### 0.3 Verification gates (run after each section)
-- [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml <module>:: -- --test-threads=2`
+- [x] `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
+- [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml <module>:: -- --test-threads=2`
 
 ---
 
@@ -324,17 +324,17 @@ This is the default (non-LLM) decision used every NPC turn.
 ## 5. Wrap-up and verification
 
 ### 5.1 Full verification
-- [ ] `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
-- [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
-- [ ] `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2`
+- [x] `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
+- [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`
+- [x] `cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2`
       (bounded threads to avoid the known real-TCP timing flakiness).
-- [ ] Confirm the new tests run and pass; record the new per-module counts
+- [x] Confirm the new tests run and pass; record the new per-module counts
       (crypto, engine, npc) for the record.
 
 ### 5.2 Housekeeping
-- [ ] Ensure no file crossed 700 lines; split into `tests/` submodules if so.
-- [ ] Append a `memory.md` entry summarizing what was added and the new counts.
-- [ ] Commit per area (crypto / engine-eval / engine-settlement / npc-decision)
+- [x] Ensure no file crossed 700 lines; split into `tests/` submodules if so.
+- [x] Append a `memory.md` entry summarizing what was added and the new counts.
+- [x] Commit per area (crypto / engine-eval / engine-settlement / npc-decision)
       with no `Co-Authored-By` trailer.
 
 ### 5.3 Priority order (recommended implementation sequence)

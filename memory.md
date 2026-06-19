@@ -641,3 +641,12 @@
   - screens/MainTableScreen.tsx (694 -> 621): extracted the side panel (standings/event-feed/history aside) into MainTableSidePanel.tsx (TableSidePanel), moved EVENT_FEED_CAP there.
 - Verified: clippy -D warnings clean, rustfmt clean, eslint/prettier clean, frontend 211 pass, 50 networking tests pass (exercise the moved connection/host-session code). The 2 real-TCP timing tests (live_table_actions, npc_opponent) flaked under the cumulative load of repeated runs — confirmed it's the bounded-wait deadline (live_table.rs:219), not a regression (pure relocation; the networking session/reconnect tests using the same moved fns pass).
 - Largest code file is now events.rs (563); everything has comfortable headroom under 700.
+
+## 2026-06-19T19:11:09Z - Claude Opus 4.8 - UNIT_TEST3: crypto/engine/npc unit-test expansion
+
+- Implemented all 4 sections of docs/UNIT_TEST3_TODO.md (highest-value remaining backend coverage gaps), committed + pushed per area:
+  - crypto (99c4a29): converted crypto/provider.rs -> provider/ dir module; +23 tests (25 total) — Ed25519 sign/verify round-trip + negatives, X25519+ChaCha20-Poly1305 encrypt/decrypt round-trip + negatives (tampered ciphertext, wrong sender/recipient key, mismatched AAD, bad nonce/ciphertext), fresh-nonce, base64url-no-pad, fingerprint = first 8 bytes SHA-256 lowercase hex.
+  - engine (fd9d26c): split engine/tests.rs -> tests/ dir (mod + hand_eval + settlement); 45 tests. Hand-eval: one per HandCategory, straight edges (wheel/broadway/royal/steel-wheel), best-5-of-7, HandStrength Ord tie-breaks. Settlement: conservation assertion, even split + odd-chip order, multi-way all-in main/side pots, short-all-in eligibility, folded-contributor forfeiture, empty/zero contracts.
+  - npc (71a21c9): inline tests in npc/runner/decision.rs; 13 tests for rule_based_decision via a minimal TournamentState fixture + Spot builder — legality invariants, hand-strength, short-stack all-in fallback, positional + style divergence, determinism + seeded divergence.
+- Real contracts encoded: evaluate_best_holdem_hand requires EXACTLY 2 hole + 5 board cards; settle_showdown errors on empty contributions/strengths but treats all-zero contributions as an empty no-pot settlement; rule_based_decision only reads config.blind_schedule + current_hand.betting_round.current_bet from state.
+- Verified: rustfmt + clippy -D warnings clean; full suite 350 passed / 0 failed / 2 ignored. No file > 700 lines. New counts: crypto 25, engine 45, npc decision 13.
