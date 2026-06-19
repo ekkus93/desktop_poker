@@ -246,3 +246,6 @@ fn full_raise_requires_meeting_the_minimum_raise_to() {
     assert_eq!(full_stack.min_raise_to, Some(200));
     assert_eq!(full_stack.max_raise_to, Some(400));
 }
+
+mod hand_eval;
+mod settlement;

@@ -44,7 +44,7 @@ the rule-based NPC, all on the real code paths.
 - [x] `crypto/provider.rs` — extend the existing in-file `#[cfg(test)] mod tests`.
       If it grows past ~300 lines total, convert `provider.rs` to a
       `provider/` dir module with `provider/tests.rs`.
-- [ ] Engine hand-eval + settlement — extend `engine/tests.rs` (already a
+- [x] Engine hand-eval + settlement — extend `engine/tests.rs` (already a
       submodule). If it crosses 700 lines, split into
       `engine/tests/` with `hand_eval.rs`, `settlement.rs`, `support.rs`.
 - [ ] NPC rule-based decision — add a `#[cfg(test)] mod tests;` to
@@ -148,59 +148,59 @@ Reference surface:
   `Rank` (Two..Ace), `Suit` (Clubs/Diamonds/Hearts/Spades).
 
 ### 2.1 Test helpers
-- [ ] Add a small `eval(holes: &[Card], board: &[Card]) -> HandStrength` wrapper
+- [x] Add a small `eval(holes: &[Card], board: &[Card]) -> HandStrength` wrapper
       that unwraps the `Result` for terse assertions.
-- [ ] Optionally a `cards(&str)`-style parser is **not** required — prefer
+- [x] Optionally a `cards(&str)`-style parser is **not** required — prefer
       explicit `card(Rank::X, Suit::Y)` for readability and to match existing
       style.
 
 ### 2.2 Category detection (one positive test per category)
-- [ ] `detects_high_card`
-- [ ] `detects_one_pair`
-- [ ] `detects_two_pair`
-- [ ] `detects_three_of_a_kind`
-- [ ] `detects_straight` (e.g. 5-6-7-8-9, mixed suits)
-- [ ] `detects_flush`
-- [ ] `detects_full_house`
-- [ ] `detects_four_of_a_kind`
-- [ ] `detects_straight_flush`
+- [x] `detects_high_card`
+- [x] `detects_one_pair`
+- [x] `detects_two_pair`
+- [x] `detects_three_of_a_kind`
+- [x] `detects_straight` (e.g. 5-6-7-8-9, mixed suits)
+- [x] `detects_flush`
+- [x] `detects_full_house`
+- [x] `detects_four_of_a_kind`
+- [x] `detects_straight_flush`
 - Each asserts `category` and a sane `key_ranks[0]` (the determining rank).
 
 ### 2.3 Straight edge cases
-- [ ] `wheel_straight_ace_plays_low`: A-2-3-4-5 → `Straight` ranked as 5-high
+- [x] `wheel_straight_ace_plays_low`: A-2-3-4-5 → `Straight` ranked as 5-high
       (assert `key_ranks` reflects 5 as the top card, not Ace).
-- [ ] `broadway_straight_ace_high`: 10-J-Q-K-A → `Straight`, Ace-high.
-- [ ] `royal_flush_is_straight_flush_ace_high`: 10-J-Q-K-A suited →
+- [x] `broadway_straight_ace_high`: 10-J-Q-K-A → `Straight`, Ace-high.
+- [x] `royal_flush_is_straight_flush_ace_high`: 10-J-Q-K-A suited →
       `StraightFlush`, Ace-high.
-- [ ] `steel_wheel_straight_flush_ace_low`: A-2-3-4-5 suited → `StraightFlush`
+- [x] `steel_wheel_straight_flush_ace_low`: A-2-3-4-5 suited → `StraightFlush`
       ranked 5-high.
-- [ ] `no_false_straight_across_suits_only`: ensure a 5-card flush that is not
+- [x] `no_false_straight_across_suits_only`: ensure a 5-card flush that is not
       sequential is `Flush`, not `Straight`.
 
 ### 2.4 Best-5-of-7 selection
-- [ ] `picks_best_five_from_seven`: a 7-card pool where the naive first-5 is not
+- [x] `picks_best_five_from_seven`: a 7-card pool where the naive first-5 is not
       the best (e.g. board pairs but hole cards make a flush) → returns the flush.
-- [ ] `board_plays_when_hole_cards_are_irrelevant`: best hand lives entirely on
+- [x] `board_plays_when_hole_cards_are_irrelevant`: best hand lives entirely on
       the board; both a strong and weak hole-card pair still evaluate to the
       board hand.
-- [ ] `uses_hole_cards_to_break_into_a_better_category` (e.g. one hole card
+- [x] `uses_hole_cards_to_break_into_a_better_category` (e.g. one hole card
       completes quads / a straight).
 
 ### 2.5 Tie-breaks and ordering (`HandStrength: Ord`)
-- [ ] `category_ordering_is_correct`: assert `StraightFlush > FourOfAKind >
+- [x] `category_ordering_is_correct`: assert `StraightFlush > FourOfAKind >
       FullHouse > Flush > Straight > ThreeOfAKind > TwoPair > OnePair > HighCard`
       via constructed `HandStrength`s or evaluated hands.
-- [ ] `flush_tiebreak_by_high_cards`: two flushes, higher top card wins.
-- [ ] `full_house_tiebreak_trips_then_pair`: e.g. KKK22 beats QQQAA;
+- [x] `flush_tiebreak_by_high_cards`: two flushes, higher top card wins.
+- [x] `full_house_tiebreak_trips_then_pair`: e.g. KKK22 beats QQQAA;
       KKKQQ beats KKK22.
-- [ ] `two_pair_tiebreak_high_low_kicker`: AA992 vs AA88K etc.
-- [ ] `one_pair_tiebreak_by_kickers`: same pair, kicker order decides.
-- [ ] `high_card_tiebreak_by_full_key_ranks`.
-- [ ] `identical_hands_compare_equal` (true chop — equal `HandStrength`).
+- [x] `two_pair_tiebreak_high_low_kicker`: AA992 vs AA88K etc.
+- [x] `one_pair_tiebreak_by_kickers`: same pair, kicker order decides.
+- [x] `high_card_tiebreak_by_full_key_ranks`.
+- [x] `identical_hands_compare_equal` (true chop — equal `HandStrength`).
 
 ### 2.6 Error / boundary cases
-- [ ] `errors_on_too_few_cards`: fewer than 5 total cards → `Err(EngineError)`.
-- [ ] (If applicable) duplicate-card handling matches current behavior — assert
+- [x] `errors_on_too_few_cards`: fewer than 5 total cards → `Err(EngineError)`.
+- [x] (If applicable) duplicate-card handling matches current behavior — assert
       the existing contract rather than inventing new behavior.
 
 ---
@@ -217,39 +217,39 @@ Reference surface:
   around it).
 
 ### 3.1 Test helpers
-- [ ] Add a `strength(category, key_ranks)` builder (or reuse `evaluate_*` to
+- [x] Add a `strength(category, key_ranks)` builder (or reuse `evaluate_*` to
       produce real `HandStrength`s) so settlement tests read clearly.
-- [ ] Add a `total_payout(&SettlementResult) -> u32` helper for conservation
+- [x] Add a `total_payout(&SettlementResult) -> u32` helper for conservation
       assertions.
 
 ### 3.2 Basic payouts
-- [ ] `single_player_takes_uncontested_pot`: one contributor (or one with a hand)
+- [x] `single_player_takes_uncontested_pot`: one contributor (or one with a hand)
       receives everything.
-- [ ] `best_hand_wins_whole_pot_heads_up`.
-- [ ] `payouts_conserve_total_contributions`: assert
+- [x] `best_hand_wins_whole_pot_heads_up`.
+- [x] `payouts_conserve_total_contributions`: assert
       `sum(payouts) == sum(contributions)` in every settlement test (make this a
       shared assertion).
 
 ### 3.3 Split pots and odd chips
-- [ ] `tied_hands_split_pot_evenly`: two equal hands, even pot → equal payouts.
-- [ ] `odd_chip_goes_to_first_in_odd_chip_order`: odd total, two winners → the
+- [x] `tied_hands_split_pot_evenly`: two equal hands, even pot → equal payouts.
+- [x] `odd_chip_goes_to_first_in_odd_chip_order`: odd total, two winners → the
       extra chip goes to the player listed first in `odd_chip_order`.
-- [ ] `odd_chip_order_is_respected_for_three_way_split`.
+- [x] `odd_chip_order_is_respected_for_three_way_split`.
 
 ### 3.4 Multiple all-ins / side pots
-- [ ] `two_all_ins_create_main_and_side_pot`: short stack eligible only for the
+- [x] `two_all_ins_create_main_and_side_pot`: short stack eligible only for the
       main pot; the side pot is contested by the deeper stacks only.
-- [ ] `short_all_in_cannot_win_side_pot`: short stack has the best hand but only
+- [x] `short_all_in_cannot_win_side_pot`: short stack has the best hand but only
       wins up to the main pot; deeper stacks split/own the side pot.
-- [ ] `three_distinct_all_in_amounts_create_two_side_pots`: verify each
+- [x] `three_distinct_all_in_amounts_create_two_side_pots`: verify each
       `PotSummary` amount and eligibility.
-- [ ] `side_pot_won_by_different_player_than_main_pot`.
+- [x] `side_pot_won_by_different_player_than_main_pot`.
 
 ### 3.5 Folded contributors and edge cases
-- [ ] `folded_contributor_chips_count_but_cannot_win`: a player who contributed
+- [x] `folded_contributor_chips_count_but_cannot_win`: a player who contributed
       but has no entry in `hand_strengths_by_player_id` forfeits their chips to
       the pot without receiving a payout.
-- [ ] `empty_or_zero_contributions_behavior`: assert the current contract
+- [x] `empty_or_zero_contributions_behavior`: assert the current contract
       (e.g. empty input → empty result or `Err`) rather than guessing.
 
 ---
@@ -339,6 +339,6 @@ This is the default (non-LLM) decision used every NPC turn.
 
 ### 5.3 Priority order (recommended implementation sequence)
 1. [x] Section 1 (crypto) — highest value, lowest risk, self-contained.
-2. [ ] Section 2 (hand evaluation) — core correctness, pure function.
-3. [ ] Section 3 (settlement / side pots) — builds on Section 2 helpers.
+2. [x] Section 2 (hand evaluation) — core correctness, pure function.
+3. [x] Section 3 (settlement / side pots) — builds on Section 2 helpers.
 4. [ ] Section 4 (NPC decision) — most fixture setup; do last.
