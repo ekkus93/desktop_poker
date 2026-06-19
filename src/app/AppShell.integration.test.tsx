@@ -8,6 +8,7 @@ import {
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  addNpcPlayers,
   clientClaimLobbySeat,
   clientSetLobbyReadyState,
   getClientSessionStatus,
@@ -15,6 +16,7 @@ import {
   getHostSessionStatus,
   getDebugState,
   getTableView,
+  listNpcProfiles,
   hostClaimLobbySeat,
   leaveClientSession,
   hostSetLobbyReadyState,
@@ -46,6 +48,8 @@ vi.mock("../api/desktop", async () => {
   return {
     ...actual,
     fetchBootstrapState: vi.fn(),
+    addNpcPlayers: vi.fn(),
+    listNpcProfiles: vi.fn(),
     clientClaimLobbySeat: vi.fn(),
     clientSetLobbyReadyState: vi.fn(),
     getClientSessionStatus: vi.fn(),
@@ -70,6 +74,8 @@ vi.mock("../api/desktop", async () => {
 });
 
 const mockedFetchBootstrapState = vi.mocked(fetchBootstrapState);
+const mockedAddNpcPlayers = vi.mocked(addNpcPlayers);
+const mockedListNpcProfiles = vi.mocked(listNpcProfiles);
 const mockedClientClaimLobbySeat = vi.mocked(clientClaimLobbySeat);
 const mockedClientSetLobbyReadyState = vi.mocked(clientSetLobbyReadyState);
 const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
@@ -258,6 +264,9 @@ describe("AppShell integration", () => {
     currentHostSession = null;
     currentClientSession = null;
     mockedFetchBootstrapState.mockReset();
+    mockedAddNpcPlayers.mockReset();
+    mockedListNpcProfiles.mockReset();
+    mockedListNpcProfiles.mockResolvedValue([]);
     mockedClientClaimLobbySeat.mockReset();
     mockedClientSetLobbyReadyState.mockReset();
     mockedGetClientSessionStatus.mockReset();
@@ -294,6 +303,28 @@ describe("AppShell integration", () => {
         displayName: request.displayName,
       });
       return currentHostSession;
+    });
+    mockedAddNpcPlayers.mockImplementation(async ({ npcs }) => {
+      if (!currentHostSession) {
+        throw new Error("No active host session");
+      }
+
+      // Seat each NPC right after the host, mirroring how the backend assigns
+      // `npc-seat-{index}` ids and marks NPCs ready.
+      const npcParticipants = npcs.map((npc, index) => ({
+        playerId: `npc-seat-${index + 1}`,
+        displayName: npc.displayName,
+        seatIndex: index + 1,
+        isHost: false,
+        isReady: true,
+        connectionState: "connected",
+        participantState: "seated",
+      }));
+      syncLiveSessions([
+        ...currentHostSession.participants,
+        ...npcParticipants,
+      ]);
+      return currentHostSession as NonNullable<typeof currentHostSession>;
     });
     mockedJoinHostSession.mockImplementation(async () => {
       currentClientSession = buildClientSessionStatus();
@@ -484,6 +515,60 @@ describe("AppShell integration", () => {
     expect(await screen.findByText("Seat 1")).toBeTruthy();
     expect(await screen.findByText("Seat 6")).toBeTruthy();
     expect(screen.getAllByText("Friday Finals").length).toBeGreaterThan(0);
+  });
+
+  it("hosts a table with one human and one NPC and shows both seats in the lobby", async () => {
+    renderAppShell("/");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: "Host Tournament" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "Host Tournament Setup",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Tournament name"), {
+      target: { value: "Heads-Up vs Bot" },
+    });
+
+    // Compose a "1 human (host) + 1 NPC" table.
+    fireEvent.change(await screen.findByLabelText(/npc players/i), {
+      target: { value: "1" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
+
+    await waitFor(() => {
+      expect(mockedStartHostSession).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(mockedAddNpcPlayers).toHaveBeenCalledTimes(1);
+    });
+    const npcRequest = mockedAddNpcPlayers.mock.calls[0][0];
+    expect(npcRequest.npcs).toHaveLength(1);
+    expect(npcRequest.npcs[0].displayName).toBe("Bot Alpha");
+
+    fireEvent.click(
+      await screen.findByRole("link", { name: "Continue to lobby" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeTruthy();
+
+    // Both the human host and the single NPC are seated in the live lobby.
+    expect((await screen.findAllByText("You")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("Bot Alpha")).toBeTruthy();
+    expect(screen.getByText("(AI) · Always ready")).toBeTruthy();
+
+    // The NPC is auto-ready, so only the human host counts as still waiting.
+    expect(await screen.findByText("1 waiting")).toBeTruthy();
   });
 
   it("keeps a join flow in the lobby until a real table is running", async () => {

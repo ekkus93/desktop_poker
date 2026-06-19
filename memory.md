@@ -561,3 +561,24 @@
 - LLM-enhanced reasoning (optional, timeout-based)
 - Tilt mechanic for opponent tracking
 - Never blocks hands on LLM failure
+
+## 2026-06-19T07:15:29Z - Claude Opus 4.8 - Fixed broken NPC integration test (frontend -> Rust)
+
+- A prior Copilot session left broken work in the tree/history. Findings:
+  - `src/app/NpcGame.integration.test.tsx` (committed in 23f4617 under a "docs" message) did `new TournamentController(...)` on the frontend. `TournamentController` is a Rust backend type — not exported from `src/api/desktop.ts` — so `new undefined()` threw and 5 tests failed. This broke CI on master (red).
+  - Uncommitted working-tree edits to `src-tauri/src/app_state/mod.rs` rewrote the live-session test with `Instant::now() < Instant::now() + timeout` guards (always true -> unbounded busy-spin, reintroducing the CI-hang risk) and event-feed-growth detection that raced the Running-state assertion; the test failed at mod.rs:4071. `src-tauri/src/tournament/mod.rs` removed the `BetweenHands` early-return guard in `refresh_action_window` (unbacked production change).
+- Fix:
+  - Reverted `app_state/mod.rs` and `tournament/mod.rs` to committed state (live test passes again).
+  - Replaced `NpcGame.integration.test.tsx` with a pointer comment + `it.todo` explaining the test lives in Rust (frontend must not own gameplay logic; no mock-only Tauri tests).
+  - Added real integration test `tests::npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime` in `src-tauri/src/networking/runtime.rs`: human = real TCP client (seat 0), NPC = production `start_npc_runner` with `profile: None` (deterministic rule-based, no LLM) on seat 1. Drives a full hand off the host's authoritative state; asserts the NPC took a runner-driven action, a hand reached a result, and chips are conserved (sum of `final_stack_by_player_id` == starting_stack*2). Stable across 5 runs (~3.5s).
+- Fixed latent multi-NPC bug: `register_npc_participant` hardcoded signing key "npc", and `validate_tournament_state` rejects duplicate signing keys at start — so seating 2+ NPCs hit "duplicate signing key binding detected". NPC placeholder keys are now derived from the unique player_id (`npc-signing-{player_id}`, `npc-encryption-{player_id}`, `npc-fingerprint-{player_id}`). Nothing identifies NPCs by key value (only `is_npc_player_id` prefix), so safe. Added regression test `tests::two_npcs_can_be_seated_with_distinct_keys_and_start_a_tournament`.
+- Full suite green: Rust 273 passed / 0 failed / 2 ignored; frontend 210 passed / 1 todo; clippy, rustfmt, eslint, prettier all clean.
+- Reverted the Copilot `.github/copilot-instructions.md` edit at user request. Untracked `docs/TABLEVIEWSNAPSHOT1_TODO.md` left in place.
+
+## 2026-06-19T07:39:56Z - Claude Opus 4.8 - Implemented the frontend NPC-game integration todo
+
+- Replaced the `NpcGame.integration.test.tsx` `it.todo` placeholder with real coverage instead of a stub. Audited existing tests first: the host add-NPC payload (`HostTournamentSetupScreen.test.tsx`) and the lobby `(AI) · Always ready` projection (`TournamentLobbyScreen.test.tsx`) were already covered in isolation. The genuine gap was the end-to-end flow tying them together.
+- Added `tests` in `src/app/AppShell.integration.test.tsx`: "hosts a table with one human and one NPC and shows both seats in the lobby" — drives the real AppShell Home -> Host Setup (npcCount=1) -> Start hosting -> Continue to lobby, asserts `addNpcPlayers` called with exactly one NPC ("Bot Alpha"), and that the lobby shows the human host ("You"), the NPC ("Bot Alpha" / "(AI) · Always ready"), and "1 waiting" (NPC auto-ready, not counted). Extended that file's mock surface with `addNpcPlayers` (injects an `npc-seat-{n}` participant via `syncLiveSessions`) and `listNpcProfiles`.
+- Deleted `src/app/NpcGame.integration.test.tsx` (a `*.test.tsx` with no tests fails Vitest). Its pointer role is now covered by the descriptive AppShell test name + the Rust `npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime`.
+- Reason for not adding a frontend "plays a hand" test: gameplay is backend-only; the frontend owns no `TournamentController`, and mock-only Tauri assertions are disallowed. Frontend value = the host->lobby composition flow; gameplay value = the Rust runtime test.
+- Green: frontend 211 passed (was 210 + 1 todo); AppShell file 36/36; eslint + prettier clean. Rust unchanged (273 passed / 2 ignored).
