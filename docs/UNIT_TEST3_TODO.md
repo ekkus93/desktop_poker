@@ -47,7 +47,7 @@ the rule-based NPC, all on the real code paths.
 - [x] Engine hand-eval + settlement — extend `engine/tests.rs` (already a
       submodule). If it crosses 700 lines, split into
       `engine/tests/` with `hand_eval.rs`, `settlement.rs`, `support.rs`.
-- [ ] NPC rule-based decision — add a `#[cfg(test)] mod tests;` to
+- [x] NPC rule-based decision — add a `#[cfg(test)] mod tests;` to
       `npc/runner/decision.rs` (it has none today), or a `decision/tests.rs`
       submodule. `rule_based_decision` is `pub(crate)`, reachable from a child
       test module via `use super::*`.
@@ -269,54 +269,54 @@ rule_based_decision(
 This is the default (non-LLM) decision used every NPC turn.
 
 ### 4.1 Test setup
-- [ ] Add a `#[cfg(test)] mod tests;` (or inline module) to
+- [x] Add a `#[cfg(test)] mod tests;` (or inline module) to
       `npc/runner/decision.rs`; access `rule_based_decision` via `use super::*`.
-- [ ] Build a **minimal `TournamentState` fixture** sufficient for the function
+- [x] Build a **minimal `TournamentState` fixture** sufficient for the function
       (inspect exactly which fields `rule_based_decision` reads from `state` and
       populate only those; reuse existing tournament/state fixtures if one fits).
-- [ ] Add a `decide(...)` helper with sensible defaults so each test overrides
+- [x] Add a `decide(...)` helper with sensible defaults so each test overrides
       only the inputs it cares about (style, hole cards, call_amount, stack,
       facing_bet, legal_actions, seed).
 
 ### 4.2 Legality invariants (highest value — property style)
-- [ ] `never_returns_an_action_outside_legal_actions`: across a matrix of inputs
+- [x] `never_returns_an_action_outside_legal_actions`: across a matrix of inputs
       (vary street, facing_bet, hand strength, stack), the returned
       `ActionType` is always contained in `legal_actions`.
-- [ ] `raise_amount_within_min_and_max_when_raising`: whenever the action is
+- [x] `raise_amount_within_min_and_max_when_raising`: whenever the action is
       `Bet`/`Raise`, the returned `Some(amount)` satisfies
       `min_raise_to <= amount <= max_raise_to`.
-- [ ] `no_raise_amount_when_not_raising`: fold/check/call return `None` (or the
+- [x] `no_raise_amount_when_not_raising`: fold/check/call return `None` (or the
       documented value) for the amount.
-- [ ] `does_not_raise_when_raise_is_not_legal`: with `legal_actions` excluding
+- [x] `does_not_raise_when_raise_is_not_legal`: with `legal_actions` excluding
       `Raise`/`Bet`, the function never returns a raise.
 
 ### 4.3 Hand-strength behavior
-- [ ] `folds_trash_facing_a_bet`: weak hand (e.g. 7♣2♦) + `facing_bet=true` +
+- [x] `folds_trash_facing_a_bet`: weak hand (e.g. 7♣2♦) + `facing_bet=true` +
       `Fold` legal → returns `Fold`.
-- [ ] `does_not_fold_when_checking_is_free`: `call_amount == 0` → never folds
+- [x] `does_not_fold_when_checking_is_free`: `call_amount == 0` → never folds
       (returns `Check`/`Bet`, not `Fold`).
-- [ ] `raises_or_bets_premium_hand_when_allowed`: e.g. A♠A♥ preflop with raise
+- [x] `raises_or_bets_premium_hand_when_allowed`: e.g. A♠A♥ preflop with raise
       legal → `Bet`/`Raise`.
-- [ ] `calls_or_checks_medium_hand` (documents the medium-strength branch).
+- [x] `calls_or_checks_medium_hand` (documents the medium-strength branch).
 
 ### 4.4 Stack / position behavior
-- [ ] `short_stack_shoves_when_appropriate`: small `stack` relative to blinds →
+- [x] `short_stack_shoves_when_appropriate`: small `stack` relative to blinds →
       `AllIn` (or call-all-in) per the implemented short-stack rule.
-- [ ] `position_influences_aggression` if the implementation uses
+- [x] `position_influences_aggression` if the implementation uses
       `derive_position(npc_seat, dealer_seat, active_count)` — assert the
       documented late- vs early-position difference (only if such a branch
       exists; otherwise note "no positional branch" and skip).
 
 ### 4.5 Style differences
-- [ ] `aggressive_style_bets_more_often_than_conservative`: same hand/board/seed,
+- [x] `aggressive_style_bets_more_often_than_conservative`: same hand/board/seed,
       `NpcStyle::Aggressive` vs `NpcStyle::Conservative` → aggressive chooses a
       raise/bet at least as often (assert the concrete divergence on a chosen
       borderline hand).
 
 ### 4.6 Determinism
-- [ ] `same_inputs_and_seed_produce_same_decision`: calling twice with identical
+- [x] `same_inputs_and_seed_produce_same_decision`: calling twice with identical
       args (including `seed`) returns identical `(ActionType, Option<u32>)`.
-- [ ] `different_seeds_can_diverge_on_mixed_strategy_spots` (only assert this if
+- [x] `different_seeds_can_diverge_on_mixed_strategy_spots` (only assert this if
       the implementation actually randomizes; otherwise document determinism).
 
 ---
@@ -341,4 +341,4 @@ This is the default (non-LLM) decision used every NPC turn.
 1. [x] Section 1 (crypto) — highest value, lowest risk, self-contained.
 2. [x] Section 2 (hand evaluation) — core correctness, pure function.
 3. [x] Section 3 (settlement / side pots) — builds on Section 2 helpers.
-4. [ ] Section 4 (NPC decision) — most fixture setup; do last.
+4. [x] Section 4 (NPC decision) — most fixture setup; do last.
