@@ -609,3 +609,11 @@
 - Tests -> tournament/tests/: support.rs + progression.rs + endgame.rs.
 - Gotcha: `use super::super::*` (grandchild test files) does NOT pull in mod.rs's private `use crate::domain::{...}` aliases the way the original direct-child `use super::*` did, so test headers needed explicit `use crate::domain::*; use crate::engine::Deck;`.
 - Verified: clippy -D warnings clean, rustfmt clean, 11 tournament engine tests pass. (A `tournament::` test-filter also matches networking's npc_opponent test, which is the known load-flaky one — unrelated.)
+
+## (App.css split) - Claude Opus 4.8 - Split App.css (2040 lines) into a styles/ barrel
+
+- Split the 2040-line src/App.css into 4 files under src/styles/ by CONTIGUOUS rule ranges (no reordering -> cascade order preserved): 01-base.css (542; :root vars, reset, shells, frame/topbar/sidebar/nav, badges/buttons), 02-layout.css (440; grids/stations), 03-panels.css (499; host setup/summary panels + first @media), 04-table.css (559; dense table + all responsive @media). Cut points were col-0 top-level rule starts outside any @media block.
+- App.css is now a 7-line barrel of `@import "./styles/0X-*.css"` in cascade order. Both App.tsx and LayoutProbeApp.tsx still `import "./App.css"`. Vite bundles the @imports in order (verified: build OK, single 28kB CSS chunk).
+- Updated src/screens/LayoutContracts.test.tsx: it used to fs.readFileSync("src/App.css") and regex-assert rules; now it reads+concatenates src/styles/*.css sorted (numeric prefix = cascade order).
+- Verified: npm run build OK, eslint clean, prettier clean, full vitest suite 211 passed (incl. LayoutContracts 7/7).
+- Remaining >700: AppShell.integration.test.tsx (~2000), MainTableScreen.tsx (858), engine/mod.rs (853), protocol/models.rs (708).

@@ -45,10 +45,16 @@ const mockedValidateJoinPayloadInput = vi.mocked(validateJoinPayloadInput);
 const mockedGetTableView = vi.mocked(getTableView);
 const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
 const mockedOnTableUpdate = vi.mocked(onTableUpdate);
-const appCss = fs.readFileSync(
-  path.resolve(process.cwd(), "src/App.css"),
-  "utf8",
-);
+// App.css is a barrel of @imports; the rules live in src/styles/. Read them in
+// cascade order (filenames are numeric-prefixed) and join to reconstruct the
+// full stylesheet these contracts assert against.
+const styleDir = path.resolve(process.cwd(), "src/styles");
+const appCss = fs
+  .readdirSync(styleDir)
+  .filter((file) => file.endsWith(".css"))
+  .sort()
+  .map((file) => fs.readFileSync(path.join(styleDir, file), "utf8"))
+  .join("\n");
 
 describe("Layout contracts", () => {
   beforeEach(() => {
