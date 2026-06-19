@@ -617,3 +617,11 @@
 - Updated src/screens/LayoutContracts.test.tsx: it used to fs.readFileSync("src/App.css") and regex-assert rules; now it reads+concatenates src/styles/*.css sorted (numeric prefix = cascade order).
 - Verified: npm run build OK, eslint clean, prettier clean, full vitest suite 211 passed (incl. LayoutContracts 7/7).
 - Remaining >700: AppShell.integration.test.tsx (~2000), MainTableScreen.tsx (858), engine/mod.rs (853), protocol/models.rs (708).
+
+## (AppShell test split) - Claude Opus 4.8 - Split AppShell.integration.test.tsx (1959 lines)
+
+- Split the last oversized file. Extracted the shared harness (vi.mock factory's 25 mocked refs, module state, builders, renderAppShell, the 180-line beforeEach) into src/app/appShellHarness.tsx (475), exposing a single namespace object `h` (so each test file needs one import). Mutable state (currentHostSession/currentClientSession/bootstrapSubscriptionHandler) wrapped in `h.ctx` since module-level `let` can't be reassigned across imports.
+- The `vi.mock("../api/desktop", ...)` factory stays duplicated per test file (Vitest hoists vi.mock per-file; the test file's hoisted mock registers before it imports the harness, so the harness's `vi.mocked(...)` refs resolve to mocks).
+- Tests -> 3 files: AppShell.host (host/lobby), AppShell.session (client/routing), AppShell.table (table/debug), 12 tests each, all <700. Test bodies reference harness symbols via `h.` (h.renderAppShell, h.mockedX, h.ctx.currentHostSession, h.syncLiveSessions, h.buildHostSessionStatus, etc.).
+- Verified: tsc build clean, eslint clean, prettier clean, all 36 AppShell tests pass across the 3 files, full frontend suite 211 passed (28 files).
+- ALL 8 oversized files now <700: runtime.rs, app_state/mod.rs, tournament/mod.rs, App.css, protocol/models.rs, engine/mod.rs, MainTableScreen.tsx, AppShell.integration.test.tsx. Largest remaining code files are now comfortably under 700.
