@@ -21,18 +21,22 @@ use crate::{
 };
 
 mod client;
+mod client_connect;
 mod events;
 mod handlers;
 mod host;
 mod host_broadcast;
+mod host_session;
 mod lobby;
 mod reconnect;
 mod snapshot;
 
 // Re-export the moved free functions so the rest of the `runtime` module (and
 // its tests) keeps the original flat namespace.
+pub(crate) use client_connect::*;
 pub(crate) use events::*;
 pub(crate) use handlers::*;
+pub(crate) use host_session::*;
 pub(crate) use lobby::*;
 pub(crate) use reconnect::*;
 pub(crate) use snapshot::*;
@@ -116,7 +120,7 @@ pub(crate) struct InitialRequestAcceptance {
 }
 
 #[derive(Debug)]
-struct ClientReconnectIdentity {
+pub(crate) struct ClientReconnectIdentity {
     signing_keys: Option<SigningKeyMaterial>,
     encryption_keys: Option<EncryptionKeyMaterial>,
 }

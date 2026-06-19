@@ -14,6 +14,7 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { ScreenShell } from "./ScreenShell";
 import { PlayingCard, SeatCard } from "./MainTableCards";
+import { TableSidePanel } from "./MainTableSidePanel";
 import {
   buildQuickSizes,
   defaultRaiseAmount,
@@ -27,7 +28,6 @@ const TABLE_POLL_NORMAL_MS = 5000;
 const TABLE_POLL_SLOW_MS = 10000;
 const POLL_BACKOFF_THRESHOLD = 3;
 const POLL_ERROR_LIMIT = 10;
-const EVENT_FEED_CAP = 50;
 
 export function MainTableScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
@@ -611,80 +611,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
             </div>
 
             {tableSidePanelOpen ? (
-              <aside className="table-side-panel">
-                <SectionCard kicker="Standings" title="Chip order">
-                  <div className="stacked-list" id="standings-panel">
-                    {tableView.standings.map((entry) => (
-                      <article
-                        key={`${entry.rank}-${entry.displayName}`}
-                        className="list-panel standings-row"
-                      >
-                        <div>
-                          <strong>
-                            #{entry.rank}{" "}
-                            {entry.isLocal
-                              ? `${displayName} (you)`
-                              : entry.displayName}
-                          </strong>
-                          <p className="field-hint">
-                            {entry.isObserver
-                              ? entry.statusLabel
-                              : `${entry.chipCount ?? 0} chips`}
-                          </p>
-                          {entry.note ? (
-                            <p className="field-hint">{entry.note}</p>
-                          ) : null}
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                </SectionCard>
-
-                <SectionCard kicker="Table feed" title="Latest public events">
-                  <div className="stacked-list event-feed-list">
-                    {tableView.eventFeed.slice(-EVENT_FEED_CAP).map((event) => (
-                      <article
-                        key={event.sequence}
-                        className="list-panel history-row"
-                      >
-                        <div>
-                          <strong>{event.kind}</strong>
-                          <p className="field-hint">{event.message}</p>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                  {tableView.eventFeed.length > EVENT_FEED_CAP ? (
-                    <p className="field-hint">
-                      Showing last {EVENT_FEED_CAP} events.
-                    </p>
-                  ) : null}
-                </SectionCard>
-
-                <SectionCard kicker="History" title="Latest settled hands">
-                  <div className="stacked-list">
-                    {tableView.handHistory.length > 0 ? (
-                      tableView.handHistory.map((entry) => (
-                        <article
-                          key={entry.handNumber}
-                          className="list-panel history-row"
-                        >
-                          <div>
-                            <strong>Hand {entry.handNumber}</strong>
-                            <p className="field-hint">{entry.summary}</p>
-                            <p className="field-hint">
-                              Pot {entry.potTotal} · Winners:{" "}
-                              {entry.winningPlayers.join(", ")}
-                            </p>
-                          </div>
-                        </article>
-                      ))
-                    ) : (
-                      <p className="field-hint">No settled hands yet.</p>
-                    )}
-                  </div>
-                </SectionCard>
-              </aside>
+              <TableSidePanel tableView={tableView} displayName={displayName} />
             ) : null}
           </div>
         ) : null}

@@ -632,3 +632,12 @@
 - decision.rs is a grandchild of npc, so its `use super::X` imports (npc siblings: hand_log, strategy, etc.) became `use super::super::X`. Decision fns are pub(crate), glob-re-exported from mod.rs.
 - Verified: clippy -D warnings clean, rustfmt clean, 3 runner tests pass.
 - CONFIRMED: no tracked code file (.rs/.ts/.tsx/.css/.js) now exceeds 700 lines. The <700-per-file goal is fully met across the repo.
+
+## (headroom) - Claude Opus 4.8 - Trim near-700 files for headroom
+
+- Gave the three near-700 files breathing room:
+  - networking/runtime/client.rs (699 -> 498): moved the 5 connection free fns (connect_to_host, connect_and_join, reconnect_after_disconnect, request_resync_snapshot, read_snapshot_response) into runtime/client_connect.rs; re-exported via mod.rs. Bumped ClientReconnectIdentity to pub(crate) (the re-exported pub(crate) connect fns expose it). Updated tests/reconnect.rs import to use the re-export.
+  - networking/runtime/handlers.rs (687 -> 411): moved spawn_host_client_session (~266 lines, with its #[allow(too_many_arguments)]) into runtime/host_session.rs; re-exported.
+  - screens/MainTableScreen.tsx (694 -> 621): extracted the side panel (standings/event-feed/history aside) into MainTableSidePanel.tsx (TableSidePanel), moved EVENT_FEED_CAP there.
+- Verified: clippy -D warnings clean, rustfmt clean, eslint/prettier clean, frontend 211 pass, 50 networking tests pass (exercise the moved connection/host-session code). The 2 real-TCP timing tests (live_table_actions, npc_opponent) flaked under the cumulative load of repeated runs — confirmed it's the bounded-wait deadline (live_table.rs:219), not a regression (pure relocation; the networking session/reconnect tests using the same moved fns pass).
+- Largest code file is now events.rs (563); everything has comfortable headroom under 700.

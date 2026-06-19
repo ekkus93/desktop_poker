@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use super::super::client::{connect_and_join, reconnect_after_disconnect};
+use super::super::{connect_and_join, reconnect_after_disconnect};
 use super::super::{handle_reconnect_request, ClientReconnectIdentity};
 use crate::{
     crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
