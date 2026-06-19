@@ -6,7 +6,6 @@ import {
   onTableUpdate,
   submitTableAction,
   type DesktopTableActionKind,
-  type TableCardView,
   type TableViewSnapshot,
   type TableViewerMode,
 } from "../api/desktop";
@@ -14,6 +13,13 @@ import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { ScreenShell } from "./ScreenShell";
+import { PlayingCard, SeatCard } from "./MainTableCards";
+import {
+  buildQuickSizes,
+  defaultRaiseAmount,
+  getErrorMessage,
+  isWithinRaiseBounds,
+} from "./mainTableRaise";
 import type { ScreenProps } from "./types";
 
 const BOARD_SLOT_COUNT = 5;
@@ -437,73 +443,13 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 )}
 
                 <div className="seat-grid enhanced-seat-grid">
-                  {tableView.seats.map((seat) => {
-                    const seatLabel = seat.isLocal
-                      ? `${displayName} (you)`
-                      : seat.displayName;
-                    return (
-                      <article
-                        key={seat.seatIndex}
-                        className={`seat-card enhanced-seat-card ${seat.isLocal ? "local-seat" : ""} ${seat.isActing ? "action-seat" : ""} ${seat.isObserver ? "observer-seat" : ""} ${seat.isEliminated ? "eliminated-seat" : ""} ${seat.isCompact ? "compact-seat" : ""}`}
-                      >
-                        <div className="seat-card-header">
-                          <div>
-                            <strong>Seat {seat.seatIndex}</strong>
-                            <span>{seatLabel}</span>
-                          </div>
-                          {seat.markerLabel ? (
-                            <StatusBadge>{seat.markerLabel}</StatusBadge>
-                          ) : null}
-                        </div>
-                        <p className="seat-status-line">
-                          <span>{seat.statusLabel}</span>
-                          {seat.chipCount !== null ? (
-                            <span>{seat.chipCount} chips</span>
-                          ) : null}
-                        </p>
-                        <p className="seat-detail">
-                          {seat.isObserver
-                            ? "Watching public action"
-                            : seat.isEliminated
-                              ? "Eliminated from this hand"
-                              : `In for ${seat.contribution}`}
-                        </p>
-                        <div
-                          className={`seat-card-grid ${seat.isLocal ? "show-local-cards" : ""}`}
-                        >
-                          {seat.cardsHidden ? (
-                            <div
-                              className="hidden-card-row"
-                              aria-label={`Seat ${seat.seatIndex} hidden cards`}
-                            >
-                              <HiddenCard />
-                              <HiddenCard />
-                            </div>
-                          ) : (
-                            <div
-                              className="seat-hole-cards"
-                              aria-label={`Seat ${seat.seatIndex} hole cards`}
-                            >
-                              {seat.holeCards.map((card) => (
-                                <PlayingCard
-                                  key={card.compactLabel}
-                                  card={card}
-                                  size={seat.isLocal ? "local" : "compact"}
-                                />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="seat-notes-inline" role="note">
-                          {seat.detailLines.slice(0, 1).map((line) => (
-                            <p key={line} className="field-hint">
-                              {line}
-                            </p>
-                          ))}
-                        </div>
-                      </article>
-                    );
-                  })}
+                  {tableView.seats.map((seat) => (
+                    <SeatCard
+                      key={seat.seatIndex}
+                      seat={seat}
+                      displayName={displayName}
+                    />
+                  ))}
                 </div>
               </section>
 
@@ -745,114 +691,4 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
       </div>
     </ScreenShell>
   );
-}
-
-type PlayingCardProps = {
-  card: TableCardView | null;
-  placeholderAriaLabel?: string;
-  size: "board" | "local" | "compact";
-};
-
-function PlayingCard({ card, placeholderAriaLabel, size }: PlayingCardProps) {
-  if (!card) {
-    return (
-      <div
-        aria-label={placeholderAriaLabel}
-        className={`card-slot ${size} empty-card-slot`}
-        role="img"
-      />
-    );
-  }
-
-  const cornerRank = card.compactLabel.replace(card.suitSymbol, "");
-
-  return (
-    <div
-      className={`playing-card ${size} ${card.tone}`}
-      aria-label={card.label}
-    >
-      <div className="playing-card-corner top-left">
-        <span>{card.compactLabel}</span>
-        <small>{card.suitSymbol}</small>
-      </div>
-      <div className="playing-card-center" aria-hidden="true">
-        <span>{card.suitSymbol}</span>
-      </div>
-      <div className="playing-card-corner bottom-right">
-        <span>{cornerRank}</span>
-        <small>{card.suitSymbol}</small>
-      </div>
-    </div>
-  );
-}
-
-function HiddenCard() {
-  return <div className="hidden-card" aria-hidden="true" />;
-}
-
-function buildQuickSizes(
-  actionTray: TableViewSnapshot["actionTray"] | undefined,
-) {
-  if (
-    !actionTray ||
-    actionTray.minRaiseTo === null ||
-    actionTray.maxRaiseTo === null
-  ) {
-    return [];
-  }
-
-  return [
-    {
-      label: "Min",
-      amount: clampRaiseAmount(actionTray.minRaiseTo, actionTray),
-    },
-    {
-      label: "1/2 Pot",
-      amount: clampRaiseAmount(Math.round(actionTray.potTotal / 2), actionTray),
-    },
-    { label: "Pot", amount: clampRaiseAmount(actionTray.potTotal, actionTray) },
-    {
-      label: "Max",
-      amount: clampRaiseAmount(actionTray.maxRaiseTo, actionTray),
-    },
-  ];
-}
-
-function clampRaiseAmount(
-  amount: number,
-  actionTray: NonNullable<TableViewSnapshot["actionTray"]>,
-) {
-  if (actionTray.minRaiseTo === null || actionTray.maxRaiseTo === null) {
-    return amount;
-  }
-
-  return Math.min(
-    actionTray.maxRaiseTo,
-    Math.max(actionTray.minRaiseTo, amount),
-  );
-}
-
-function defaultRaiseAmount(
-  actionTray: NonNullable<TableViewSnapshot["actionTray"]>,
-) {
-  return (
-    actionTray.minRaiseTo ?? actionTray.maxRaiseTo ?? actionTray.currentBet
-  );
-}
-
-function isWithinRaiseBounds(
-  amount: number,
-  actionTray: NonNullable<TableViewSnapshot["actionTray"]>,
-) {
-  if (actionTray.minRaiseTo === null || actionTray.maxRaiseTo === null) {
-    return false;
-  }
-
-  return amount >= actionTray.minRaiseTo && amount <= actionTray.maxRaiseTo;
-}
-
-function getErrorMessage(caughtError: unknown) {
-  return caughtError instanceof Error
-    ? caughtError.message
-    : "Unknown table error";
 }
