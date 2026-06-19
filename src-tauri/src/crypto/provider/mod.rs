@@ -228,26 +228,4 @@ fn decode_exact<const N: usize>(encoded: &str, label: &str) -> Result<[u8; N], P
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{derive_chacha_key, DefaultCryptoProvider, ProtocolCryptoProvider};
-
-    #[test]
-    fn fingerprints_are_16_hex_chars() {
-        let provider = DefaultCryptoProvider;
-        let signing_keys = provider.generate_signing_keypair();
-
-        assert_eq!(signing_keys.key_id().len(), 16);
-    }
-
-    #[test]
-    fn chacha_key_derivation_matches_android_hkdf_contract() {
-        let shared_secret: Vec<u8> = (0_u8..32).collect();
-
-        let derived_key = derive_chacha_key(&shared_secret);
-
-        assert_eq!(
-            hex::encode(derived_key),
-            "10525480707918b34d47aacb80882368c9a76ff98040097de3aadd17687de844"
-        );
-    }
-}
+mod tests;
