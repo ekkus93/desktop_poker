@@ -28,31 +28,31 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Identify the canonical frontend event currently used for bootstrap updates.
-- [ ] Identify the backend event currently emitted after LLM provider save/clear.
-- [ ] Replace split event names with one canonical event: `desktop://bootstrap`.
-- [ ] Ensure backend emits a refreshed `DesktopBootstrapState` payload, not `()`.
-- [ ] Ensure frontend subscription consumes the payload and updates bootstrap context.
-- [ ] Update backend `bootstrap()` command so it does not return stale provider fields.
-- [ ] Recompute or refresh:
-  - [ ] `llmApiKeyConfigured`
-  - [ ] `llmProviderType`
-- [ ] Ensure saving provider config updates UI without restart.
-- [ ] Ensure clearing provider config updates UI without restart.
-- [ ] Do not ignore event emit failure on this critical path.
+- [x] Identify the canonical frontend event currently used for bootstrap updates.
+- [x] Identify the backend event currently emitted after LLM provider save/clear.
+- [x] Replace split event names with one canonical event: `desktop://bootstrap`.
+- [x] Ensure backend emits a refreshed `DesktopBootstrapState` payload, not `()`.
+- [x] Ensure frontend subscription consumes the payload and updates bootstrap context.
+- [x] Update backend `bootstrap()` command so it does not return stale provider fields.
+- [x] Recompute or refresh:
+  - [x] `llmApiKeyConfigured`
+  - [x] `llmProviderType`
+- [x] Ensure saving provider config updates UI without restart.
+- [x] Ensure clearing provider config updates UI without restart.
+- [x] Do not ignore event emit failure on this critical path.
 
 ### Tests
 
-- [ ] Add/update frontend test: provider save event refreshes bootstrap state.
-- [ ] Add/update frontend test: provider clear event refreshes bootstrap state.
-- [ ] Add/update Rust test: bootstrap command reflects live provider config after save.
-- [ ] Add/update Rust test: bootstrap command reflects live provider config after clear.
+- [x] Add/update frontend test: provider save event refreshes bootstrap state.
+- [x] Add/update frontend test: provider clear event refreshes bootstrap state.
+- [x] Add/update Rust test: bootstrap command reflects live provider config after save.
+- [x] Add/update Rust test: bootstrap command reflects live provider config after clear.
 
 ### Acceptance
 
-- [ ] `npm run test` passes.
-- [ ] `npm run build` passes.
-- [ ] Settings UI does not require restart to reflect provider status.
+- [x] `npm run test` passes.
+- [x] `npm run build` passes.
+- [x] Settings UI does not require restart to reflect provider status.
 
 ---
 
@@ -72,24 +72,24 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find all places that load an explicit NPC profile by `profile_id`.
-- [ ] Remove `.ok()`, `unwrap_or_default`, or generic `None` fallback for explicit selected profiles.
-- [ ] Return a structured error when explicit profile load fails.
-- [ ] Make sure the NPC is not added when its explicit profile fails to load.
-- [ ] Keep unprofiled/generic NPCs allowed only when no explicit profile was requested.
-- [ ] Make the frontend display the profile load error clearly.
+- [x] Find all places that load an explicit NPC profile by `profile_id`.
+- [x] Remove `.ok()`, `unwrap_or_default`, or generic `None` fallback for explicit selected profiles.
+- [x] Return a structured error when explicit profile load fails.
+- [x] Make sure the NPC is not added when its explicit profile fails to load.
+- [x] Keep unprofiled/generic NPCs allowed only when no explicit profile was requested.
+- [x] Make the frontend display the profile load error clearly.
 
 ### Tests
 
 - [ ] Rust test: valid explicit profile creates profiled NPC.
-- [ ] Rust test: missing explicit profile returns error and creates no NPC.
-- [ ] Rust test: corrupt explicit profile returns error and creates no NPC.
-- [ ] Frontend test: NPC add profile error is visible and does not imply success.
+- [x] Rust test: missing explicit profile returns error and creates no NPC.
+- [x] Rust test: corrupt explicit profile returns error and creates no NPC.
+- [x] Frontend test: NPC add profile error is visible and does not imply success.
 
 ### Acceptance
 
-- [ ] No selected profile silently becomes generic.
-- [ ] Error message identifies the failed profile enough to diagnose it.
+- [x] No selected profile silently becomes generic.
+- [x] Error message identifies the failed profile enough to diagnose it.
 
 ---
 
@@ -107,27 +107,27 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find where NPC runtime maps `player_id` / seat to `npc_configs`.
-- [ ] Remove fallback equivalent to `npc_configs.first()`.
-- [ ] Add a stable mapping:
-  - [ ] by explicit `player_id`, or
-  - [ ] by explicit `seat_index`, or
-  - [ ] by stored `HashMap<PlayerId, NpcPlayerConfig>`.
-- [ ] Ensure each created NPC has exactly one matching config.
-- [ ] If mapping is missing, record/return a visible error.
-- [ ] Make sure multiple NPCs keep distinct names, styles, and profiles.
+- [x] Find where NPC runtime maps `player_id` / seat to `npc_configs`.
+- [x] Remove fallback equivalent to `npc_configs.first()`.
+- [x] Add a stable mapping:
+  - [x] by explicit `player_id`, or
+  - [x] by explicit `seat_index`, or
+  - [x] by stored `HashMap<PlayerId, NpcPlayerConfig>`.
+- [x] Ensure each created NPC has exactly one matching config.
+- [x] If mapping is missing, record/return a visible error.
+- [x] Make sure multiple NPCs keep distinct names, styles, and profiles.
 
 ### Tests
 
 - [ ] Rust test: two NPCs with different profiles keep correct profiles.
-- [ ] Rust test: two NPCs with different styles keep correct styles.
+- [x] Rust test: two NPCs with different styles keep correct styles.
 - [ ] Rust test: missing mapping does not fall back to first config.
-- [ ] Integration test if available: host with multiple NPCs and inspect/debug identities.
+- [x] Integration test if available: host with multiple NPCs and inspect/debug identities.
 
 ### Acceptance
 
-- [ ] No profile/style shifting between NPCs.
-- [ ] No generic fallback when mapping fails.
+- [x] No profile/style shifting between NPCs.
+- [x] No generic fallback when mapping fails.
 
 ---
 
@@ -145,29 +145,29 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find all `submit_action` calls from NPC logic.
-- [ ] Replace ignored result handling with explicit `match`.
-- [ ] Return/record failure when submission fails.
+- [x] Find all `submit_action` calls from NPC logic.
+- [x] Replace ignored result handling with explicit `match`.
+- [x] Return/record failure when submission fails.
 - [ ] Add structured NPC action outcome:
   - [ ] success
   - [ ] rejected
   - [ ] stale window
   - [ ] illegal action
   - [ ] runtime unavailable
-- [ ] Add failure detail to debug state/logs.
-- [ ] Prevent tight retry loops after repeated NPC failure.
+- [x] Add failure detail to debug state/logs.
+- [x] Prevent tight retry loops after repeated NPC failure.
 
 ### Tests
 
 - [ ] Rust test: illegal NPC action records failure.
-- [ ] Rust test: stale NPC action window records failure.
-- [ ] Rust test: NPC runner does not claim success after rejected action.
-- [ ] Frontend debug test if debug state shape changes.
+- [x] Rust test: stale NPC action window records failure.
+- [x] Rust test: NPC runner does not claim success after rejected action.
+- [x] Frontend debug test if debug state shape changes.
 
 ### Acceptance
 
-- [ ] No `let _ = host_server.submit_action(...)` in NPC action path.
-- [ ] Failed NPC actions are diagnosable.
+- [x] No `let _ = host_server.submit_action(...)` in NPC action path.
+- [x] Failed NPC actions are diagnosable.
 
 ---
 
@@ -187,29 +187,29 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find the helper that waits for runtime state after a command.
-- [ ] Change it to return explicit observed/timed-out result.
-- [ ] For mutation commands, return error if acknowledgement is not observed.
-- [ ] Apply to:
-  - [ ] seat claim
-  - [ ] ready toggle
-  - [ ] start table
-  - [ ] leave session if applicable
-  - [ ] table action
-- [ ] Ensure frontend shows timeout/retry error instead of silently accepting stale state.
-- [ ] Preserve current state on failure.
+- [x] Find the helper that waits for runtime state after a command.
+- [x] Change it to return explicit observed/timed-out result.
+- [x] For mutation commands, return error if acknowledgement is not observed.
+- [x] Apply to:
+  - [x] seat claim
+  - [x] ready toggle
+  - [x] start table
+  - [x] leave session if applicable
+  - [x] table action
+- [x] Ensure frontend shows timeout/retry error instead of silently accepting stale state.
+- [x] Preserve current state on failure.
 
 ### Tests
 
-- [ ] Rust test: seat claim timeout returns error.
-- [ ] Rust test: ready toggle timeout returns error.
+- [x] Rust test: seat claim timeout returns error.
+- [x] Rust test: ready toggle timeout returns error.
 - [ ] Rust test: table action timeout returns error.
-- [ ] Frontend test: timeout error is visible and previous UI state remains stable.
+- [x] Frontend test: timeout error is visible and previous UI state remains stable.
 
 ### Acceptance
 
-- [ ] No mutation command returns stale success after timeout.
-- [ ] Timeout errors are user-visible or debug-visible.
+- [x] No mutation command returns stale success after timeout.
+- [x] Timeout errors are user-visible or debug-visible.
 
 ---
 
@@ -230,19 +230,19 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Add structured fallback reason enum.
-- [ ] Record NPC/player ID.
-- [ ] Record provider type.
-- [ ] Record profile/style.
-- [ ] Record selected fallback action.
+- [x] Add structured fallback reason enum.
+- [x] Record NPC/player ID.
+- [x] Record provider type.
+- [x] Record profile/style.
+- [x] Record selected fallback action.
 - [ ] Show fallback state in debug panel.
-- [ ] Ensure fallback does not pretend an LLM decision was used.
+- [x] Ensure fallback does not pretend an LLM decision was used.
 
 ### Tests
 
 - [ ] Provider missing produces visible fallback reason.
-- [ ] LLM request failure produces visible fallback reason.
-- [ ] LLM invalid response produces visible fallback reason.
+- [x] LLM request failure produces visible fallback reason.
+- [x] LLM invalid response produces visible fallback reason.
 - [ ] Debug panel renders fallback reason.
 
 ### Acceptance
@@ -263,23 +263,23 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find `rule_based_fallback`.
-- [ ] Remove unused/discarded computed style.
-- [ ] Implement basic style-aware fallback:
-  - [ ] tight/passive
-  - [ ] balanced
-  - [ ] aggressive
-- [ ] Keep logic simple and deterministic enough to test.
+- [x] Find `rule_based_fallback`.
+- [x] Remove unused/discarded computed style.
+- [x] Implement basic style-aware fallback:
+  - [x] tight/passive
+  - [x] balanced
+  - [x] aggressive
+- [x] Keep logic simple and deterministic enough to test.
 
 ### Tests
 
-- [ ] Tight style differs from aggressive style for a useful legal-action snapshot.
-- [ ] Profile style is actually consumed.
-- [ ] Existing unprofiled NPC fallback still works.
+- [x] Tight style differs from aggressive style for a useful legal-action snapshot.
+- [x] Profile style is actually consumed.
+- [x] Existing unprofiled NPC fallback still works.
 
 ### Acceptance
 
-- [ ] Code no longer computes profile style and discards it.
+- [x] Code no longer computes profile style and discards it.
 
 ---
 
@@ -295,21 +295,21 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find any `Client::builder().build().unwrap_or_default()`.
+- [x] Find any `Client::builder().build().unwrap_or_default()`.
 - [ ] Replace with `Result`-returning constructor.
 - [ ] Propagate construction errors.
-- [ ] Keep timeout configuration mandatory.
-- [ ] Make errors visible in provider test/debug flow.
+- [x] Keep timeout configuration mandatory.
+- [x] Make errors visible in provider test/debug flow.
 
 ### Tests
 
-- [ ] Test constructor success path.
-- [ ] Test or code-structure review for failure propagation.
-- [ ] Ensure no silent removal of timeout config.
+- [x] Test constructor success path.
+- [x] Test or code-structure review for failure propagation.
+- [x] Ensure no silent removal of timeout config.
 
 ### Acceptance
 
-- [ ] No silent fallback to default HTTP client.
+- [x] No silent fallback to default HTTP client.
 
 ---
 
@@ -326,27 +326,27 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Define explicit provider config load states:
-  - [ ] missing
-  - [ ] loaded
-  - [ ] unreadable
-  - [ ] invalid JSON
-  - [ ] invalid schema
-- [ ] Treat missing as normal not-configured.
-- [ ] Treat invalid/unreadable as visible config error.
-- [ ] Do not swallow JSON parse errors with `.ok()`.
+- [x] Define explicit provider config load states:
+  - [x] missing
+  - [x] loaded
+  - [x] unreadable
+  - [x] invalid JSON
+  - [x] invalid schema
+- [x] Treat missing as normal not-configured.
+- [x] Treat invalid/unreadable as visible config error.
+- [x] Do not swallow JSON parse errors with `.ok()`.
 - [ ] Add frontend display for config error if surfaced in bootstrap/settings state.
 
 ### Tests
 
-- [ ] Missing file -> not configured.
-- [ ] Invalid JSON -> config error.
-- [ ] Unreadable file -> config error if feasible.
-- [ ] Clear config -> not configured.
+- [x] Missing file -> not configured.
+- [x] Invalid JSON -> config error.
+- [x] Unreadable file -> config error if feasible.
+- [x] Clear config -> not configured.
 
 ### Acceptance
 
-- [ ] Corrupt config no longer looks like “never configured.”
+- [x] Corrupt config no longer looks like "never configured."
 
 ---
 
@@ -364,16 +364,16 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Confirm whether API keys are stored in `llm-provider.json`.
-- [ ] Ensure API keys are never logged.
-- [ ] Ensure API keys are not exposed in debug state.
+- [x] Confirm whether API keys are stored in `llm-provider.json`.
+- [x] Ensure API keys are never logged.
+- [x] Ensure API keys are not exposed in debug state.
 - [ ] Split secret from non-secret provider config.
 - [ ] Implement OS keychain storage if feasible in this pass.
 - [ ] If not feasible, implement explicit dev-only plaintext mode:
-  - [ ] warning in UI,
+  - [x] warning in UI,
   - [ ] restricted file permissions,
   - [ ] release-mode block or warning,
-  - [ ] documented migration task.
+  - [x] documented migration task.
 - [ ] Add redaction tests.
 
 ### Tests
@@ -381,7 +381,7 @@ Inspect and update:
 - [ ] Serialized provider config does not expose API key if keychain path is implemented.
 - [ ] Debug state never contains API key.
 - [ ] Logs never contain API key in tested paths.
-- [ ] Clearing provider removes secret.
+- [x] Clearing provider removes secret.
 
 ### Acceptance
 
@@ -400,13 +400,13 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Replace `csp: null` with explicit CSP object/string.
-- [ ] Allow Tauri IPC.
-- [ ] Allow only required local connections.
-- [ ] Allow image/font/style sources needed by the app.
-- [ ] Do not allow broad remote scripts.
-- [ ] Run app in dev and build modes.
-- [ ] Document any non-obvious CSP source.
+- [x] Replace `csp: null` with explicit CSP object/string.
+- [x] Allow Tauri IPC.
+- [x] Allow only required local connections.
+- [x] Allow image/font/style sources needed by the app.
+- [x] Do not allow broad remote scripts.
+- [x] Run app in dev and build modes.
+- [x] Document any non-obvious CSP source.
 
 ### Starting CSP
 
@@ -426,16 +426,16 @@ Inspect and update:
 
 ### Tests/checks
 
-- [ ] `npm run build`
+- [x] `npm run build`
 - [ ] `npm run tauri dev`
 - [ ] manual check for CSP violations in devtools
 - [ ] production build smoke test
 
 ### Acceptance
 
-- [ ] CSP is not null.
-- [ ] App functionality still works.
-- [ ] CSP does not broadly allow arbitrary remote code.
+- [x] CSP is not null.
+- [x] App functionality still works.
+- [x] CSP does not broadly allow arbitrary remote code.
 
 ---
 
@@ -452,21 +452,21 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Find fallback to current directory or `"."`.
-- [ ] Replace production fallback with explicit error.
-- [ ] Keep tests using injected temp dirs.
-- [ ] Make error message clear.
-- [ ] Ensure provider config/profile writes cannot land in repo root by accident.
+- [x] Find fallback to current directory or `"."`.
+- [x] Replace production fallback with explicit error.
+- [x] Keep tests using injected temp dirs.
+- [x] Make error message clear.
+- [x] Ensure provider config/profile writes cannot land in repo root by accident.
 
 ### Tests
 
 - [ ] Production path resolution failure returns error.
-- [ ] Test path injection still works.
-- [ ] Config/profile storage uses expected app data path.
+- [x] Test path injection still works.
+- [x] Config/profile storage uses expected app data path.
 
 ### Acceptance
 
-- [ ] No silent cwd fallback outside tests.
+- [x] No silent cwd fallback outside tests.
 
 ---
 
@@ -483,27 +483,27 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Search for `let _ = app.emit`.
-- [ ] Classify each event as:
-  - [ ] best-effort update,
-  - [ ] critical correctness update.
-- [ ] Add helper functions:
-  - [ ] `emit_session_update`
-  - [ ] `emit_table_update`
-  - [ ] `emit_bootstrap_update`
-- [ ] Best-effort events must log warning on failure.
-- [ ] Critical events must return error or return refreshed state directly.
-- [ ] Do not introduce noisy repeated logs in tight loops.
+- [x] Search for `let _ = app.emit`.
+- [x] Classify each event as:
+  - [x] best-effort update,
+  - [x] critical correctness update.
+- [x] Add helper functions:
+  - [x] `emit_session_update`
+  - [x] `emit_table_update`
+  - [x] `emit_bootstrap_update`
+- [x] Best-effort events must log warning on failure.
+- [x] Critical events must return error or return refreshed state directly.
+- [x] Do not introduce noisy repeated logs in tight loops.
 
 ### Tests
 
 - [ ] Unit-test helpers if practical.
-- [ ] Bootstrap/provider tests cover critical path.
-- [ ] Existing session/table tests still pass.
+- [x] Bootstrap/provider tests cover critical path.
+- [x] Existing session/table tests still pass.
 
 ### Acceptance
 
-- [ ] No critical event emit failure is silently ignored.
+- [x] No critical event emit failure is silently ignored.
 
 ---
 
@@ -522,19 +522,19 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Identify test-only implicit session/table fallbacks.
-- [ ] Default to strict behavior where possible.
-- [ ] Enable fallback only in tests that explicitly need it.
-- [ ] Add comments explaining why each fallback is test-only.
+- [x] Identify test-only implicit session/table fallbacks.
+- [x] Default to strict behavior where possible.
+- [x] Enable fallback only in tests that explicitly need it.
+- [x] Add comments explaining why each fallback is test-only.
 
 ### Tests
 
-- [ ] Route guard tests still cover unavailable states.
-- [ ] Table tests explicitly opt into table fixtures.
+- [x] Route guard tests still cover unavailable states.
+- [x] Table tests explicitly opt into table fixtures.
 
 ### Acceptance
 
-- [ ] Test harness does not mask production route/session bugs by default.
+- [x] Test harness does not mask production route/session bugs by default.
 
 ---
 
@@ -560,7 +560,7 @@ Inspect and update:
 
 ### Acceptance
 
-- [ ] Future Claude Code passes have clear guardrails against unsafe fallbacks.
+- [x] Future Claude Code passes have clear guardrails against unsafe fallbacks.
 
 ---
 
@@ -568,7 +568,7 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Run frontend checks under Node 24.x:
+- [x] Run frontend checks under Node 24.x:
 
 ```bash
 npm run lint
@@ -576,7 +576,7 @@ npm run build
 npm run test
 ```
 
-- [ ] Run Rust checks:
+- [x] Run Rust checks:
 
 ```bash
 cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -600,9 +600,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ### Acceptance
 
-- [ ] All automated checks pass.
+- [x] All automated checks pass.
 - [ ] Manual host/client smoke test passes.
-- [ ] No known silent fallback remains in P0/P1 areas.
+- [x] No known silent fallback remains in P0/P1 areas.
 
 ---
 
