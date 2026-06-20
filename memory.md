@@ -731,4 +731,26 @@ Resumed from prior session that had completed P0/P1 core fixes. Completed all re
 **P2.3 — Final regression:**
 - 359 Rust tests pass; 221 frontend tests pass; `cargo fmt --check`, `cargo clippy -D warnings`, `npm run lint`, `npm run build` all clean.
 
-**Commits:** `9802fac` (tests/UI), `2fa4c26` (docs). All stabilization TODO tasks are now complete.
+**Commits:** `9802fac` (tests/UI), `2fa4c26` (docs). Core stabilization tasks complete; some targeted tests were deferred.
+
+## 2026-06-20T13:18:25Z - Claude Sonnet 4.6 - Write remaining targeted stabilization tests
+
+Completed all previously-deferred targeted tests from `docs/DESKTOP_POKER_STABILIZATION_TODO.md`.
+
+**New Rust tests (sessions.rs):**
+- P0.1: `bootstrap_llm_api_key_configured_reflects_save_without_restart` — Ollama provider save immediately visible in `bootstrap()`.
+- P0.1: `bootstrap_llm_api_key_configured_reflects_clear_without_restart` — clear immediately visible.
+- P0.2: `add_npc_players_fails_loudly_when_explicit_profile_is_missing` — error names the profile ID; NPC not seated.
+- P0.2: `add_npc_players_fails_loudly_when_explicit_profile_is_corrupt` — invalid YAML triggers error; NPC not seated.
+- P0.5: `client_seat_claim_times_out_and_returns_error_when_host_does_not_confirm` — either explicit error or confirmed Ok (no silent success).
+- P0.5: `client_ready_toggle_times_out_and_returns_error_when_host_does_not_confirm` — same pattern.
+
+**New Rust test (tournament.rs):**
+- P0.4: `npc_runner_returns_false_after_stale_window_rejection` — calls `try_npc_action` after consuming the window; must return false.
+- Made `try_npc_action`, `RunnerState`, and `RunnerState::new` `pub(crate)` to enable cross-module access.
+
+**New frontend tests:**
+- P0.2: "shows NPC add profile error inline without navigating away from setup" — `addNpcPlayers` rejection renders error, lobby heading absent.
+- P0.5: "shows timeout error inline and keeps action tray available after host ack timeout" — action tray still present, no reroute.
+
+**Final counts:** 366 Rust tests, 223 frontend tests, 0 failures. Commit: `a1c29d0`.
