@@ -203,10 +203,12 @@ mod tests {
 
     fn anthropic_cfg(key: &str) -> crate::npc::provider::LlmProviderConfig {
         crate::npc::provider::LlmProviderConfig {
-            provider: crate::npc::provider::LlmProviderType::Anthropic,
+            settings: crate::npc::provider::LlmProviderSettings {
+                provider: crate::npc::provider::LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some(key.to_string()),
-            endpoint_url: None,
-            model: None,
         }
     }
 
@@ -430,15 +432,17 @@ mod ollama_live_tests {
     use crate::npc::llm_client::LlmClient;
     use crate::npc::profile::NpcProfile;
     use crate::npc::prompt::GameStateSnapshot;
-    use crate::npc::provider::{LlmProviderConfig, LlmProviderType};
+    use crate::npc::provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
     use crate::npc::strategy::Position;
 
     fn ollama_cfg(model: &str) -> LlmProviderConfig {
         LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: Some(model.to_string()),
+            },
             api_key: None,
-            endpoint_url: None,
-            model: Some(model.to_string()),
         }
     }
 

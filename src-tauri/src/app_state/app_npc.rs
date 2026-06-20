@@ -163,13 +163,17 @@ impl DesktopAppState {
         Ok(())
     }
 
-    /// Return the current provider config (None if not set).
-    pub fn get_llm_provider_config(&self) -> Result<Option<crate::npc::LlmProviderConfig>, String> {
+    /// Return the current non-secret provider settings (None if not set).
+    /// The API key is intentionally excluded from the return value.
+    pub fn get_llm_provider_config(
+        &self,
+    ) -> Result<Option<crate::npc::LlmProviderSettings>, String> {
         Ok(self
             .llm_provider
             .lock()
             .map_err(|_| "llm provider lock poisoned".to_string())?
-            .clone())
+            .as_ref()
+            .map(|c| c.settings.clone()))
     }
 
     /// Backward-compat: set the Anthropic API key (creates/overwrites an Anthropic provider).

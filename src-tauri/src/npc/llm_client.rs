@@ -152,7 +152,7 @@ impl LlmClient {
 
     /// Send a request and return the assistant's text response.
     pub fn complete(&self, system: &str, user: &str) -> Result<String, LlmError> {
-        match self.config.provider {
+        match self.config.settings.provider {
             LlmProviderType::Anthropic => self.complete_anthropic(system, user),
             LlmProviderType::OpenAi | LlmProviderType::Ollama | LlmProviderType::LlamaServer => {
                 self.complete_openai_compatible(system, user)
@@ -263,15 +263,17 @@ fn map_reqwest_err(e: reqwest::Error) -> LlmError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::npc::provider::LlmProviderType;
+    use crate::npc::provider::{LlmProviderSettings, LlmProviderType};
     use httpmock::prelude::*;
 
     fn anthropic_client(server: &MockServer) -> LlmClient {
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some("test-key".to_string()),
-            endpoint_url: None,
-            model: None,
         };
         LlmClient::new(cfg)
             .expect("test client builds")
@@ -280,10 +282,12 @@ mod tests {
 
     fn openai_client(server: &MockServer) -> LlmClient {
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::OpenAi,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::OpenAi,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some("sk-test".to_string()),
-            endpoint_url: None,
-            model: None,
         };
         LlmClient::new(cfg)
             .expect("test client builds")
@@ -292,10 +296,12 @@ mod tests {
 
     fn ollama_client(server: &MockServer) -> LlmClient {
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: Some("llama3.2".to_string()),
+            },
             api_key: None,
-            endpoint_url: None,
-            model: Some("llama3.2".to_string()),
         };
         LlmClient::new(cfg)
             .expect("test client builds")
@@ -408,10 +414,12 @@ mod tests {
                 .json_body(anthropic_response("{}"));
         });
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some("k".to_string()),
-            endpoint_url: None,
-            model: None,
         };
         let client =
             LlmClient::with_timeout_secs(cfg, 1, server.base_url()).expect("test client builds");

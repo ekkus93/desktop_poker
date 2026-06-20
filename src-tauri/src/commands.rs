@@ -188,7 +188,7 @@ pub fn clear_llm_api_key(app: AppHandle, state: State<'_, DesktopAppState>) -> R
 #[tauri::command]
 pub fn get_llm_provider_config(
     state: State<'_, DesktopAppState>,
-) -> Result<Option<crate::npc::LlmProviderConfig>, String> {
+) -> Result<Option<crate::npc::LlmProviderSettings>, String> {
     state.get_llm_provider_config()
 }
 

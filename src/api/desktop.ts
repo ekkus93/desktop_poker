@@ -388,6 +388,14 @@ export function clearLlmApiKey(): Promise<void> {
 
 export type LlmProviderType = "anthropic" | "openAi" | "ollama" | "llamaServer";
 
+/** Non-secret provider settings returned by getLlmProviderConfig. No API key. */
+export type LlmProviderSettings = {
+  provider: LlmProviderType;
+  endpointUrl: string | null;
+  model: string | null;
+};
+
+/** Full config sent to setLlmProviderConfig. Includes the API key. */
 export type LlmProviderConfig = {
   provider: LlmProviderType;
   apiKey: string | null;
@@ -395,8 +403,8 @@ export type LlmProviderConfig = {
   model: string | null;
 };
 
-export function getLlmProviderConfig(): Promise<LlmProviderConfig | null> {
-  return invoke<LlmProviderConfig | null>("get_llm_provider_config");
+export function getLlmProviderConfig(): Promise<LlmProviderSettings | null> {
+  return invoke<LlmProviderSettings | null>("get_llm_provider_config");
 }
 
 export function setLlmProviderConfig(config: LlmProviderConfig): Promise<void> {

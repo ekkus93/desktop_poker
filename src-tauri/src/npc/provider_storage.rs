@@ -3,10 +3,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::provider::LlmProviderConfig;
+use super::provider::{LlmProviderConfig, LlmProviderSettings};
 
-const PROVIDER_FILE_NAME: &str = "llm-provider.json";
-// Legacy file written by Phase 2; read once for migration.
+/// Non-secret provider settings (provider type, endpoint, model).
+const SETTINGS_FILE_NAME: &str = "llm-provider.json";
+/// Secret API key stored separately with restricted file permissions.
+const KEY_FILE_NAME: &str = "llm-provider-key.dat";
+/// Legacy plain-text key written by Phase 2; read once for migration.
 const LEGACY_KEY_FILE_NAME: &str = "claude-api-key.txt";
 
 /// Outcome of attempting to load provider configuration from disk.
@@ -15,7 +18,7 @@ pub enum ProviderConfigLoadState {
     /// No config file exists and no legacy key was found. This is the normal
     /// "never configured" state and is not an error.
     Missing,
-    /// Config file was read and parsed successfully.
+    /// Config was read and parsed successfully.
     Loaded(LlmProviderConfig),
     /// Config file exists but could not be read (permissions, I/O error).
     Unreadable { error: String },
@@ -25,25 +28,62 @@ pub enum ProviderConfigLoadState {
     InvalidSchema { error: String },
 }
 
-fn provider_path(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join(PROVIDER_FILE_NAME)
+fn settings_path(app_data_dir: &Path) -> PathBuf {
+    app_data_dir.join(SETTINGS_FILE_NAME)
+}
+
+fn key_path(app_data_dir: &Path) -> PathBuf {
+    app_data_dir.join(KEY_FILE_NAME)
 }
 
 fn legacy_key_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(LEGACY_KEY_FILE_NAME)
 }
 
+/// Read the raw API key from `llm-provider-key.dat`, or `None` if absent/empty.
+fn read_key_file(path: &Path) -> Option<String> {
+    if !path.exists() {
+        return None;
+    }
+    let raw = fs::read_to_string(path).ok()?;
+    let trimmed = raw.trim().to_string();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+/// Write `key` to `path` and restrict permissions to owner-only on Unix.
+fn write_key_file(path: &Path, key: &str) -> Result<(), std::io::Error> {
+    fs::write(path, key)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600))?;
+    }
+    Ok(())
+}
+
 /// Load the provider config from disk, returning a rich load state.
 ///
-/// Migration: if `llm-provider.json` does not exist but the legacy
-/// `claude-api-key.txt` does, the key is promoted to an Anthropic config and
-/// the legacy file is left in place.
+/// ## File layout (current)
+/// - `llm-provider.json` — non-secret settings (`LlmProviderSettings`)
+/// - `llm-provider-key.dat` — raw API key string, 0600 permissions
+///
+/// ## Migration paths
+/// 1. **Combined old format** — `llm-provider.json` contains both settings and
+///    `apiKey` field (written by an older version).  On first load the key is
+///    moved to `llm-provider-key.dat` and the settings file is rewritten
+///    without it.
+/// 2. **Legacy plain-text key** — `claude-api-key.txt` from Phase 2 is promoted
+///    to an Anthropic config if neither current file exists.
 pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
-    let path = provider_path(app_data_dir);
+    let sp = settings_path(app_data_dir);
+    let kp = key_path(app_data_dir);
 
-    // Try reading the new JSON file first.
-    if path.exists() {
-        let text = match fs::read_to_string(&path) {
+    if sp.exists() {
+        let text = match fs::read_to_string(&sp) {
             Ok(t) => t,
             Err(e) => {
                 return ProviderConfigLoadState::Unreadable {
@@ -51,7 +91,9 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
                 }
             }
         };
-        let value: serde_json::Value = match serde_json::from_str(&text) {
+
+        // Parse as a JSON value so we can inspect for the legacy `apiKey` field.
+        let json_val: serde_json::Value = match serde_json::from_str(&text) {
             Ok(v) => v,
             Err(e) => {
                 return ProviderConfigLoadState::InvalidJson {
@@ -59,14 +101,51 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
                 }
             }
         };
-        match serde_json::from_value::<LlmProviderConfig>(value) {
-            Ok(cfg) => return ProviderConfigLoadState::Loaded(cfg),
+
+        // Deserialise non-secret settings (unknown fields like `apiKey` are
+        // silently ignored, so old combined files parse fine here).
+        let settings: LlmProviderSettings = match serde_json::from_value(json_val.clone()) {
+            Ok(s) => s,
             Err(e) => {
                 return ProviderConfigLoadState::InvalidSchema {
                     error: e.to_string(),
                 }
             }
-        }
+        };
+
+        // Determine the API key: prefer the dedicated key file; fall back to the
+        // legacy embedded `apiKey` field for one-time migration.
+        let api_key = if let Some(key) = read_key_file(&kp) {
+            Some(key)
+        } else {
+            // Migration: extract key embedded in old combined format.
+            let embedded = json_val
+                .get("apiKey")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string());
+
+            if let Some(ref key) = embedded {
+                // Migrate immediately: write key file and rewrite settings-only JSON.
+                if let Err(e) = write_key_file(&kp, key) {
+                    eprintln!("[provider-storage] migration: failed to write key file: {e}");
+                } else if let Ok(json) = serde_json::to_string_pretty(&settings) {
+                    if let Err(e) = fs::write(&sp, json) {
+                        eprintln!(
+                            "[provider-storage] migration: failed to rewrite settings file: {e}"
+                        );
+                    } else {
+                        eprintln!(
+                            "[provider-storage] migrated API key from llm-provider.json \
+                             to llm-provider-key.dat"
+                        );
+                    }
+                }
+            }
+            embedded
+        };
+
+        return ProviderConfigLoadState::Loaded(LlmProviderConfig { settings, api_key });
     }
 
     // Fall back to the legacy plain-text API key.
@@ -83,44 +162,49 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
     ProviderConfigLoadState::Missing
 }
 
-/// Write the provider config to `{app_data_dir}/llm-provider.json`.
+/// Write the provider config to separate settings and key files.
 ///
-/// If `config` is `None`, the file is deleted (clears all provider config).
+/// If `config` is `None`, both files are deleted (clears all provider config).
 pub fn save_provider_config(
     app_data_dir: &Path,
     config: Option<&LlmProviderConfig>,
 ) -> Result<(), std::io::Error> {
-    let path = provider_path(app_data_dir);
+    let sp = settings_path(app_data_dir);
+    let kp = key_path(app_data_dir);
 
     match config {
         None => {
-            if path.exists() {
-                fs::remove_file(&path)?;
+            if sp.exists() {
+                fs::remove_file(&sp)?;
+            }
+            if kp.exists() {
+                fs::remove_file(&kp)?;
             }
         }
         Some(cfg) => {
-            if let Some(parent) = path.parent() {
+            if let Some(parent) = sp.parent() {
                 fs::create_dir_all(parent)?;
             }
-            if cfg.api_key.as_deref().is_some_and(|k| !k.is_empty()) {
-                // API key stored in plaintext — emit a warning so the user knows.
-                // In a future pass this will move to the OS keychain.
+
+            // Write non-secret settings (safe to log, no key inside).
+            let settings_json = serde_json::to_string_pretty(&cfg.settings)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            fs::write(&sp, settings_json)?;
+
+            // Write API key to its own restricted file.
+            let key = cfg.api_key.as_deref().unwrap_or("").trim().to_string();
+            if key.is_empty() {
+                if kp.exists() {
+                    fs::remove_file(&kp)?;
+                }
+            } else {
                 #[cfg(not(debug_assertions))]
                 eprintln!(
                     "[security] LLM API key stored in plaintext at {}. \
                      Move to OS keychain storage before distributing a release build.",
-                    path.display()
+                    kp.display()
                 );
-            }
-            let json = serde_json::to_string_pretty(cfg)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-            fs::write(&path, json)?;
-            // Restrict file to owner read/write only (0600).
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let perms = std::fs::Permissions::from_mode(0o600);
-                std::fs::set_permissions(&path, perms)?;
+                write_key_file(&kp, &key)?;
             }
         }
     }
@@ -134,10 +218,12 @@ mod tests {
 
     fn anthropic_config(key: &str) -> LlmProviderConfig {
         LlmProviderConfig {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some(key.to_string()),
-            endpoint_url: None,
-            model: None,
         }
     }
 
@@ -154,12 +240,12 @@ mod tests {
         let cfg = anthropic_config("sk-ant-test");
         save_provider_config(dir.path(), Some(&cfg)).unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path()));
-        assert_eq!(loaded.provider, LlmProviderType::Anthropic);
+        assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-test"));
     }
 
     #[test]
-    fn save_none_removes_file() {
+    fn save_none_removes_both_files() {
         let dir = tempfile::tempdir().unwrap();
         save_provider_config(dir.path(), Some(&anthropic_config("k"))).unwrap();
         save_provider_config(dir.path(), None).unwrap();
@@ -167,7 +253,8 @@ mod tests {
             load_provider_config(dir.path()),
             ProviderConfigLoadState::Missing
         ));
-        assert!(!provider_path(dir.path()).exists());
+        assert!(!settings_path(dir.path()).exists());
+        assert!(!key_path(dir.path()).exists());
     }
 
     #[test]
@@ -182,7 +269,7 @@ mod tests {
     #[test]
     fn corrupt_json_returns_invalid_json() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(provider_path(dir.path()), "not json at all").unwrap();
+        fs::write(settings_path(dir.path()), "not json at all").unwrap();
         assert!(matches!(
             load_provider_config(dir.path()),
             ProviderConfigLoadState::InvalidJson { .. }
@@ -192,7 +279,7 @@ mod tests {
     #[test]
     fn invalid_schema_returns_invalid_schema() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(provider_path(dir.path()), r#"{"unexpected":"field"}"#).unwrap();
+        fs::write(settings_path(dir.path()), r#"{"unexpected":"field"}"#).unwrap();
         assert!(matches!(
             load_provider_config(dir.path()),
             ProviderConfigLoadState::InvalidSchema { .. }
@@ -204,23 +291,82 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path()));
-        assert_eq!(loaded.provider, LlmProviderType::Anthropic);
+        assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
     }
 
     #[test]
-    fn new_json_takes_precedence_over_legacy_key() {
+    fn new_settings_file_takes_precedence_over_legacy_key() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
         let new_cfg = LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: Some("http://localhost:11434".to_string()),
+                model: None,
+            },
             api_key: None,
-            endpoint_url: Some("http://localhost:11434".to_string()),
-            model: None,
         };
         save_provider_config(dir.path(), Some(&new_cfg)).unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path()));
-        assert_eq!(loaded.provider, LlmProviderType::Ollama);
+        assert_eq!(loaded.settings.provider, LlmProviderType::Ollama);
+    }
+
+    #[test]
+    fn settings_file_does_not_contain_api_key() {
+        let dir = tempfile::tempdir().unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let settings_json = fs::read_to_string(settings_path(dir.path())).unwrap();
+        assert!(
+            !settings_json.contains("sk-ant-secret"),
+            "llm-provider.json must not contain the API key; got: {settings_json}"
+        );
+        assert!(
+            !settings_json.contains("apiKey"),
+            "llm-provider.json must not contain the apiKey field; got: {settings_json}"
+        );
+    }
+
+    #[test]
+    fn api_key_is_stored_in_dedicated_key_file() {
+        let dir = tempfile::tempdir().unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let key_content = fs::read_to_string(key_path(dir.path())).unwrap();
+        assert_eq!(
+            key_content.trim(),
+            "sk-ant-secret",
+            "llm-provider-key.dat must contain just the raw key"
+        );
+    }
+
+    #[test]
+    fn migration_from_combined_old_format_extracts_key_and_rewrites_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        // Write old combined format (settings + apiKey in one file).
+        let old_json = r#"{"provider":"anthropic","apiKey":"sk-ant-migrated","endpointUrl":null,"model":null}"#;
+        fs::write(settings_path(dir.path()), old_json).unwrap();
+
+        // Load should trigger migration.
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-migrated"));
+        assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
+
+        // After migration: key file exists, settings file no longer contains the key.
+        let settings_json = fs::read_to_string(settings_path(dir.path())).unwrap();
+        assert!(
+            !settings_json.contains("sk-ant-migrated"),
+            "settings file should not contain the key after migration"
+        );
+        assert!(
+            !settings_json.contains("apiKey"),
+            "settings file should not contain apiKey field after migration"
+        );
+        assert!(
+            key_path(dir.path()).exists(),
+            "key file must exist after migration"
+        );
+        let key_raw = fs::read_to_string(key_path(dir.path())).unwrap();
+        assert_eq!(key_raw.trim(), "sk-ant-migrated");
     }
 
     #[test]
@@ -231,7 +377,6 @@ mod tests {
             !debug_str.contains("super-secret-key-value-1234"),
             "Debug output must not expose the full API key; got: {debug_str}"
         );
-        // Should show a short prefix + redaction marker.
         assert!(
             debug_str.contains("redacted") || debug_str.contains("…"),
             "Debug output should indicate redaction; got: {debug_str}"
@@ -240,15 +385,15 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn saved_provider_config_has_restricted_file_permissions() {
+    fn saved_key_file_has_restricted_file_permissions() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
         save_provider_config(dir.path(), Some(&anthropic_config("sk-secret"))).unwrap();
-        let meta = fs::metadata(provider_path(dir.path())).unwrap();
+        let meta = fs::metadata(key_path(dir.path())).unwrap();
         let mode = meta.permissions().mode() & 0o777;
         assert_eq!(
             mode, 0o600,
-            "provider config file must be owner-only readable (0600); got {mode:#o}"
+            "key file must be owner-only readable (0600); got {mode:#o}"
         );
     }
 }

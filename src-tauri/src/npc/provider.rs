@@ -19,52 +19,19 @@ pub enum LlmProviderType {
     LlamaServer,
 }
 
-/// Full configuration for one LLM provider.
-#[derive(Clone, Serialize, Deserialize)]
+/// Non-secret provider settings: safe to log, display in debug state, and
+/// include in bug reports. Does NOT contain the API key.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LlmProviderConfig {
+pub struct LlmProviderSettings {
     pub provider: LlmProviderType,
-    /// API key — required for Anthropic and OpenAI, ignored for Ollama/llama-server.
-    pub api_key: Option<String>,
     /// Override the base URL (default is provider-specific).
     pub endpoint_url: Option<String>,
     /// Override the model name (default is provider-specific).
     pub model: Option<String>,
 }
 
-impl std::fmt::Debug for LlmProviderConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LlmProviderConfig")
-            .field("provider", &self.provider)
-            .field(
-                "api_key",
-                &self.api_key.as_deref().map(|k| {
-                    if k.len() > 8 {
-                        format!("{}…[redacted]", &k[..4])
-                    } else if k.is_empty() {
-                        "<empty>".to_string()
-                    } else {
-                        "<set>".to_string()
-                    }
-                }),
-            )
-            .field("endpoint_url", &self.endpoint_url)
-            .field("model", &self.model)
-            .finish()
-    }
-}
-
-impl LlmProviderConfig {
-    /// True when the config has enough information to make a request.
-    pub fn is_usable(&self) -> bool {
-        match self.provider {
-            LlmProviderType::Anthropic | LlmProviderType::OpenAi => {
-                self.api_key.as_deref().is_some_and(|k| !k.is_empty())
-            }
-            LlmProviderType::Ollama | LlmProviderType::LlamaServer => true,
-        }
-    }
-
+impl LlmProviderSettings {
     /// Resolved model name (falls back to provider default).
     pub fn resolved_model(&self) -> &str {
         if let Some(m) = self.model.as_deref().filter(|s| !s.is_empty()) {
@@ -100,14 +67,76 @@ impl LlmProviderConfig {
             LlmProviderType::LlamaServer => "llama-server",
         }
     }
+}
+
+/// Combined runtime config: non-secret settings + secret API key.
+///
+/// Serializes flat (`#[serde(flatten)]` on `settings`) so the wire/command
+/// format is unchanged: `{provider, apiKey, endpointUrl, model}`.
+/// On disk the secret is stored separately — see `provider_storage`.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlmProviderConfig {
+    #[serde(flatten)]
+    pub settings: LlmProviderSettings,
+    /// API key — required for Anthropic and OpenAI, ignored for Ollama/llama-server.
+    pub api_key: Option<String>,
+}
+
+impl std::fmt::Debug for LlmProviderConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LlmProviderConfig")
+            .field("settings", &self.settings)
+            .field(
+                "api_key",
+                &self.api_key.as_deref().map(|k| {
+                    if k.len() > 8 {
+                        format!("{}…[redacted]", &k[..4])
+                    } else if k.is_empty() {
+                        "<empty>".to_string()
+                    } else {
+                        "<set>".to_string()
+                    }
+                }),
+            )
+            .finish()
+    }
+}
+
+impl LlmProviderConfig {
+    /// True when the config has enough information to make a request.
+    pub fn is_usable(&self) -> bool {
+        match self.settings.provider {
+            LlmProviderType::Anthropic | LlmProviderType::OpenAi => {
+                self.api_key.as_deref().is_some_and(|k| !k.is_empty())
+            }
+            LlmProviderType::Ollama | LlmProviderType::LlamaServer => true,
+        }
+    }
+
+    // Delegate helpers so callers don't need to go through `.settings.`.
+
+    pub fn resolved_model(&self) -> &str {
+        self.settings.resolved_model()
+    }
+
+    pub fn resolved_endpoint(&self) -> &str {
+        self.settings.resolved_endpoint()
+    }
+
+    pub fn provider_label(&self) -> &'static str {
+        self.settings.provider_label()
+    }
 
     /// Construct a minimal Anthropic config from a raw API key (migration path).
     pub fn from_anthropic_key(key: String) -> Self {
         Self {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some(key),
-            endpoint_url: None,
-            model: None,
         }
     }
 }
@@ -118,29 +147,35 @@ mod tests {
 
     fn anthropic(key: &str) -> LlmProviderConfig {
         LlmProviderConfig {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: Some(key.to_string()),
-            endpoint_url: None,
-            model: None,
         }
     }
 
     fn ollama() -> LlmProviderConfig {
         LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: None,
-            endpoint_url: None,
-            model: None,
         }
     }
 
     #[test]
     fn anthropic_without_key_is_not_usable() {
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::Anthropic,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: None,
-            endpoint_url: None,
-            model: None,
         };
         assert!(!cfg.is_usable());
     }
@@ -158,10 +193,12 @@ mod tests {
     #[test]
     fn llama_server_is_usable_without_key() {
         let cfg = LlmProviderConfig {
-            provider: LlmProviderType::LlamaServer,
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::LlamaServer,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: None,
-            endpoint_url: None,
-            model: None,
         };
         assert!(cfg.is_usable());
     }
@@ -169,7 +206,7 @@ mod tests {
     #[test]
     fn resolved_model_uses_override_when_set() {
         let mut cfg = anthropic("k");
-        cfg.model = Some("claude-opus-4-8".to_string());
+        cfg.settings.model = Some("claude-opus-4-8".to_string());
         assert_eq!(cfg.resolved_model(), "claude-opus-4-8");
     }
 
@@ -182,7 +219,7 @@ mod tests {
     #[test]
     fn resolved_endpoint_uses_override_when_set() {
         let mut cfg = ollama();
-        cfg.endpoint_url = Some("http://my-server:11434".to_string());
+        cfg.settings.endpoint_url = Some("http://my-server:11434".to_string());
         assert_eq!(cfg.resolved_endpoint(), "http://my-server:11434");
     }
 
@@ -193,5 +230,40 @@ mod tests {
             ANTHROPIC_DEFAULT_ENDPOINT
         );
         assert_eq!(ollama().resolved_endpoint(), OLLAMA_DEFAULT_ENDPOINT);
+    }
+
+    #[test]
+    fn settings_debug_does_not_contain_api_key() {
+        let cfg = anthropic("sk-ant-super-secret");
+        let debug = format!("{:?}", cfg.settings);
+        assert!(
+            !debug.contains("super-secret"),
+            "LlmProviderSettings Debug must not expose the API key; got: {debug}"
+        );
+    }
+
+    #[test]
+    fn flat_serde_roundtrip_preserves_all_fields() {
+        let cfg = LlmProviderConfig {
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::Anthropic,
+                endpoint_url: Some("https://my.proxy".to_string()),
+                model: Some("claude-opus-4-8".to_string()),
+            },
+            api_key: Some("sk-ant-abc".to_string()),
+        };
+        let json = serde_json::to_string(&cfg).unwrap();
+        // Flat wire format: all fields at the top level.
+        assert!(json.contains("\"provider\""));
+        assert!(json.contains("\"apiKey\""));
+        assert!(json.contains("\"endpointUrl\""));
+        assert!(json.contains("\"model\""));
+        let back: LlmProviderConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.settings.provider, LlmProviderType::Anthropic);
+        assert_eq!(back.api_key.as_deref(), Some("sk-ant-abc"));
+        assert_eq!(
+            back.settings.endpoint_url.as_deref(),
+            Some("https://my.proxy")
+        );
     }
 }

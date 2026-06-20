@@ -509,7 +509,7 @@ pub(crate) fn try_npc_action(
                 tilt_description: tilt_desc,
             };
 
-            let provider_label = format!("{:?}", cfg.provider);
+            let provider_label = format!("{:?}", cfg.settings.provider);
             let llm_client = LlmClient::new(cfg);
             if let Err(ref e) = llm_client {
                 eprintln!("[npc-runner] failed to build LLM client: {e}");

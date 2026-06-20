@@ -17,7 +17,7 @@ pub mod strategy;
 pub mod tilt;
 
 pub use llm_strategy::LlmFallbackReason;
-pub use provider::{LlmProviderConfig, LlmProviderType};
+pub use provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
 
 use serde::{Deserialize, Serialize};
 

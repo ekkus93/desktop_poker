@@ -554,10 +554,12 @@ fn bootstrap_llm_api_key_configured_reflects_save_without_restart() {
     // Ollama does not need an API key; `is_usable()` returns true without one.
     state
         .set_llm_provider_config(LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: crate::npc::LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: None,
-            endpoint_url: None,
-            model: None,
         })
         .expect("set provider config");
 
@@ -574,10 +576,12 @@ fn bootstrap_llm_api_key_configured_reflects_clear_without_restart() {
 
     state
         .set_llm_provider_config(LlmProviderConfig {
-            provider: LlmProviderType::Ollama,
+            settings: crate::npc::LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: None,
+            },
             api_key: None,
-            endpoint_url: None,
-            model: None,
         })
         .expect("set provider config before clear");
     assert!(state.bootstrap().llm_api_key_configured);
