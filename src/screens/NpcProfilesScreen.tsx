@@ -4,6 +4,7 @@ import {
   listNpcProfiles,
   saveNpcProfile,
   type NpcProfile,
+  type NpcProfileError,
 } from "../api/desktop";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -37,6 +38,7 @@ type ProfileDetailState = {
 
 export function NpcProfilesScreen() {
   const [profiles, setProfiles] = useState<NpcProfile[]>([]);
+  const [profileErrors, setProfileErrors] = useState<NpcProfileError[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetailState | null>(null);
@@ -53,7 +55,8 @@ export function NpcProfilesScreen() {
     setListError(null);
     try {
       const result = await listNpcProfiles();
-      setProfiles(result);
+      setProfiles(result.profiles);
+      setProfileErrors(result.errors);
     } catch (e) {
       setListError(e instanceof Error ? e.message : "Failed to load profiles.");
     } finally {
@@ -149,6 +152,21 @@ export function NpcProfilesScreen() {
           title="Player profiles"
           className="support-card"
         >
+          {profileErrors.length > 0 ? (
+            <div
+              className="inline-banner error"
+              data-testid="profile-list-errors"
+            >
+              <strong>Warning: {profileErrors.length} profile file(s) could not be loaded:</strong>
+              <ul style={{ margin: "0.25rem 0 0", padding: "0 0 0 1rem" }}>
+                {profileErrors.map((e) => (
+                  <li key={e.filename}>
+                    <code>{e.filename}</code>: {e.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {loading ? (
             <p>Loading profiles…</p>
           ) : listError ? (

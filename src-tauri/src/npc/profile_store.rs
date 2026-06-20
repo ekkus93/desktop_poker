@@ -3,6 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use serde::Serialize;
+
 use super::profile::{parse_profile, NpcProfile, ProfileError};
 
 const STARTER_PROFILES: &[(&str, &str)] = &[
@@ -53,13 +55,32 @@ fn seed_starter_profiles(dir: &Path) -> Result<(), ProfileError> {
     Ok(())
 }
 
+/// A profile file that could not be parsed, included in `NpcProfileListResult`.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NpcProfileError {
+    /// Filename (not full path) of the failing profile file.
+    pub filename: String,
+    /// Human-readable parse or I/O error.
+    pub error: String,
+}
+
+/// Result of listing profiles: valid profiles plus any files that failed to parse.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NpcProfileListResult {
+    pub profiles: Vec<NpcProfile>,
+    pub errors: Vec<NpcProfileError>,
+}
+
 /// List all profiles in `dir`, sorted alphabetically by name.
 ///
-/// Files that fail to parse are skipped with a logged warning.
-pub fn list_profiles(dir: &Path) -> Result<Vec<NpcProfile>, ProfileError> {
+/// Files that fail to parse are included in `errors` rather than silently skipped.
+pub fn list_profiles(dir: &Path) -> Result<NpcProfileListResult, ProfileError> {
     ensure_profiles_dir(dir)?;
 
     let mut profiles = Vec::new();
+    let mut errors = Vec::new();
 
     let entries = fs::read_dir(dir)?;
     for entry in entries.flatten() {
@@ -71,23 +92,34 @@ pub fn list_profiles(dir: &Path) -> Result<Vec<NpcProfile>, ProfileError> {
             Some(s) => s.to_string(),
             None => continue,
         };
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(&stem)
+            .to_string();
         let content = match fs::read_to_string(&path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("[profile_store] skipping {:?}: {e}", path);
+                errors.push(NpcProfileError {
+                    filename,
+                    error: e.to_string(),
+                });
                 continue;
             }
         };
         match parse_profile(&stem, &content) {
             Ok(p) => profiles.push(p),
             Err(e) => {
-                eprintln!("[profile_store] skipping {:?}: {e}", path);
+                errors.push(NpcProfileError {
+                    filename,
+                    error: e.to_string(),
+                });
             }
         }
     }
 
     profiles.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(profiles)
+    Ok(NpcProfileListResult { profiles, errors })
 }
 
 /// Load a single profile by its ID (filename stem).
@@ -138,17 +170,18 @@ A balanced test player.";
     #[test]
     fn list_profiles_empty_dir_seeds_starters() {
         let dir = temp_dir();
-        let profiles = list_profiles(dir.path()).unwrap();
+        let result = list_profiles(dir.path()).unwrap();
         // Starter profiles should have been seeded.
-        assert_eq!(profiles.len(), 3);
-        let names: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(result.profiles.len(), 3);
+        assert!(result.errors.is_empty());
+        let names: Vec<&str> = result.profiles.iter().map(|p| p.name.as_str()).collect();
         assert!(names.contains(&"Aggressive Alice"));
         assert!(names.contains(&"Conservative Carlos"));
         assert!(names.contains(&"Balanced Sam"));
     }
 
     #[test]
-    fn list_profiles_skips_unparseable_file() {
+    fn list_profiles_surfaces_unparseable_file_as_error() {
         let dir = temp_dir();
         let pdir = profiles_dir(dir.path());
         fs::create_dir_all(&pdir).unwrap();
@@ -156,9 +189,12 @@ A balanced test player.";
         fs::write(pdir.join("good.md"), SAMPLE).unwrap();
         fs::write(pdir.join("bad.md"), BAD).unwrap();
 
-        let profiles = list_profiles(&pdir).unwrap();
-        assert_eq!(profiles.len(), 1);
-        assert_eq!(profiles[0].name, "Sample Player");
+        let result = list_profiles(&pdir).unwrap();
+        assert_eq!(result.profiles.len(), 1, "valid profiles");
+        assert_eq!(result.profiles[0].name, "Sample Player");
+        assert_eq!(result.errors.len(), 1, "parse errors");
+        assert_eq!(result.errors[0].filename, "bad.md");
+        assert!(!result.errors[0].error.is_empty());
     }
 
     #[test]

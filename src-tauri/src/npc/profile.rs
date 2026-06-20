@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 /// A player profile driving LLM-based NPC decisions.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct NpcProfile {
     /// Filename stem, e.g. "aggressive-alice".

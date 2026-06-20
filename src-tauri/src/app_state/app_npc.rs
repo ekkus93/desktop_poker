@@ -238,7 +238,11 @@ impl DesktopAppState {
     }
 
     /// List all NPC profiles from the profiles directory.
-    pub fn list_npc_profiles(&self) -> Result<Vec<crate::npc::NpcProfile>, String> {
+    ///
+    /// Returns both valid profiles and any files that failed to parse.
+    pub fn list_npc_profiles(
+        &self,
+    ) -> Result<crate::npc::profile_store::NpcProfileListResult, String> {
         let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
         crate::npc::profile_store::list_profiles(&dir).map_err(|e| e.to_string())
     }

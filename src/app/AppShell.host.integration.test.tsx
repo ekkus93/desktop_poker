@@ -561,26 +561,29 @@ describe("AppShell integration (host and lobby)", () => {
   it("npc profiles screen lists all profiles returned by the backend", async () => {
     // The NpcProfilesScreen calls listNpcProfiles() on mount and renders
     // each profile's name. Override the default empty mock with two profiles.
-    h.mockedListNpcProfiles.mockResolvedValue([
-      {
-        id: "aggressive-alice",
-        name: "Aggressive Alice",
-        style: "loose-aggressive",
-        skill: "advanced",
-        description: "Always bets big.",
-        opponentTendencies: null,
-        tiltBehaviour: null,
-      },
-      {
-        id: "conservative-carlos",
-        name: "Conservative Carlos",
-        style: "tight-passive",
-        skill: "beginner",
-        description: "Plays very few hands.",
-        opponentTendencies: null,
-        tiltBehaviour: null,
-      },
-    ]);
+    h.mockedListNpcProfiles.mockResolvedValue({
+      profiles: [
+        {
+          id: "aggressive-alice",
+          name: "Aggressive Alice",
+          style: "loose-aggressive",
+          skill: "advanced",
+          description: "Always bets big.",
+          opponentTendencies: null,
+          tiltBehaviour: null,
+        },
+        {
+          id: "conservative-carlos",
+          name: "Conservative Carlos",
+          style: "tight-passive",
+          skill: "beginner",
+          description: "Plays very few hands.",
+          opponentTendencies: null,
+          tiltBehaviour: null,
+        },
+      ],
+      errors: [],
+    });
 
     h.renderAppShell("/npc-profiles");
 

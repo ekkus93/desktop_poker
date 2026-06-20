@@ -240,7 +240,7 @@ function setupAppShellMocks() {
   mockedFetchBootstrapState.mockReset();
   mockedAddNpcPlayers.mockReset();
   mockedListNpcProfiles.mockReset();
-  mockedListNpcProfiles.mockResolvedValue([]);
+  mockedListNpcProfiles.mockResolvedValue({ profiles: [], errors: [] });
   mockedClientClaimLobbySeat.mockReset();
   mockedClientSetLobbyReadyState.mockReset();
   mockedGetClientSessionStatus.mockReset();

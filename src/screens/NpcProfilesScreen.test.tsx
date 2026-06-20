@@ -37,21 +37,27 @@ function createProfile(overrides: Partial<NpcProfile> = {}): NpcProfile {
   };
 }
 
+function profileList(profiles: NpcProfile[]) {
+  return { profiles, errors: [] };
+}
+
 describe("NpcProfilesScreen", () => {
   beforeEach(() => {
     mockedListNpcProfiles.mockReset();
     mockedSaveNpcProfile.mockReset();
     mockedDeleteNpcProfile.mockReset();
-    mockedListNpcProfiles.mockResolvedValue([]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([]));
     mockedSaveNpcProfile.mockResolvedValue(createProfile());
     mockedDeleteNpcProfile.mockResolvedValue(undefined);
   });
 
   it("lists profiles returned by listNpcProfiles", async () => {
-    mockedListNpcProfiles.mockResolvedValue([
-      createProfile({ id: "alice", name: "Aggressive Alice" }),
-      createProfile({ id: "bob", name: "Balanced Bob" }),
-    ]);
+    mockedListNpcProfiles.mockResolvedValue(
+      profileList([
+        createProfile({ id: "alice", name: "Aggressive Alice" }),
+        createProfile({ id: "bob", name: "Balanced Bob" }),
+      ]),
+    );
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -61,7 +67,7 @@ describe("NpcProfilesScreen", () => {
 
   it("clicking Save on a profile calls saveNpcProfile", async () => {
     const profile = createProfile({ id: "test-player", name: "Test Player" });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -80,7 +86,7 @@ describe("NpcProfilesScreen", () => {
 
   it("clicking Delete on a non-builtin calls deleteNpcProfile", async () => {
     const profile = createProfile({ id: "my-custom", name: "My Custom" });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -98,7 +104,7 @@ describe("NpcProfilesScreen", () => {
       id: "aggressive-alice",
       name: "Aggressive Alice",
     });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -115,7 +121,7 @@ describe("NpcProfilesScreen", () => {
       name: "Alice",
       opponentTendencies: "Bluff tight players on the river.",
     });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -134,7 +140,7 @@ describe("NpcProfilesScreen", () => {
       opponentTendencies: null,
       tiltBehaviour: null,
     });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -146,7 +152,7 @@ describe("NpcProfilesScreen", () => {
 
   it("shows the Profile format help details block in the editor", async () => {
     const profile = createProfile({ id: "alice", name: "Alice" });
-    mockedListNpcProfiles.mockResolvedValue([profile]);
+    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
@@ -154,5 +160,19 @@ describe("NpcProfilesScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: /alice/i }));
 
     expect(screen.getByText("Profile format help")).toBeTruthy();
+  });
+
+  it("shows corrupt profile file as a warning in the profile list", async () => {
+    mockedListNpcProfiles.mockResolvedValue({
+      profiles: [],
+      errors: [{ filename: "bad.md", error: "missing frontmatter" }],
+    });
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+
+    expect(
+      await screen.findByTestId("profile-list-errors"),
+    ).toBeTruthy();
+    expect(screen.getByText(/bad\.md/)).toBeTruthy();
   });
 });

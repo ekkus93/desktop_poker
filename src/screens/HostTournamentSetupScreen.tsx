@@ -16,6 +16,7 @@ import {
   resolveHostLanAddress,
   startHostSession,
   type NpcProfile,
+  type NpcProfileError,
   type NpcStyle,
 } from "../api/desktop";
 import { SectionCard } from "../components/shared/SectionCard";
@@ -65,6 +66,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [hostError, setHostError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [availableProfiles, setAvailableProfiles] = useState<NpcProfile[]>([]);
+  const [profileListErrors, setProfileListErrors] = useState<NpcProfileError[]>([]);
+  const [profileListLoadError, setProfileListLoadError] = useState<string | null>(null);
+  const [sessionStatusError, setSessionStatusError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
@@ -75,10 +79,32 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   useEffect(() => {
     if (bootstrap.llmApiKeyConfigured) {
       void listNpcProfiles()
-        .then(setAvailableProfiles)
-        .catch(() => {});
+        .then((result) => {
+          setAvailableProfiles(result.profiles);
+          setProfileListErrors(result.errors);
+          setProfileListLoadError(null);
+        })
+        .catch((e: unknown) => {
+          setProfileListLoadError(
+            e instanceof Error ? e.message : "Failed to load AI profiles.",
+          );
+        });
     }
   }, [bootstrap.llmApiKeyConfigured]);
+
+  function reloadSessionStatus() {
+    setSessionStatusError(null);
+    void getHostSessionStatus()
+      .then((status) => {
+        setHostSession(status);
+        setSessionStatusError(null);
+      })
+      .catch((e: unknown) => {
+        setSessionStatusError(
+          e instanceof Error ? e.message : "Failed to load session status.",
+        );
+      });
+  }
 
   useEffect(() => {
     let active = true;
@@ -90,13 +116,16 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         }
 
         setHostSession(status);
+        setSessionStatusError(null);
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         if (!active) {
           return;
         }
 
-        setHostSession(null);
+        setSessionStatusError(
+          e instanceof Error ? e.message : "Failed to load session status.",
+        );
       });
 
     void resolveHostLanAddress()
@@ -461,6 +490,15 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     Add a Claude API key in settings to use AI profiles.
                   </p>
                 ) : null}
+                {profileListErrors.length > 0 ? (
+                  <p
+                    className="inline-banner error"
+                    data-testid="profile-list-load-warning"
+                  >
+                    {profileListErrors.length} profile file(s) could not be
+                    loaded. Go to Settings › Manage AI profiles to review.
+                  </p>
+                ) : null}
               </div>
               {lanError ? (
                 <p className="inline-banner error">{lanError}</p>
@@ -573,6 +611,30 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
               </div>
               {hostError ? (
                 <p className="inline-banner error">{hostError}</p>
+              ) : null}
+              {sessionStatusError ? (
+                <div
+                  className="inline-banner error"
+                  data-testid="session-status-error"
+                >
+                  <p>Could not load session status: {sessionStatusError}</p>
+                  <button
+                    className="secondary-button"
+                    onClick={reloadSessionStatus}
+                    type="button"
+                    style={{ marginTop: "0.5rem" }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+              {profileListLoadError ? (
+                <p
+                  className="inline-banner error"
+                  data-testid="profile-list-load-error"
+                >
+                  Could not load AI profiles: {profileListLoadError}
+                </p>
               ) : null}
               {!inviteReady ? (
                 <p className="field-hint">{copyBlockedMessage}</p>

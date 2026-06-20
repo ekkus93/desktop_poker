@@ -65,7 +65,7 @@ describe("HostTournamentSetupScreen", () => {
     mockedGetHostSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockResolvedValue(null);
     mockedListNpcProfiles.mockReset();
-    mockedListNpcProfiles.mockResolvedValue([]);
+    mockedListNpcProfiles.mockResolvedValue({ profiles: [], errors: [] });
     mockedResolveHostLanAddress.mockReset();
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedStartHostSession.mockReset();
@@ -500,17 +500,20 @@ describe("HostTournamentSetupScreen", () => {
   });
 
   it("shows profile select when llmApiKeyConfigured is true and npcCount > 0", async () => {
-    mockedListNpcProfiles.mockResolvedValue([
-      {
-        id: "aggressive-alice",
-        name: "Aggressive Alice",
-        style: "loose-aggressive",
-        skill: "intermediate",
-        description: "",
-        opponentTendencies: null,
-        tiltBehaviour: null,
-      },
-    ]);
+    mockedListNpcProfiles.mockResolvedValue({
+      profiles: [
+        {
+          id: "aggressive-alice",
+          name: "Aggressive Alice",
+          style: "loose-aggressive",
+          skill: "intermediate",
+          description: "",
+          opponentTendencies: null,
+          tiltBehaviour: null,
+        },
+      ],
+      errors: [],
+    });
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "host-draft"),
@@ -522,5 +525,52 @@ describe("HostTournamentSetupScreen", () => {
     await screen.findByRole("button", { name: /start hosting/i });
     expect(await screen.findByLabelText("AI profile")).toBeTruthy();
     expect(screen.getByText("Aggressive Alice")).toBeTruthy();
+  });
+
+  // P1.5 — session status load failure shows visible error, not silent null.
+  it("shows error when getHostSessionStatus rejects", async () => {
+    mockedGetHostSessionStatus.mockRejectedValue(new Error("network error"));
+    const bootstrap = createBootstrap({});
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+    expect(await screen.findByTestId("session-status-error")).toBeTruthy();
+    expect(screen.getByText(/network error/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+  });
+
+  it("null from getHostSessionStatus shows normal setup UI, not an error", async () => {
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+    const bootstrap = createBootstrap({});
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+    await screen.findByRole("button", { name: /start hosting/i });
+    expect(screen.queryByTestId("session-status-error")).toBeNull();
+  });
+
+  // P1.6 — profile list load failure shows visible error.
+  it("shows error when listNpcProfiles rejects", async () => {
+    mockedListNpcProfiles.mockRejectedValue(new Error("profiles failed"));
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    localStorage.setItem(
+      storageKey(bootstrap.storageNamespace, "host-draft"),
+      JSON.stringify({ ...createDefaultHostDraft(bootstrap), npcCount: 1 }),
+    );
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+    expect(await screen.findByTestId("profile-list-load-error")).toBeTruthy();
+    expect(screen.getByText(/profiles failed/)).toBeTruthy();
+  });
+
+  it("empty profile list without error does not show the load-error banner", async () => {
+    mockedListNpcProfiles.mockResolvedValue({ profiles: [], errors: [] });
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+    await screen.findByRole("button", { name: /start hosting/i });
+    expect(screen.queryByTestId("profile-list-load-error")).toBeNull();
   });
 });

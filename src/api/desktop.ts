@@ -367,8 +367,19 @@ export type NpcProfile = {
   tiltBehaviour: string | null;
 };
 
-export function listNpcProfiles(): Promise<NpcProfile[]> {
-  return invoke<NpcProfile[]>("list_npc_profiles");
+export type NpcProfileError = {
+  /** Filename (not full path) of the failing profile file. */
+  filename: string;
+  error: string;
+};
+
+export type NpcProfileListResult = {
+  profiles: NpcProfile[];
+  errors: NpcProfileError[];
+};
+
+export function listNpcProfiles(): Promise<NpcProfileListResult> {
+  return invoke<NpcProfileListResult>("list_npc_profiles");
 }
 
 export function getNpcProfile(id: string): Promise<NpcProfile> {

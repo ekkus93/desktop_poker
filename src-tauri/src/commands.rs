@@ -227,7 +227,7 @@ pub fn clear_llm_provider_config(
 #[tauri::command]
 pub fn list_npc_profiles(
     state: State<'_, DesktopAppState>,
-) -> Result<Vec<crate::npc::NpcProfile>, String> {
+) -> Result<crate::npc::profile_store::NpcProfileListResult, String> {
     state.list_npc_profiles()
 }
 
