@@ -71,11 +71,20 @@ npm run test
 If Rust is available:
 
 ```bash
-cd src-tauri
-cargo fmt --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets --all-features
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
 ```
+
+## Extended Rust validation
+
+Run this for deeper hardening passes, but it is not required as the normal baseline:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
+```
+
+`--all-targets --all-features` enables optional feature flags and runs doc tests, benchmarks, and example targets. Do not make this the mandatory baseline unless Phillip explicitly decides to adopt it project-wide.
 
 The app currently expects Node 24.x. Run the frontend checks under Node 24.x locally.
 
