@@ -98,16 +98,16 @@ pub struct LlmClient {
 }
 
 impl LlmClient {
-    pub fn new(config: LlmProviderConfig) -> Self {
+    pub fn new(config: LlmProviderConfig) -> Result<Self, String> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(DEFAULT_TIMEOUT_SECS))
             .build()
-            .expect("HTTP client with default timeout should always build successfully");
-        Self {
+            .map_err(|e| format!("failed to build HTTP client: {e}"))?;
+        Ok(Self {
             client,
             config,
             endpoint_override: None,
-        }
+        })
     }
 
     /// Override the API base URL (used in tests with a mock server).
@@ -132,16 +132,16 @@ impl LlmClient {
         config: LlmProviderConfig,
         timeout_secs: u64,
         endpoint: String,
-    ) -> Self {
+    ) -> Result<Self, String> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(timeout_secs))
             .build()
-            .expect("HTTP client with custom timeout should always build successfully");
-        Self {
+            .map_err(|e| format!("failed to build HTTP client: {e}"))?;
+        Ok(Self {
             client,
             config,
             endpoint_override: Some(endpoint),
-        }
+        })
     }
 
     fn base_url(&self) -> &str {
@@ -273,7 +273,9 @@ mod tests {
             endpoint_url: None,
             model: None,
         };
-        LlmClient::new(cfg).with_endpoint_override(server.base_url())
+        LlmClient::new(cfg)
+            .expect("test client builds")
+            .with_endpoint_override(server.base_url())
     }
 
     fn openai_client(server: &MockServer) -> LlmClient {
@@ -283,7 +285,9 @@ mod tests {
             endpoint_url: None,
             model: None,
         };
-        LlmClient::new(cfg).with_endpoint_override(server.base_url())
+        LlmClient::new(cfg)
+            .expect("test client builds")
+            .with_endpoint_override(server.base_url())
     }
 
     fn ollama_client(server: &MockServer) -> LlmClient {
@@ -293,7 +297,9 @@ mod tests {
             endpoint_url: None,
             model: Some("llama3.2".to_string()),
         };
-        LlmClient::new(cfg).with_endpoint_override(server.base_url())
+        LlmClient::new(cfg)
+            .expect("test client builds")
+            .with_endpoint_override(server.base_url())
     }
 
     fn anthropic_response(text: &str) -> serde_json::Value {
@@ -407,7 +413,8 @@ mod tests {
             endpoint_url: None,
             model: None,
         };
-        let client = LlmClient::with_timeout_secs(cfg, 1, server.base_url());
+        let client =
+            LlmClient::with_timeout_secs(cfg, 1, server.base_url()).expect("test client builds");
         let err = client.complete("system", "user").unwrap_err();
         assert!(matches!(err, LlmError::Timeout | LlmError::Network(_)));
     }

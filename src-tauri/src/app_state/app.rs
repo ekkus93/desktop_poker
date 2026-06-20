@@ -22,13 +22,15 @@ impl DesktopAppState {
             parse_launch_join_payload(launch_join_payload.as_deref());
         let app_data_dir = detect_app_data_dir();
         let load_state = crate::npc::provider_storage::load_provider_config(&app_data_dir);
-        if let crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { ref error }
-        | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { ref error }
-        | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { ref error } =
-            load_state
-        {
-            eprintln!("[app] provider config load error: {error}");
-        }
+        let provider_config_error = match &load_state {
+            crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { error }
+            | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { error }
+            | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { error } => {
+                eprintln!("[app] provider config load error: {error}");
+                Some(error.clone())
+            }
+            _ => None,
+        };
         let loaded_provider = match load_state {
             crate::npc::provider_storage::ProviderConfigLoadState::Loaded(cfg) => Some(cfg),
             _ => None,
@@ -64,6 +66,7 @@ impl DesktopAppState {
                 debug_tools_enabled,
                 llm_api_key_configured,
                 llm_provider_type,
+                provider_config_error,
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
             },

@@ -29,6 +29,7 @@ export function createBootstrap(
     debugToolsEnabled: true,
     llmApiKeyConfigured: false,
     llmProviderType: null,
+    providerConfigError: null,
     backendModules: [],
     screens: [],
     ...overrides,

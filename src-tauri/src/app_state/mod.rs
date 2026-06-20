@@ -89,6 +89,9 @@ pub struct DesktopBootstrapState {
     /// Which LLM provider is configured, e.g. "anthropic", "openAi", "ollama", "llamaServer".
     /// None when no provider is set.
     pub llm_provider_type: Option<String>,
+    /// Populated when the provider config file exists but is corrupt or unreadable.
+    /// Distinct from None (not configured) — means "configured but broken."
+    pub provider_config_error: Option<String>,
     pub backend_modules: Vec<ModuleDescriptor>,
     pub screens: Vec<ScreenDescriptor>,
 }

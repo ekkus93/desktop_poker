@@ -391,6 +391,7 @@ mod tests {
             debug_tools_enabled: true,
             llm_api_key_configured: false,
             llm_provider_type: None,
+            provider_config_error: None,
             backend_modules: vec![ModuleDescriptor {
                 name: "protocol",
                 responsibility: "Owns protocol behavior.",

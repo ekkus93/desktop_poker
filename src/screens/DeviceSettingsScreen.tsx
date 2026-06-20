@@ -152,6 +152,14 @@ export function DeviceSettingsScreen() {
                 : "Not configured"}
             </strong>
           </p>
+          {bootstrap.providerConfigError ? (
+            <p
+              className="inline-banner error"
+              data-testid="provider-config-error"
+            >
+              Config file error: {bootstrap.providerConfigError}
+            </p>
+          ) : null}
 
           <div className="form-grid">
             <label className="field">

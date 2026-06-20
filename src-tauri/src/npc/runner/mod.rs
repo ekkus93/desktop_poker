@@ -11,7 +11,7 @@ use crate::networking::HostServer;
 
 use super::hand_log::{HandActionRecord, HandLog};
 use super::llm_client::LlmClient;
-use super::llm_strategy::choose_llm_action;
+use super::llm_strategy::{choose_llm_action, LlmFallbackReason};
 use super::opponent_stats::OpponentStatsTable;
 use super::prompt::GameStateSnapshot;
 use super::provider::LlmProviderConfig;
@@ -482,8 +482,35 @@ pub(crate) fn try_npc_action(
             };
 
             let provider_label = format!("{:?}", cfg.provider);
-            let (llm_action, llm_raise, fallback_reason) =
-                choose_llm_action(&LlmClient::new(cfg), profile, &snapshot);
+            let llm_client = LlmClient::new(cfg);
+            if let Err(ref e) = llm_client {
+                eprintln!("[npc-runner] failed to build LLM client: {e}");
+            }
+            let (llm_action, llm_raise, fallback_reason) = match llm_client {
+                Ok(client) => choose_llm_action(&client, profile, &snapshot),
+                Err(_) => {
+                    let rb = rule_based_decision(
+                        style,
+                        hole_cards,
+                        board,
+                        street,
+                        pot_total,
+                        call_amount,
+                        min_raise_to,
+                        max_raise_to,
+                        facing_bet,
+                        stack,
+                        active_count,
+                        dealer_seat,
+                        fresh_window.seat_index,
+                        fresh_state.blind_level_index,
+                        &fresh_state,
+                        legal_actions,
+                        seed,
+                    );
+                    (rb.0, rb.1, Some(LlmFallbackReason::RequestFailed))
+                }
+            };
 
             if let Some(reason) = &fallback_reason {
                 let msg = format!(

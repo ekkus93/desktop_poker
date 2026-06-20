@@ -56,6 +56,7 @@ function createProbeBootstrap(): DesktopBootstrapState {
     debugToolsEnabled: false,
     llmApiKeyConfigured: false,
     llmProviderType: null,
+    providerConfigError: null,
     backendModules: [],
     screens: [
       { id: "home", title: "Home", route: "/", surface: "primary" },

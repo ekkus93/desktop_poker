@@ -227,7 +227,9 @@ mod tests {
         // Keep the server alive by leaking it (test scope).
         let url = server.base_url();
         std::mem::forget(server);
-        LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url)
+        LlmClient::new(anthropic_cfg("test-key"))
+            .expect("test client builds")
+            .with_endpoint_override(url)
     }
 
     fn timeout_client() -> LlmClient {
@@ -241,7 +243,7 @@ mod tests {
         });
         let url = server.base_url();
         std::mem::forget(server);
-        LlmClient::with_timeout_secs(anthropic_cfg("test-key"), 1, url)
+        LlmClient::with_timeout_secs(anthropic_cfg("test-key"), 1, url).expect("test client builds")
     }
 
     #[test]
@@ -280,7 +282,9 @@ mod tests {
         });
         let url = server.base_url();
         std::mem::forget(server);
-        let client = LlmClient::new(anthropic_cfg("bad-key")).with_endpoint_override(url);
+        let client = LlmClient::new(anthropic_cfg("bad-key"))
+            .expect("test client builds")
+            .with_endpoint_override(url);
 
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
@@ -306,7 +310,9 @@ mod tests {
         });
         let url = server.base_url();
         std::mem::forget(server);
-        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
+        let client = LlmClient::new(anthropic_cfg("test-key"))
+            .expect("test client builds")
+            .with_endpoint_override(url);
 
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
@@ -370,7 +376,9 @@ mod tests {
         });
         let url = server.base_url();
         std::mem::forget(server);
-        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
+        let client = LlmClient::new(anthropic_cfg("test-key"))
+            .expect("test client builds")
+            .with_endpoint_override(url);
 
         let profile = make_profile("balanced");
         let mut snap = snap_with_raise();
@@ -398,7 +406,9 @@ mod tests {
         });
         let url = server.base_url();
         std::mem::forget(server);
-        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
+        let client = LlmClient::new(anthropic_cfg("test-key"))
+            .expect("test client builds")
+            .with_endpoint_override(url);
 
         let profile = make_profile("balanced");
         let mut snap = snap_with_raise();
@@ -568,7 +578,7 @@ mod ollama_live_tests {
         let _guard = LIVE_OLLAMA_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let client = LlmClient::new(ollama_cfg("llama3.2:3b"));
+        let client = LlmClient::new(ollama_cfg("llama3.2:3b")).expect("test client builds");
         let profile = balanced_profile();
         let snap = preflop_snap();
 
@@ -583,7 +593,7 @@ mod ollama_live_tests {
         let _guard = LIVE_OLLAMA_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let client = LlmClient::new(ollama_cfg("llama3.2:3b"));
+        let client = LlmClient::new(ollama_cfg("llama3.2:3b")).expect("test client builds");
         let profile = balanced_profile();
         let snap = postflop_snap();
 

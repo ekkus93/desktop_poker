@@ -170,6 +170,8 @@ export type DesktopBootstrapState = {
   debugToolsEnabled: boolean;
   llmApiKeyConfigured: boolean;
   llmProviderType: string | null;
+  /** Non-null when the provider config file exists but is corrupt or unreadable. */
+  providerConfigError: string | null;
   backendModules: BackendModuleDescriptor[];
   screens: ScreenDescriptor[];
 };
