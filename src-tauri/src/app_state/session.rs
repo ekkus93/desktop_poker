@@ -134,11 +134,10 @@ impl DesktopClientSession {
         self.refresh();
 
         if self.terminated {
-            return Err(
-                self.last_error
-                    .clone()
-                    .unwrap_or_else(|| "Disconnected from host".to_string()),
-            );
+            return Err(self
+                .last_error
+                .clone()
+                .unwrap_or_else(|| "Disconnected from host".to_string()));
         }
 
         if self.latest_snapshot.state.phase == domain::TournamentPhase::ReadyCheck {

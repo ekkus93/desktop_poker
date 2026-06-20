@@ -995,9 +995,7 @@ fn leave_client_session_does_not_clear_llm_provider_config() {
     state
         .join_host_session(sample_join_host_session_request(&host_status.invite))
         .expect("client should join");
-    state
-        .leave_client_session()
-        .expect("client should leave");
+    state.leave_client_session().expect("client should leave");
 
     let config_after_leave = state
         .get_llm_provider_config()

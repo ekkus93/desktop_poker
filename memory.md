@@ -836,3 +836,11 @@ Completed across two session spans (context compaction between them):
 - Checked off TODO items: 5.3 (all 4), 11.1 host+client lifecycle bullets, 3.4 teardown-isolation bullet.
 - Commit: `1d5534c` — 389 Rust tests, 228 JS tests.
 - Remaining unchecked items in REAL_MULTIPLAYER1_TODO.md still include: session model items (2.1, 2.3), resync/reconnect protocol depth (8.x), persistence (9.x), demo cleanup (10.x), multi-instance docs (12.x).
+
+## 2026-06-20T18:06:03Z - Claude Sonnet 4.6 - REAL_MULTIPLAYER1 nearly complete
+
+- Added `tournamentPhase` raw token field to `TableViewSnapshot` (Rust + TypeScript). Replaced fragile `phaseLabel.includes("complete")` branching in `MainTableScreen` and `TournamentCompleteScreen` with `tournamentPhase === "complete"`. Commit: `ae65d95`.
+- Added `lastEndedSession` shell state persisted to localStorage. `TournamentLobbyScreen` records role + tournament name before navigating home. `HomeScreen` shows a contextual recovery rail entry with "Rejoin" or "New session" link. Commit: `d97ddec`. This completes TODO line 225 (startup UI communicates prior session state).
+- Checked off batch of verified-done items: host-side disconnect surfacing (already `ConnectionState::Reconnecting` via `mark_participant_reconnect_eligible`), reconnect-after-elimination (5-min window for `EliminatedObserver`), host→copy invite→join integration test (already in `AppShell.host.integration.test.tsx` line 449), Tauri release binary compiles successfully (AppImage bundling requires `linuxdeploy`), and all 4 documentation items (README updated, manual QA checklist written).
+- Created `docs/MANUAL_QA_CHECKLIST.md` with four reproducible checklists for live session testing. README updated with link, linuxdeploy note, and deb/rpm-only build flags. Commit: `a883c7d`.
+- Final state: REAL_MULTIPLAYER1_TODO has 5 unchecked items remaining, all manual live-session verification tasks that require a display environment. 231 frontend tests, 389 Rust tests, lint and clippy clean.
