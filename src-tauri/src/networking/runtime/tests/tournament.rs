@@ -536,7 +536,7 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
 
             // Re-read the stale state (window was consumed above).
             let stale_state = host.authoritative_state().expect("stale state");
-            let acted = try_npc_action(
+            let outcome = try_npc_action(
                 &host,
                 &stale_state,
                 &npc_configs,
@@ -544,11 +544,11 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
                 &api_key_holder,
                 &mut runner_state,
             );
-            // Either the window is gone (returns false immediately) or it was
-            // a different player's turn (also false). Either way: not true.
+            // Either the window is gone (StaleWindow/NoOpportunity) or it was
+            // a different player's turn (NotNpcTurn). Either way: not Success.
             assert!(
-                !acted,
-                "try_npc_action must return false for a stale/consumed window"
+                !outcome.acted(),
+                "try_npc_action must not report Success for a stale/consumed window; got {outcome:?}"
             );
         }
     }
@@ -628,13 +628,19 @@ fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provi
         Arc::clone(&fallback),
     );
 
-    try_npc_action(
+    let outcome = try_npc_action(
         &host,
         &state,
         &npc_configs,
         &stop,
         &api_key_holder,
         &mut runner_state,
+    );
+    // The NPC falls back to rule-based and submits an action, so the outcome
+    // is Success even though the LLM path was not used.
+    assert!(
+        outcome.acted(),
+        "NPC with no provider should still submit a rule-based action; got {outcome:?}"
     );
 
     let recorded = fallback.lock().expect("fallback lock").clone();

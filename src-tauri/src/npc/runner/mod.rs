@@ -23,6 +23,34 @@ use super::NpcConfig;
 mod decision;
 pub(crate) use decision::*;
 
+/// Outcome of a single `try_npc_action` call.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum NpcActionOutcome {
+    /// No hand or no action window exists right now.
+    NoOpportunity,
+    /// The window was for a human player; the NPC runner has nothing to do.
+    NotNpcTurn,
+    /// No NPC config was found for the player whose window is open.
+    NoConfig,
+    /// The stop signal was set before a decision could be taken.
+    Stopped,
+    /// The runtime could not be reached to read authoritative state.
+    RuntimeUnavailable,
+    /// The action window expired between the initial snapshot and submission.
+    StaleWindow,
+    /// The action was submitted and the host accepted it.
+    Success,
+    /// The host rejected the submitted action.
+    Rejected(String),
+}
+
+impl NpcActionOutcome {
+    /// Returns `true` only when an action was successfully submitted.
+    pub(crate) fn acted(&self) -> bool {
+        matches!(self, NpcActionOutcome::Success)
+    }
+}
+
 /// Interval between polls when no NPC action is pending.
 const POLL_INTERVAL_MS: u64 = 80;
 
@@ -148,7 +176,7 @@ fn npc_runner_loop(
         // Process any newly completed hands before deciding the next action.
         process_completed_hands(&state, npc_configs, &mut runner_state);
 
-        let acted = try_npc_action(
+        let outcome = try_npc_action(
             host_server,
             &state,
             npc_configs,
@@ -157,7 +185,7 @@ fn npc_runner_loop(
             &mut runner_state,
         );
 
-        if !acted {
+        if !outcome.acted() {
             thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
         }
     }
@@ -315,19 +343,19 @@ pub(crate) fn try_npc_action(
     stop: &AtomicBool,
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     runner_state: &mut RunnerState,
-) -> bool {
+) -> NpcActionOutcome {
     let hand = match &state.current_hand {
         Some(h) => h,
-        None => return false,
+        None => return NpcActionOutcome::NoOpportunity,
     };
 
     let window = match &hand.action_window {
         Some(w) => w,
-        None => return false,
+        None => return NpcActionOutcome::NoOpportunity,
     };
 
     if !NpcConfig::is_npc_player_id(&window.player_id) {
-        return false;
+        return NpcActionOutcome::NotNpcTurn;
     }
 
     let config_entry = npc_configs
@@ -342,7 +370,7 @@ pub(crate) fn try_npc_action(
                 "[npc-runner] no config found for player {}; skipping action",
                 window.player_id
             );
-            return false;
+            return NpcActionOutcome::NoConfig;
         }
     };
 
@@ -354,12 +382,12 @@ pub(crate) fn try_npc_action(
     thread::sleep(Duration::from_millis(delay_ms));
 
     if stop.load(Ordering::SeqCst) {
-        return false;
+        return NpcActionOutcome::Stopped;
     }
 
     let fresh_state = match host_server.authoritative_state() {
         Ok(s) => s,
-        Err(_) => return false,
+        Err(_) => return NpcActionOutcome::RuntimeUnavailable,
     };
     let fresh_window = match fresh_state
         .current_hand
@@ -367,11 +395,11 @@ pub(crate) fn try_npc_action(
         .and_then(|h| h.action_window.as_ref())
     {
         Some(w) if w.action_window_id == window.action_window_id => w.clone(),
-        _ => return false,
+        _ => return NpcActionOutcome::StaleWindow,
     };
     let fresh_hand = match &fresh_state.current_hand {
         Some(h) => h,
-        None => return false,
+        None => return NpcActionOutcome::StaleWindow,
     };
 
     // Initialize or reset the hand log when we detect a new hand.
@@ -610,13 +638,13 @@ pub(crate) fn try_npc_action(
         action_type,
         raise_to,
     ) {
-        Ok(()) => true,
+        Ok(()) => NpcActionOutcome::Success,
         Err(e) => {
             eprintln!(
                 "[npc-runner] submit_action failed for {} (window={}, action={:?}): {e}",
                 fresh_window.player_id, fresh_window.action_window_id, action_type
             );
-            false
+            NpcActionOutcome::Rejected(e.to_string())
         }
     }
 }

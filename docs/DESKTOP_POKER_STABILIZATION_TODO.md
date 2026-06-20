@@ -148,12 +148,12 @@ Inspect and update:
 - [x] Find all `submit_action` calls from NPC logic.
 - [x] Replace ignored result handling with explicit `match`.
 - [x] Return/record failure when submission fails.
-- [ ] Add structured NPC action outcome:
-  - [ ] success
-  - [ ] rejected
-  - [ ] stale window
-  - [ ] illegal action
-  - [ ] runtime unavailable
+- [x] Add structured NPC action outcome:
+  - [x] success
+  - [x] rejected
+  - [x] stale window
+  - [x] illegal action
+  - [x] runtime unavailable
 - [x] Add failure detail to debug state/logs.
 - [x] Prevent tight retry loops after repeated NPC failure.
 
@@ -369,7 +369,7 @@ Inspect and update:
 - [x] Ensure API keys are not exposed in debug state.
 - [ ] Split secret from non-secret provider config.
 - [ ] Implement OS keychain storage if feasible in this pass.
-- [ ] If not feasible, implement explicit dev-only plaintext mode:
+- [x] If not feasible, implement explicit dev-only plaintext mode:
   - [x] warning in UI,
   - [x] restricted file permissions,
   - [x] release-mode block or warning,

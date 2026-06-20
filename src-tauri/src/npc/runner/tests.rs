@@ -249,6 +249,20 @@ fn npc_config_lookup_by_unknown_player_id_returns_none_not_first_config() {
     );
 }
 
+// P0.4 — NpcActionOutcome enum reports acted() correctly for each variant.
+
+#[test]
+fn npc_action_outcome_acted_is_true_only_for_success() {
+    assert!(NpcActionOutcome::Success.acted());
+    assert!(!NpcActionOutcome::NoOpportunity.acted());
+    assert!(!NpcActionOutcome::NotNpcTurn.acted());
+    assert!(!NpcActionOutcome::NoConfig.acted());
+    assert!(!NpcActionOutcome::Stopped.acted());
+    assert!(!NpcActionOutcome::RuntimeUnavailable.acted());
+    assert!(!NpcActionOutcome::StaleWindow.acted());
+    assert!(!NpcActionOutcome::Rejected("host rejected".into()).acted());
+}
+
 #[test]
 fn session_history_increments_after_one_completed_hand() {
     let configs = npc_configs();
