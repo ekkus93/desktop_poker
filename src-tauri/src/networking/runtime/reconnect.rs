@@ -84,6 +84,26 @@ pub(crate) fn is_reconnectable_participant(participant: &ParticipantRegistryEntr
     ) && participant.state != ParticipantState::Removed
 }
 
+/// Merge networking-only fields (reconnect tokens, connection state, admitted
+/// timestamps) from the old authoritative state into the new controller-derived
+/// state.  The tournament controller never carries these fields — it writes
+/// `reconnect_token: None` and `connection_state: Connected` for every
+/// participant.  Without this merge, every tick-loop state replacement would
+/// silently wipe all reconnect tokens.
+pub(crate) fn merge_networking_state(
+    authoritative_source: &TournamentState,
+    controller_state: &mut TournamentState,
+) {
+    for (player_id, source_participant) in &authoritative_source.participants {
+        if let Some(target_participant) = controller_state.participants.get_mut(player_id) {
+            target_participant.reconnect_token = source_participant.reconnect_token.clone();
+            target_participant.reconnect_expiry_ms = source_participant.reconnect_expiry_ms;
+            target_participant.connection_state = source_participant.connection_state;
+            target_participant.admitted_at_ms = source_participant.admitted_at_ms;
+        }
+    }
+}
+
 pub(crate) fn issue_reconnect_token() -> String {
     let mut bytes = [0_u8; 24];
     OsRng.fill_bytes(&mut bytes);

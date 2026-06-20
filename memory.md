@@ -650,3 +650,23 @@
   - npc (71a21c9): inline tests in npc/runner/decision.rs; 13 tests for rule_based_decision via a minimal TournamentState fixture + Spot builder — legality invariants, hand-strength, short-stack all-in fallback, positional + style divergence, determinism + seeded divergence.
 - Real contracts encoded: evaluate_best_holdem_hand requires EXACTLY 2 hole + 5 board cards; settle_showdown errors on empty contributions/strengths but treats all-zero contributions as an empty no-pot settlement; rule_based_decision only reads config.blind_schedule + current_hand.betting_round.current_bet from state.
 - Verified: rustfmt + clippy -D warnings clean; full suite 350 passed / 0 failed / 2 ignored. No file > 700 lines. New counts: crypto 25, engine 45, npc decision 13.
+
+## 2026-06-19T19:26:28Z - Claude Sonnet 4.6 - Wrote INT_TEST3_TODO.md
+
+- Created docs/INT_TEST3_TODO.md: a comprehensive integration-test expansion plan
+  targeting 12 sections / ~35 subtasks across Rust networking + tournament
+  controller layers and the React frontend.
+- Sections:
+  1. Reconnect mid-hand (client rejoins during open betting round)
+  2. Multi-hand blind escalation over live TCP (level broadcast to clients)
+  3. Private hole-card delivery integrity (2 cards per player, no leakage)
+  4. Observer-only enforcement after elimination (rejected action)
+  5. Signature replay protection across sessions (stale epoch rejection)
+  6. Stacked-deck hole-card invariants (deal order, no duplicates)
+  7. Fold-to-winner without showdown (preflop and postflop)
+  8. Frontend hand history populates from live events (AppShell)
+  9. Frontend NPC profile screen lists registered NPCs
+  10. Frontend join flow rejects malformed payload gracefully
+  11. Canonical JSON serialization round-trip (Android compatibility)
+  12. Final verification and line-count audit
+- Nothing was implemented; this is a planning artifact only.

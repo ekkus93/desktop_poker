@@ -192,32 +192,32 @@ impl HostServer {
                 .name("desktop-poker-host-tick".to_string())
                 .spawn(move || {
                     while !stop_signal.load(Ordering::SeqCst) {
-                        let next_state = {
-                            let mut runtime = match tournament_runtime.lock() {
-                                Ok(runtime) => runtime,
-                                Err(_) => break,
-                            };
-
-                            let Some(controller) = runtime.as_mut() else {
-                                thread::sleep(Duration::from_millis(50));
-                                continue;
-                            };
-
-                            let before = controller.state().clone();
-                            if controller.advance_time(now_epoch_ms()).is_err() {
-                                thread::sleep(Duration::from_millis(50));
-                                continue;
-                            }
-
-                            let after = controller.state().clone();
-                            (after != before).then_some(after)
+                        // Acquire the lock only for the duration of advance_time,
+                        // NOT for the sleep, so that start_tournament() can install
+                        // the controller without being starved by this idle loop.
+                        let next_state = match tournament_runtime.lock() {
+                            Err(_) => break,
+                            Ok(mut runtime) => match runtime.as_mut() {
+                                None => None,
+                                Some(controller) => {
+                                    let before = controller.state().clone();
+                                    if controller.advance_time(now_epoch_ms()).is_err() {
+                                        None
+                                    } else {
+                                        let after = controller.state().clone();
+                                        (after != before).then_some(after)
+                                    }
+                                }
+                            },
+                            // MutexGuard `runtime` dropped here — lock released
                         };
 
-                        if let Some(state) = next_state {
+                        if let Some(mut state) = next_state {
                             let previous_state = authoritative_state
                                 .lock()
                                 .map(|authoritative| authoritative.clone())
                                 .unwrap_or_else(|_| state.clone());
+                            merge_networking_state(&previous_state, &mut state);
                             let _ = authoritative_state.lock().map(|mut authoritative| {
                                 *authoritative = state.clone();
                             });
@@ -386,7 +386,6 @@ impl HostServer {
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
             .and_then(|mut state| apply_start_tournament(&mut state))?;
-
         self.tournament_runtime
             .lock()
             .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?
@@ -440,7 +439,9 @@ impl HostServer {
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
             .map(|mut authoritative_state| {
-                *authoritative_state = next_state;
+                let mut merged = next_state;
+                merge_networking_state(&authoritative_state, &mut merged);
+                *authoritative_state = merged;
             })?;
         let after_state = self.authoritative_state()?;
         publish_runtime_transition(

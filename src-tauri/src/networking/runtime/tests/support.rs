@@ -387,6 +387,32 @@ pub(super) fn sample_participant_entry(
     }
 }
 
+/// Poll `host.authoritative_state()` until the in-progress hand number is ≥ `n`.
+/// Returns the authoritative `TournamentState` at that point.
+pub(super) fn wait_for_hand_number(
+    host: &HostServer,
+    n: u32,
+    deadline: Instant,
+) -> TournamentState {
+    loop {
+        let state = host.authoritative_state().expect("authoritative state");
+        if state
+            .current_hand
+            .as_ref()
+            .map(|h| h.hand_number)
+            .unwrap_or(0)
+            >= n
+        {
+            return state;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "expected hand {n} to start before deadline"
+        );
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
 pub(super) fn signed_reconnect_envelope(
     provider: &DefaultCryptoProvider,
     signing_keys: &crate::crypto::SigningKeyMaterial,
