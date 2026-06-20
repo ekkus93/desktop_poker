@@ -102,9 +102,26 @@ pub fn save_provider_config(
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)?;
             }
+            if cfg.api_key.as_deref().is_some_and(|k| !k.is_empty()) {
+                // API key stored in plaintext — emit a warning so the user knows.
+                // In a future pass this will move to the OS keychain.
+                #[cfg(not(debug_assertions))]
+                eprintln!(
+                    "[security] LLM API key stored in plaintext at {}. \
+                     Move to OS keychain storage before distributing a release build.",
+                    path.display()
+                );
+            }
             let json = serde_json::to_string_pretty(cfg)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             fs::write(&path, json)?;
+            // Restrict file to owner read/write only (0600).
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let perms = std::fs::Permissions::from_mode(0o600);
+                std::fs::set_permissions(&path, perms)?;
+            }
         }
     }
     Ok(())
@@ -204,5 +221,34 @@ mod tests {
         save_provider_config(dir.path(), Some(&new_cfg)).unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path()));
         assert_eq!(loaded.provider, LlmProviderType::Ollama);
+    }
+
+    #[test]
+    fn debug_repr_of_provider_config_redacts_api_key() {
+        let cfg = anthropic_config("sk-ant-super-secret-key-value-1234");
+        let debug_str = format!("{cfg:?}");
+        assert!(
+            !debug_str.contains("super-secret-key-value-1234"),
+            "Debug output must not expose the full API key; got: {debug_str}"
+        );
+        // Should show a short prefix + redaction marker.
+        assert!(
+            debug_str.contains("redacted") || debug_str.contains("…"),
+            "Debug output should indicate redaction; got: {debug_str}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn saved_provider_config_has_restricted_file_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-secret"))).unwrap();
+        let meta = fs::metadata(provider_path(dir.path())).unwrap();
+        let mode = meta.permissions().mode() & 0o777;
+        assert_eq!(
+            mode, 0o600,
+            "provider config file must be owner-only readable (0600); got {mode:#o}"
+        );
     }
 }

@@ -12,6 +12,10 @@ use crate::{
 
 use super::support::*;
 
+/// Serializes tests that read and write the shared provider config on disk.
+/// `DesktopAppState::detect()` uses a fixed path; concurrent writers race.
+static PROVIDER_CFG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn detect_uses_android_compatible_defaults() {
     std::env::remove_var(INSTANCE_ID_ENV_VAR);
@@ -540,9 +544,11 @@ fn client_ready_state_requires_a_claimed_seat() {
 
 #[test]
 fn bootstrap_llm_api_key_configured_reflects_save_without_restart() {
+    let _guard = PROVIDER_CFG_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let state = DesktopAppState::detect();
 
-    // No provider configured yet.
+    // Ensure no leftover config from a previously run test.
+    let _ = state.clear_llm_provider_config();
     assert!(!state.bootstrap().llm_api_key_configured);
 
     // Ollama does not need an API key; `is_usable()` returns true without one.
@@ -563,6 +569,7 @@ fn bootstrap_llm_api_key_configured_reflects_save_without_restart() {
 
 #[test]
 fn bootstrap_llm_api_key_configured_reflects_clear_without_restart() {
+    let _guard = PROVIDER_CFG_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let state = DesktopAppState::detect();
 
     state
