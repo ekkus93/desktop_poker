@@ -427,24 +427,25 @@ A stderr warning is not enough for a GUI app.
 
 ### Required behavior
 
-Choose one explicit policy:
+**Decision: Option A — OS keychain/keyring in release builds.**
 
-Option A, preferred:
+- Release builds must use OS keychain/keyring storage for API keys.
+- Plaintext key-file storage must not be the normal release behavior.
+- If keychain storage is unavailable or fails, saving an API-key provider must fail with a clear user-visible error. Do not silently fall back to a plaintext key file.
+- Local providers that do not need API keys (Ollama, llama-server) must continue to work without keychain.
+- Debug builds may continue to support plaintext key-file storage as an explicitly marked development/insecure storage mode only.
 
-- release builds use OS keychain/keyring for API keys,
-- plaintext key file is dev-only.
+**Option B as an interim only (not preferred):**
 
-Option B, acceptable interim:
+If OS keychain integration turns out to be too large or platform-blocking, stop and report the blocker. Do not silently downgrade to plaintext release storage. As an explicit interim-only fallback, implement Option B:
 
-- release builds block API-key provider save unless insecure plaintext mode is explicitly enabled,
-- UI clearly explains insecure mode,
-- local providers without API keys remain available.
+- Release builds block API-key provider save unless an explicit insecure plaintext mode flag is enabled.
+- Local providers without API keys must still work.
+- API-key providers must show a clear error explaining that secure key storage is unavailable.
+- Insecure plaintext mode must require explicit opt-in.
+- Docs must clearly state that Option B is not release-safe.
 
-Option C, temporary but must be explicit:
-
-- release builds allow plaintext key file,
-- UI displays persistent warning before and after save,
-- docs clearly state this is insecure and not final.
+**Option C is not allowed.** Persistent warning plus plaintext storage in release is not sufficient.
 
 ### Acceptance criteria
 
@@ -487,27 +488,32 @@ Documentation must accurately describe:
 
 # P2 Requirements
 
-## P2.1 Remove or quarantine legacy `npc/api_key.rs`
+## P2.1 Delete legacy `npc/api_key.rs`
 
 ### Problem
 
-Legacy module `src-tauri/src/npc/api_key.rs` still appears to implement an old `claude-api-key.txt` storage path.
+Legacy module `src-tauri/src/npc/api_key.rs` implements the old `claude-api-key.txt` storage path. It has no callers outside itself. Legacy key migration from `claude-api-key.txt` is already handled inside `src-tauri/src/npc/provider_storage.rs`.
 
-If unused, it creates confusion and increases risk of future regressions.
+Keeping it creates confusion and regression risk.
 
 ### Required behavior
 
-Either:
+Delete the module entirely:
 
-- remove it entirely, or
-- mark it clearly as legacy migration-only,
-- ensure production code does not use it for current provider storage.
+- delete `src-tauri/src/npc/api_key.rs`,
+- remove `pub mod api_key;` from `src-tauri/src/npc/mod.rs`,
+- remove any tests that only test this dead module,
+- keep any required legacy migration logic inside `provider_storage.rs`,
+- verify no current production path reads or writes `claude-api-key.txt`.
+
+If compile or tests reveal a hidden dependency, stop and report rather than preserving the dead module silently.
 
 ### Acceptance criteria
 
-- No current provider code uses legacy `claude-api-key.txt`.
-- Module is removed or clearly documented as migration-only.
-- Tests/imports updated accordingly.
+- `src-tauri/src/npc/api_key.rs` is deleted.
+- No current provider code writes `claude-api-key.txt`.
+- No two active API-key storage paths exist.
+- Compile and tests pass.
 
 ---
 

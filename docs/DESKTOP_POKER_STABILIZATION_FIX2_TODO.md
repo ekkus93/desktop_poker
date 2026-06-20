@@ -129,7 +129,7 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/npc_runner.rs`
+- `src-tauri/src/npc/runner/mod.rs`
 - hand log/opponent stats modules
 - LLM strategy/fallback modules
 - related Rust tests
@@ -163,7 +163,7 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/npc_runner.rs`
+- `src-tauri/src/npc/runner/mod.rs`
 - `src-tauri/src/app_state/debug.rs`
 - `src-tauri/src/app_state/mod.rs`
 - `src/api/desktop.ts`
@@ -205,7 +205,7 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/npc_runner.rs`
+- `src-tauri/src/npc/runner/mod.rs`
 - debug state if surfacing beyond logs
 
 ### Implementation tasks
@@ -231,8 +231,8 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/npc_runner.rs`
-- `src-tauri/src/llm_strategy.rs`
+- `src-tauri/src/npc/runner/mod.rs`
+- `src-tauri/src/npc/llm_strategy.rs`
 - fallback reason enum/type
 - debug state/tests
 
@@ -260,8 +260,8 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/npc_runner.rs`
-- `src-tauri/src/llm_strategy.rs`
+- `src-tauri/src/npc/runner/mod.rs`
+- `src-tauri/src/npc/llm_strategy.rs`
 - NPC profile/style mapping code
 - related tests
 
@@ -295,8 +295,7 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 ### Target files
 
-- `src-tauri/src/app_state/npc_profiles.rs`
-- `src-tauri/src/app_state/profile_store.rs`
+- `src-tauri/src/npc/profile_store.rs`
 - `src/api/desktop.ts`
 - `src/screens/NpcProfilesScreen.tsx`
 - `src/screens/HostTournamentSetupScreen.tsx`
@@ -392,18 +391,24 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 - security/docs files
 - tests for secret redaction/storage
 
+### Policy decision
+
+**Option A selected: OS keychain/keyring in release builds.**
+
+Option C is not allowed. Option B is an explicit interim fallback only — stop and report if keychain integration is blocked rather than silently downgrading.
+
 ### Implementation tasks
 
-- [ ] Decide policy:
-  - [ ] OS keychain in release, or
-  - [ ] block API-key providers in release without explicit insecure mode, or
-  - [ ] allow plaintext with persistent UI warning as temporary policy.
-- [ ] Implement chosen policy.
-- [ ] Ensure local providers without API keys still work.
+- [ ] Implement OS keychain/keyring storage for API keys in release builds.
+- [ ] Keep plaintext key-file storage in debug builds as a clearly marked insecure/dev-only mode.
+- [ ] If keychain storage fails, surface a clear user-visible error — do not fall back to plaintext.
+- [ ] Ensure local providers without API keys (Ollama, llama-server) continue to work without keychain.
 - [ ] Ensure API keys never appear in debug state.
 - [ ] Ensure API keys never appear in logs.
-- [ ] Ensure release-mode behavior is visible to the user, not only stderr.
-- [ ] Add docs explaining current security status.
+- [ ] Ensure clearing provider config removes the keychain entry.
+- [ ] Ensure replacing a key updates the keychain entry.
+- [ ] Ensure editing non-secret provider fields without entering a new key preserves the existing keychain entry.
+- [ ] Add docs explaining current security policy.
 
 ### Tests
 
@@ -448,30 +453,35 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 # P2 Tasks
 
-## P2.1 Remove or quarantine legacy `npc/api_key.rs`
+## P2.1 Delete legacy `npc/api_key.rs`
 
 ### Target files
 
 - `src-tauri/src/npc/api_key.rs`
 - `src-tauri/src/npc/mod.rs`
-- any imports/tests referencing old Claude key storage
+- any tests that only test the dead module
+
+### Decision
+
+Delete the module entirely. The module has no callers outside itself. Legacy migration from `claude-api-key.txt` is already handled in `src-tauri/src/npc/provider_storage.rs`. If compile or tests reveal a hidden dependency, stop and report rather than preserving the dead module.
 
 ### Implementation tasks
 
-- [ ] Search for `claude-api-key.txt`.
-- [ ] Search for `npc::api_key`.
-- [ ] If unused, remove module and tests.
-- [ ] If needed for migration, rename/comment as legacy migration-only.
-- [ ] Ensure current provider storage does not use old file path.
+- [ ] Delete `src-tauri/src/npc/api_key.rs`.
+- [ ] Remove `pub mod api_key;` from `src-tauri/src/npc/mod.rs`.
+- [ ] Remove any tests that only test this dead module.
+- [ ] Keep any required legacy migration logic inside `provider_storage.rs`.
+- [ ] Verify no current production path reads or writes `claude-api-key.txt`.
 
 ### Tests
 
-- [ ] Rust compile/tests pass.
+- [ ] Rust compile/tests pass after deletion.
 - [ ] No current path writes `claude-api-key.txt`.
 
 ### Acceptance
 
-- [ ] No confusing stale key-storage implementation remains in active code.
+- [ ] `src-tauri/src/npc/api_key.rs` is deleted.
+- [ ] No two active API-key storage paths exist.
 
 ---
 
