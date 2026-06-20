@@ -670,3 +670,13 @@
   11. Canonical JSON serialization round-trip (Android compatibility)
   12. Final verification and line-count audit
 - Nothing was implemented; this is a planning artifact only.
+
+## 2026-06-20T01:37:32Z - Claude Sonnet 4.6 - Complete INT_TEST3_TODO: all 12 sections done
+
+- Implemented all sections of `docs/INT_TEST3_TODO.md` (sections 1-12) across two sessions.
+- **Rust networking end-to-end tests** (sections 1-5): added tests d through j covering reconnect mid-hand, blind escalation over TCP, private hole-card delivery integrity, eliminated player action rejection, and replay protection. Then split the 970-line `end_to_end.rs` into a directory: `basic.rs` (311), `reconnect_and_blinds.rs` (308), `integrity.rs` (374).
+- **Tournament controller tests** (sections 6-7): added `tournament/tests/deck.rs` (185 lines) for stacked-deck deal-order and shuffle-uniqueness invariants; added preflop and postflop fold-to-winner tests in `progression.rs`.
+- **Frontend integration tests** (sections 8-11): added `AppShell.history.integration.test.tsx` (134 lines) for hand history screen (live view, cached fallback, empty placeholder); added NPC profiles screen test in `AppShell.host.integration.test.tsx`; added invalid-payload and host-unreachable join flow error tests in `AppShell.session.integration.test.tsx`; added canonical JSON tests in `protocol/canonical.rs` and `protocol/models/tests.rs`.
+- **Fixed tick-thread starvation bug** in `networking/runtime/host.rs`: the mutex was held during the 50ms sleep in the tick thread, starving `start_tournament()`. Fixed by releasing the lock before sleeping using nested `match` blocks.
+- **Final counts**: 350 Rust tests pass (3 ignored: 2 Ollama LLM + 1 Android fixture placeholder); 217 frontend tests pass; 0 failures; all files under 700 lines.
+- `docs/INT_TEST3_TODO.md` updated with all tasks checked off.

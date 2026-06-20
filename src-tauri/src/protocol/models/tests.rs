@@ -234,6 +234,50 @@ fn player_action_committed_serialization_preserves_raise_amount_contract() {
     );
 }
 
+// ---------------------------------------------------------------------------
+// Section 11 — canonical JSON round-trip (protocol layer)
+// ---------------------------------------------------------------------------
+
+/// Byte-for-byte Android compatibility test.
+///
+/// TODO: Capture a real fixture by running the Android canonical-JSON test
+/// suite and paste it here as the `expected_bytes` literal.  Until then this
+/// test is `#[ignore]`d so it does not create a false passing signal.
+#[test]
+#[ignore = "requires captured Android CanonicalJson fixture — see INT_TEST3_TODO.md §11.1"]
+fn canonical_bytes_for_join_request_match_known_android_fixture() {
+    // Construct the envelope exactly as the Android test fixture defines it.
+    // Replace the values below with the real fixture once captured.
+    let envelope = sample_signed_envelope();
+    let bytes = canonical_json_bytes_without_signature(&envelope).expect("canonical bytes");
+
+    let expected_json: &str = "REPLACE_WITH_ANDROID_FIXTURE";
+    assert_eq!(
+        String::from_utf8(bytes).expect("utf8"),
+        expected_json,
+        "canonical bytes must match the Android CanonicalJson output byte-for-byte"
+    );
+}
+
+/// Verifies that `None`-valued optional fields on a real protocol struct are
+/// omitted from canonical output (not serialised as `"key":null`).
+#[test]
+fn null_optional_fields_are_omitted_from_canonical_output() {
+    // `server_sequence: None` is an optional field on `SignedEnvelope`.
+    let envelope = sample_signed_envelope(); // server_sequence is None
+    let bytes = canonical_json_bytes_without_signature(&envelope).expect("canonical bytes");
+    let json = String::from_utf8(bytes).expect("utf8");
+
+    assert!(
+        !json.contains("null"),
+        "no `null` values should appear in canonical output; got: {json}"
+    );
+    assert!(
+        !json.contains("serverSequence"),
+        "the `serverSequence` field should be omitted when None; got: {json}"
+    );
+}
+
 #[test]
 fn protocol_message_type_strings_stay_stable_for_high_risk_variants() {
     assert_eq!(

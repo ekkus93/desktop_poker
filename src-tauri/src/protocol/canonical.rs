@@ -109,6 +109,31 @@ mod tests {
     }
 
     #[test]
+    fn lexicographic_key_sort_is_applied_at_all_nesting_levels() {
+        // Three object levels to confirm recursive sorting goes all the way down.
+        let value = json!({
+            "z": 1,
+            "m": {
+                "z": 2,
+                "a": {
+                    "z": 3,
+                    "a": 4,
+                    "m": 5
+                },
+                "m": 6
+            },
+            "a": 7
+        });
+
+        let bytes = canonical_json_bytes(&value).expect("canonical bytes");
+
+        assert_eq!(
+            String::from_utf8(bytes).expect("utf8"),
+            r#"{"a":7,"m":{"a":{"a":4,"m":5,"z":3},"m":6,"z":2},"z":1}"#,
+        );
+    }
+
+    #[test]
     fn canonical_json_without_signature_removes_only_the_top_level_signature() {
         let value = json!({
             "signature": "outer-signature",

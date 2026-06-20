@@ -337,3 +337,190 @@ fn short_all_in_does_not_reopen_action() {
         vec![ActionType::Fold, ActionType::Call]
     );
 }
+
+// ---------------------------------------------------------------------------
+// Section 7 — fold-to-winner without showdown
+// ---------------------------------------------------------------------------
+
+#[test]
+fn preflop_fold_awards_pot_immediately_without_board() {
+    let mut controller = TournamentController::new(
+        "table-fold-preflop",
+        1,
+        sample_config(1_000),
+        vec![player("p1", 0), player("p2", 1)],
+    )
+    .expect("controller should build");
+    controller
+        .start_tournament(0)
+        .expect("tournament should start");
+
+    let window = action_window(&controller);
+    let folder_id = window.player_id.clone();
+    let winner_id = if folder_id == "p1" { "p2" } else { "p1" };
+
+    controller
+        .submit_action(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            1,
+        )
+        .expect("preflop fold should succeed");
+
+    let state = controller.state();
+    let hand = state
+        .current_hand
+        .as_ref()
+        .expect("hand should still be visible after fold");
+
+    assert_eq!(
+        hand.board_cards.len(),
+        0,
+        "no community cards should be dealt on a preflop fold"
+    );
+    assert!(
+        !state.hand_results.is_empty(),
+        "hand result should be recorded immediately after preflop fold"
+    );
+
+    let result = &state.hand_results[0];
+    let total: u32 = result.final_stack_by_player_id.values().sum();
+    assert_eq!(total, 2_000, "chips must be conserved across the fold");
+    assert!(
+        result.final_stack_by_player_id.get(winner_id)
+            > result.final_stack_by_player_id.get(&folder_id),
+        "the non-folding player should have more chips than the folder"
+    );
+}
+
+#[test]
+fn postflop_fold_awards_pot_to_remaining_player() {
+    // The engine only includes Fold in the legal-action set when `to_call > 0`
+    // (i.e. when the actor is facing an outstanding bet).  To exercise a
+    // postflop fold we therefore need two postflop actions: first the initial
+    // actor bets the minimum, then the second actor folds against that bet.
+    let mut controller = TournamentController::new(
+        "table-fold-postflop",
+        1,
+        sample_config(1_000),
+        vec![player("p1", 0), player("p2", 1)],
+    )
+    .expect("controller should build");
+    controller
+        .start_tournament(0)
+        .expect("tournament should start");
+
+    // Drive through preflop (SB calls, BB checks) so we reach the flop.
+    for now_ms in 1..=2 {
+        let window = action_window(&controller);
+        let action_type = if window.legal_actions.contains(&ActionType::Check) {
+            ActionType::Check
+        } else {
+            ActionType::Call
+        };
+        controller
+            .submit_action(
+                ActionRequest {
+                    player_id: window.player_id,
+                    action_window_id: window.action_window_id,
+                    action_type,
+                    raise_to_amount: None,
+                },
+                now_ms,
+            )
+            .expect("preflop check/call should succeed");
+
+        if controller
+            .state()
+            .current_hand
+            .as_ref()
+            .is_some_and(|h| !h.board_cards.is_empty())
+        {
+            break;
+        }
+    }
+
+    assert_eq!(
+        controller
+            .state()
+            .current_hand
+            .as_ref()
+            .map(|h| h.board_cards.len()),
+        Some(3),
+        "flop should be dealt after preflop"
+    );
+
+    // First postflop actor: bet the minimum amount so that the second actor
+    // faces an outstanding bet and can legally fold.
+    let bet_window = action_window(&controller);
+    assert!(
+        bet_window.legal_actions.contains(&ActionType::Bet),
+        "first postflop actor should be able to bet into an empty pot"
+    );
+    let bet_amount = bet_window
+        .min_raise_to
+        .expect("min bet amount should be present for a bet window");
+    controller
+        .submit_action(
+            ActionRequest {
+                player_id: bet_window.player_id.clone(),
+                action_window_id: bet_window.action_window_id,
+                action_type: ActionType::Bet,
+                raise_to_amount: Some(bet_amount),
+            },
+            3,
+        )
+        .expect("postflop bet should succeed");
+
+    // Second postflop actor faces the bet → Fold is now legal.
+    let fold_window = action_window(&controller);
+    let folder_id = fold_window.player_id.clone();
+    let winner_id = if folder_id == "p1" { "p2" } else { "p1" };
+    assert!(
+        fold_window.legal_actions.contains(&ActionType::Fold),
+        "the actor facing a postflop bet must have Fold as a legal action"
+    );
+    controller
+        .submit_action(
+            ActionRequest {
+                player_id: fold_window.player_id,
+                action_window_id: fold_window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            4,
+        )
+        .expect("postflop fold should succeed");
+
+    let state = controller.state();
+    let hand = state
+        .current_hand
+        .as_ref()
+        .expect("hand should be visible after postflop fold");
+
+    assert_eq!(
+        hand.board_cards.len(),
+        3,
+        "only the flop was dealt — turn and river must not have been added"
+    );
+    assert!(
+        !state.hand_results.is_empty(),
+        "hand result should be recorded after the postflop fold"
+    );
+
+    let result = &state.hand_results[0];
+    let total: u32 = result.final_stack_by_player_id.values().sum();
+    assert_eq!(
+        total, 2_000,
+        "chips must be conserved across the postflop fold"
+    );
+    assert!(
+        result.final_stack_by_player_id.get(winner_id)
+            > result.final_stack_by_player_id.get(&folder_id),
+        "the non-folding player should have more chips than the folder"
+    );
+}

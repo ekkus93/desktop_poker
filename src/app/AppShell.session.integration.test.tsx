@@ -476,4 +476,74 @@ describe("AppShell integration (client and routing)", () => {
     expect(screen.getByText("Maya")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
   });
+
+  // ---------------------------------------------------------------------------
+  // Section 10 — join flow error handling
+  // ---------------------------------------------------------------------------
+
+  it("join flow shows a human-readable error for an invalid payload instead of freezing", async () => {
+    // validateJoinPayloadInput rejects with a descriptive error when the
+    // payload string is structurally invalid. The screen must surface that
+    // error and keep the Continue button disabled so the user is not confused.
+    h.mockedValidateJoinPayloadInput.mockRejectedValueOnce(
+      new Error("Invalid pkr1_ payload: base64 decoding failed"),
+    );
+
+    h.renderAppShell("/join");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_notbase64!!!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    expect(
+      await screen.findByText(/invalid pkr1_ payload: base64 decoding failed/i),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Continue to lobby" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeNull();
+  });
+
+  it("join flow shows a connection error when the host is unreachable", async () => {
+    // validateJoinPayloadInput succeeds (structurally valid payload), but
+    // joinHostSession fails because the host is not reachable.  The Join
+    // screen must surface the error instead of navigating to the lobby.
+    h.mockedValidateJoinPayloadInput.mockResolvedValueOnce(
+      createParsedJoinPayload(),
+    );
+    h.mockedJoinHostSession.mockRejectedValueOnce(
+      new Error("Connection refused"),
+    );
+
+    h.renderAppShell("/join");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Join Tournament" }),
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Invite"), {
+      target: { value: "pkr1_validlooking" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    // Wait for validation to succeed (button unlocks).
+    const continueBtn = await screen.findByRole("button", {
+      name: "Continue to lobby",
+    });
+    expect(continueBtn.hasAttribute("disabled")).toBe(false);
+
+    fireEvent.click(continueBtn);
+
+    expect(await screen.findByText(/connection refused/i)).toBeTruthy();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeNull();
+  });
 });

@@ -526,4 +526,41 @@ describe("AppShell integration (host and lobby)", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
   });
+
+  // ---------------------------------------------------------------------------
+  // Section 9 — NPC profile screen
+  // ---------------------------------------------------------------------------
+
+  it("npc profiles screen lists all profiles returned by the backend", async () => {
+    // The NpcProfilesScreen calls listNpcProfiles() on mount and renders
+    // each profile's name. Override the default empty mock with two profiles.
+    h.mockedListNpcProfiles.mockResolvedValue([
+      {
+        id: "aggressive-alice",
+        name: "Aggressive Alice",
+        style: "loose-aggressive",
+        skill: "advanced",
+        description: "Always bets big.",
+        opponentTendencies: null,
+        tiltBehaviour: null,
+      },
+      {
+        id: "conservative-carlos",
+        name: "Conservative Carlos",
+        style: "tight-passive",
+        skill: "beginner",
+        description: "Plays very few hands.",
+        opponentTendencies: null,
+        tiltBehaviour: null,
+      },
+    ]);
+
+    h.renderAppShell("/npc-profiles");
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "AI Profiles" }),
+    ).toBeTruthy();
+    expect(await screen.findByText("Aggressive Alice")).toBeTruthy();
+    expect(screen.getByText("Conservative Carlos")).toBeTruthy();
+  });
 });
