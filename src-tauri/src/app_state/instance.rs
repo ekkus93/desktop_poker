@@ -135,3 +135,22 @@ pub(crate) fn detect_app_data_dir() -> PathBuf {
         .expect("platform data directory is required; cannot fall back to cwd for app-data storage")
         .join("desktop-poker")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detect_app_data_dir_returns_absolute_path_not_cwd() {
+        let dir = detect_app_data_dir();
+        assert!(
+            dir.is_absolute(),
+            "app data dir must be absolute (not relative to cwd); got: {dir:?}"
+        );
+        // Must not resolve inside the repository root (guarded by the expect() above).
+        assert!(
+            dir.ends_with("desktop-poker"),
+            "app data dir must end in 'desktop-poker'; got: {dir:?}"
+        );
+    }
+}

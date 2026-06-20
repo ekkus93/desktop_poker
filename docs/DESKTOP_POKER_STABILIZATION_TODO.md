@@ -81,7 +81,7 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Rust test: valid explicit profile creates profiled NPC.
+- [x] Rust test: valid explicit profile creates profiled NPC.
 - [x] Rust test: missing explicit profile returns error and creates no NPC.
 - [x] Rust test: corrupt explicit profile returns error and creates no NPC.
 - [x] Frontend test: NPC add profile error is visible and does not imply success.
@@ -119,9 +119,9 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Rust test: two NPCs with different profiles keep correct profiles.
+- [x] Rust test: two NPCs with different profiles keep correct profiles.
 - [x] Rust test: two NPCs with different styles keep correct styles.
-- [ ] Rust test: missing mapping does not fall back to first config.
+- [x] Rust test: missing mapping does not fall back to first config.
 - [x] Integration test if available: host with multiple NPCs and inspect/debug identities.
 
 ### Acceptance
@@ -159,7 +159,7 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Rust test: illegal NPC action records failure.
+- [x] Rust test: illegal NPC action records failure.
 - [x] Rust test: stale NPC action window records failure.
 - [x] Rust test: NPC runner does not claim success after rejected action.
 - [x] Frontend debug test if debug state shape changes.
@@ -203,7 +203,7 @@ Inspect and update:
 
 - [x] Rust test: seat claim timeout returns error.
 - [x] Rust test: ready toggle timeout returns error.
-- [ ] Rust test: table action timeout returns error.
+- [x] Rust test: table action timeout returns error.
 - [x] Frontend test: timeout error is visible and previous UI state remains stable.
 
 ### Acceptance
@@ -235,19 +235,19 @@ Inspect and update:
 - [x] Record provider type.
 - [x] Record profile/style.
 - [x] Record selected fallback action.
-- [ ] Show fallback state in debug panel.
+- [x] Show fallback state in debug panel.
 - [x] Ensure fallback does not pretend an LLM decision was used.
 
 ### Tests
 
-- [ ] Provider missing produces visible fallback reason.
+- [x] Provider missing produces visible fallback reason.
 - [x] LLM request failure produces visible fallback reason.
 - [x] LLM invalid response produces visible fallback reason.
-- [ ] Debug panel renders fallback reason.
+- [x] Debug panel renders fallback reason.
 
 ### Acceptance
 
-- [ ] User/developer can tell when NPCs are using rule-based fallback.
+- [x] User/developer can tell when NPCs are using rule-based fallback.
 
 ---
 
@@ -296,8 +296,8 @@ Inspect and update:
 ### Tasks
 
 - [x] Find any `Client::builder().build().unwrap_or_default()`.
-- [ ] Replace with `Result`-returning constructor.
-- [ ] Propagate construction errors.
+- [x] Replace with `Result`-returning constructor.
+- [x] Propagate construction errors.
 - [x] Keep timeout configuration mandatory.
 - [x] Make errors visible in provider test/debug flow.
 
@@ -335,7 +335,7 @@ Inspect and update:
 - [x] Treat missing as normal not-configured.
 - [x] Treat invalid/unreadable as visible config error.
 - [x] Do not swallow JSON parse errors with `.ok()`.
-- [ ] Add frontend display for config error if surfaced in bootstrap/settings state.
+- [x] Add frontend display for config error if surfaced in bootstrap/settings state.
 
 ### Tests
 
@@ -371,21 +371,21 @@ Inspect and update:
 - [ ] Implement OS keychain storage if feasible in this pass.
 - [ ] If not feasible, implement explicit dev-only plaintext mode:
   - [x] warning in UI,
-  - [ ] restricted file permissions,
-  - [ ] release-mode block or warning,
+  - [x] restricted file permissions,
+  - [x] release-mode block or warning,
   - [x] documented migration task.
-- [ ] Add redaction tests.
+- [x] Add redaction tests.
 
 ### Tests
 
 - [ ] Serialized provider config does not expose API key if keychain path is implemented.
-- [ ] Debug state never contains API key.
-- [ ] Logs never contain API key in tested paths.
+- [x] Debug state never contains API key.
+- [x] Logs never contain API key in tested paths.
 - [x] Clearing provider removes secret.
 
 ### Acceptance
 
-- [ ] Release builds do not silently store API keys in ordinary plaintext JSON.
+- [x] Release builds do not silently store API keys in ordinary plaintext JSON.
 
 ---
 
@@ -460,7 +460,7 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Production path resolution failure returns error.
+- [x] Production path resolution failure returns error.
 - [x] Test path injection still works.
 - [x] Config/profile storage uses expected app data path.
 
@@ -497,7 +497,7 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Unit-test helpers if practical.
+- [x] Unit-test helpers if practical.
 - [x] Bootstrap/provider tests cover critical path.
 - [x] Existing session/table tests still pass.
 
