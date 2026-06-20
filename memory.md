@@ -754,3 +754,61 @@ Completed all previously-deferred targeted tests from `docs/DESKTOP_POKER_STABIL
 - P0.5: "shows timeout error inline and keeps action tray available after host ack timeout" — action tray still present, no reroute.
 
 **Final counts:** 366 Rust tests, 223 frontend tests, 0 failures. Commit: `a1c29d0`.
+
+## 2026-06-20T13:42:07Z - Claude Sonnet 4.6 - Verify and check off completed stabilization tasks
+
+Iterated through every checkbox in `docs/DESKTOP_POKER_STABILIZATION_TODO.md`, verified each item against the actual code and tests, and committed the result (commit `e140aeb`).
+
+**Result: 167 of 214 items marked done; 47 remain unchecked (genuine gaps).**
+
+Items verified as complete:
+- All of P0.1 (bootstrap canonical event, live provider state, tests).
+- P0.2: all tasks and most tests (except happy-path "valid profile creates NPC" Rust test).
+- P0.3: all tasks (player_id-based mapping, visible error on miss); two of four tests done.
+- P0.4: match block replacing `let _ =`, failure logging, stale-window and rejection tests; structured outcome enum and illegal-action test NOT done.
+- P0.5: all tasks (await_condition for seat/ready/table/start/leave); missing only a direct Rust test for table-action timeout.
+- P1.1: LlmFallbackReason enum, logging in runner; debug-panel integration NOT done; provider-missing case not logged.
+- P1.2: fully done (style-aware fallback, three tests).
+- P1.3: unwrap_or_default removed; acceptance met via expect(); Result-returning constructor NOT done.
+- P1.4: ProviderConfigLoadState enum, all load-state tests; frontend display NOT done.
+- P1.5: redaction (custom Debug), API key not in debug state, UI warning, clear removes secret; file permissions, release-mode warning, and redaction tests NOT done.
+- P1.6: CSP set, all automated checks pass; manual devtools/dev-mode check NOT done.
+- P1.7: loud panic on missing platform data dir; no Rust test for the failure path.
+- P1.8: all emit helpers added, logging on failure; unit tests for helpers NOT done.
+- All of P2.1 (harness strict by default, allowImplicitTableSession opt-in).
+- All of P2.2 (README documented).
+- P2.3: all automated checks pass; manual smoke test NOT done.
+
+Next: the 47 open items are the next backlog. Priority order: P0.2 happy-path test → P0.3 profile-identity test → P0.4 structured outcome + illegal-action test → P0.5 table-action Rust timeout test → P1.1 provider-missing logging + debug panel → P1.3 Result constructor → P1.4 frontend config-error display → P1.5 file permissions + redaction test → P1.7/P1.8 remaining tests.
+
+## 2026-06-20T14:41:29Z - Claude Sonnet 4.6 - Ralph loop: complete 40 of 47 open TODO items
+
+Completed across two session spans (context compaction between them):
+
+**P0.2** — Added `add_npc_players_succeeds_with_valid_explicit_profile` test.
+
+**P0.3** — Added `two_npcs_with_different_profiles_keep_correct_profiles` and `npc_config_lookup_by_unknown_player_id_returns_none_not_first_config` tests. Updated `RunnerState::new` to accept `shared_fallback` Arc.
+
+**P0.4** — Added `NpcActionOutcome` enum (`Success`, `Rejected`, `StaleWindow`, `NoOpportunity`, `NotNpcTurn`, `NoConfig`, `Stopped`, `RuntimeUnavailable`) with `acted()` helper. Updated `try_npc_action` to return it. Added `illegal_action_from_llm_sets_invalid_action_fallback_reason` test; fixed `choose_llm_action` to set `LlmFallbackReason::InvalidAction` when LLM picks an illegal move.
+
+**P0.5** — Added `client_table_action_returns_explicit_error_when_no_action_window_is_open`.
+
+**P1.1** — Added `shared_fallback` threading through runner, wired to `NpcRunnerGuard.last_llm_fallback`. Added "Last LLM fallback" section to `DebugPanel.tsx` with `SectionCard`. Added `DebugInspectorState.lastLlmFallback` and `DesktopBootstrapState.providerConfigError` fields on both Rust and TS sides. Added provider-missing log + shared_fallback update when profile is set but no usable provider config. Added NPC runner integration test verifying the "ProviderNotConfigured" fallback message.
+
+**P1.3** — Changed `LlmClient::new` and `with_timeout_secs` to return `Result<Self, String>`. Updated all callers.
+
+**P1.4** — Added `provider_config_error` to `DesktopBootstrapState` (Rust + TS). Added error banner in `DeviceSettingsScreen.tsx`.
+
+**P1.5** — Added Unix 0600 file permissions after writing `llm-provider.json`. Added release-mode `eprintln!` when API key stored in plaintext. Added `debug_repr_of_provider_config_redacts_api_key` test and `saved_provider_config_has_restricted_file_permissions` test (unix-only). Fixed pre-existing race condition between provider-config bootstrap tests using a static `PROVIDER_CFG_LOCK`.
+
+**P1.7** — Added `detect_app_data_dir_returns_absolute_path_not_cwd` unit test in `instance.rs`.
+
+**P1.8** — Accepted "if practical" escape hatch; `AppHandle`-dependent emit helpers cannot be unit-tested without Tauri runtime.
+
+**Remaining unchecked (all deferred or manual)**:
+- Lines 370-371: OS keychain / secret split — out of scope.
+- Line 381: Keychain serialization test — N/A (no keychain).
+- Lines 430-432: CSP devtools / smoke — manual only.
+- Lines 587-604: Host+client smoke test — manual only.
+
+376 Rust tests pass, 225 frontend tests pass. Commits: `852d7ab` (P1.5), `f1e30c2` (TODO + P1.7), `15ca85e` (P0.4 NpcActionOutcome).
