@@ -278,6 +278,58 @@ describe("JoinTournamentScreen", () => {
     expect(screen.getByRole("button", { name: "Return home" })).toBeTruthy();
   });
 
+  it("shows join rejection error inline when the host explicitly refuses the join", async () => {
+    const bootstrap = createBootstrap();
+    mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
+    mockedJoinHostSession.mockRejectedValueOnce(
+      new Error("Join rejected: table is full"),
+    );
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    const inviteField = screen.getByLabelText("Invite");
+    fireEvent.change(inviteField, { target: { value: "pkr1_valid" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    const continueButton = await screen.findByRole("button", {
+      name: "Continue to lobby",
+    });
+    fireEvent.click(continueButton);
+
+    expect(await screen.findByText(/table is full/i)).toBeTruthy();
+    // The form should still be accessible so the user can try a different invite.
+    expect(screen.getByLabelText("Invite")).toBeTruthy();
+  });
+
+  it("shows a host-unreachable error inline when the join times out or the host is offline", async () => {
+    const bootstrap = createBootstrap();
+    mockedValidateJoinPayloadInput.mockResolvedValueOnce(parsedPayload);
+    mockedJoinHostSession.mockRejectedValueOnce(
+      new Error("Host unreachable: connection refused"),
+    );
+
+    renderWithProviders(<JoinTournamentScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    const inviteField = screen.getByLabelText("Invite");
+    fireEvent.change(inviteField, { target: { value: "pkr1_valid" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Check invite" }));
+
+    const continueButton = await screen.findByRole("button", {
+      name: "Continue to lobby",
+    });
+    fireEvent.click(continueButton);
+
+    expect(await screen.findByText(/connection refused/i)).toBeTruthy();
+    // The user should be able to retry: invite field and check button still visible.
+    expect(screen.getByRole("button", { name: "Check invite" })).toBeTruthy();
+  });
+
   it("keeps keyboard focus moving through the join flow in a sane order", async () => {
     const bootstrap = createBootstrap();
     const user = userEvent.setup();

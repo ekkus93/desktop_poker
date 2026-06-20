@@ -10,7 +10,6 @@ function ShellHookProbe() {
     displayName,
     hostDraft,
     joinPayloadDraft,
-    readySeats,
     recentJoinPayloads,
     persistedHandHistoryCount,
     startupWarnings,
@@ -20,7 +19,6 @@ function ShellHookProbe() {
     setJoinPayloadDraft,
     rememberJoinPayload,
     clearRecentJoinPayloads,
-    toggleSeatReady,
   } = useDesktopShell();
 
   return (
@@ -29,7 +27,6 @@ function ShellHookProbe() {
       <p>Host name: {hostDraft.tournamentName}</p>
       <p>Host players: {hostDraft.maxPlayers}</p>
       <p>Join draft: {joinPayloadDraft || "empty"}</p>
-      <p>Ready seats: {readySeats.join(",") || "empty"}</p>
       <p>Recent: {recentJoinPayloads.join(",") || "empty"}</p>
       <p>History count: {persistedHandHistoryCount}</p>
       <p>Warnings: {startupWarnings.join(" | ") || "none"}</p>
@@ -58,9 +55,6 @@ function ShellHookProbe() {
       </button>
       <button onClick={() => clearRecentJoinPayloads()} type="button">
         Clear recents
-      </button>
-      <button onClick={() => toggleSeatReady(2)} type="button">
-        Toggle seat 2
       </button>
     </div>
   );
@@ -117,10 +111,6 @@ describe("useDesktopShell", () => {
       JSON.stringify("pkr1_saved"),
     );
     localStorage.setItem(
-      "desktop-poker:host-a:ready-seats",
-      JSON.stringify([1, 2]),
-    );
-    localStorage.setItem(
       "desktop-poker:host-a:recent-join-payloads",
       JSON.stringify(["pkr1_recent"]),
     );
@@ -147,7 +137,6 @@ describe("useDesktopShell", () => {
     expect(screen.getByText("Host name: Saved Table")).toBeTruthy();
     expect(screen.getByText("Host players: 8")).toBeTruthy();
     expect(screen.getByText("Join draft: pkr1_saved")).toBeTruthy();
-    expect(screen.getByText("Ready seats: 1,2")).toBeTruthy();
     expect(screen.getByText("Recent: pkr1_recent")).toBeTruthy();
     expect(screen.getByText("History count: 1")).toBeTruthy();
     expect(screen.getByText("Warnings: none")).toBeTruthy();
@@ -166,13 +155,11 @@ describe("useDesktopShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Patch host" }));
     fireEvent.click(screen.getByRole("button", { name: "Set join draft" }));
     fireEvent.click(screen.getByRole("button", { name: "Remember join" }));
-    fireEvent.click(screen.getByRole("button", { name: "Toggle seat 2" }));
 
     expect(screen.getByText("Display: Alice")).toBeTruthy();
     expect(screen.getByText("Host name: Turbo Night")).toBeTruthy();
     expect(screen.getByText("Host players: 8")).toBeTruthy();
     expect(screen.getByText("Join draft: pkr1_beta")).toBeTruthy();
-    expect(screen.getByText("Ready seats: 2")).toBeTruthy();
     expect(screen.getByText("Recent: pkr1_alpha")).toBeTruthy();
 
     expect(localStorage.getItem("desktop-poker:host-b:display-name")).toContain(
@@ -183,9 +170,6 @@ describe("useDesktopShell", () => {
     );
     expect(localStorage.getItem("desktop-poker:host-b:join-draft")).toContain(
       "pkr1_beta",
-    );
-    expect(localStorage.getItem("desktop-poker:host-b:ready-seats")).toContain(
-      "2",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Reset host" }));

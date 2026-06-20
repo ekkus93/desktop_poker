@@ -25,7 +25,6 @@ type DesktopShellContextValue = {
   displayName: string;
   hostDraft: HostDraft;
   joinPayloadDraft: string;
-  readySeats: number[];
   recentJoinPayloads: string[];
   persistedHandHistoryCount: number;
   startupWarnings: string[];
@@ -39,7 +38,6 @@ type DesktopShellContextValue = {
   setJoinPayloadDraft: (value: string) => void;
   rememberJoinPayload: (value: string) => void;
   clearRecentJoinPayloads: () => void;
-  toggleSeatReady: (seatIndex: number) => void;
   persistHandHistory: (
     entries: import("../api/desktop").TableHistoryEntryView[],
   ) => void;
@@ -95,16 +93,6 @@ export function DesktopShellProvider({
       ),
     [bootstrap.launchJoinPayload, bootstrap.storageNamespace],
   );
-  const storedReadySeats = useMemo(
-    () =>
-      readStoredValueWithStatus<number[]>(
-        localStorage.getItem(
-          storageKey(bootstrap.storageNamespace, "ready-seats"),
-        ),
-        [],
-      ),
-    [bootstrap.storageNamespace],
-  );
   const storedRecentJoinPayloads = useMemo(
     () =>
       readStoredValueWithStatus<string[]>(
@@ -126,7 +114,6 @@ export function DesktopShellProvider({
       storedDisplayName.hadParseError ||
       storedHostDraft.hadParseError ||
       storedJoinDraft.hadParseError ||
-      storedReadySeats.hadParseError ||
       storedRecentJoinPayloads.hadParseError
     ) {
       warnings.add(
@@ -146,7 +133,6 @@ export function DesktopShellProvider({
     storedHandHistory.hadParseError,
     storedHostDraft.hadParseError,
     storedJoinDraft.hadParseError,
-    storedReadySeats.hadParseError,
     storedRecentJoinPayloads.hadParseError,
   ]);
 
@@ -159,7 +145,6 @@ export function DesktopShellProvider({
   const [joinPayloadDraft, setJoinPayloadDraft] = useState(
     () => storedJoinDraft.value,
   );
-  const [readySeats, setReadySeats] = useState(() => storedReadySeats.value);
   const [recentJoinPayloads, setRecentJoinPayloads] = useState(
     () => storedRecentJoinPayloads.value,
   );
@@ -195,13 +180,6 @@ export function DesktopShellProvider({
 
   useEffect(() => {
     localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "ready-seats"),
-      JSON.stringify(readySeats),
-    );
-  }, [bootstrap.storageNamespace, readySeats]);
-
-  useEffect(() => {
-    localStorage.setItem(
       storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
       JSON.stringify(recentJoinPayloads),
     );
@@ -213,7 +191,6 @@ export function DesktopShellProvider({
       displayName,
       hostDraft,
       joinPayloadDraft,
-      readySeats,
       recentJoinPayloads,
       persistedHandHistoryCount,
       startupWarnings,
@@ -244,13 +221,6 @@ export function DesktopShellProvider({
         );
       },
       clearRecentJoinPayloads: () => setRecentJoinPayloads([]),
-      toggleSeatReady: (seatIndex) => {
-        setReadySeats((currentSeats) =>
-          currentSeats.includes(seatIndex)
-            ? currentSeats.filter((candidate) => candidate !== seatIndex)
-            : [...currentSeats, seatIndex].sort((left, right) => left - right),
-        );
-      },
       persistHandHistory: (entries) => {
         persistHandHistory(bootstrap.storageNamespace, entries);
         setPersistedHandHistoryCount(entries.length);
@@ -263,7 +233,6 @@ export function DesktopShellProvider({
       hostDraft,
       joinPayloadDraft,
       persistedHandHistoryCount,
-      readySeats,
       recentJoinPayloads,
       startupWarnings,
       tableSidePanelOpen,

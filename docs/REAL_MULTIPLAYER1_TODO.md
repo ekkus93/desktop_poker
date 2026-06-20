@@ -48,9 +48,9 @@ The work in this file is done only when all of the following are true:
 ## 2. Replace the app-state runtime model
 
 ### 2.1 Redesign desktop app state around live sessions
-- [ ] Replace the current demo-backed `DesktopTableRuntime` boot model with a session model that can represent: idle, hosting, joining, connected lobby, active table, reconnecting, completed, and fatal error states
-- [ ] Define a Rust-side session container that can hold the active `HostServer`, active `ClientRuntime`, host/client identity metadata, and the current projected tournament state
-- [ ] Decide which session data is authoritative, which is cached projection, and which is UI convenience metadata
+- [x] Replace the current demo-backed `DesktopTableRuntime` boot model with a session model that can represent: idle, hosting, joining, connected lobby, active table, reconnecting, completed, and fatal error states
+- [x] Define a Rust-side session container that can hold the active `HostServer`, active `ClientRuntime`, host/client identity metadata, and the current projected tournament state
+- [x] Decide which session data is authoritative, which is cached projection, and which is UI convenience metadata
 - [x] Make session state transitions explicit and validated so invalid route/state combinations cannot occur silently _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 2.2 Remove fake bootstrap assumptions
@@ -60,9 +60,9 @@ The work in this file is done only when all of the following are true:
 - [x] Surface bootstrap-safe error states for malformed launch payloads, host bind failures, and persistence corruption _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 2.3 Define session projection models for the UI
-- [ ] Replace ad hoc shell-local lobby/table derivation with Rust-projected view models for lobby participants, ready state, host controls, local seat, connection state, and table view
-- [ ] Define clear Rust-to-frontend data contracts for host-only actions, player actions, observer state, and reconnect state
-- [ ] Ensure projections distinguish local-player private state from shared public state
+- [x] Replace ad hoc shell-local lobby/table derivation with Rust-projected view models for lobby participants, ready state, host controls, local seat, connection state, and table view
+- [x] Define clear Rust-to-frontend data contracts for host-only actions, player actions, observer state, and reconnect state
+- [x] Ensure projections distinguish local-player private state from shared public state
 - [ ] Add projection helpers for tournament completion, elimination, and post-game hand history access
 
 ---
@@ -84,11 +84,11 @@ The work in this file is done only when all of the following are true:
 - [x] Ensure launch-time `--join-payload` and manual join use the same validated command path _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 3.3 Session event and projection commands
-- [ ] Add commands to fetch the current authoritative/projection snapshot for the active session
+- [x] Add commands to fetch the current authoritative/projection snapshot for the active session
 - [x] Add commands to submit lobby actions such as seat selection, ready toggle, and host start request through Rust authority _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Add commands to submit live table actions through the real tournament/runtime path _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Add commands or event subscriptions for reconnecting, disconnected, fatal error, and resync-required states
-- [ ] Ensure command responses are typed and structured so the frontend can render exact causes instead of generic failure text
+- [x] Add commands or event subscriptions for reconnecting, disconnected, fatal error, and resync-required states
+- [x] Ensure command responses are typed and structured so the frontend can render exact causes instead of generic failure text
 
 ### 3.4 App-state mutation safety
 - [x] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission _(Approved by GPT-5.4, 2026-05-07)_
@@ -182,74 +182,74 @@ The work in this file is done only when all of the following are true:
 - [x] Ensure the host does not get a special fake shortcut path that bypasses the same authority used by clients _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 7.3 Event application and refresh model
-- [ ] Decide whether the frontend will poll snapshots, subscribe to Tauri events, or use a hybrid model for session updates
-- [ ] Implement one coherent update model for lobby and table state instead of ad hoc refresh behavior
-- [ ] Ensure public events, private hole cards, reconnect snapshots, and tournament completion all update the UI correctly
-- [ ] Prevent stale projections from surviving after reconnect/resync snapshots replace local state
+- [x] Decide whether the frontend will poll snapshots, subscribe to Tauri events, or use a hybrid model for session updates
+- [x] Implement one coherent update model for lobby and table state instead of ad hoc refresh behavior
+- [x] Ensure public events, private hole cards, reconnect snapshots, and tournament completion all update the UI correctly
+- [x] Prevent stale projections from surviving after reconnect/resync snapshots replace local state
 
 ---
 
 ## 8. Integrate reconnect, resync, and failure recovery into the app flow
 
 ### 8.1 Runtime event plumbing
-- [ ] Expose `ClientRuntimeEvent`-driven reconnect/resync/error states through app state and Tauri-facing APIs
+- [x] Expose `ClientRuntimeEvent`-driven reconnect/resync/error states through app state and Tauri-facing APIs
 - [ ] Decide how host-side disconnect observations should be surfaced in the lobby/table UI
-- [ ] Ensure reconnect-related state changes update the same live session container used by normal gameplay
-- [ ] Ensure fatal runtime errors transition the app into a recoverable screen state instead of silently freezing the old view
+- [x] Ensure reconnect-related state changes update the same live session container used by normal gameplay
+- [x] Ensure fatal runtime errors transition the app into a recoverable screen state instead of silently freezing the old view
 
 ### 8.2 Reconnect continuity
-- [ ] Preserve the minimum reconnect identity and token material required for the current session only
-- [ ] Ensure reconnect can restore the client into the correct seat, role, and table state
-- [ ] Ensure reconnect does not duplicate participants or create ghost seats
+- [x] Preserve the minimum reconnect identity and token material required for the current session only
+- [x] Ensure reconnect can restore the client into the correct seat, role, and table state
+- [x] Ensure reconnect does not duplicate participants or create ghost seats
 - [ ] Ensure reconnect after elimination or tournament completion follows the intended product rules
 
 ### 8.3 Explicit resync handling
-- [ ] Surface resync-required states in logs/debug views without exposing confusing technical details in the normal UI
-- [ ] Ensure a resync snapshot fully replaces stale local projection state
-- [ ] Ensure resync can recover the lobby and active table, not just the initial join flow
-- [ ] Add guardrails so repeated resync failure exits cleanly into a safe error state
+- [x] Surface resync-required states in logs/debug views without exposing confusing technical details in the normal UI
+- [x] Ensure a resync snapshot fully replaces stale local projection state
+- [x] Ensure resync can recover the lobby and active table, not just the initial join flow
+- [x] Add guardrails so repeated resync failure exits cleanly into a safe error state
 
 ---
 
 ## 9. Make persistence match live multiplayer reality
 
 ### 9.1 Keep only valid local persistence
-- [ ] Preserve local-only preferences such as display name, window state, and host draft defaults where appropriate
-- [ ] Preserve recent join invites only as local convenience state, not as evidence of an active session
-- [ ] Remove any persistence assumptions that pretend a demo table is resumable as if it were a real network session
+- [x] Preserve local-only preferences such as display name, window state, and host draft defaults where appropriate
+- [x] Preserve recent join invites only as local convenience state, not as evidence of an active session
+- [x] Remove any persistence assumptions that pretend a demo table is resumable as if it were a real network session
 
 ### 9.2 Define session restart behavior
-- [ ] Decide exactly what happens if the app restarts while hosting
-- [ ] Decide exactly what happens if the app restarts while joined as a client
-- [ ] Implement the chosen restart behavior explicitly rather than letting stale boot state simulate recovery
+- [x] Decide exactly what happens if the app restarts while hosting
+- [x] Decide exactly what happens if the app restarts while joined as a client
+- [x] Implement the chosen restart behavior explicitly rather than letting stale boot state simulate recovery
 - [ ] Ensure the startup UI communicates whether the prior live session is gone, reconnectable, or intentionally not resumed
 
 ### 9.3 History and post-game persistence
-- [ ] Ensure persisted hand history comes from real completed or in-progress live sessions
-- [ ] Ensure tournament completion summaries match authoritative runtime results
-- [ ] Ensure observer/elimination history does not leak private data
-- [ ] Ensure history persistence remains instance-scoped and does not bleed across local profiles
+- [x] Ensure persisted hand history comes from real completed or in-progress live sessions
+- [x] Ensure tournament completion summaries match authoritative runtime results
+- [x] Ensure observer/elimination history does not leak private data
+- [x] Ensure history persistence remains instance-scoped and does not bleed across local profiles
 
 ---
 
 ## 10. Remove or isolate remaining demo surfaces
 
 ### 10.1 Rust cleanup
-- [ ] Delete demo-only runtime/controller code that is no longer needed in production paths
-- [ ] Move any useful deterministic builders into test support modules under clearly test-only boundaries
-- [ ] Remove unused projection helpers, sample participants, and fake tournament bootstraps from release code
-- [ ] Remove dead commands and state branches that existed only to support the demo table flow
+- [x] Delete demo-only runtime/controller code that is no longer needed in production paths
+- [x] Move any useful deterministic builders into test support modules under clearly test-only boundaries
+- [x] Remove unused projection helpers, sample participants, and fake tournament bootstraps from release code
+- [x] Remove dead commands and state branches that existed only to support the demo table flow
 
 ### 10.2 Frontend cleanup
-- [ ] Remove shell-local poker state that duplicates authoritative runtime state
-- [ ] Remove fake lobby/table derivation helpers once the real projection path is in place
-- [ ] Remove release-route assumptions that a screen may proceed without a live host/client session behind it
-- [ ] Keep only purely local UI draft state in React context/providers
+- [x] Remove shell-local poker state that duplicates authoritative runtime state
+- [x] Remove fake lobby/table derivation helpers once the real projection path is in place
+- [x] Remove release-route assumptions that a screen may proceed without a live host/client session behind it
+- [x] Keep only purely local UI draft state in React context/providers
 
 ### 10.3 Debug and developer tools boundaries
-- [ ] Keep developer-facing debug panels only if they read real runtime/session data or clearly test-only fixtures
-- [ ] Ensure no debug or mock affordance leaks into normal release player flows
-- [ ] Gate any diagnostic-only surfaces behind explicit debug configuration where appropriate
+- [x] Keep developer-facing debug panels only if they read real runtime/session data or clearly test-only fixtures
+- [x] Ensure no debug or mock affordance leaks into normal release player flows
+- [x] Gate any diagnostic-only surfaces behind explicit debug configuration where appropriate
 
 ---
 
@@ -265,7 +265,7 @@ The work in this file is done only when all of the following are true:
 - [x] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx) _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
 - [x] Add tests for real lobby ready/start propagation across host and client UI projections _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
+- [x] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
 - [x] Add tests proving the UI cannot reach lobby/table routes without a valid live session state _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 11.3 End-to-end multi-instance validation
