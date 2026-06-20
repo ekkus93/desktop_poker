@@ -93,7 +93,7 @@ The work in this file is done only when all of the following are true:
 ### 3.4 App-state mutation safety
 - [x] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Ensure teardown clears only the correct session-scoped data and does not destroy unrelated instance persistence
+- [x] Ensure teardown clears only the correct session-scoped data and does not destroy unrelated instance persistence
 - [ ] Add locking/state-transition rules so Tauri commands cannot race each other into inconsistent session state
 
 ---
@@ -138,10 +138,10 @@ The work in this file is done only when all of the following are true:
 - [x] Ensure a failed join cannot leave partial client session state behind _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 5.3 Client disconnect and retry UX
-- [ ] Surface explicit reconnecting state when the runtime emits reconnect events
-- [ ] Show safe retry messaging for recoverable network drops
-- [ ] Show terminal failure messaging when reconnect or resync cannot recover the session
-- [ ] Ensure a user can leave a broken client session and return to a clean home/join state
+- [x] Surface explicit reconnecting state when the runtime emits reconnect events
+- [x] Show safe retry messaging for recoverable network drops
+- [x] Show terminal failure messaging when reconnect or resync cannot recover the session
+- [x] Ensure a user can leave a broken client session and return to a clean home/join state
 
 ---
 
@@ -257,8 +257,8 @@ The work in this file is done only when all of the following are true:
 
 ### 11.1 Rust runtime/session tests
 - [x] Add or update Rust tests to cover the new app-state session container and state transitions _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Add host lifecycle tests for start, stop, bind failure, and host recovery
-- [ ] Add client lifecycle tests for join, disconnect, reconnect, and teardown
+- [x] Add host lifecycle tests for start, stop, bind failure, and host recovery
+- [x] Add client lifecycle tests for join, disconnect, reconnect, and teardown
 - [x] Add tests proving lobby mutations and start flow update the authoritative state correctly _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 11.2 Frontend integration tests

@@ -367,8 +367,8 @@ Inspect and update:
 - [x] Confirm whether API keys are stored in `llm-provider.json`.
 - [x] Ensure API keys are never logged.
 - [x] Ensure API keys are not exposed in debug state.
-- [ ] Split secret from non-secret provider config.
-- [ ] Implement OS keychain storage if feasible in this pass.
+- [x] Split secret from non-secret provider config.
+- [ ] Implement OS keychain storage if feasible in this pass. _(deferred — out of scope for this stabilization pass)_
 - [x] If not feasible, implement explicit dev-only plaintext mode:
   - [x] warning in UI,
   - [x] restricted file permissions,
@@ -378,7 +378,7 @@ Inspect and update:
 
 ### Tests
 
-- [ ] Serialized provider config does not expose API key if keychain path is implemented.
+- [ ] Serialized provider config does not expose API key if keychain path is implemented. _(deferred with keychain task above)_
 - [x] Debug state never contains API key.
 - [x] Logs never contain API key in tested paths.
 - [x] Clearing provider removes secret.

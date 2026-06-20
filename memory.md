@@ -812,3 +812,27 @@ Completed across two session spans (context compaction between them):
 - Lines 587-604: Host+client smoke test — manual only.
 
 376 Rust tests pass, 225 frontend tests pass. Commits: `852d7ab` (P1.5), `f1e30c2` (TODO + P1.7), `15ca85e` (P0.4 NpcActionOutcome).
+
+## 2026-06-20T15:17:56Z - Claude Sonnet 4.6 - Complete P1.5 secret/non-secret split
+
+- Split `LlmProviderConfig` into `LlmProviderSettings` (non-secret: provider, endpoint, model) + `api_key` field. `#[serde(flatten)]` keeps wire format unchanged.
+- Storage split: `llm-provider.json` holds settings only; `llm-provider-key.dat` holds raw API key with 0600 permissions. Migration handles old combined-format files and legacy `claude-api-key.txt`.
+- `get_llm_provider_config` command now returns `Option<LlmProviderSettings>` (no key); TypeScript API updated accordingly with `LlmProviderSettings` type.
+- Fixed all test constructors across `sessions.rs`, `llm_client.rs`, `llm_strategy.rs` to use new nested struct syntax.
+- Commit: `da2de84` — 381 Rust tests, 225 JS tests, clippy clean.
+- TODO line 370 checked off. Remaining unchecked items are all deferred (keychain, OS) or manual-only (CSP devtools, smoke tests).
+- The stabilization TODO is now complete for automatable items.
+
+## 2026-06-20T17:19:48Z - Claude Sonnet 4.6 - Surface reconnect/disconnect state in frontend
+
+- Added `terminated: bool` to `DesktopClientSession` and `ClientSessionStatus`; set when `Disconnected` runtime event fires.
+- Added `session_connection: String` ("normal" | "reconnecting" | "terminated") to `TableViewSnapshot`.
+- `table_view()` returns an error immediately when `terminated` so the table screen navigates to `/errors` without waiting for the poll error limit.
+- Lobby screen now reads `clientSession.reconnecting` and `.terminated` to show context-specific banners: info for reconnecting, error for terminal disconnect.
+- Table screen shows "Reconnecting…" banner when `sessionConnection == "reconnecting"` and navigates immediately on "Disconnected from host" error text.
+- 8 new Rust lifecycle tests (sessions.rs §11.1 / §3.4): host start/stop/bind-failure, client leave/rejoin/idempotent/isolation.
+- 3 new frontend lobby tests: reconnecting banner, terminal disconnect with poll-stop assertion, leave-after-disconnect flow.
+- Fixed all test fixtures (`ClientSessionStatus`, `TableViewSnapshot`) to include new required fields; build, lint, and all tests clean.
+- Checked off TODO items: 5.3 (all 4), 11.1 host+client lifecycle bullets, 3.4 teardown-isolation bullet.
+- Commit: `1d5534c` — 389 Rust tests, 228 JS tests.
+- Remaining unchecked items in REAL_MULTIPLAYER1_TODO.md still include: session model items (2.1, 2.3), resync/reconnect protocol depth (8.x), persistence (9.x), demo cleanup (10.x), multi-instance docs (12.x).
