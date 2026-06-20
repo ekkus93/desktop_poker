@@ -7,10 +7,61 @@ use super::provider::{LlmProviderConfig, LlmProviderSettings};
 
 /// Non-secret provider settings (provider type, endpoint, model).
 const SETTINGS_FILE_NAME: &str = "llm-provider.json";
-/// Secret API key stored separately with restricted file permissions.
+/// Secret API key stored separately with restricted file permissions (debug builds only).
 const KEY_FILE_NAME: &str = "llm-provider-key.dat";
 /// Legacy plain-text key written by Phase 2; read once for migration.
 const LEGACY_KEY_FILE_NAME: &str = "claude-api-key.txt";
+/// Keychain service name used in release builds.
+#[cfg(not(debug_assertions))]
+const KEYCHAIN_SERVICE: &str = "desktop-poker-llm-provider";
+
+// ---------------------------------------------------------------------------
+// Key storage backends: OS keychain (release) and plaintext file (debug).
+//
+// Debug builds use the file-based approach so tests can run without a live
+// keychain daemon and developers can inspect the stored key.
+// Release builds must use the OS keychain — falling back to plaintext is not
+// an option and results in an explicit error.
+// ---------------------------------------------------------------------------
+
+/// Read the API key for the given provider account from the OS keychain.
+///
+/// Returns `Ok(None)` when no entry exists.
+/// Returns `Err` when the keychain is unavailable or the entry is unreadable.
+#[cfg(not(debug_assertions))]
+fn read_key_from_keychain(provider: &str) -> Result<Option<String>, String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+    match entry.get_password() {
+        Ok(pw) if pw.is_empty() => Ok(None),
+        Ok(pw) => Ok(Some(pw)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("keychain read failed: {e}")),
+    }
+}
+
+/// Write the API key for the given provider account to the OS keychain.
+#[cfg(not(debug_assertions))]
+fn write_key_to_keychain(provider: &str, key: &str) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+    entry
+        .set_password(key)
+        .map_err(|e| format!("keychain write failed: {e}"))
+}
+
+/// Delete the API key for the given provider account from the OS keychain.
+///
+/// Silently succeeds if the entry does not exist.
+#[cfg(not(debug_assertions))]
+fn delete_key_from_keychain(provider: &str) -> Result<(), String> {
+    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+    match entry.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!("keychain delete failed: {e}")),
+    }
+}
 
 /// Outcome of attempting to load provider configuration from disk.
 #[derive(Debug)]
@@ -125,40 +176,65 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
             }
         };
 
-        // Determine the API key: prefer the dedicated key file; fall back to the
-        // legacy embedded `apiKey` field for one-time migration.
-        let api_key = match read_key_file(&kp) {
-            Err(e) => {
-                // Key file exists but cannot be read — surface as an explicit error.
-                return ProviderConfigLoadState::KeyUnreadable { error: e };
-            }
-            Ok(Some(key)) => Some(key),
-            Ok(None) => {
-                // Migration: extract key embedded in old combined format.
-                let embedded = json_val
-                    .get("apiKey")
-                    .and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string());
+        // Determine the API key.
+        // Release: from the OS keychain. Debug: from the dedicated key file.
+        // Fall back to the legacy embedded `apiKey` field for one-time migration.
+        #[cfg(not(debug_assertions))]
+        let provider_str = settings.provider.as_str();
+        let api_key = {
+            #[cfg(not(debug_assertions))]
+            let key_result = read_key_from_keychain(provider_str);
+            #[cfg(debug_assertions)]
+            let key_result = read_key_file(&kp);
 
-                if let Some(ref key) = embedded {
-                    // Migrate immediately: write key file and rewrite settings-only JSON.
-                    if let Err(e) = write_key_file(&kp, key) {
-                        eprintln!("[provider-storage] migration: failed to write key file: {e}");
-                    } else if let Ok(json) = serde_json::to_string_pretty(&settings) {
-                        if let Err(e) = fs::write(&sp, json) {
+            match key_result {
+                Err(e) => {
+                    // Key storage exists/attempted but returned an error — surface explicitly.
+                    return ProviderConfigLoadState::KeyUnreadable { error: e };
+                }
+                Ok(Some(key)) => Some(key),
+                Ok(None) => {
+                    // Migration: extract key embedded in old combined format.
+                    let embedded = json_val
+                        .get("apiKey")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+
+                    if let Some(ref key) = embedded {
+                        // Migrate immediately to the appropriate key storage.
+                        #[cfg(not(debug_assertions))]
+                        if let Err(e) = write_key_to_keychain(provider_str, key) {
                             eprintln!(
-                                "[provider-storage] migration: failed to rewrite settings file: {e}"
-                            );
-                        } else {
-                            eprintln!(
-                                "[provider-storage] migrated API key from llm-provider.json \
-                                 to llm-provider-key.dat"
+                                "[provider-storage] migration: failed to write to keychain: {e}"
                             );
                         }
+                        #[cfg(debug_assertions)]
+                        if let Err(e) = write_key_file(&kp, key) {
+                            eprintln!(
+                                "[provider-storage] migration: failed to write key file: {e}"
+                            );
+                        }
+                        if let Ok(json) = serde_json::to_string_pretty(&settings) {
+                            if let Err(e) = fs::write(&sp, json) {
+                                eprintln!(
+                                    "[provider-storage] migration: failed to rewrite settings \
+                                     file: {e}"
+                                );
+                            } else {
+                                eprintln!(
+                                    "[provider-storage] migrated API key from llm-provider.json"
+                                );
+                            }
+                        }
+                        // In debug mode, remove the old file-based key after migration.
+                        #[cfg(debug_assertions)]
+                        if !kp.exists() {
+                            // write_key_file created kp; nothing to remove here.
+                        }
                     }
+                    embedded
                 }
-                embedded
             }
         };
 
@@ -179,9 +255,11 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
     ProviderConfigLoadState::Missing
 }
 
-/// Write the provider config to separate settings and key files.
+/// Write the provider config.
 ///
-/// If `config` is `None`, both files are deleted (clears all provider config).
+/// In release builds the API key is stored in the OS keychain.
+/// In debug builds it is written to `llm-provider-key.dat` (for testability).
+/// If `config` is `None`, the settings file and the key storage entry are both removed.
 pub fn save_provider_config(
     app_data_dir: &Path,
     config: Option<&LlmProviderConfig>,
@@ -191,11 +269,39 @@ pub fn save_provider_config(
 
     match config {
         None => {
+            // Determine the provider type from the existing settings file so we
+            // know which keychain account to delete (release mode only).
+            #[cfg(not(debug_assertions))]
+            let provider_to_clear: Option<String> = {
+                if sp.exists() {
+                    fs::read_to_string(&sp)
+                        .ok()
+                        .and_then(|text| {
+                            serde_json::from_str::<super::provider::LlmProviderSettings>(&text).ok()
+                        })
+                        .map(|s| s.provider.as_str().to_string())
+                } else {
+                    None
+                }
+            };
+
             if sp.exists() {
                 fs::remove_file(&sp)?;
             }
-            if kp.exists() {
-                fs::remove_file(&kp)?;
+
+            #[cfg(not(debug_assertions))]
+            {
+                if let Some(provider) = provider_to_clear {
+                    if let Err(e) = delete_key_from_keychain(&provider) {
+                        return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+                    }
+                }
+            }
+            #[cfg(debug_assertions)]
+            {
+                if kp.exists() {
+                    fs::remove_file(&kp)?;
+                }
             }
         }
         Some(cfg) => {
@@ -208,19 +314,27 @@ pub fn save_provider_config(
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             fs::write(&sp, settings_json)?;
 
-            // Write API key to its own restricted file.
+            // Store or clear the API key.
             let key = cfg.api_key.as_deref().unwrap_or("").trim().to_string();
+            #[cfg(not(debug_assertions))]
+            let provider_str = cfg.settings.provider.as_str();
+
             if key.is_empty() {
+                // No key — remove any previously stored key for this provider.
+                #[cfg(not(debug_assertions))]
+                if let Err(e) = delete_key_from_keychain(provider_str) {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+                }
+                #[cfg(debug_assertions)]
                 if kp.exists() {
                     fs::remove_file(&kp)?;
                 }
             } else {
+                // Store the key in the appropriate backend.
                 #[cfg(not(debug_assertions))]
-                eprintln!(
-                    "[security] LLM API key stored in plaintext at {}. \
-                     Move to OS keychain storage before distributing a release build.",
-                    kp.display()
-                );
+                write_key_to_keychain(provider_str, &key)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                #[cfg(debug_assertions)]
                 write_key_file(&kp, &key)?;
             }
         }

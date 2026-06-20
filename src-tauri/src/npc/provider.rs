@@ -19,6 +19,19 @@ pub enum LlmProviderType {
     LlamaServer,
 }
 
+impl LlmProviderType {
+    /// Stable lowercase ASCII identifier for this provider, used as the
+    /// keychain account name in release builds.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            LlmProviderType::Anthropic => "anthropic",
+            LlmProviderType::OpenAi => "openAi",
+            LlmProviderType::Ollama => "ollama",
+            LlmProviderType::LlamaServer => "llamaServer",
+        }
+    }
+}
+
 /// Non-secret provider settings: safe to log, display in debug state, and
 /// include in bug reports. Does NOT contain the API key.
 #[derive(Clone, Debug, Serialize, Deserialize)]

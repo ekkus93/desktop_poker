@@ -63,7 +63,7 @@ You can override the endpoint URL and model name per-provider in the settings UI
 }
 ```
 
-The config file location is `~/.local/share/desktop-poker/llm-provider.json` on Linux. The legacy `claude-api-key.txt` file from earlier builds is auto-migrated to an Anthropic provider config on first startup.
+The non-secret settings are stored in `{app_data_dir}/llm-provider.json` (e.g. `~/.local/share/desktop-poker/llm-provider.json` on Linux). The API key is stored separately — see **Provider secret storage** below. The legacy `claude-api-key.txt` file from earlier builds is auto-migrated to an Anthropic provider config on first startup.
 
 ### AI profiles
 
@@ -112,7 +112,12 @@ When an NPC is configured with an explicit profile ID that cannot be found or lo
 
 ### Provider secret storage
 
-API keys are stored in plaintext in `{app_data_dir}/llm-provider.json`. The Settings UI displays a visible warning for Anthropic and OpenAI providers: "API keys are stored in plaintext on this device. Do not use production keys with access to sensitive resources. Use a dedicated low-privilege key." The key field value is redacted in the `Debug` output of `LlmProviderConfig` to avoid accidental log exposure.
+Non-secret provider settings (provider type, endpoint URL, model) are written to `{app_data_dir}/llm-provider.json`. The API key is stored separately:
+
+- **Release builds** — stored in the OS keychain via the `keyring` crate (macOS Keychain, Windows Credential Manager, Linux Secret Service). The keychain service is `desktop-poker-llm-provider` and the account is the provider type string (e.g. `anthropic`). If keychain storage fails, the error is surfaced to the user and the app does not fall back to plaintext storage.
+- **Debug builds** — stored in `{app_data_dir}/llm-provider-key.dat` with 0600 permissions (owner-read-only on Unix). This is intentionally insecure and intended for development and testing only.
+
+The API key is never written to `llm-provider.json`, never logged, never included in debug state, and is redacted in `LlmProviderConfig`'s `Debug` output. Use a dedicated low-privilege key; do not use production keys with access to sensitive resources.
 
 ## What the app is responsible for
 
@@ -304,10 +309,10 @@ The backend emits `desktop://bootstrap` (not `desktop://bootstrap-update`) with 
 `tauri.conf.json` sets a restrictive CSP for the WebView:
 
 ```
-default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: https://asset.localhost; connect-src ipc: https://ipc.localhost; font-src 'self'
 ```
 
-`connect-src 'none'` blocks network calls from the frontend WebView. All external network traffic (LLM API calls, LAN host connections) is owned by the Rust backend via Tauri commands, not by frontend `fetch`. `'unsafe-inline'` is required for style because Tauri does not currently support nonce-based style CSP for its own injected styles.
+`connect-src` is restricted to `ipc:` and `https://ipc.localhost` — both are internal Tauri IPC channels. Frontend `fetch` to any external network address is blocked. All external network traffic (LLM API calls, LAN host connections) is owned by the Rust backend via Tauri commands. `'unsafe-inline'` is required for style because Tauri does not currently support nonce-based style CSP for its own injected styles.
 
 ### Required validation commands
 

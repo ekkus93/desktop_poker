@@ -242,9 +242,9 @@ export function DeviceSettingsScreen() {
                   />
                 </label>
                 <p className="field-hint field-hint--warning">
-                  API keys are stored in plaintext on this device. Do not use
-                  production keys with access to sensitive resources. Use a
-                  dedicated low-privilege key.
+                  Release builds store API keys in the OS keychain. Development
+                  builds use a local file. Use a dedicated low-privilege key; do
+                  not use production keys with access to sensitive resources.
                 </p>
               </>
             ) : null}

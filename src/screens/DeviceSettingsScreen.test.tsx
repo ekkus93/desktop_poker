@@ -134,7 +134,7 @@ describe("DeviceSettingsScreen", () => {
 
     // Anthropic is selected by default — warning should be visible.
     expect(
-      screen.getByText(/api keys are stored in plaintext/i),
+      screen.getByText(/release builds store api keys in the os keychain/i),
     ).toBeTruthy();
   });
 
@@ -147,7 +147,7 @@ describe("DeviceSettingsScreen", () => {
       target: { value: "ollama" },
     });
 
-    expect(screen.queryByText(/api keys are stored in plaintext/i)).toBeNull();
+    expect(screen.queryByText(/release builds store api keys in the os keychain/i)).toBeNull();
   });
 
   it("shows error when setLlmProviderConfig fails", async () => {
