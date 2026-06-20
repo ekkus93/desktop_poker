@@ -194,6 +194,7 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
     // Drive the NPC with the production runner. `profile: None` forces the
     // rule-based path, so no provider config is ever consulted.
     let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: crate::npc::NpcConfig::player_id(npc_seat),
         display_name: "Rule NPC".to_string(),
         style: crate::npc::NpcStyle::Conservative,
         profile: None,

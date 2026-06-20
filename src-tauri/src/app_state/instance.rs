@@ -1,7 +1,4 @@
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::PathBuf};
 
 use dirs::data_local_dir;
 
@@ -126,18 +123,15 @@ pub(crate) fn build_debug_child_launch_args(
 }
 
 pub(crate) fn detect_profile_directory(instance_id: &str) -> PathBuf {
-    let base = data_local_dir()
-        .or_else(|| env::current_dir().ok())
-        .unwrap_or_else(|| Path::new(".").to_path_buf());
-
-    base.join("desktop-poker")
+    data_local_dir()
+        .expect("platform data directory is required; cannot fall back to cwd for profile storage")
+        .join("desktop-poker")
         .join("profiles")
         .join(instance_id)
 }
 
 pub(crate) fn detect_app_data_dir() -> PathBuf {
     data_local_dir()
-        .or_else(|| env::current_dir().ok())
-        .unwrap_or_else(|| Path::new(".").to_path_buf())
+        .expect("platform data directory is required; cannot fall back to cwd for app-data storage")
         .join("desktop-poker")
 }

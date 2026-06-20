@@ -20,7 +20,7 @@ pub enum LlmProviderType {
 }
 
 /// Full configuration for one LLM provider.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LlmProviderConfig {
     pub provider: LlmProviderType,
@@ -30,6 +30,28 @@ pub struct LlmProviderConfig {
     pub endpoint_url: Option<String>,
     /// Override the model name (default is provider-specific).
     pub model: Option<String>,
+}
+
+impl std::fmt::Debug for LlmProviderConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LlmProviderConfig")
+            .field("provider", &self.provider)
+            .field(
+                "api_key",
+                &self.api_key.as_deref().map(|k| {
+                    if k.len() > 8 {
+                        format!("{}…[redacted]", &k[..4])
+                    } else if k.is_empty() {
+                        "<empty>".to_string()
+                    } else {
+                        "<set>".to_string()
+                    }
+                }),
+            )
+            .field("endpoint_url", &self.endpoint_url)
+            .field("model", &self.model)
+            .finish()
+    }
 }
 
 impl LlmProviderConfig {

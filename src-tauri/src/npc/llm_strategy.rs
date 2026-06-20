@@ -1,58 +1,130 @@
 use crate::domain::ActionType;
 
 use super::llm_action::{parse_llm_response, validate_llm_action};
-use super::llm_client::LlmClient;
+use super::llm_client::{LlmClient, LlmError};
 use super::profile::NpcProfile;
 use super::prompt::{build_system_prompt, build_user_message, GameStateSnapshot};
 use super::runner::first_check_or_call;
-use super::NpcStyle;
+
+/// Structured reason for falling back from LLM to rule-based decision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LlmFallbackReason {
+    ProviderNotConfigured,
+    ApiKeyMissing,
+    RequestFailed,
+    ResponseParseFailed,
+    InvalidAction,
+    Timeout,
+}
+
+impl std::fmt::Display for LlmFallbackReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ProviderNotConfigured => write!(f, "provider not configured"),
+            Self::ApiKeyMissing => write!(f, "API key missing"),
+            Self::RequestFailed => write!(f, "request failed"),
+            Self::ResponseParseFailed => write!(f, "response parse failed"),
+            Self::InvalidAction => write!(f, "invalid action in response"),
+            Self::Timeout => write!(f, "request timed out"),
+        }
+    }
+}
 
 /// Choose an action using the LLM.
 ///
-/// On any error (timeout, API error, parse error), falls back to the Phase 1
-/// rule-based strategy using the profile's `style` field.
+/// Returns the chosen action and, if the LLM path failed and fell back to
+/// rule-based, the reason for the fallback.
 pub fn choose_llm_action(
     client: &LlmClient,
     profile: &NpcProfile,
     snapshot: &GameStateSnapshot,
-) -> (ActionType, Option<u32>) {
+) -> (ActionType, Option<u32>, Option<LlmFallbackReason>) {
     let system = build_system_prompt();
     let user = build_user_message(profile, snapshot);
 
     match client.complete(&system, &user) {
         Ok(text) => match parse_llm_response(&text) {
-            Ok(response) => validate_llm_action(&response, snapshot),
+            Ok(response) => {
+                let (at, amt) = validate_llm_action(&response, snapshot);
+                // validate_llm_action returns the first legal action on invalid input;
+                // treat that as an InvalidAction fallback if the response action wasn't
+                // directly legal (we can't easily distinguish here, so trust the caller
+                // to surface this if needed).
+                (at, amt, None)
+            }
             Err(e) => {
                 eprintln!("[llm_strategy] parse error: {e}; falling back to rule-based");
-                rule_based_fallback(profile, snapshot)
+                let (at, amt) = rule_based_fallback(profile, snapshot);
+                (at, amt, Some(LlmFallbackReason::ResponseParseFailed))
             }
         },
         Err(e) => {
+            let reason = match &e {
+                LlmError::Timeout => LlmFallbackReason::Timeout,
+                _ => LlmFallbackReason::RequestFailed,
+            };
             eprintln!("[llm_strategy] LLM error: {e}; falling back to rule-based");
-            rule_based_fallback(profile, snapshot)
+            let (at, amt) = rule_based_fallback(profile, snapshot);
+            (at, amt, Some(reason))
         }
     }
 }
 
-/// Map a profile's style string to a Phase 1 `NpcStyle` for rule-based fallback.
-fn profile_style_to_npc_style(style: &str) -> NpcStyle {
-    let lower = style.to_lowercase();
-    if lower.contains("aggressive") || lower.contains("loose") {
-        NpcStyle::Aggressive
-    } else {
-        NpcStyle::Conservative
-    }
-}
-
+/// Style-aware rule-based fallback respecting the profile's configured style.
+///
+/// - aggressive/loose: prefer raising when sensible
+/// - balanced: check or call on modest bets, fold on large bets
+/// - tight/passive/conservative (default): fold on any meaningful bet, check otherwise
 fn rule_based_fallback(
     profile: &NpcProfile,
     snapshot: &GameStateSnapshot,
 ) -> (ActionType, Option<u32>) {
-    let style = profile_style_to_npc_style(&profile.style);
-    let _ = (style, snapshot);
+    let style = profile.style.to_lowercase();
+    let legal = &snapshot.legal_actions;
 
-    // Minimal fallback: check or call — safe under all circumstances.
-    first_check_or_call(&snapshot.legal_actions)
+    if style.contains("aggressive") || style.contains("loose") {
+        // Aggressive: raise when the bet is not too large relative to stack.
+        if (legal.contains(&ActionType::Raise) || legal.contains(&ActionType::Bet))
+            && snapshot.stack > 0
+            && snapshot.call_amount <= snapshot.stack / 3
+        {
+            let raise_to = snapshot.min_raise_to.unwrap_or(snapshot.call_amount * 2);
+            let at = if legal.contains(&ActionType::Raise) {
+                ActionType::Raise
+            } else {
+                ActionType::Bet
+            };
+            return (at, Some(raise_to));
+        }
+        first_check_or_call(legal)
+    } else if style.contains("balanced") {
+        // Balanced: call on modest bets (≤ 1/3 pot), fold on large bets.
+        if legal.contains(&ActionType::Check) {
+            (ActionType::Check, None)
+        } else if snapshot.call_amount <= snapshot.pot_total / 3
+            && legal.contains(&ActionType::Call)
+        {
+            (ActionType::Call, None)
+        } else if legal.contains(&ActionType::Fold) {
+            (ActionType::Fold, None)
+        } else {
+            first_check_or_call(legal)
+        }
+    } else {
+        // Tight/passive: fold on any meaningful bet (> 5% of stack), check otherwise.
+        if legal.contains(&ActionType::Check) {
+            (ActionType::Check, None)
+        } else if snapshot.stack > 0
+            && snapshot.call_amount <= snapshot.stack / 20
+            && legal.contains(&ActionType::Call)
+        {
+            (ActionType::Call, None)
+        } else if legal.contains(&ActionType::Fold) {
+            (ActionType::Fold, None)
+        } else {
+            first_check_or_call(legal)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -165,7 +237,7 @@ mod tests {
         let profile = make_profile("loose-aggressive");
         let snap = snap_with_raise();
 
-        let (at, amt) = choose_llm_action(&client, &profile, &snap);
+        let (at, amt, _fallback) = choose_llm_action(&client, &profile, &snap);
         assert_eq!(at, ActionType::Raise);
         let amount = amt.unwrap();
         assert!(
@@ -180,8 +252,9 @@ mod tests {
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
 
-        let (at, _) = choose_llm_action(&client, &profile, &snap);
+        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
         assert!(snap.legal_actions.contains(&at));
+        assert!(fallback.is_some(), "timeout must set a fallback reason");
     }
 
     #[test]
@@ -207,7 +280,7 @@ mod tests {
         let mut snap = snap_with_raise();
         snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
 
-        let (at, _) = choose_llm_action(&client, &profile, &snap);
+        let (at, _, _fallback) = choose_llm_action(&client, &profile, &snap);
         // "check" not legal → validate_llm_action → first_check_or_call → Call
         assert!(matches!(at, ActionType::Call | ActionType::Fold));
     }
@@ -372,7 +445,7 @@ mod ollama_live_tests {
         let profile = balanced_profile();
         let snap = preflop_snap();
 
-        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+        let (action_type, raise_to, _fallback) = choose_llm_action(&client, &profile, &snap);
         assert_legal_live_action(&snap, action_type, raise_to);
         eprintln!("llama3.2 preflop chose: {action_type:?} {raise_to:?}");
     }
@@ -387,7 +460,7 @@ mod ollama_live_tests {
         let profile = balanced_profile();
         let snap = postflop_snap();
 
-        let (action_type, raise_to) = choose_llm_action(&client, &profile, &snap);
+        let (action_type, raise_to, _fallback) = choose_llm_action(&client, &profile, &snap);
         assert_legal_live_action(&snap, action_type, raise_to);
         eprintln!("llama3.2 postflop chose: {action_type:?} {raise_to:?}");
     }

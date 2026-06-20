@@ -102,7 +102,7 @@ impl LlmClient {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(DEFAULT_TIMEOUT_SECS))
             .build()
-            .unwrap_or_default();
+            .expect("HTTP client with default timeout should always build successfully");
         Self {
             client,
             config,
@@ -136,7 +136,7 @@ impl LlmClient {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(timeout_secs))
             .build()
-            .unwrap_or_default();
+            .expect("HTTP client with custom timeout should always build successfully");
         Self {
             client,
             config,

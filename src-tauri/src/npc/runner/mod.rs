@@ -18,7 +18,7 @@ use super::provider::LlmProviderConfig;
 use super::session_history::{HandSummary, NpcSessionHistory};
 use super::strategy::derive_position;
 use super::tilt::TiltState;
-use super::{NpcConfig, NpcStyle};
+use super::NpcConfig;
 
 mod decision;
 pub(crate) use decision::*;
@@ -50,8 +50,7 @@ impl RunnerState {
     fn new(npc_configs: &[NpcConfig], shared_tilt: Arc<Mutex<BTreeMap<String, String>>>) -> Self {
         let session_histories = npc_configs
             .iter()
-            .enumerate()
-            .map(|(i, _)| NpcSessionHistory::new(NpcConfig::player_id(i as u8)))
+            .map(|c| NpcSessionHistory::new(c.player_id.clone()))
             .collect();
         Self {
             hand_log: None,
@@ -199,28 +198,33 @@ fn process_completed_hands(
             .opponent_stats
             .update_from_hand(hand_log, result, &display_names);
 
-        for (seat_index, history) in runner_state.session_histories.iter_mut().enumerate() {
-            let player_id = NpcConfig::player_id(seat_index as u8);
-            let npc_won = result.winning_player_ids.contains(&player_id);
+        for (npc_config, history) in npc_configs
+            .iter()
+            .zip(runner_state.session_histories.iter_mut())
+        {
+            let player_id = &npc_config.player_id;
+            let npc_won = result.winning_player_ids.contains(player_id);
             let pot_size: u32 = result.pot_summaries.iter().map(|p| p.amount).sum();
-            let went_to_showdown = result.revealed_hands_by_player_id.contains_key(&player_id);
+            let went_to_showdown = result
+                .revealed_hands_by_player_id
+                .contains_key(player_id.as_str());
 
             // Determine net chips from pre-hand stack vs. post-hand stack.
             let pre_stack = runner_state
                 .pre_hand_stacks
-                .get(&player_id)
+                .get(player_id.as_str())
                 .copied()
                 .unwrap_or(0);
             let post_stack = result
                 .final_stack_by_player_id
-                .get(&player_id)
+                .get(player_id.as_str())
                 .copied()
                 .unwrap_or(0);
             let net_chips = post_stack as i32 - pre_stack as i32;
 
             // Determine bluff caught: NPC lost at showdown and had post-flop aggression.
             let npc_bluff_caught = if went_to_showdown && !npc_won {
-                hand_log.actions_by(&player_id).iter().any(|r| {
+                hand_log.actions_by(player_id).iter().any(|r| {
                     matches!(
                         r.street,
                         StreetPhase::Flop | StreetPhase::Turn | StreetPhase::River
@@ -232,7 +236,7 @@ fn process_completed_hands(
 
             // Determine bluffed: NPC bet/raised post-flop but did NOT go to showdown or
             // went to showdown and lost with post-flop aggression.
-            let had_postflop_bet = hand_log.actions_by(&player_id).iter().any(|r| {
+            let had_postflop_bet = hand_log.actions_by(player_id).iter().any(|r| {
                 matches!(
                     r.street,
                     StreetPhase::Flop | StreetPhase::Turn | StreetPhase::River
@@ -243,7 +247,7 @@ fn process_completed_hands(
             let opponent_ids: Vec<String> = result
                 .final_stack_by_player_id
                 .keys()
-                .filter(|id| *id != &player_id)
+                .filter(|id| id.as_str() != player_id.as_str())
                 .cloned()
                 .collect();
 
@@ -258,10 +262,7 @@ fn process_completed_hands(
                 opponent_ids_in_hand: opponent_ids,
             };
 
-            // Only record if the NPC was in this hand (had a pre-hand stack).
-            if npc_configs.get(seat_index).is_some() {
-                history.record_hand(summary);
-            }
+            history.record_hand(summary);
         }
     }
 
@@ -270,17 +271,17 @@ fn process_completed_hands(
     // Publish updated tilt levels for the debug inspector.
     if let Ok(mut tilt_map) = runner_state.shared_tilt.lock() {
         tilt_map.clear();
-        for (seat_index, history) in runner_state.session_histories.iter().enumerate() {
-            let player_id = NpcConfig::player_id(seat_index as u8);
-            if npc_configs.get(seat_index).is_some() {
-                let tilt = TiltState::from_history(history);
-                let level_str = match tilt.level {
-                    super::tilt::TiltLevel::None => "none",
-                    super::tilt::TiltLevel::Mild => "mild",
-                    super::tilt::TiltLevel::Full => "full",
-                };
-                tilt_map.insert(player_id, level_str.to_string());
-            }
+        for (npc_config, history) in npc_configs
+            .iter()
+            .zip(runner_state.session_histories.iter())
+        {
+            let tilt = TiltState::from_history(history);
+            let level_str = match tilt.level {
+                super::tilt::TiltLevel::None => "none",
+                super::tilt::TiltLevel::Mild => "mild",
+                super::tilt::TiltLevel::Full => "full",
+            };
+            tilt_map.insert(npc_config.player_id.clone(), level_str.to_string());
         }
     }
 
@@ -311,19 +312,23 @@ fn try_npc_action(
         return false;
     }
 
-    let npc_seat: u8 = window
-        .player_id
-        .strip_prefix("npc-seat-")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
+    let config_entry = npc_configs
+        .iter()
+        .enumerate()
+        .find(|(_, c)| c.player_id == window.player_id);
 
-    let npc_config = npc_configs
-        .get(npc_seat as usize)
-        .or_else(|| npc_configs.first());
+    let (npc_config_idx, npc_config) = match config_entry {
+        Some(pair) => pair,
+        None => {
+            eprintln!(
+                "[npc-runner] no config found for player {}; skipping action",
+                window.player_id
+            );
+            return false;
+        }
+    };
 
-    let style = npc_config
-        .map(|c| &c.style)
-        .unwrap_or(&NpcStyle::Aggressive);
+    let style = &npc_config.style;
 
     let seed = hash_str(&window.player_id) ^ hash_str(&window.action_window_id);
 
@@ -401,9 +406,8 @@ fn try_npc_action(
     let dealer_seat = fresh_hand.dealer_seat_index;
     let position = derive_position(fresh_window.seat_index, dealer_seat, active_count.max(2));
 
-    // LLM path when the NPC has a profile and an usable provider config is available.
-    let (action_type, raise_to) = if let Some(profile) = npc_config.and_then(|c| c.profile.as_ref())
-    {
+    // LLM path when the NPC has a profile and a usable provider config is available.
+    let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
         let provider_cfg = api_key_holder.lock().ok().and_then(|g| g.clone());
         let usable_cfg = provider_cfg.filter(|c| c.is_usable());
         if let Some(cfg) = usable_cfg {
@@ -416,9 +420,8 @@ fn try_npc_action(
                 .unwrap_or_else(fallback_blind_level);
 
             // Build session context.
-            let npc_seat_usize = npc_seat as usize;
             let (session_ctx, tilt_desc) =
-                if let Some(history) = runner_state.session_histories.get(npc_seat_usize) {
+                if let Some(history) = runner_state.session_histories.get(npc_config_idx) {
                     let ctx = if history.hands_played() > 0 {
                         Some(history.render_context())
                     } else {
@@ -460,7 +463,16 @@ fn try_npc_action(
                 tilt_description: tilt_desc,
             };
 
-            let result = choose_llm_action(&LlmClient::new(cfg), profile, &snapshot);
+            let provider_label = format!("{:?}", cfg.provider);
+            let (llm_action, llm_raise, fallback_reason) =
+                choose_llm_action(&LlmClient::new(cfg), profile, &snapshot);
+
+            if let Some(reason) = &fallback_reason {
+                eprintln!(
+                    "[npc-runner] LLM fallback for {} (profile={}, provider={}): {reason}",
+                    fresh_window.player_id, profile.id, provider_label,
+                );
+            }
 
             // Record the action into the hand log.
             if let Some(log) = &mut runner_state.hand_log {
@@ -468,13 +480,13 @@ fn try_npc_action(
                     hand_number: fresh_hand.hand_number,
                     street,
                     player_id: fresh_window.player_id.clone(),
-                    action_type: result.0,
-                    amount: result.1,
+                    action_type: llm_action,
+                    amount: llm_raise,
                     is_voluntary: true,
                 });
             }
 
-            result
+            (llm_action, llm_raise)
         } else {
             rule_based_decision(
                 style,
@@ -522,7 +534,7 @@ fn try_npc_action(
     if let Some(log) = &mut runner_state.hand_log {
         // Avoid double-logging: the LLM path already records when it executes.
         // The rule-based path always falls through here, so record it.
-        if npc_config.and_then(|c| c.profile.as_ref()).is_none() {
+        if npc_config.profile.is_none() {
             log.push(HandActionRecord {
                 hand_number: fresh_hand.hand_number,
                 street,
@@ -534,14 +546,21 @@ fn try_npc_action(
         }
     }
 
-    let _ = host_server.submit_action(
+    match host_server.submit_action(
         &fresh_window.player_id,
         fresh_window.action_window_id.clone(),
         action_type,
         raise_to,
-    );
-
-    true
+    ) {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!(
+                "[npc-runner] submit_action failed for {} (window={}, action={:?}): {e}",
+                fresh_window.player_id, fresh_window.action_window_id, action_type
+            );
+            false
+        }
+    }
 }
 
 /// A guard that stops the NPC runner thread when dropped.

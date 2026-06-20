@@ -31,6 +31,24 @@ pub fn validate_join_payload_input(payload: String) -> Result<JoinPayload, Strin
     })
 }
 
+fn emit_session_update(app: &AppHandle) {
+    if let Err(e) = app.emit("desktop://session-update", ()) {
+        eprintln!("[emit] session-update failed: {e}");
+    }
+}
+
+fn emit_table_update(app: &AppHandle) {
+    if let Err(e) = app.emit("desktop://table-update", ()) {
+        eprintln!("[emit] table-update failed: {e}");
+    }
+}
+
+fn emit_bootstrap_update(app: &AppHandle, bootstrap: DesktopBootstrapState) {
+    if let Err(e) = app.emit("desktop://bootstrap", bootstrap) {
+        eprintln!("[emit] bootstrap update failed: {e}");
+    }
+}
+
 #[tauri::command]
 pub fn start_host_session(
     app: AppHandle,
@@ -38,7 +56,7 @@ pub fn start_host_session(
     request: StartHostSessionRequest,
 ) -> Result<HostSessionStatus, String> {
     let result = state.start_host_session(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -52,7 +70,7 @@ pub fn get_host_session_status(
 #[tauri::command]
 pub fn stop_host_session(app: AppHandle, state: State<'_, DesktopAppState>) -> Result<(), String> {
     state.stop_host_session()?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(())
 }
 
@@ -63,7 +81,7 @@ pub fn host_claim_lobby_seat(
     request: ClaimLobbySeatRequest,
 ) -> Result<HostSessionStatus, String> {
     let result = state.host_claim_lobby_seat(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -74,7 +92,7 @@ pub fn host_set_lobby_ready_state(
     request: SetLobbyReadyStateRequest,
 ) -> Result<HostSessionStatus, String> {
     let result = state.host_set_lobby_ready_state(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -84,7 +102,7 @@ pub fn host_start_tournament(
     state: State<'_, DesktopAppState>,
 ) -> Result<HostSessionStatus, String> {
     let result = state.host_start_tournament()?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -95,7 +113,7 @@ pub fn join_host_session(
     request: JoinHostSessionRequest,
 ) -> Result<ClientSessionStatus, String> {
     let result = state.join_host_session(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -112,7 +130,7 @@ pub fn leave_client_session(
     state: State<'_, DesktopAppState>,
 ) -> Result<(), String> {
     state.leave_client_session()?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(())
 }
 
@@ -123,7 +141,7 @@ pub fn client_claim_lobby_seat(
     request: ClaimLobbySeatRequest,
 ) -> Result<ClientSessionStatus, String> {
     let result = state.client_claim_lobby_seat(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -134,7 +152,7 @@ pub fn client_set_lobby_ready_state(
     request: SetLobbyReadyStateRequest,
 ) -> Result<ClientSessionStatus, String> {
     let result = state.client_set_lobby_ready_state(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -145,7 +163,7 @@ pub fn add_npc_players(
     request: crate::npc::AddNpcPlayersRequest,
 ) -> Result<HostSessionStatus, String> {
     let result = state.add_npc_players(request)?;
-    let _ = app.emit("desktop://session-update", ());
+    emit_session_update(&app);
     Ok(result)
 }
 
@@ -156,14 +174,14 @@ pub fn set_llm_api_key(
     key: String,
 ) -> Result<(), String> {
     state.set_llm_api_key(key)?;
-    let _ = app.emit("desktop://bootstrap-update", ());
+    emit_bootstrap_update(&app, state.bootstrap());
     Ok(())
 }
 
 #[tauri::command]
 pub fn clear_llm_api_key(app: AppHandle, state: State<'_, DesktopAppState>) -> Result<(), String> {
     state.clear_llm_api_key()?;
-    let _ = app.emit("desktop://bootstrap-update", ());
+    emit_bootstrap_update(&app, state.bootstrap());
     Ok(())
 }
 
@@ -181,7 +199,7 @@ pub fn set_llm_provider_config(
     config: crate::npc::LlmProviderConfig,
 ) -> Result<(), String> {
     state.set_llm_provider_config(config)?;
-    let _ = app.emit("desktop://bootstrap-update", ());
+    emit_bootstrap_update(&app, state.bootstrap());
     Ok(())
 }
 
@@ -191,7 +209,7 @@ pub fn clear_llm_provider_config(
     state: State<'_, DesktopAppState>,
 ) -> Result<(), String> {
     state.clear_llm_provider_config()?;
-    let _ = app.emit("desktop://bootstrap-update", ());
+    emit_bootstrap_update(&app, state.bootstrap());
     Ok(())
 }
 
@@ -255,7 +273,7 @@ pub fn submit_table_action(
             state.submit_table_action(next_viewer_mode, next_action_kind, next_raise_to_amount)
         },
     )?;
-    let _ = app.emit("desktop://table-update", ());
+    emit_table_update(&app);
     Ok(result)
 }
 

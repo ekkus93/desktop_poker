@@ -5,7 +5,7 @@ use crate::domain::{
     TournamentConfig, TournamentPhase, TournamentSeatState, TournamentState,
 };
 
-use super::super::NpcConfig;
+use super::super::{NpcConfig, NpcStyle};
 use super::*;
 
 fn minimal_state() -> TournamentState {
@@ -95,6 +95,7 @@ fn hand_result(hand_number: u32, winner: &str, players: &[&str], pot: u32) -> Ha
 
 fn npc_configs() -> Vec<NpcConfig> {
     vec![NpcConfig {
+        player_id: NpcConfig::player_id(0),
         display_name: "NPC".into(),
         style: NpcStyle::Aggressive,
         profile: None,

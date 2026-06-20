@@ -16,6 +16,7 @@ pub mod session_history;
 pub mod strategy;
 pub mod tilt;
 
+pub use llm_strategy::LlmFallbackReason;
 pub use provider::{LlmProviderConfig, LlmProviderType};
 
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,8 @@ pub enum NpcStyle {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NpcConfig {
+    /// Stable player ID assigned to this NPC (matches `NpcConfig::player_id(seat_index)`).
+    pub player_id: String,
     pub display_name: String,
     pub style: NpcStyle,
     /// Optional LLM profile; when present the NPC uses LLM-based decisions.

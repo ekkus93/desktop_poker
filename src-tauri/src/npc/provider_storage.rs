@@ -9,6 +9,22 @@ const PROVIDER_FILE_NAME: &str = "llm-provider.json";
 // Legacy file written by Phase 2; read once for migration.
 const LEGACY_KEY_FILE_NAME: &str = "claude-api-key.txt";
 
+/// Outcome of attempting to load provider configuration from disk.
+#[derive(Debug)]
+pub enum ProviderConfigLoadState {
+    /// No config file exists and no legacy key was found. This is the normal
+    /// "never configured" state and is not an error.
+    Missing,
+    /// Config file was read and parsed successfully.
+    Loaded(LlmProviderConfig),
+    /// Config file exists but could not be read (permissions, I/O error).
+    Unreadable { error: String },
+    /// Config file was read but is not valid JSON.
+    InvalidJson { error: String },
+    /// Config file is valid JSON but does not match the expected schema.
+    InvalidSchema { error: String },
+}
+
 fn provider_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(PROVIDER_FILE_NAME)
 }
@@ -17,32 +33,54 @@ fn legacy_key_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(LEGACY_KEY_FILE_NAME)
 }
 
-/// Load the provider config from disk.
+/// Load the provider config from disk, returning a rich load state.
 ///
 /// Migration: if `llm-provider.json` does not exist but the legacy
 /// `claude-api-key.txt` does, the key is promoted to an Anthropic config and
 /// the legacy file is left in place.
-pub fn load_provider_config(app_data_dir: &Path) -> Option<LlmProviderConfig> {
+pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
     let path = provider_path(app_data_dir);
 
     // Try reading the new JSON file first.
     if path.exists() {
-        let text = fs::read_to_string(&path).ok()?;
-        let cfg: LlmProviderConfig = serde_json::from_str(&text).ok()?;
-        return Some(cfg);
+        let text = match fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) => {
+                return ProviderConfigLoadState::Unreadable {
+                    error: e.to_string(),
+                }
+            }
+        };
+        let value: serde_json::Value = match serde_json::from_str(&text) {
+            Ok(v) => v,
+            Err(e) => {
+                return ProviderConfigLoadState::InvalidJson {
+                    error: e.to_string(),
+                }
+            }
+        };
+        match serde_json::from_value::<LlmProviderConfig>(value) {
+            Ok(cfg) => return ProviderConfigLoadState::Loaded(cfg),
+            Err(e) => {
+                return ProviderConfigLoadState::InvalidSchema {
+                    error: e.to_string(),
+                }
+            }
+        }
     }
 
     // Fall back to the legacy plain-text API key.
     let legacy = legacy_key_path(app_data_dir);
     if legacy.exists() {
-        let key = fs::read_to_string(&legacy)
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())?;
-        return Some(LlmProviderConfig::from_anthropic_key(key));
+        if let Ok(raw) = fs::read_to_string(&legacy) {
+            let key = raw.trim().to_string();
+            if !key.is_empty() {
+                return ProviderConfigLoadState::Loaded(LlmProviderConfig::from_anthropic_key(key));
+            }
+        }
     }
 
-    None
+    ProviderConfigLoadState::Missing
 }
 
 /// Write the provider config to `{app_data_dir}/llm-provider.json`.
@@ -86,12 +124,19 @@ mod tests {
         }
     }
 
+    fn unwrap_loaded(state: ProviderConfigLoadState) -> LlmProviderConfig {
+        match state {
+            ProviderConfigLoadState::Loaded(cfg) => cfg,
+            other => panic!("expected Loaded, got {other:?}"),
+        }
+    }
+
     #[test]
     fn save_and_load_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
         let cfg = anthropic_config("sk-ant-test");
         save_provider_config(dir.path(), Some(&cfg)).unwrap();
-        let loaded = load_provider_config(dir.path()).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
         assert_eq!(loaded.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-test"));
     }
@@ -101,21 +146,47 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         save_provider_config(dir.path(), Some(&anthropic_config("k"))).unwrap();
         save_provider_config(dir.path(), None).unwrap();
-        assert!(load_provider_config(dir.path()).is_none());
+        assert!(matches!(
+            load_provider_config(dir.path()),
+            ProviderConfigLoadState::Missing
+        ));
         assert!(!provider_path(dir.path()).exists());
     }
 
     #[test]
-    fn load_nonexistent_returns_none() {
+    fn load_nonexistent_returns_missing() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(load_provider_config(dir.path()).is_none());
+        assert!(matches!(
+            load_provider_config(dir.path()),
+            ProviderConfigLoadState::Missing
+        ));
+    }
+
+    #[test]
+    fn corrupt_json_returns_invalid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(provider_path(dir.path()), "not json at all").unwrap();
+        assert!(matches!(
+            load_provider_config(dir.path()),
+            ProviderConfigLoadState::InvalidJson { .. }
+        ));
+    }
+
+    #[test]
+    fn invalid_schema_returns_invalid_schema() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(provider_path(dir.path()), r#"{"unexpected":"field"}"#).unwrap();
+        assert!(matches!(
+            load_provider_config(dir.path()),
+            ProviderConfigLoadState::InvalidSchema { .. }
+        ));
     }
 
     #[test]
     fn legacy_key_file_is_promoted_to_anthropic_config() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
-        let loaded = load_provider_config(dir.path()).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
         assert_eq!(loaded.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
     }
@@ -131,7 +202,7 @@ mod tests {
             model: None,
         };
         save_provider_config(dir.path(), Some(&new_cfg)).unwrap();
-        let loaded = load_provider_config(dir.path()).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
         assert_eq!(loaded.provider, LlmProviderType::Ollama);
     }
 }

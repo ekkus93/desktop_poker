@@ -130,7 +130,8 @@ impl DesktopClientSession {
     ) -> Result<TableViewSnapshot, String> {
         self.refresh();
         if self.latest_snapshot.state.phase == domain::TournamentPhase::ReadyCheck {
-            self.await_condition(Duration::from_millis(250), |session| {
+            // Best-effort: wait for the table to start or an error; timeout is not an error here.
+            let _ = self.await_condition(Duration::from_millis(250), |session| {
                 session.last_error.is_some()
                     || session.latest_snapshot.state.phase != domain::TournamentPhase::ReadyCheck
             });
@@ -186,7 +187,7 @@ impl DesktopClientSession {
                 action_amount,
             )
             .map_err(|error| error.to_string())?;
-        self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(Duration::from_secs(1), |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -207,6 +208,11 @@ impl DesktopClientSession {
 
         if let Some(error) = self.last_error.clone() {
             return Err(error);
+        }
+        if !observed {
+            return Err(
+                "table action timed out: host did not acknowledge within 1 second".to_string(),
+            );
         }
 
         self.table_view(viewer_mode)
@@ -285,7 +291,7 @@ impl DesktopClientSession {
         self.runtime
             .claim_seat(request.seat_index)
             .map_err(|error| error.to_string())?;
-        self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(Duration::from_secs(1), |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -299,6 +305,9 @@ impl DesktopClientSession {
         if let Some(error) = self.last_error.clone() {
             return Err(error);
         }
+        if !observed {
+            return Err("seat claim timed out: host did not confirm within 1 second".to_string());
+        }
 
         Ok(self.status())
     }
@@ -311,7 +320,7 @@ impl DesktopClientSession {
         self.runtime
             .set_ready_state(request.is_ready)
             .map_err(|error| error.to_string())?;
-        self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(Duration::from_secs(1), |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -333,16 +342,29 @@ impl DesktopClientSession {
         if let Some(error) = self.last_error.clone() {
             return Err(error);
         }
+        if !observed {
+            return Err(
+                "ready-state toggle timed out: host did not confirm within 1 second".to_string(),
+            );
+        }
 
         Ok(self.status())
     }
 
-    pub(crate) fn await_condition(&mut self, timeout: Duration, predicate: impl Fn(&Self) -> bool) {
+    /// Poll until `predicate` returns true or the timeout expires.
+    ///
+    /// Returns `true` if the condition was observed, `false` if the timeout
+    /// elapsed without the predicate being satisfied.
+    pub(crate) fn await_condition(
+        &mut self,
+        timeout: Duration,
+        predicate: impl Fn(&Self) -> bool,
+    ) -> bool {
         let deadline = Instant::now() + timeout;
         while Instant::now() < deadline {
             self.refresh();
             if predicate(self) {
-                return;
+                return true;
             }
 
             if let Ok(event) = self.runtime.next_event(Duration::from_millis(50)) {
@@ -350,8 +372,9 @@ impl DesktopClientSession {
             }
 
             if predicate(self) {
-                return;
+                return true;
             }
         }
+        false
     }
 }

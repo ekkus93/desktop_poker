@@ -16,25 +16,33 @@ impl DesktopAppState {
         }
 
         // Resolve profiles before locking the session.
+        // If an explicit profile_id is specified, fail loudly if it cannot be loaded.
         let profiles_dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
-        let npc_configs: Vec<crate::npc::NpcConfig> = request
+
+        struct NpcDraft {
+            display_name: String,
+            style: crate::npc::NpcStyle,
+            profile: Option<crate::npc::NpcProfile>,
+        }
+
+        let drafts: Vec<NpcDraft> = request
             .npcs
             .iter()
-            .map(|req| {
-                let profile = req.profile_id.as_deref().and_then(|id| {
-                    crate::npc::profile_store::load_profile(&profiles_dir, id)
-                        .map_err(|e| {
-                            eprintln!("[add_npc_players] could not load profile {id}: {e}");
-                        })
-                        .ok()
-                });
-                crate::npc::NpcConfig {
+            .map(|req| -> Result<NpcDraft, String> {
+                let profile = if let Some(id) = req.profile_id.as_deref() {
+                    let loaded = crate::npc::profile_store::load_profile(&profiles_dir, id)
+                        .map_err(|e| format!("could not load NPC profile '{id}': {e}"))?;
+                    Some(loaded)
+                } else {
+                    None
+                };
+                Ok(NpcDraft {
                     display_name: req.display_name.clone(),
                     style: req.style.clone(),
                     profile,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
 
         let mut host_session = self
             .host_session
@@ -82,19 +90,30 @@ impl DesktopAppState {
             return Err("not enough open seats for the requested NPCs".to_string());
         }
 
+        // Build final NpcConfigs with stable player_ids tied to the assigned seat indices.
+        let npc_configs: Vec<crate::npc::NpcConfig> = drafts
+            .into_iter()
+            .zip(open_seats.iter())
+            .map(|(draft, &seat_index)| crate::npc::NpcConfig {
+                player_id: crate::npc::NpcConfig::player_id(seat_index),
+                display_name: draft.display_name,
+                style: draft.style,
+                profile: draft.profile,
+            })
+            .collect();
+
         for (npc_config, &seat_index) in npc_configs.iter().zip(open_seats.iter()) {
-            let player_id = crate::npc::NpcConfig::player_id(seat_index);
             session
                 .host_server
-                .register_npc_participant(&player_id, &npc_config.display_name)
+                .register_npc_participant(&npc_config.player_id, &npc_config.display_name)
                 .map_err(|e| e.to_string())?;
             session
                 .host_server
-                .claim_seat(&player_id, seat_index)
+                .claim_seat(&npc_config.player_id, seat_index)
                 .map_err(|e| e.to_string())?;
             session
                 .host_server
-                .set_ready_state(&player_id, true)
+                .set_ready_state(&npc_config.player_id, true)
                 .map_err(|e| e.to_string())?;
         }
 

@@ -21,13 +21,23 @@ impl DesktopAppState {
         let (parsed_launch_join_payload, launch_join_payload_error) =
             parse_launch_join_payload(launch_join_payload.as_deref());
         let app_data_dir = detect_app_data_dir();
-        let loaded_provider = crate::npc::provider_storage::load_provider_config(&app_data_dir);
+        let load_state = crate::npc::provider_storage::load_provider_config(&app_data_dir);
+        if let crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { ref error }
+        | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { ref error }
+        | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { ref error } =
+            load_state
+        {
+            eprintln!("[app] provider config load error: {error}");
+        }
+        let loaded_provider = match load_state {
+            crate::npc::provider_storage::ProviderConfigLoadState::Loaded(cfg) => Some(cfg),
+            _ => None,
+        };
         let llm_api_key_configured = loaded_provider.as_ref().is_some_and(|c| c.is_usable());
-        let llm_provider_type = loaded_provider.as_ref().map(|c| {
+        let llm_provider_type = loaded_provider.as_ref().and_then(|c| {
             serde_json::to_value(&c.provider)
                 .ok()
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
-                .unwrap_or_default()
         });
         let llm_provider = Arc::new(Mutex::new(loaded_provider));
 
@@ -68,7 +78,16 @@ impl DesktopAppState {
 
     #[must_use]
     pub fn bootstrap(&self) -> DesktopBootstrapState {
-        self.bootstrap.clone()
+        let mut state = self.bootstrap.clone();
+        let provider = self.llm_provider.lock().ok();
+        let provider_ref = provider.as_ref().and_then(|g| g.as_ref());
+        state.llm_api_key_configured = provider_ref.is_some_and(|c| c.is_usable());
+        state.llm_provider_type = provider_ref.and_then(|c| {
+            serde_json::to_value(&c.provider)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+        });
+        state
     }
 
     #[must_use]
