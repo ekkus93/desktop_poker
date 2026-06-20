@@ -26,6 +26,7 @@ describe("TournamentCompleteScreen", () => {
     const bootstrap = createBootstrap();
     mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
+        tournamentPhase: "complete",
         phaseLabel: "Complete",
         standings: [
           {
@@ -63,6 +64,7 @@ describe("TournamentCompleteScreen", () => {
     const bootstrap = createBootstrap();
     mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
+        tournamentPhase: "complete",
         phaseLabel: "Complete",
         currentHandNumber: 12,
         standings: [
@@ -107,6 +109,7 @@ describe("TournamentCompleteScreen", () => {
     const bootstrap = createBootstrap();
     mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
+        tournamentPhase: "complete",
         phaseLabel: "Complete",
         standings: [
           {

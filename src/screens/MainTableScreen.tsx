@@ -302,7 +302,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 <span>Hand history</span>
               </span>
             </Link>
-            {tableView?.phaseLabel.toLowerCase().includes("complete") ? (
+            {tableView?.tournamentPhase === "complete" ? (
               <Link className="secondary-button compact-button" to="/complete">
                 <span className="button-content">
                   <Trophy className="button-icon" strokeWidth={1.9} />

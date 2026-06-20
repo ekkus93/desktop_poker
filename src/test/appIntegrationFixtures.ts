@@ -52,6 +52,7 @@ export function createTableViewSnapshot(
   return {
     viewerMode: "local",
     sessionConnection: "normal",
+    tournamentPhase: "running",
     tournamentName: "Desktop Sit 'n Go",
     tableName: "Main Table",
     tableId: "desktop-shell-table",

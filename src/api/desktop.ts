@@ -255,6 +255,8 @@ export type TableViewSnapshot = {
   tournamentName: string;
   tableName: string;
   tableId: string;
+  /** Raw phase token: "waitingForPlayers" | "readyCheck" | "running" | "complete" | "cancelled" */
+  tournamentPhase: string;
   phaseLabel: string;
   streetLabel: string;
   blindLevelLabel: string;

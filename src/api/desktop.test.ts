@@ -58,6 +58,7 @@ function sampleTableView(): TableViewSnapshot {
   return {
     viewerMode: "local",
     sessionConnection: "normal",
+    tournamentPhase: "running",
     tournamentName: "Friday Night",
     tableName: "Table 1",
     tableId: "table-1",

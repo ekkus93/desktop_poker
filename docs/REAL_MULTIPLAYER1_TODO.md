@@ -19,7 +19,7 @@ The work in this file is done only when all of the following are true:
 - [x] Seat assignment, ready state, tournament start, and table progression are synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Disconnect, reconnect, and resync work through the live runtime path
-- [ ] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
+- [x] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
 - [x] The release app no longer boots or depends on demo-only controller/runtime code in the player flow _(Approved by GPT-5.4, 2026-05-07)_
 
 ## 1. Demo-code audit and removal map
@@ -63,7 +63,7 @@ The work in this file is done only when all of the following are true:
 - [x] Replace ad hoc shell-local lobby/table derivation with Rust-projected view models for lobby participants, ready state, host controls, local seat, connection state, and table view
 - [x] Define clear Rust-to-frontend data contracts for host-only actions, player actions, observer state, and reconnect state
 - [x] Ensure projections distinguish local-player private state from shared public state
-- [ ] Add projection helpers for tournament completion, elimination, and post-game hand history access
+- [x] Add projection helpers for tournament completion, elimination, and post-game hand history access
 
 ---
 
@@ -94,7 +94,7 @@ The work in this file is done only when all of the following are true:
 - [x] Make all session-mutating commands reject invalid states clearly, such as starting when no host session exists or toggling ready before admission _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Prevent multiple simultaneous active host/client sessions inside the same instance unless intentionally supported _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Ensure teardown clears only the correct session-scoped data and does not destroy unrelated instance persistence
-- [ ] Add locking/state-transition rules so Tauri commands cannot race each other into inconsistent session state
+- [x] Add locking/state-transition rules so Tauri commands cannot race each other into inconsistent session state
 
 ---
 
@@ -150,8 +150,8 @@ The work in this file is done only when all of the following are true:
 ### 6.1 Admission and seat selection
 - [x] Decide whether admission is automatic on join or requires explicit host approval in v1, then implement only that real rule _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Replace local seat toggles with Rust-owned seat selection/assignment commands _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Enforce seat conflicts, seat release, and host/client visibility through the authoritative state model
-- [ ] Ensure observers, eliminated players, and active participants are represented distinctly in the lobby and session state
+- [x] Enforce seat conflicts, seat release, and host/client visibility through the authoritative state model
+- [x] Ensure observers, eliminated players, and active participants are represented distinctly in the lobby and session state
 
 ### 6.2 Ready-state flow
 - [x] Route ready toggles through Rust-owned validation and session mutation _(Approved by GPT-5.4, 2026-05-07)_
@@ -285,7 +285,7 @@ The work in this file is done only when all of the following are true:
 ## 12. Validate packaging, release behavior, and documentation
 
 ### 12.1 Release build validation
-- [ ] Run frontend lint, unit/integration tests, geometry tests, Rust tests, and clippy after each major cutover phase
+- [x] Run frontend lint, unit/integration tests, geometry tests, Rust tests, and clippy after each major cutover phase
 - [ ] Run `npm run tauri build` after the runtime cutover is in place
 - [ ] Verify release binaries can still be launched with separate `--instance-id` values on one machine
 - [ ] Verify host port conflicts fail clearly in release builds
@@ -302,7 +302,7 @@ The work in this file is done only when all of the following are true:
 - [x] Ready/start works across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Main table play is synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [ ] Reconnect/resync works or fails safely according to documented behavior
-- [ ] Demo-backed release player flow has been removed
+- [x] Demo-backed release player flow has been removed
 
 ---
 

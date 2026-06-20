@@ -105,6 +105,7 @@ function createProbeTableView(): TableViewSnapshot {
   return {
     viewerMode: "local",
     sessionConnection: "normal",
+    tournamentPhase: "running",
     tournamentName: "Desktop Sit 'n Go layout-probe",
     tableName: "Main Table",
     tableId: "layout-probe-table",
@@ -286,6 +287,7 @@ function createDenseProbeTableView(): TableViewSnapshot {
   return {
     viewerMode: "local",
     sessionConnection: "normal",
+    tournamentPhase: "running",
     tournamentName: "Desktop Sit 'n Go layout-probe",
     tableName: "Main Table",
     tableId: "layout-probe-table-dense",

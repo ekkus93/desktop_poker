@@ -251,6 +251,7 @@ describe("AppShell integration (client and routing)", () => {
     });
     h.mockedGetTableView.mockResolvedValue(
       createTableViewSnapshot({
+        tournamentPhase: "complete",
         phaseLabel: "Complete",
         streetLabel: "Showdown",
         actionOwnerLabel: "Tournament complete",

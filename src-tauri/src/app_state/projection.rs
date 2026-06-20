@@ -38,6 +38,7 @@ pub(crate) fn build_table_view_snapshot(
             .table_name
             .unwrap_or_else(|| "Main Table".to_string()),
         table_id: public_state.table_id,
+        tournament_phase: format_phase_value(public_state.phase),
         phase_label: format_phase(public_state.phase),
         street_label: current_hand
             .map(|hand| format_street(hand.street))
@@ -433,6 +434,16 @@ pub(crate) fn format_phase(phase: domain::TournamentPhase) -> String {
         domain::TournamentPhase::Running => "Running".to_string(),
         domain::TournamentPhase::Complete => "Complete".to_string(),
         domain::TournamentPhase::Cancelled => "Cancelled".to_string(),
+    }
+}
+
+pub(crate) fn format_phase_value(phase: domain::TournamentPhase) -> String {
+    match phase {
+        domain::TournamentPhase::WaitingForPlayers => "waitingForPlayers".to_string(),
+        domain::TournamentPhase::ReadyCheck => "readyCheck".to_string(),
+        domain::TournamentPhase::Running => "running".to_string(),
+        domain::TournamentPhase::Complete => "complete".to_string(),
+        domain::TournamentPhase::Cancelled => "cancelled".to_string(),
     }
 }
 

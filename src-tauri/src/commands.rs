@@ -412,6 +412,7 @@ mod tests {
             tournament_name: "Friday Night".to_string(),
             table_name: "Table 1".to_string(),
             table_id: "table-1".to_string(),
+            tournament_phase: "running".to_string(),
             phase_label: "Running".to_string(),
             street_label: "Turn".to_string(),
             blind_level_label: "10 / 20".to_string(),
