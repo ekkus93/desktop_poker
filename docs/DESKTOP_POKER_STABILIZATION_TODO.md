@@ -550,13 +550,13 @@ Inspect and update:
 
 ### Tasks
 
-- [ ] Document no-silent-fallback policy.
-- [ ] Document canonical bootstrap event.
-- [ ] Document NPC profile failure behavior.
-- [ ] Document LLM fallback visibility.
-- [ ] Document provider secret storage behavior.
-- [ ] Document CSP rationale.
-- [ ] Document required validation commands.
+- [x] Document no-silent-fallback policy.
+- [x] Document canonical bootstrap event.
+- [x] Document NPC profile failure behavior.
+- [x] Document LLM fallback visibility.
+- [x] Document provider secret storage behavior.
+- [x] Document CSP rationale.
+- [x] Document required validation commands.
 
 ### Acceptance
 

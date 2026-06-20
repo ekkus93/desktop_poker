@@ -104,6 +104,16 @@ This context is injected between the profile body and the game state in each LLM
 
 If the provider returns an error, a timeout, unparseable JSON, or an illegal action, the NPC falls back to the rule-based engine for that decision. No hand is blocked by a failed LLM call.
 
+The reason for every fallback is recorded as one of `RequestFailed`, `Timeout`, `ResponseParseFailed`, or `IllegalAction`. The Rust backend logs it at WARN level: `provider=<type> profile=<id> reason=<LlmFallbackReason>`. The debug inspector surface exposes the active fallback reason when debug tools are enabled.
+
+### NPC profile failure behavior
+
+When an NPC is configured with an explicit profile ID that cannot be found or loaded (missing file, corrupt JSON, schema mismatch), `add_npc_players` returns an error immediately — no NPC is created with a silently absent profile. Profile load failures surface as a typed `ProviderConfigLoadState` error (`Missing`, `Unreadable`, `InvalidJson`, or `InvalidSchema`) so the caller knows exactly what failed.
+
+### Provider secret storage
+
+API keys are stored in plaintext in `{app_data_dir}/llm-provider.json`. The Settings UI displays a visible warning for Anthropic and OpenAI providers: "API keys are stored in plaintext on this device. Do not use production keys with access to sensitive resources. Use a dedicated low-privilege key." The key field value is redacted in the `Debug` output of `LlmProviderConfig` to avoid accidental log exposure.
+
 ## What the app is responsible for
 
 ### Frontend
@@ -273,6 +283,51 @@ DESKTOP_POKER_INSTANCE_ID=client-b cargo run --manifest-path src-tauri/Cargo.tom
 ```
 
 Loopback (`127.0.0.1`) flows are covered by the in-repo runtime tests, and local LAN flows use the same payload path once a connectable host IP is available. In debug builds, the hidden debug route can copy the payload directly and launch another instance with the payload already attached.
+
+## Backend operational contracts
+
+### No-silent-fallback policy
+
+The backend is required to surface failures explicitly. Specifically:
+
+- All `app.emit(...)` calls use typed wrapper functions (`emit_session_update`, `emit_table_update`, `emit_bootstrap_update`) that log at ERROR level on failure rather than discarding the error with `let _ =`.
+- All action submission results in the NPC runner and the host command path are handled — a rejected action is logged, not silently swallowed.
+- Timeout conditions in seat-claim, ready-toggle, and table-action commands return an explicit error to the frontend rather than completing silently.
+- Fallback paths in data loading (provider config, NPC profiles) return typed error variants rather than silently substituting defaults.
+
+### Canonical bootstrap event
+
+The backend emits `desktop://bootstrap` (not `desktop://bootstrap-update`) with a full serialized `DesktopBootstrapState` payload. The `llm_api_key_configured` and `llm_provider_type` fields are computed live from the mutex at event time so they reflect the current provider state rather than a cached copy. The frontend subscribes through `subscribeBootstrap` and refreshes the entire app shell context on every event.
+
+### Content Security Policy
+
+`tauri.conf.json` sets a restrictive CSP for the WebView:
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'
+```
+
+`connect-src 'none'` blocks network calls from the frontend WebView. All external network traffic (LLM API calls, LAN host connections) is owned by the Rust backend via Tauri commands, not by frontend `fetch`. `'unsafe-inline'` is required for style because Tauri does not currently support nonce-based style CSP for its own injected styles.
+
+### Required validation commands
+
+Before shipping any change, all of the following must pass with zero warnings and zero failures:
+
+```bash
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
+npm run lint
+npm run format
+npm run test
+npm run build
+```
+
+LLM integration tests are `#[ignore]`d by default (they require a local Ollama server). Run them explicitly with:
+
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml -- --ignored
+```
 
 ## Architecture notes
 
