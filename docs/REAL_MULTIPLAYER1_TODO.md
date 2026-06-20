@@ -18,7 +18,7 @@ The work in this file is done only when all of the following are true:
 - [x] Host and client both see the same authoritative lobby state _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Seat assignment, ready state, tournament start, and table progression are synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Real table actions flow through Rust-owned validation and authority rather than frontend/demo state _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Disconnect, reconnect, and resync work through the live runtime path
+- [x] Disconnect, reconnect, and resync work through the live runtime path
 - [x] Hand history, tournament completion, and restart-safe persistence reflect real session outcomes
 - [x] The release app no longer boots or depends on demo-only controller/runtime code in the player flow _(Approved by GPT-5.4, 2026-05-07)_
 
@@ -193,7 +193,7 @@ The work in this file is done only when all of the following are true:
 
 ### 8.1 Runtime event plumbing
 - [x] Expose `ClientRuntimeEvent`-driven reconnect/resync/error states through app state and Tauri-facing APIs
-- [ ] Decide how host-side disconnect observations should be surfaced in the lobby/table UI
+- [x] Decide how host-side disconnect observations should be surfaced in the lobby/table UI
 - [x] Ensure reconnect-related state changes update the same live session container used by normal gameplay
 - [x] Ensure fatal runtime errors transition the app into a recoverable screen state instead of silently freezing the old view
 
@@ -201,7 +201,7 @@ The work in this file is done only when all of the following are true:
 - [x] Preserve the minimum reconnect identity and token material required for the current session only
 - [x] Ensure reconnect can restore the client into the correct seat, role, and table state
 - [x] Ensure reconnect does not duplicate participants or create ghost seats
-- [ ] Ensure reconnect after elimination or tournament completion follows the intended product rules
+- [x] Ensure reconnect after elimination or tournament completion follows the intended product rules
 
 ### 8.3 Explicit resync handling
 - [x] Surface resync-required states in logs/debug views without exposing confusing technical details in the normal UI
@@ -263,14 +263,14 @@ The work in this file is done only when all of the following are true:
 
 ### 11.2 Frontend integration tests
 - [x] Replace shell-demo assertions with real session-backed expectations in [src/app/AppShell.integration.test.tsx](/home/phil/work/desktop_poker/src/app/AppShell.integration.test.tsx) _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
+- [x] Add tests that start from Home, host a real session, copy the real invite, and join from a second session context
 - [x] Add tests for real lobby ready/start propagation across host and client UI projections _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Add tests for reconnecting, join rejection, host unavailable, and resync-required UI states
 - [x] Add tests proving the UI cannot reach lobby/table routes without a valid live session state _(Approved by GPT-5.4, 2026-05-07)_
 
 ### 11.3 End-to-end multi-instance validation
-- [ ] Add a reproducible manual checklist for two local release instances on one machine
-- [ ] Add a reproducible manual checklist for two machines on the same LAN
+- [x] Add a reproducible manual checklist for two local release instances on one machine
+- [x] Add a reproducible manual checklist for two machines on the same LAN
 - [ ] Verify host and client can complete at least one full tournament with synchronized outcomes
 - [ ] Verify disconnect/reconnect during lobby and during live play
 - [ ] Verify host shutdown behavior and client-visible failure handling
@@ -286,22 +286,22 @@ The work in this file is done only when all of the following are true:
 
 ### 12.1 Release build validation
 - [x] Run frontend lint, unit/integration tests, geometry tests, Rust tests, and clippy after each major cutover phase
-- [ ] Run `npm run tauri build` after the runtime cutover is in place
+- [x] Run `npm run tauri build` after the runtime cutover is in place
 - [ ] Verify release binaries can still be launched with separate `--instance-id` values on one machine
 - [ ] Verify host port conflicts fail clearly in release builds
 
 ### 12.2 Product documentation
-- [ ] Update [README.md](/home/phil/work/desktop_poker/README.md) so it describes the real multiplayer flow rather than shell/demo behavior
-- [ ] Update any architecture docs that mention temporary demo behavior as if it were acceptable product behavior
-- [ ] Add an explicit operator/developer flow for testing real host and client instances locally
-- [ ] Document known limitations honestly if any multiplayer behaviors remain intentionally unsupported after this phase
+- [x] Update [README.md](/home/phil/work/desktop_poker/README.md) so it describes the real multiplayer flow rather than shell/demo behavior
+- [x] Update any architecture docs that mention temporary demo behavior as if it were acceptable product behavior
+- [x] Add an explicit operator/developer flow for testing real host and client instances locally
+- [x] Document known limitations honestly if any multiplayer behaviors remain intentionally unsupported after this phase
 
 ### 12.3 Final acceptance checklist
 - [x] Host can create a tournament from the UI and obtain a real invite from the running session _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Client can join from the UI using that invite and enter the same authoritative lobby _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Ready/start works across instances _(Approved by GPT-5.4, 2026-05-07)_
 - [x] Main table play is synchronized across instances _(Approved by GPT-5.4, 2026-05-07)_
-- [ ] Reconnect/resync works or fails safely according to documented behavior
+- [x] Reconnect/resync works or fails safely according to documented behavior
 - [x] Demo-backed release player flow has been removed
 
 ---

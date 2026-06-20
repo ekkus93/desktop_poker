@@ -345,7 +345,15 @@ Current status:
 
 ## Manual QA status
 
-- **Desktop multi-instance QA:** not yet recorded as complete in this repository for the current repair pass.
+Reproducible test checklists are documented in [`docs/MANUAL_QA_CHECKLIST.md`](docs/MANUAL_QA_CHECKLIST.md). They cover:
+- Two local release instances on one machine (instance isolation, host/join flow, port conflict)
+- Two machines on the same LAN (full tournament, disconnect/reconnect, reconnect window)
+- Release binary instance isolation
+- Host port conflict failure behavior
+
+Current status:
+
+- **Desktop multi-instance QA:** checklists written; live manual runs not yet recorded as complete in this repository.
 - **Android/Desktop interoperability QA:** not yet recorded as complete in this repository.
 - **Debug/probe reachability QA in release builds:** still required as an explicit manual check even though release gating is covered by automated tests.
 - **LLM NPC live session QA:** API key configuration, profile CRUD in UI, and LLM NPC in a live session are tracked as manual QA items. Rule-based fallback has been exercised in automated tests; live LLM decisions require a manual session with a configured provider.
@@ -385,3 +393,12 @@ Current bundle targets:
 - `src-tauri/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`
 
 These bundle names reflect the current package version and will change when the app version changes.
+
+**AppImage bundling prerequisite:** The AppImage target requires `linuxdeploy` and `appimagetool` on `PATH`. Install them from the [linuxdeploy releases](https://github.com/linuxdeploy/linuxdeploy/releases) or via `linuxdeploy-plugin-appimage`. Without these tools, `npm run tauri build` will fail at the bundle step with `failed to run linuxdeploy`; the Rust binary under `src-tauri/target/release/desktop-poker` is still produced and usable directly.
+
+To produce only the `.deb` or `.rpm` bundles without AppImage, use:
+
+```bash
+npm run tauri build -- --bundles deb
+npm run tauri build -- --bundles rpm
+```
