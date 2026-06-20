@@ -627,4 +627,35 @@ describe("AppShell integration (table and debug)", () => {
     expect(screen.getByRole("link", { name: "Join Tournament" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Help" })).toBeTruthy();
   });
+
+  it("shows timeout error inline and keeps action tray available after host ack timeout", async () => {
+    // Simulates the backend returning a timeout error (P0.5): the UI must
+    // surface the message and NOT navigate away or hide the action tray.
+    h.mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
+    h.mockedSubmitTableAction.mockRejectedValueOnce(
+      new Error(
+        "table action timed out: host did not acknowledge within 1 second",
+      ),
+    );
+
+    h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
+
+    expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Fold" }));
+
+    // Timeout error must be visible as an inline banner.
+    expect(
+      await screen.findByText(/table action timed out/i),
+    ).toBeTruthy();
+
+    // Action tray must still be present so the player can retry.
+    expect(screen.getByRole("button", { name: "Check" })).toBeTruthy();
+
+    // We must still be on the table route — not rerouted to home.
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Choose a table" }),
+    ).toBeNull();
+  });
 });

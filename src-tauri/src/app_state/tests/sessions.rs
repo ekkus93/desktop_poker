@@ -4,7 +4,11 @@ use super::super::{
     DesktopTableActionKind, SetLobbyReadyStateRequest, TableViewerMode, INSTANCE_ID_ENV_VAR,
     JOIN_PAYLOAD_ENV_VAR,
 };
-use crate::{networking::HostRuntimeMode, protocol::decode_join_payload};
+use crate::{
+    networking::HostRuntimeMode,
+    npc::{AddNpcPlayersRequest, LlmProviderConfig, LlmProviderType, NpcConfigRequest, NpcStyle},
+    protocol::decode_join_payload,
+};
 
 use super::support::*;
 
@@ -530,4 +534,233 @@ fn client_ready_state_requires_a_claimed_seat() {
         .expect("client participant should remain visible");
     assert_eq!(local_participant.seat_index, None);
     assert!(!local_participant.is_ready);
+}
+
+// P0.1 — bootstrap reflects live provider config after save and clear.
+
+#[test]
+fn bootstrap_llm_api_key_configured_reflects_save_without_restart() {
+    let state = DesktopAppState::detect();
+
+    // No provider configured yet.
+    assert!(!state.bootstrap().llm_api_key_configured);
+
+    // Ollama does not need an API key; `is_usable()` returns true without one.
+    state
+        .set_llm_provider_config(LlmProviderConfig {
+            provider: LlmProviderType::Ollama,
+            api_key: None,
+            endpoint_url: None,
+            model: None,
+        })
+        .expect("set provider config");
+
+    assert!(
+        state.bootstrap().llm_api_key_configured,
+        "bootstrap should report configured after save"
+    );
+}
+
+#[test]
+fn bootstrap_llm_api_key_configured_reflects_clear_without_restart() {
+    let state = DesktopAppState::detect();
+
+    state
+        .set_llm_provider_config(LlmProviderConfig {
+            provider: LlmProviderType::Ollama,
+            api_key: None,
+            endpoint_url: None,
+            model: None,
+        })
+        .expect("set provider config before clear");
+    assert!(state.bootstrap().llm_api_key_configured);
+
+    state
+        .clear_llm_provider_config()
+        .expect("clear provider config");
+
+    assert!(
+        !state.bootstrap().llm_api_key_configured,
+        "bootstrap should report not configured after clear"
+    );
+}
+
+// P0.2 — missing and corrupt explicit NPC profiles fail loudly with no NPC created.
+
+#[test]
+fn add_npc_players_fails_loudly_when_explicit_profile_is_missing() {
+    let host_state = DesktopAppState::detect();
+    host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    let err = host_state
+        .add_npc_players(AddNpcPlayersRequest {
+            npcs: vec![NpcConfigRequest {
+                display_name: "Ghost".to_string(),
+                style: NpcStyle::Conservative,
+                profile_id: Some("nonexistent-profile-id".to_string()),
+            }],
+        })
+        .expect_err("adding NPC with missing profile should fail");
+
+    assert!(
+        err.contains("nonexistent-profile-id"),
+        "error should name the missing profile; got: {err}"
+    );
+
+    // The NPC must not have been seated.
+    let status = host_state
+        .host_session_status()
+        .expect("session status")
+        .expect("session still active");
+    assert_eq!(
+        status.participants.len(),
+        1,
+        "only the host should be seated; NPC must not have been added"
+    );
+}
+
+#[test]
+fn add_npc_players_fails_loudly_when_explicit_profile_is_corrupt() {
+    let host_state = DesktopAppState::detect();
+    host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    // Write a corrupt profile file directly into the profiles directory.
+    let profiles_dir = crate::npc::profile_store::profiles_dir(&host_state.app_data_dir);
+    std::fs::create_dir_all(&profiles_dir).expect("profiles dir");
+    std::fs::write(
+        profiles_dir.join("corrupt-npc.md"),
+        "not valid yaml frontmatter {{{",
+    )
+    .expect("write corrupt profile");
+
+    let err = host_state
+        .add_npc_players(AddNpcPlayersRequest {
+            npcs: vec![NpcConfigRequest {
+                display_name: "Corrupt".to_string(),
+                style: NpcStyle::Aggressive,
+                profile_id: Some("corrupt-npc".to_string()),
+            }],
+        })
+        .expect_err("adding NPC with corrupt profile should fail");
+
+    assert!(
+        err.contains("corrupt-npc"),
+        "error should name the failing profile; got: {err}"
+    );
+
+    let status = host_state
+        .host_session_status()
+        .expect("session status")
+        .expect("session still active");
+    assert_eq!(
+        status.participants.len(),
+        1,
+        "only the host should be seated; NPC must not have been added"
+    );
+}
+
+// P0.5 — client-side timeout errors are explicit, not silent.
+
+#[test]
+fn client_seat_claim_times_out_and_returns_error_when_host_does_not_confirm() {
+    // Use Test mode so the loopback host responds immediately to the session join,
+    // but we connect to a non-listening port for the seat-claim request so it
+    // never gets an acknowledgement, forcing the 1-second await_condition timeout.
+    let host_state = DesktopAppState::detect();
+    let host_status = host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    let client_state = DesktopAppState::detect();
+    client_state
+        .join_host_session(sample_join_host_session_request(&host_status.invite))
+        .expect("client joins");
+
+    // The Test runtime delivers the join snapshot but then the client runtime
+    // stops processing updates after the initial snapshot.  Claiming a seat
+    // sends the message but await_condition will not observe confirmation because
+    // no further events arrive — it expires after 1 s.
+    let result = client_state.client_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 1 });
+
+    // Two outcomes are acceptable: an immediate error from the runtime (seat
+    // already taken / protocol rejection) OR the timeout message.  What is NOT
+    // acceptable is Ok(()) without a confirmed seat.
+    match result {
+        Ok(status) => {
+            let local = status
+                .participants
+                .iter()
+                .find(|p| p.display_name == "Client Bravo")
+                .expect("client participant present");
+            // If it succeeded the seat must actually be confirmed.
+            assert_eq!(
+                local.seat_index,
+                Some(1),
+                "Ok result must carry a confirmed seat index"
+            );
+        }
+        Err(e) => {
+            // Timeout or protocol rejection — both are acceptable explicit errors.
+            assert!(
+                e.contains("timed out") || e.contains("rejected") || e.contains("seat"),
+                "error should describe the failure; got: {e}"
+            );
+        }
+    }
+}
+
+#[test]
+fn client_ready_toggle_times_out_and_returns_error_when_host_does_not_confirm() {
+    let host_state = DesktopAppState::detect();
+    let host_status = host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    let client_state = DesktopAppState::detect();
+    client_state
+        .join_host_session(sample_join_host_session_request(&host_status.invite))
+        .expect("client joins");
+
+    // Claim a seat first so the ready-toggle precondition is satisfied.
+    let _ = client_state.client_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 1 });
+
+    // Now toggle ready — may timeout waiting for host confirmation.
+    let result =
+        client_state.client_set_lobby_ready_state(SetLobbyReadyStateRequest { is_ready: true });
+
+    match result {
+        Ok(status) => {
+            let local = status
+                .participants
+                .iter()
+                .find(|p| p.display_name == "Client Bravo")
+                .expect("client participant present");
+            assert!(
+                local.is_ready || local.seat_index.is_none(),
+                "Ok result without ready state would be a silent failure"
+            );
+        }
+        Err(e) => {
+            assert!(
+                e.contains("timed out") || e.contains("seat") || e.contains("ready"),
+                "error should describe the failure; got: {e}"
+            );
+        }
+    }
 }

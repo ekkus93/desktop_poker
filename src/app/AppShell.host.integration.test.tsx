@@ -142,6 +142,33 @@ describe("AppShell integration (host and lobby)", () => {
     expect(await screen.findByText("1 waiting")).toBeTruthy();
   });
 
+  it("shows NPC add profile error inline without navigating away from setup", async () => {
+    h.mockedAddNpcPlayers.mockRejectedValueOnce(
+      new Error("could not load NPC profile 'bad-profile-id': No such file"),
+    );
+
+    h.renderAppShell("/");
+    fireEvent.click(await screen.findByRole("link", { name: "Host Tournament" }));
+    await screen.findByRole("heading", { level: 2, name: "Host Tournament Setup" });
+
+    // Request 1 NPC so addNpcPlayers is called.
+    fireEvent.change(await screen.findByLabelText(/npc players/i), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
+
+    // Error message must be visible.
+    expect(
+      await screen.findByText(/could not load NPC profile/i),
+    ).toBeTruthy();
+
+    // The host setup heading must still be present — we must NOT have navigated
+    // to the lobby or any other route.
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Lobby" }),
+    ).toBeNull();
+  });
+
   it("keeps a join flow in the lobby until a real table is running", async () => {
     h.renderAppShell("/join");
 

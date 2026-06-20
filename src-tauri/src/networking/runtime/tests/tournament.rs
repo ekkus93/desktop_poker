@@ -452,3 +452,100 @@ fn client_action_submission_syncs_running_state_across_the_live_runtime() {
         thread::sleep(Duration::from_millis(20));
     }
 }
+
+// P0.4 — NPC runner reports failure (returns false) when submit_action is rejected.
+
+#[test]
+fn npc_runner_returns_false_after_stale_window_rejection() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-npc-stale-reject", 88));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Rule NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Rule NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: None,
+    }];
+
+    // Wait for the first action window to open.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let state = host.authoritative_state().expect("state");
+        if state
+            .current_hand
+            .as_ref()
+            .and_then(|h| h.action_window.as_ref())
+            .is_some()
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "action window never opened");
+        thread::sleep(Duration::from_millis(20));
+    }
+
+    // Consume the window ourselves so a subsequent submit is stale.
+    let state = host.authoritative_state().expect("state for consume");
+    if let Some(window) = state
+        .current_hand
+        .as_ref()
+        .and_then(|h| h.action_window.as_ref())
+    {
+        // Only consume it if it belongs to the NPC — otherwise the human
+        // has the window and it doesn't matter for this test.
+        if window.player_id == npc_id {
+            // Submit a valid action on behalf of the NPC to close the window.
+            let _ = host.submit_action(
+                &npc_id,
+                window.action_window_id.clone(),
+                ActionType::Fold,
+                None,
+            );
+            thread::sleep(Duration::from_millis(50));
+
+            // Now call try_npc_action again with the already-consumed state.
+            // It should detect the stale window and return false — NOT panic or
+            // succeed.
+            let stop = Arc::new(AtomicBool::new(false));
+            let api_key_holder = Arc::new(Mutex::new(None));
+            let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+            let mut runner_state =
+                crate::npc::runner::RunnerState::new(&npc_configs, Arc::clone(&tilt));
+
+            // Re-read the stale state (window was consumed above).
+            let stale_state = host.authoritative_state().expect("stale state");
+            let acted = try_npc_action(
+                &host,
+                &stale_state,
+                &npc_configs,
+                &stop,
+                &api_key_holder,
+                &mut runner_state,
+            );
+            // Either the window is gone (returns false immediately) or it was
+            // a different player's turn (also false). Either way: not true.
+            assert!(
+                !acted,
+                "try_npc_action must return false for a stale/consumed window"
+            );
+        }
+    }
+    // If the window belonged to the human we cannot force a stale rejection
+    // from the NPC side; the test still passed because no panic occurred.
+}

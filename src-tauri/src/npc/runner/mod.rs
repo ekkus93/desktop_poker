@@ -31,7 +31,7 @@ const MIN_DELAY_MS: u64 = 300;
 const MAX_DELAY_MS: u64 = 1200;
 
 /// Per-loop mutable state tracking hand history across the runner lifecycle.
-struct RunnerState {
+pub(crate) struct RunnerState {
     /// Log of actions for the hand currently in progress.
     hand_log: Option<HandLog>,
     /// Per-NPC session history; indexed parallel to `npc_configs`.
@@ -47,7 +47,10 @@ struct RunnerState {
 }
 
 impl RunnerState {
-    fn new(npc_configs: &[NpcConfig], shared_tilt: Arc<Mutex<BTreeMap<String, String>>>) -> Self {
+    pub(crate) fn new(
+        npc_configs: &[NpcConfig],
+        shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+    ) -> Self {
         let session_histories = npc_configs
             .iter()
             .map(|c| NpcSessionHistory::new(c.player_id.clone()))
@@ -290,7 +293,7 @@ fn process_completed_hands(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn try_npc_action(
+pub(crate) fn try_npc_action(
     host_server: &HostServer,
     state: &TournamentState,
     npc_configs: &[NpcConfig],
