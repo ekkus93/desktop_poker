@@ -844,3 +844,15 @@ Completed across two session spans (context compaction between them):
 - Checked off batch of verified-done items: host-side disconnect surfacing (already `ConnectionState::Reconnecting` via `mark_participant_reconnect_eligible`), reconnect-after-elimination (5-min window for `EliminatedObserver`), host→copy invite→join integration test (already in `AppShell.host.integration.test.tsx` line 449), Tauri release binary compiles successfully (AppImage bundling requires `linuxdeploy`), and all 4 documentation items (README updated, manual QA checklist written).
 - Created `docs/MANUAL_QA_CHECKLIST.md` with four reproducible checklists for live session testing. README updated with link, linuxdeploy note, and deb/rpm-only build flags. Commit: `a883c7d`.
 - Final state: REAL_MULTIPLAYER1_TODO has 5 unchecked items remaining, all manual live-session verification tasks that require a display environment. 231 frontend tests, 389 Rust tests, lint and clippy clean.
+
+## 2026-06-20T20:05:25Z - Claude Sonnet 4.6 - Split large files into focused modules
+
+- Split `src-tauri/src/app_state/tests/sessions.rs` (1,075 lines) into three files, all under 700 lines:
+  - `sessions.rs` (253 lines): profile/identity/detect/debug tests
+  - `sessions_lifecycle.rs` (540 lines): host and client session lifecycle tests
+  - `sessions_npc.rs` (290 lines): LLM provider config, NPC profile, and timeout tests
+  - Moved `PROVIDER_CFG_LOCK` mutex to `support.rs` (used by both lifecycle and npc modules)
+- Split `src/screens/TournamentLobbyScreen.tsx` (721 lines) into two files:
+  - `TournamentLobbyScreen.tsx` (504 lines): component with action handlers and JSX
+  - `useLobbySession.ts` (240 lines): `LobbySeatView` type, `buildLiveSeats`, and `useLobbySession` hook with all polling/event-subscription logic
+- All 389 Rust tests and 231 frontend tests pass. Lint clean. Commit: `813586b`.
