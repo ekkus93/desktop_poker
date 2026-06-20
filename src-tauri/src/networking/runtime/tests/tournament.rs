@@ -203,6 +203,7 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
     let api_key_holder = Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let fallback = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let runner = crate::npc::runner::start_npc_runner(
         Arc::clone(&host),
         npc_configs,
@@ -210,6 +211,7 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
         api_key_holder,
         tilt,
         fallback,
+        action_error,
     );
 
     // Play the hand: the human always checks/calls (never folds) so the hand
@@ -532,6 +534,7 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
                 &npc_configs,
                 Arc::clone(&tilt),
                 Arc::clone(&fallback),
+                Arc::new(Mutex::new(None)),
             );
 
             // Re-read the stale state (window was consumed above).
@@ -622,10 +625,12 @@ fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provi
         Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let mut runner_state = crate::npc::runner::RunnerState::new(
         &npc_configs,
         Arc::clone(&tilt),
         Arc::clone(&fallback),
+        Arc::clone(&action_error),
     );
 
     let outcome = try_npc_action(

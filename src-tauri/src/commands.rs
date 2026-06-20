@@ -204,6 +204,17 @@ pub fn set_llm_provider_config(
 }
 
 #[tauri::command]
+pub fn save_llm_provider_settings(
+    app: AppHandle,
+    state: State<'_, DesktopAppState>,
+    settings: crate::npc::LlmProviderSettings,
+) -> Result<(), String> {
+    state.save_llm_provider_settings(settings)?;
+    emit_bootstrap_update(&app, state.bootstrap());
+    Ok(())
+}
+
+#[tauri::command]
 pub fn clear_llm_provider_config(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
@@ -440,6 +451,7 @@ mod tests {
             launch_hint: "hint".to_string(),
             npc_tilt_levels: std::collections::BTreeMap::new(),
             last_llm_fallback: None,
+            last_npc_action_error: None,
         }
     }
 

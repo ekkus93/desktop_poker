@@ -296,6 +296,17 @@ export function DebugPanel({
         </SectionCard>
       ) : null}
 
+      {debugState?.lastNpcActionError ? (
+        <SectionCard
+          title="Last NPC action error"
+          data-testid="npc-action-error-section"
+        >
+          <p data-testid="npc-action-error-reason" className="inline-banner error">
+            {debugState.lastNpcActionError}
+          </p>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Rust backend module map">
         <ul>
           {bootstrap.backendModules.map((moduleInfo) => (

@@ -120,6 +120,7 @@ impl DesktopAppState {
         let stop = Arc::new(AtomicBool::new(false));
         let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
         let last_llm_fallback = Arc::new(Mutex::new(None));
+        let last_npc_action_error = Arc::new(Mutex::new(None));
         let runner_handle = crate::npc::runner::start_npc_runner(
             Arc::clone(&session.host_server),
             npc_configs,
@@ -127,12 +128,14 @@ impl DesktopAppState {
             Arc::clone(&self.llm_provider),
             Arc::clone(&tilt_levels),
             Arc::clone(&last_llm_fallback),
+            Arc::clone(&last_npc_action_error),
         );
         session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
             stop,
             runner_handle,
             tilt_levels,
             last_llm_fallback,
+            last_npc_action_error,
         ));
 
         session.status()
@@ -149,6 +152,38 @@ impl DesktopAppState {
             .llm_provider
             .lock()
             .map_err(|_| "llm provider lock poisoned".to_string())? = Some(config);
+        *self
+            .live_provider_config_error
+            .lock()
+            .map_err(|_| "provider error lock poisoned".to_string())? = None;
+        Ok(())
+    }
+
+    /// Save only non-secret provider settings, preserving the existing API key.
+    pub fn save_llm_provider_settings(
+        &self,
+        settings: crate::npc::LlmProviderSettings,
+    ) -> Result<(), String> {
+        crate::npc::provider_storage::save_provider_settings_only(&self.app_data_dir, &settings)
+            .map_err(|e| e.to_string())?;
+        // Update the in-memory provider's settings without touching the key.
+        let mut provider = self
+            .llm_provider
+            .lock()
+            .map_err(|_| "llm provider lock poisoned".to_string())?;
+        if let Some(cfg) = provider.as_mut() {
+            cfg.settings = settings;
+        } else {
+            *provider = Some(crate::npc::LlmProviderConfig {
+                settings,
+                api_key: None,
+            });
+        }
+        drop(provider);
+        *self
+            .live_provider_config_error
+            .lock()
+            .map_err(|_| "provider error lock poisoned".to_string())? = None;
         Ok(())
     }
 
@@ -160,6 +195,10 @@ impl DesktopAppState {
             .llm_provider
             .lock()
             .map_err(|_| "llm provider lock poisoned".to_string())? = None;
+        *self
+            .live_provider_config_error
+            .lock()
+            .map_err(|_| "provider error lock poisoned".to_string())? = None;
         Ok(())
     }
 

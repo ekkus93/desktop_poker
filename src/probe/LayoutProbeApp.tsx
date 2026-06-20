@@ -441,6 +441,7 @@ function installBrowserMocks(
         launchHint: "layout-probe",
         npcTiltLevels: {},
         lastLlmFallback: null,
+        lastNpcActionError: null,
       }) satisfies DebugInspectorState,
     launchAdditionalClientInstance: async () => "layout-probe-client",
   };

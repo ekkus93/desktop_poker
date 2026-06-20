@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   clearLlmProviderConfig,
+  getLlmProviderConfig,
+  saveNonSecretProviderSettings,
   setLlmProviderConfig,
   type LlmProviderConfig,
+  type LlmProviderSettings,
   type LlmProviderType,
 } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
@@ -61,32 +64,73 @@ export function DeviceSettingsScreen() {
   const [providerError, setProviderError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // Track whether the current form fields were loaded from an existing config.
+  const [loadedSettings, setLoadedSettings] =
+    useState<LlmProviderSettings | null>(null);
 
   const providerConfigured = bootstrap.llmApiKeyConfigured;
 
-  // Reset endpoint/model placeholders when provider changes.
+  // Load existing non-secret provider config on mount.
   useEffect(() => {
+    getLlmProviderConfig()
+      .then((settings) => {
+        if (settings) {
+          setLoadedSettings(settings);
+          setSelectedProvider(settings.provider);
+          setEndpointUrl(settings.endpointUrl ?? "");
+          setModel(settings.model ?? "");
+        }
+      })
+      .catch((e: unknown) => {
+        setProviderError(
+          e instanceof Error
+            ? `Failed to load provider config: ${e.message}`
+            : "Failed to load provider config.",
+        );
+      });
+  }, []);
+
+  // When the user explicitly changes the provider dropdown, reset endpoint/model
+  // placeholders only if it differs from the loaded settings' provider.
+  useEffect(() => {
+    if (loadedSettings && selectedProvider === loadedSettings.provider) {
+      return;
+    }
     setEndpointUrl("");
     setModel("");
-  }, [selectedProvider]);
+  }, [selectedProvider, loadedSettings]);
 
   async function handleSave() {
     setProviderError(null);
     setProviderStatus(null);
-    if (requiresApiKey(selectedProvider) && !apiKey.trim()) {
+    const trimmedKey = apiKey.trim();
+    const hasExistingKey = providerConfigured;
+    // Require a key if the provider needs one and there is no existing key.
+    if (requiresApiKey(selectedProvider) && !trimmedKey && !hasExistingKey) {
       setProviderError("An API key is required for this provider.");
       return;
     }
     setSaving(true);
     try {
-      const config: LlmProviderConfig = {
-        provider: selectedProvider,
-        apiKey: apiKey.trim() || null,
-        endpointUrl: endpointUrl.trim() || null,
-        model: model.trim() || null,
-      };
-      await setLlmProviderConfig(config);
-      setApiKey("");
+      if (trimmedKey || !requiresApiKey(selectedProvider)) {
+        // Full save: new key entered, or provider doesn't use API keys.
+        const config: LlmProviderConfig = {
+          provider: selectedProvider,
+          apiKey: trimmedKey || null,
+          endpointUrl: endpointUrl.trim() || null,
+          model: model.trim() || null,
+        };
+        await setLlmProviderConfig(config);
+        setApiKey("");
+      } else {
+        // Key-requiring provider, blank key — preserve existing key on disk.
+        const settings: LlmProviderSettings = {
+          provider: selectedProvider,
+          endpointUrl: endpointUrl.trim() || null,
+          model: model.trim() || null,
+        };
+        await saveNonSecretProviderSettings(settings);
+      }
       setProviderStatus("Provider saved.");
     } catch (e) {
       setProviderError(
@@ -186,7 +230,11 @@ export function DeviceSettingsScreen() {
                   <input
                     type="password"
                     placeholder={
-                      selectedProvider === "anthropic" ? "sk-ant-..." : "sk-..."
+                      providerConfigured
+                        ? "Leave blank to keep existing key"
+                        : selectedProvider === "anthropic"
+                          ? "sk-ant-..."
+                          : "sk-..."
                     }
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
@@ -229,7 +277,10 @@ export function DeviceSettingsScreen() {
               className="primary-button"
               onClick={handleSave}
               disabled={
-                saving || (requiresApiKey(selectedProvider) && !apiKey.trim())
+                saving ||
+                (requiresApiKey(selectedProvider) &&
+                  !apiKey.trim() &&
+                  !providerConfigured)
               }
               type="button"
             >

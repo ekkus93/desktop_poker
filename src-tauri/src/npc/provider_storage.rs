@@ -26,6 +26,9 @@ pub enum ProviderConfigLoadState {
     InvalidJson { error: String },
     /// Config file is valid JSON but does not match the expected schema.
     InvalidSchema { error: String },
+    /// Settings file loaded fine but the API key file exists and cannot be read.
+    /// Distinct from missing key — indicates broken local state or permissions.
+    KeyUnreadable { error: String },
 }
 
 fn settings_path(app_data_dir: &Path) -> PathBuf {
@@ -40,17 +43,26 @@ fn legacy_key_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(LEGACY_KEY_FILE_NAME)
 }
 
-/// Read the raw API key from `llm-provider-key.dat`, or `None` if absent/empty.
-fn read_key_file(path: &Path) -> Option<String> {
+/// Read the raw API key from `llm-provider-key.dat`.
+///
+/// Returns `Ok(None)` when the file does not exist or is empty.
+/// Returns `Err(message)` when the file exists but cannot be read — this is
+/// distinct from a missing file and must not be silently treated as "no key."
+fn read_key_file(path: &Path) -> Result<Option<String>, String> {
     if !path.exists() {
-        return None;
+        return Ok(None);
     }
-    let raw = fs::read_to_string(path).ok()?;
+    let raw = fs::read_to_string(path).map_err(|e| {
+        format!(
+            "key file exists but cannot be read ({}): {e}",
+            path.display()
+        )
+    })?;
     let trimmed = raw.trim().to_string();
     if trimmed.is_empty() {
-        None
+        Ok(None)
     } else {
-        Some(trimmed)
+        Ok(Some(trimmed))
     }
 }
 
@@ -115,34 +127,39 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
 
         // Determine the API key: prefer the dedicated key file; fall back to the
         // legacy embedded `apiKey` field for one-time migration.
-        let api_key = if let Some(key) = read_key_file(&kp) {
-            Some(key)
-        } else {
-            // Migration: extract key embedded in old combined format.
-            let embedded = json_val
-                .get("apiKey")
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .map(|s| s.to_string());
+        let api_key = match read_key_file(&kp) {
+            Err(e) => {
+                // Key file exists but cannot be read — surface as an explicit error.
+                return ProviderConfigLoadState::KeyUnreadable { error: e };
+            }
+            Ok(Some(key)) => Some(key),
+            Ok(None) => {
+                // Migration: extract key embedded in old combined format.
+                let embedded = json_val
+                    .get("apiKey")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string());
 
-            if let Some(ref key) = embedded {
-                // Migrate immediately: write key file and rewrite settings-only JSON.
-                if let Err(e) = write_key_file(&kp, key) {
-                    eprintln!("[provider-storage] migration: failed to write key file: {e}");
-                } else if let Ok(json) = serde_json::to_string_pretty(&settings) {
-                    if let Err(e) = fs::write(&sp, json) {
-                        eprintln!(
-                            "[provider-storage] migration: failed to rewrite settings file: {e}"
-                        );
-                    } else {
-                        eprintln!(
-                            "[provider-storage] migrated API key from llm-provider.json \
-                             to llm-provider-key.dat"
-                        );
+                if let Some(ref key) = embedded {
+                    // Migrate immediately: write key file and rewrite settings-only JSON.
+                    if let Err(e) = write_key_file(&kp, key) {
+                        eprintln!("[provider-storage] migration: failed to write key file: {e}");
+                    } else if let Ok(json) = serde_json::to_string_pretty(&settings) {
+                        if let Err(e) = fs::write(&sp, json) {
+                            eprintln!(
+                                "[provider-storage] migration: failed to rewrite settings file: {e}"
+                            );
+                        } else {
+                            eprintln!(
+                                "[provider-storage] migrated API key from llm-provider.json \
+                                 to llm-provider-key.dat"
+                            );
+                        }
                     }
                 }
+                embedded
             }
-            embedded
         };
 
         return ProviderConfigLoadState::Loaded(LlmProviderConfig { settings, api_key });
@@ -208,6 +225,25 @@ pub fn save_provider_config(
             }
         }
     }
+    Ok(())
+}
+
+/// Save only the non-secret provider settings, preserving any existing key file.
+///
+/// Use this when the user edits endpoint/model/provider fields without entering
+/// a new API key — the existing key must not be erased.
+pub fn save_provider_settings_only(
+    app_data_dir: &Path,
+    settings: &LlmProviderSettings,
+) -> Result<(), std::io::Error> {
+    let sp = settings_path(app_data_dir);
+    if let Some(parent) = sp.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let settings_json = serde_json::to_string_pretty(settings)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    fs::write(&sp, settings_json)?;
+    // Key file is intentionally left untouched.
     Ok(())
 }
 
@@ -394,6 +430,68 @@ mod tests {
         assert_eq!(
             mode, 0o600,
             "key file must be owner-only readable (0600); got {mode:#o}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_key_file_returns_key_unreadable_not_missing() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        // Write valid settings and an unreadable key file (mode 000).
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let kp = key_path(dir.path());
+        fs::set_permissions(&kp, fs::Permissions::from_mode(0o000)).unwrap();
+        let result = load_provider_config(dir.path());
+        // Restore permissions so the temp dir cleanup can remove the file.
+        fs::set_permissions(&kp, fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(
+            matches!(result, ProviderConfigLoadState::KeyUnreadable { .. }),
+            "expected KeyUnreadable, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn missing_key_file_with_key_required_provider_loads_with_no_key() {
+        let dir = tempfile::tempdir().unwrap();
+        // Write settings only, no key file.
+        let settings = LlmProviderSettings {
+            provider: LlmProviderType::Anthropic,
+            endpoint_url: None,
+            model: None,
+        };
+        save_provider_settings_only(dir.path(), &settings).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
+        assert!(
+            loaded.api_key.is_none(),
+            "missing key file should result in no key, not an error"
+        );
+    }
+
+    #[test]
+    fn save_settings_only_preserves_existing_key() {
+        let dir = tempfile::tempdir().unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-original"))).unwrap();
+
+        // Update only the settings.
+        let new_settings = LlmProviderSettings {
+            provider: LlmProviderType::Anthropic,
+            endpoint_url: Some("https://custom.example.com".to_string()),
+            model: Some("claude-haiku-4-5-20251001".to_string()),
+        };
+        save_provider_settings_only(dir.path(), &new_settings).unwrap();
+
+        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        assert_eq!(
+            loaded.settings.endpoint_url.as_deref(),
+            Some("https://custom.example.com"),
+            "endpoint_url should be updated"
+        );
+        assert_eq!(
+            loaded.api_key.as_deref(),
+            Some("sk-ant-original"),
+            "existing API key must be preserved"
         );
     }
 }

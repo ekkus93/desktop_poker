@@ -231,6 +231,9 @@ pub struct DebugInspectorState {
     /// Most recent LLM fallback event for any NPC, if any occurred this session.
     /// Format: "<player_id>: <reason>". Cleared when a new game starts.
     pub last_llm_fallback: Option<String>,
+    /// Most recent NPC action submission failure, if any occurred this session.
+    /// Format: "<player_id>: <reason>". Cleared when a new game starts.
+    pub last_npc_action_error: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
@@ -337,6 +340,9 @@ pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
     app_data_dir: PathBuf,
     llm_provider: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>>,
+    /// Live provider config error — cleared when provider is successfully saved or cleared.
+    /// Takes precedence over the startup-time snapshot in `bootstrap.provider_config_error`.
+    live_provider_config_error: Mutex<Option<String>>,
     debug_table_runtime: Mutex<Option<DebugTableRuntime>>,
     host_session: Mutex<Option<DesktopHostSession>>,
     client_session: Mutex<Option<DesktopClientSession>>,

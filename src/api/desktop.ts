@@ -284,6 +284,8 @@ export type DebugInspectorState = {
   npcTiltLevels: Record<string, string>;
   /** Most recent LLM fallback event, or null if none occurred this session. */
   lastLlmFallback: string | null;
+  /** Most recent NPC action submission failure, or null if none occurred this session. */
+  lastNpcActionError: string | null;
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";
@@ -415,6 +417,13 @@ export function getLlmProviderConfig(): Promise<LlmProviderSettings | null> {
 
 export function setLlmProviderConfig(config: LlmProviderConfig): Promise<void> {
   return invoke<void>("set_llm_provider_config", { config });
+}
+
+/** Save only non-secret provider settings, preserving any existing API key. */
+export function saveNonSecretProviderSettings(
+  settings: LlmProviderSettings,
+): Promise<void> {
+  return invoke<void>("save_llm_provider_settings", { settings });
 }
 
 export function clearLlmProviderConfig(): Promise<void> {

@@ -25,7 +25,8 @@ impl DesktopAppState {
         let provider_config_error = match &load_state {
             crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { error }
             | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { error }
-            | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { error } => {
+            | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { error }
+            | crate::npc::provider_storage::ProviderConfigLoadState::KeyUnreadable { error } => {
                 eprintln!("[app] provider config load error: {error}");
                 Some(error.clone())
             }
@@ -66,12 +67,13 @@ impl DesktopAppState {
                 debug_tools_enabled,
                 llm_api_key_configured,
                 llm_provider_type,
-                provider_config_error,
+                provider_config_error: provider_config_error.clone(),
                 backend_modules: backend_modules(),
                 screens: screen_catalog(debug_tools_enabled),
             },
             app_data_dir,
             llm_provider,
+            live_provider_config_error: Mutex::new(provider_config_error),
             debug_table_runtime: Mutex::new(None),
             host_session: Mutex::new(None),
             client_session: Mutex::new(None),
@@ -90,6 +92,12 @@ impl DesktopAppState {
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_string))
         });
+        // Return the live error state so callers see it cleared after save/clear.
+        state.provider_config_error = self
+            .live_provider_config_error
+            .lock()
+            .ok()
+            .and_then(|g| g.clone());
         state
     }
 
@@ -181,6 +189,9 @@ impl DesktopAppState {
                     }
                     if let Ok(fallback) = runner.last_llm_fallback.lock() {
                         state.last_llm_fallback = fallback.clone();
+                    }
+                    if let Ok(action_err) = runner.last_npc_action_error.lock() {
+                        state.last_npc_action_error = action_err.clone();
                     }
                 }
             }

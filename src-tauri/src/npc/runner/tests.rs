@@ -137,6 +137,7 @@ fn two_npcs_with_distinct_player_ids_keep_separate_session_histories() {
         &configs,
         Arc::new(Mutex::new(BTreeMap::new())),
         Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
     );
 
     // NPC at seat 2 wins; NPC at seat 4 loses.
@@ -270,6 +271,7 @@ fn session_history_increments_after_one_completed_hand() {
         &configs,
         Arc::new(Mutex::new(BTreeMap::new())),
         Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
     );
 
     let mut state = minimal_state();
@@ -292,6 +294,7 @@ fn consecutive_losses_increments_across_multiple_hands() {
         &configs,
         Arc::new(Mutex::new(BTreeMap::new())),
         Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
     );
 
     let mut state = minimal_state();
@@ -313,6 +316,7 @@ fn opponent_stats_has_entries_for_human_player_after_hand() {
     let mut runner_state = RunnerState::new(
         &configs,
         Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
         Arc::new(Mutex::new(None)),
     );
 

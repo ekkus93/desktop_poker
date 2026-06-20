@@ -288,3 +288,67 @@ fn client_ready_toggle_times_out_and_returns_error_when_host_does_not_confirm() 
         }
     }
 }
+
+// P0.1 — stale providerConfigError is cleared after save or clear.
+
+#[test]
+fn bootstrap_provider_config_error_clears_after_saving_valid_config() {
+    let _guard = PROVIDER_CFG_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let state = DesktopAppState::detect();
+
+    // Write a corrupt settings file directly so the next detect() sees it.
+    let app_data_dir = &state.app_data_dir;
+    let settings_path = app_data_dir.join("llm-provider.json");
+    std::fs::create_dir_all(app_data_dir).expect("create app data dir");
+    std::fs::write(&settings_path, "not valid json").expect("write corrupt settings");
+
+    // detect() again to pick up the corrupt file.
+    let state2 = DesktopAppState::detect();
+    assert!(
+        state2.bootstrap().provider_config_error.is_some(),
+        "startup with corrupt provider config must surface a provider_config_error"
+    );
+
+    // Save valid config — error must clear immediately without restart.
+    state2
+        .set_llm_provider_config(LlmProviderConfig {
+            settings: crate::npc::LlmProviderSettings {
+                provider: LlmProviderType::Ollama,
+                endpoint_url: None,
+                model: None,
+            },
+            api_key: None,
+        })
+        .expect("saving valid config must succeed");
+
+    assert!(
+        state2.bootstrap().provider_config_error.is_none(),
+        "provider_config_error must be cleared after saving valid config"
+    );
+}
+
+#[test]
+fn bootstrap_provider_config_error_clears_after_clearing_config() {
+    let _guard = PROVIDER_CFG_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let state = DesktopAppState::detect();
+
+    let app_data_dir = &state.app_data_dir;
+    let settings_path = app_data_dir.join("llm-provider.json");
+    std::fs::create_dir_all(app_data_dir).expect("create app data dir");
+    std::fs::write(&settings_path, "not valid json either").expect("write corrupt settings");
+
+    let state2 = DesktopAppState::detect();
+    assert!(
+        state2.bootstrap().provider_config_error.is_some(),
+        "startup with corrupt provider config must surface a provider_config_error"
+    );
+
+    state2
+        .clear_llm_provider_config()
+        .expect("clearing config must succeed even when corrupt");
+
+    assert!(
+        state2.bootstrap().provider_config_error.is_none(),
+        "provider_config_error must be cleared after clearing provider config"
+    );
+}

@@ -1,6 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearLlmProviderConfig, setLlmProviderConfig } from "../api/desktop";
+import {
+  clearLlmProviderConfig,
+  getLlmProviderConfig,
+  saveNonSecretProviderSettings,
+  setLlmProviderConfig,
+} from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { DeviceSettingsScreen } from "./DeviceSettingsScreen";
 
@@ -9,20 +14,30 @@ vi.mock("../api/desktop", async () => {
     await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
   return {
     ...actual,
+    getLlmProviderConfig: vi.fn(),
     setLlmProviderConfig: vi.fn(),
     clearLlmProviderConfig: vi.fn(),
+    saveNonSecretProviderSettings: vi.fn(),
   };
 });
 
+const mockedGetLlmProviderConfig = vi.mocked(getLlmProviderConfig);
 const mockedSetLlmProviderConfig = vi.mocked(setLlmProviderConfig);
 const mockedClearLlmProviderConfig = vi.mocked(clearLlmProviderConfig);
+const mockedSaveNonSecretProviderSettings = vi.mocked(
+  saveNonSecretProviderSettings,
+);
 
 describe("DeviceSettingsScreen", () => {
   beforeEach(() => {
+    mockedGetLlmProviderConfig.mockReset();
     mockedSetLlmProviderConfig.mockReset();
     mockedClearLlmProviderConfig.mockReset();
+    mockedSaveNonSecretProviderSettings.mockReset();
+    mockedGetLlmProviderConfig.mockResolvedValue(null);
     mockedSetLlmProviderConfig.mockResolvedValue(undefined);
     mockedClearLlmProviderConfig.mockResolvedValue(undefined);
+    mockedSaveNonSecretProviderSettings.mockResolvedValue(undefined);
   });
 
   it("keeps local device controls separate from gameplay help", () => {

@@ -89,6 +89,7 @@ function sampleDebugState(): DebugInspectorState {
     launchHint: "hint",
     npcTiltLevels: {},
     lastLlmFallback: null,
+    lastNpcActionError: null,
   };
 }
 

@@ -130,6 +130,7 @@ impl DebugTableRuntime {
                 .to_string(),
             npc_tilt_levels: std::collections::BTreeMap::new(),
             last_llm_fallback: None,
+            last_npc_action_error: None,
         })
     }
 

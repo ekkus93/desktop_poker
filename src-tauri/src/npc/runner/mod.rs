@@ -74,6 +74,8 @@ pub(crate) struct RunnerState {
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     /// Most recent LLM fallback event; written by the runner, read by the debug inspector.
     shared_fallback: Arc<Mutex<Option<String>>>,
+    /// Most recent NPC action submission failure; written by runner, read by debug inspector.
+    shared_action_error: Arc<Mutex<Option<String>>>,
 }
 
 impl RunnerState {
@@ -81,6 +83,7 @@ impl RunnerState {
         npc_configs: &[NpcConfig],
         shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
         shared_fallback: Arc<Mutex<Option<String>>>,
+        shared_action_error: Arc<Mutex<Option<String>>>,
     ) -> Self {
         let session_histories = npc_configs
             .iter()
@@ -94,14 +97,15 @@ impl RunnerState {
             pre_hand_stacks: BTreeMap::new(),
             shared_tilt,
             shared_fallback,
+            shared_action_error,
         }
     }
 }
 
 /// Start the NPC auto-action background thread.
 ///
-/// Returns the join handle. The caller supplies `shared_tilt` and `shared_fallback` and may
-/// read from them at any time (e.g. for the debug inspector).
+/// Returns the join handle. The caller supplies `shared_tilt`, `shared_fallback`, and
+/// `shared_action_error` and may read from them at any time (e.g. for the debug inspector).
 pub fn start_npc_runner(
     host_server: Arc<HostServer>,
     npc_configs: Vec<NpcConfig>,
@@ -109,6 +113,7 @@ pub fn start_npc_runner(
     api_key_holder: Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     shared_fallback: Arc<Mutex<Option<String>>>,
+    shared_action_error: Arc<Mutex<Option<String>>>,
 ) -> thread::JoinHandle<()> {
     thread::Builder::new()
         .name("npc-runner".into())
@@ -120,6 +125,7 @@ pub fn start_npc_runner(
                 &api_key_holder,
                 shared_tilt,
                 shared_fallback,
+                shared_action_error,
             );
         })
         .expect("failed to spawn npc-runner thread")
@@ -133,6 +139,7 @@ pub fn run_npc_loop(
 ) {
     let shared_tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let shared_fallback = Arc::new(Mutex::new(None));
+    let shared_action_error = Arc::new(Mutex::new(None));
     npc_runner_loop(
         host_server,
         npc_configs,
@@ -140,6 +147,7 @@ pub fn run_npc_loop(
         api_key_holder,
         shared_tilt,
         shared_fallback,
+        shared_action_error,
     );
 }
 
@@ -150,9 +158,15 @@ fn npc_runner_loop(
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     shared_fallback: Arc<Mutex<Option<String>>>,
+    shared_action_error: Arc<Mutex<Option<String>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
-    let mut runner_state = RunnerState::new(npc_configs, shared_tilt, shared_fallback);
+    let mut runner_state = RunnerState::new(
+        npc_configs,
+        shared_tilt,
+        shared_fallback,
+        shared_action_error,
+    );
 
     loop {
         if stop.load(Ordering::SeqCst) {
@@ -374,7 +388,9 @@ pub(crate) fn try_npc_action(
         }
     };
 
-    let style = &npc_config.style;
+    // Fallback style is always npc_config.style so all fallback branches are consistent (P1.3).
+    // NpcProfile.style is a human-readable persona string for the LLM, not an NpcStyle enum.
+    let fallback_style: &crate::npc::NpcStyle = &npc_config.style;
 
     let seed = hash_str(&window.player_id) ^ hash_str(&window.action_window_id);
 
@@ -452,151 +468,210 @@ pub(crate) fn try_npc_action(
     let dealer_seat = fresh_hand.dealer_seat_index;
     let position = derive_position(fresh_window.seat_index, dealer_seat, active_count.max(2));
 
-    // LLM path when the NPC has a profile and a usable provider config is available.
-    let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
-        let provider_cfg = api_key_holder.lock().ok().and_then(|g| g.clone());
-        let usable_cfg = provider_cfg.filter(|c| c.is_usable());
-        if let Some(cfg) = usable_cfg {
-            let blind_level = fresh_state
-                .config
-                .blind_schedule
-                .levels
-                .get(fresh_state.blind_level_index)
-                .cloned()
-                .unwrap_or_else(fallback_blind_level);
+    // Resolve provider config with explicit lock-failure detection (P1.2).
+    enum ProviderState {
+        Usable(LlmProviderConfig),
+        NotConfigured,
+        StateUnavailable,
+    }
 
-            // Build session context.
-            let (session_ctx, tilt_desc) =
-                if let Some(history) = runner_state.session_histories.get(npc_config_idx) {
-                    let ctx = if history.hands_played() > 0 {
-                        Some(history.render_context())
+    let provider_state = if npc_config.profile.is_some() {
+        match api_key_holder.lock() {
+            Ok(g) => {
+                let usable = g.clone().filter(|c| c.is_usable());
+                match usable {
+                    Some(cfg) => ProviderState::Usable(cfg),
+                    None => ProviderState::NotConfigured,
+                }
+            }
+            // Mutex poisoning is an internal failure, not "provider not configured". (P1.2)
+            Err(_) => ProviderState::StateUnavailable,
+        }
+    } else {
+        ProviderState::NotConfigured
+    };
+
+    // LLM path when the NPC has a profile and a usable provider config is available.
+    // action_logged tracks whether the hand-log entry was written to prevent double-logging (P0.4).
+    let mut action_logged = false;
+    let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
+        match provider_state {
+            ProviderState::Usable(cfg) => {
+                let blind_level = fresh_state
+                    .config
+                    .blind_schedule
+                    .levels
+                    .get(fresh_state.blind_level_index)
+                    .cloned()
+                    .unwrap_or_else(fallback_blind_level);
+
+                // Build session context.
+                let (session_ctx, tilt_desc) =
+                    if let Some(history) = runner_state.session_histories.get(npc_config_idx) {
+                        let ctx = if history.hands_played() > 0 {
+                            Some(history.render_context())
+                        } else {
+                            None
+                        };
+                        let tilt = TiltState::from_history(history);
+                        let desc = tilt.description();
+                        (ctx, desc)
                     } else {
-                        None
+                        (None, None)
                     };
-                    let tilt = TiltState::from_history(history);
-                    let desc = tilt.description();
-                    (ctx, desc)
-                } else {
-                    (None, None)
+
+                let opp_ctx = {
+                    let ctx = runner_state.opponent_stats.render_context();
+                    if ctx.is_empty() {
+                        None
+                    } else {
+                        Some(ctx)
+                    }
                 };
 
-            let opp_ctx = {
-                let ctx = runner_state.opponent_stats.render_context();
-                if ctx.is_empty() {
-                    None
-                } else {
-                    Some(ctx)
+                let snapshot = GameStateSnapshot {
+                    hand_number: fresh_hand.hand_number,
+                    street,
+                    board_cards: board.clone(),
+                    hole_cards: hole_cards.to_vec(),
+                    pot_total,
+                    call_amount,
+                    min_raise_to,
+                    max_raise_to,
+                    stack,
+                    position,
+                    active_player_count: active_count,
+                    legal_actions: legal_actions.clone(),
+                    blind_level,
+                    street_history: vec![],
+                    session_context: session_ctx,
+                    opponent_context: opp_ctx,
+                    tilt_description: tilt_desc,
+                };
+
+                let provider_label = format!("{:?}", cfg.settings.provider);
+                let llm_client = LlmClient::new(cfg);
+                if let Err(ref e) = llm_client {
+                    eprintln!("[npc-runner] failed to build LLM client: {e}");
                 }
-            };
+                let (llm_action, llm_raise, fallback_reason) = match llm_client {
+                    Ok(client) => choose_llm_action(&client, profile, &snapshot),
+                    Err(_) => {
+                        // Client construction failed — fall back to rule-based with profile style (P1.3).
+                        let rb = rule_based_decision(
+                            fallback_style,
+                            hole_cards,
+                            board,
+                            street,
+                            pot_total,
+                            call_amount,
+                            min_raise_to,
+                            max_raise_to,
+                            facing_bet,
+                            stack,
+                            active_count,
+                            dealer_seat,
+                            fresh_window.seat_index,
+                            fresh_state.blind_level_index,
+                            &fresh_state,
+                            legal_actions,
+                            seed,
+                        );
+                        (rb.0, rb.1, Some(LlmFallbackReason::RequestFailed))
+                    }
+                };
 
-            let snapshot = GameStateSnapshot {
-                hand_number: fresh_hand.hand_number,
-                street,
-                board_cards: board.clone(),
-                hole_cards: hole_cards.to_vec(),
-                pot_total,
-                call_amount,
-                min_raise_to,
-                max_raise_to,
-                stack,
-                position,
-                active_player_count: active_count,
-                legal_actions: legal_actions.clone(),
-                blind_level,
-                street_history: vec![],
-                session_context: session_ctx,
-                opponent_context: opp_ctx,
-                tilt_description: tilt_desc,
-            };
-
-            let provider_label = format!("{:?}", cfg.settings.provider);
-            let llm_client = LlmClient::new(cfg);
-            if let Err(ref e) = llm_client {
-                eprintln!("[npc-runner] failed to build LLM client: {e}");
-            }
-            let (llm_action, llm_raise, fallback_reason) = match llm_client {
-                Ok(client) => choose_llm_action(&client, profile, &snapshot),
-                Err(_) => {
-                    let rb = rule_based_decision(
-                        style,
-                        hole_cards,
-                        board,
-                        street,
-                        pot_total,
-                        call_amount,
-                        min_raise_to,
-                        max_raise_to,
-                        facing_bet,
-                        stack,
-                        active_count,
-                        dealer_seat,
-                        fresh_window.seat_index,
-                        fresh_state.blind_level_index,
-                        &fresh_state,
-                        legal_actions,
-                        seed,
+                if let Some(reason) = &fallback_reason {
+                    let msg = format!(
+                        "{}: {reason} (profile={}, provider={provider_label})",
+                        fresh_window.player_id, profile.id,
                     );
-                    (rb.0, rb.1, Some(LlmFallbackReason::RequestFailed))
+                    eprintln!("[npc-runner] LLM fallback — {msg}");
+                    if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                        *g = Some(msg);
+                    }
                 }
-            };
 
-            if let Some(reason) = &fallback_reason {
+                // Record the action into the hand log (P0.4 — exactly once).
+                if let Some(log) = &mut runner_state.hand_log {
+                    log.push(HandActionRecord {
+                        hand_number: fresh_hand.hand_number,
+                        street,
+                        player_id: fresh_window.player_id.clone(),
+                        action_type: llm_action,
+                        amount: llm_raise,
+                        is_voluntary: true,
+                    });
+                    action_logged = true;
+                }
+
+                (llm_action, llm_raise)
+            }
+            ProviderState::NotConfigured => {
+                // Profile is set but no usable provider config is available.
+                let fallback_reason = LlmFallbackReason::ProviderNotConfigured;
                 let msg = format!(
-                    "{}: {reason} (profile={}, provider={provider_label})",
+                    "{}: {fallback_reason} (profile={})",
                     fresh_window.player_id, profile.id,
                 );
                 eprintln!("[npc-runner] LLM fallback — {msg}");
                 if let Ok(mut g) = runner_state.shared_fallback.lock() {
                     *g = Some(msg);
                 }
-            }
-
-            // Record the action into the hand log.
-            if let Some(log) = &mut runner_state.hand_log {
-                log.push(HandActionRecord {
-                    hand_number: fresh_hand.hand_number,
+                rule_based_decision(
+                    fallback_style, // use profile style consistently (P1.3)
+                    hole_cards,
+                    board,
                     street,
-                    player_id: fresh_window.player_id.clone(),
-                    action_type: llm_action,
-                    amount: llm_raise,
-                    is_voluntary: true,
-                });
+                    pot_total,
+                    call_amount,
+                    min_raise_to,
+                    max_raise_to,
+                    facing_bet,
+                    stack,
+                    active_count,
+                    dealer_seat,
+                    fresh_window.seat_index,
+                    fresh_state.blind_level_index,
+                    &fresh_state,
+                    legal_actions,
+                    seed,
+                )
             }
-
-            (llm_action, llm_raise)
-        } else {
-            // Profile is set but no usable provider config is available.
-            let msg = format!(
-                "{}: ProviderNotConfigured (profile={})",
-                fresh_window.player_id, profile.id,
-            );
-            eprintln!("[npc-runner] LLM fallback — {msg}");
-            if let Ok(mut g) = runner_state.shared_fallback.lock() {
-                *g = Some(msg);
+            ProviderState::StateUnavailable => {
+                // Mutex poisoning — distinct from provider not configured (P1.2).
+                let msg = format!(
+                    "{}: ProviderStateUnavailable (profile={})",
+                    fresh_window.player_id, profile.id,
+                );
+                eprintln!("[npc-runner] LLM fallback — {msg}");
+                if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                    *g = Some(msg);
+                }
+                rule_based_decision(
+                    fallback_style,
+                    hole_cards,
+                    board,
+                    street,
+                    pot_total,
+                    call_amount,
+                    min_raise_to,
+                    max_raise_to,
+                    facing_bet,
+                    stack,
+                    active_count,
+                    dealer_seat,
+                    fresh_window.seat_index,
+                    fresh_state.blind_level_index,
+                    &fresh_state,
+                    legal_actions,
+                    seed,
+                )
             }
-            rule_based_decision(
-                style,
-                hole_cards,
-                board,
-                street,
-                pot_total,
-                call_amount,
-                min_raise_to,
-                max_raise_to,
-                facing_bet,
-                stack,
-                active_count,
-                dealer_seat,
-                fresh_window.seat_index,
-                fresh_state.blind_level_index,
-                &fresh_state,
-                legal_actions,
-                seed,
-            )
         }
     } else {
         rule_based_decision(
-            style,
+            fallback_style,
             hole_cards,
             board,
             street,
@@ -616,11 +691,10 @@ pub(crate) fn try_npc_action(
         )
     };
 
-    // Record the action into the hand log for rule-based path too (when LLM not used).
-    if let Some(log) = &mut runner_state.hand_log {
-        // Avoid double-logging: the LLM path already records when it executes.
-        // The rule-based path always falls through here, so record it.
-        if npc_config.profile.is_none() {
+    // Record the action into the hand log exactly once (P0.4).
+    // The LLM success path logs inside the match arm above; all other paths fall through here.
+    if !action_logged {
+        if let Some(log) = &mut runner_state.hand_log {
             log.push(HandActionRecord {
                 hand_number: fresh_hand.hand_number,
                 street,
@@ -640,10 +714,15 @@ pub(crate) fn try_npc_action(
     ) {
         Ok(()) => NpcActionOutcome::Success,
         Err(e) => {
-            eprintln!(
-                "[npc-runner] submit_action failed for {} (window={}, action={:?}): {e}",
-                fresh_window.player_id, fresh_window.action_window_id, action_type
+            let msg = format!(
+                "{}: submit_action rejected (window={}, action={action_type:?}): {e}",
+                fresh_window.player_id, fresh_window.action_window_id
             );
+            eprintln!("[npc-runner] {msg}");
+            // Surface in debug state (P0.5).
+            if let Ok(mut g) = runner_state.shared_action_error.lock() {
+                *g = Some(msg);
+            }
             NpcActionOutcome::Rejected(e.to_string())
         }
     }
@@ -657,6 +736,8 @@ pub struct NpcRunnerGuard {
     pub tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
     /// Most recent LLM fallback event; written by the runner, readable by the debug inspector.
     pub last_llm_fallback: Arc<Mutex<Option<String>>>,
+    /// Most recent NPC action submission failure; written by runner, read by debug inspector.
+    pub last_npc_action_error: Arc<Mutex<Option<String>>>,
 }
 
 impl NpcRunnerGuard {
@@ -665,12 +746,14 @@ impl NpcRunnerGuard {
         handle: thread::JoinHandle<()>,
         tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
         last_llm_fallback: Arc<Mutex<Option<String>>>,
+        last_npc_action_error: Arc<Mutex<Option<String>>>,
     ) -> Self {
         Self {
             stop,
             handle: Mutex::new(Some(handle)),
             tilt_levels,
             last_llm_fallback,
+            last_npc_action_error,
         }
     }
 }
@@ -680,7 +763,16 @@ impl Drop for NpcRunnerGuard {
         self.stop.store(true, Ordering::SeqCst);
         if let Ok(mut guard) = self.handle.lock() {
             if let Some(handle) = guard.take() {
-                let _ = handle.join();
+                if let Err(e) = handle.join() {
+                    // The runner thread panicked. Log what we can — the panic payload
+                    // is typically a &str or String.
+                    let msg = e
+                        .downcast_ref::<&str>()
+                        .map(|s| s.to_string())
+                        .or_else(|| e.downcast_ref::<String>().cloned())
+                        .unwrap_or_else(|| "unknown panic payload".to_string());
+                    eprintln!("[npc-runner] runner thread panicked: {msg}");
+                }
             }
         }
     }
