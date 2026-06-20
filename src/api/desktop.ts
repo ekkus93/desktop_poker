@@ -144,6 +144,8 @@ export type ClientSessionStatus = {
   activeSeatCount: number;
   openSeatCount: number;
   reconnecting: boolean;
+  /** true after a permanent disconnect — session cannot recover without a new join */
+  terminated: boolean;
   lastError: string | null;
   participants: HostSessionParticipantView[];
 };
@@ -248,6 +250,8 @@ export type TableActionTrayView = {
 
 export type TableViewSnapshot = {
   viewerMode: TableViewerMode;
+  /** "normal" | "reconnecting" | "terminated" */
+  sessionConnection: string;
   tournamentName: string;
   tableName: string;
   tableId: string;

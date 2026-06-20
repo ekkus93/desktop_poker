@@ -512,6 +512,7 @@ impl DesktopAppState {
             join_payload,
             latest_snapshot,
             reconnecting: false,
+            terminated: false,
             last_error: None,
             event_feed: Vec::new(),
         });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { History, PanelRight, Trophy } from "lucide-react";
+import { History, PanelRight, Trophy, WifiOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   getTableView,
@@ -78,8 +78,14 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         setError(null);
         setConnectionSlow(false);
         scheduleNext(TABLE_POLL_NORMAL_MS);
-      } catch {
+      } catch (caughtError: unknown) {
         if (cancelled) {
+          return;
+        }
+
+        const msg = getErrorMessage(caughtError).toLowerCase();
+        if (msg.includes("disconnected from host")) {
+          navigate("/errors", { replace: true });
           return;
         }
 
@@ -315,8 +321,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           </SectionCard>
         ) : null}
 
-        {connectionSlow ? (
-          <div className="inline-banner info">Connection slow — retrying…</div>
+        {tableView?.sessionConnection === "reconnecting" ? (
+          <div className="inline-banner info">
+            <WifiOff className="button-icon" strokeWidth={1.9} />
+            Reconnecting to host…
+          </div>
+        ) : connectionSlow ? (
+          <div className="inline-banner info">
+            <WifiOff className="button-icon" strokeWidth={1.9} />
+            Connection slow — retrying…
+          </div>
         ) : null}
 
         {error ? (

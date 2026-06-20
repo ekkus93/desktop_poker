@@ -100,6 +100,8 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     null,
   );
   const [connectionSlow, setConnectionSlow] = useState(false);
+  const [clientReconnecting, setClientReconnecting] = useState(false);
+  const [clientTerminated, setClientTerminated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<
     boolean | null
@@ -151,6 +153,19 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           setHostSession(nextHostSession);
           setClientSession(nextClientSession);
           setSessionStatus("ready");
+
+          if (nextClientSession) {
+            if (nextClientSession.terminated) {
+              setClientTerminated(true);
+              setClientReconnecting(false);
+              return; // stop polling — session is terminal
+            }
+            setClientReconnecting(nextClientSession.reconnecting);
+          } else {
+            setClientReconnecting(false);
+            setClientTerminated(false);
+          }
+
           scheduleNext(LOBBY_POLL_NORMAL_MS);
         })
         .catch(() => {
@@ -214,6 +229,16 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
             setHostSession(nextHostSession);
             setClientSession(nextClientSession);
             setSessionStatus("ready");
+
+            if (nextClientSession) {
+              setClientTerminated(nextClientSession.terminated);
+              setClientReconnecting(
+                !nextClientSession.terminated && nextClientSession.reconnecting,
+              );
+            } else {
+              setClientReconnecting(false);
+              setClientTerminated(false);
+            }
           })
           .catch(() => {
             // Ignore event-driven refresh errors; the fallback poll handles recovery
@@ -506,7 +531,17 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     : "Table full"}
                 </span>
               </div>
-              {connectionSlow ? (
+              {clientTerminated ? (
+                <div className="inline-banner error">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Disconnected from host — session could not be recovered.
+                </div>
+              ) : clientReconnecting ? (
+                <div className="inline-banner info">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Reconnecting to host…
+                </div>
+              ) : connectionSlow ? (
                 <div className="inline-banner info">
                   <WifiOff className="button-icon" strokeWidth={1.9} />
                   Connection slow — retrying…

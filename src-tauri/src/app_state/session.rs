@@ -47,13 +47,15 @@ impl DesktopHostSession {
                 .map_err(|error| error.to_string())?,
             &authoritative_state,
         );
-        build_table_view_snapshot(
+        let mut snapshot = build_table_view_snapshot(
             &authoritative_state,
             LOCAL_PLAYER_ID,
             viewer_mode,
             true,
             event_feed,
-        )
+        )?;
+        snapshot.session_connection = "normal".to_string();
+        Ok(snapshot)
     }
 
     pub(crate) fn submit_table_action(
@@ -119,6 +121,7 @@ impl DesktopClientSession {
                 .max_players
                 .saturating_sub(active_seat_count),
             reconnecting: self.reconnecting,
+            terminated: self.terminated,
             last_error: self.last_error.clone(),
             participants: build_session_participants(authoritative_state),
         }
@@ -129,6 +132,15 @@ impl DesktopClientSession {
         viewer_mode: TableViewerMode,
     ) -> Result<TableViewSnapshot, String> {
         self.refresh();
+
+        if self.terminated {
+            return Err(
+                self.last_error
+                    .clone()
+                    .unwrap_or_else(|| "Disconnected from host".to_string()),
+            );
+        }
+
         if self.latest_snapshot.state.phase == domain::TournamentPhase::ReadyCheck {
             // Best-effort: wait for the table to start or an error; timeout is not an error here.
             let _ = self.await_condition(Duration::from_millis(250), |session| {
@@ -137,13 +149,21 @@ impl DesktopClientSession {
             });
         }
 
-        build_table_view_snapshot(
+        let session_connection = if self.reconnecting {
+            "reconnecting".to_string()
+        } else {
+            "normal".to_string()
+        };
+
+        let mut snapshot = build_table_view_snapshot(
             &self.latest_snapshot.state,
             &self.latest_snapshot.local_player_id,
             viewer_mode,
             true,
             self.event_feed.clone(),
-        )
+        )?;
+        snapshot.session_connection = session_connection;
+        Ok(snapshot)
     }
 
     pub(crate) fn submit_table_action(
@@ -278,6 +298,7 @@ impl DesktopClientSession {
             }
             networking::ClientRuntimeEvent::Disconnected { .. } => {
                 self.reconnecting = false;
+                self.terminated = true;
                 self.last_error = Some("Disconnected from host".to_string());
             }
         }

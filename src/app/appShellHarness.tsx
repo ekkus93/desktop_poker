@@ -120,6 +120,7 @@ function buildClientSessionStatus() {
     activeSeatCount: 1,
     openSeatCount: 5,
     reconnecting: false,
+    terminated: false,
     lastError: null,
     participants: [
       {
@@ -304,7 +305,7 @@ function setupAppShellMocks() {
     if (ctx.currentHostSession) {
       syncLiveSessions(ctx.currentClientSession.participants);
     }
-    return ctx.currentClientSession;
+    return ctx.currentClientSession!;
   });
   mockedHostClaimLobbySeat.mockImplementation(async (request) => {
     if (!ctx.currentHostSession) {

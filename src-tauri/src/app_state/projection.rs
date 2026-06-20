@@ -30,6 +30,9 @@ pub(crate) fn build_table_view_snapshot(
 
     Ok(TableViewSnapshot {
         viewer_mode,
+        // Callers that wrap this function set session_connection to the
+        // appropriate value for their transport (normal/reconnecting/terminated).
+        session_connection: "normal".to_string(),
         tournament_name: public_state.tournament_name,
         table_name: public_state
             .table_name

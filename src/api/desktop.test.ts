@@ -57,6 +57,7 @@ function setBrowserMocks(mocks?: Record<string, unknown>) {
 function sampleTableView(): TableViewSnapshot {
   return {
     viewerMode: "local",
+    sessionConnection: "normal",
     tournamentName: "Friday Night",
     tableName: "Table 1",
     tableId: "table-1",
@@ -175,6 +176,7 @@ function sampleClientSessionStatus(): ClientSessionStatus {
     activeSeatCount: 1,
     openSeatCount: 5,
     reconnecting: false,
+    terminated: false,
     lastError: null,
     participants: sampleHostSessionStatus().participants,
   };

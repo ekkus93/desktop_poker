@@ -4,8 +4,10 @@ import {
   getClientSessionStatus,
   getHostSessionStatus,
   hostSetLobbyReadyState,
+  leaveClientSession,
   onSessionUpdate,
   stopHostSession,
+  type ClientSessionStatus,
   type HostSessionStatus,
 } from "../api/desktop";
 import { storageKey } from "../app/shell";
@@ -21,6 +23,7 @@ vi.mock("../api/desktop", async () => {
     getClientSessionStatus: vi.fn(),
     getHostSessionStatus: vi.fn(),
     hostSetLobbyReadyState: vi.fn(),
+    leaveClientSession: vi.fn(),
     onSessionUpdate: vi.fn().mockResolvedValue(() => {}),
     stopHostSession: vi.fn(),
   };
@@ -29,6 +32,7 @@ vi.mock("../api/desktop", async () => {
 const mockedGetClientSessionStatus = vi.mocked(getClientSessionStatus);
 const mockedGetHostSessionStatus = vi.mocked(getHostSessionStatus);
 const mockedHostSetLobbyReadyState = vi.mocked(hostSetLobbyReadyState);
+const mockedLeaveClientSession = vi.mocked(leaveClientSession);
 const mockedOnSessionUpdate = vi.mocked(onSessionUpdate);
 const mockedStopHostSession = vi.mocked(stopHostSession);
 
@@ -45,6 +49,47 @@ vi.mock("react-router-dom", async () => {
     useNavigate: () => mockNavigate,
   };
 });
+
+function createClientSession(
+  overrides: Partial<ClientSessionStatus> = {},
+): ClientSessionStatus {
+  return {
+    tournamentName: "Friday Finals Live",
+    tableName: "Main Table",
+    tableId: "table-1",
+    sessionEpoch: 42,
+    hostAddress: "192.168.1.20",
+    hostPort: 43818,
+    localPlayerId: "player-client",
+    phase: "waitingForPlayers",
+    activeSeatCount: 1,
+    openSeatCount: 5,
+    reconnecting: false,
+    terminated: false,
+    lastError: null,
+    participants: [
+      {
+        playerId: "local-player",
+        displayName: "Host Alpha",
+        seatIndex: 0,
+        isHost: true,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+      {
+        playerId: "player-client",
+        displayName: "Client Bravo",
+        seatIndex: 1,
+        isHost: false,
+        isReady: false,
+        connectionState: "connected",
+        participantState: "seated",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 function createHostSession(
   overrides: Partial<HostSessionStatus> = {},
@@ -90,6 +135,8 @@ describe("TournamentLobbyScreen", () => {
     mockedGetClientSessionStatus.mockReset();
     mockedGetHostSessionStatus.mockReset();
     mockedHostSetLobbyReadyState.mockReset();
+    mockedLeaveClientSession.mockReset();
+    mockedLeaveClientSession.mockResolvedValue(undefined);
     mockedOnSessionUpdate.mockReset();
     mockedOnSessionUpdate.mockResolvedValue(() => {});
     mockedStopHostSession.mockReset();
@@ -395,5 +442,92 @@ describe("TournamentLobbyScreen", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
 
     vi.useRealTimers();
+  });
+
+  it("shows a reconnecting banner when clientSession.reconnecting is true", async () => {
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+    mockedGetClientSessionStatus.mockResolvedValue(
+      createClientSession({ reconnecting: true }),
+    );
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    await act(async () => {
+      renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+        bootstrap,
+        initialEntries: ["/lobby"],
+      });
+    });
+
+    expect(screen.getByText(/reconnecting to host/i)).toBeTruthy();
+    expect(screen.queryByText(/connection slow/i)).toBeNull();
+  });
+
+  it("shows a terminal disconnect error when clientSession.terminated is true and stops polling", async () => {
+    vi.useFakeTimers();
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+    mockedGetClientSessionStatus.mockResolvedValue(
+      createClientSession({ terminated: true, lastError: "Disconnected from host" }),
+    );
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    await act(async () => {
+      renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+        bootstrap,
+        initialEntries: ["/lobby"],
+      });
+    });
+
+    expect(screen.getByText(/disconnected from host/i)).toBeTruthy();
+    expect(screen.queryByText(/reconnecting/i)).toBeNull();
+
+    // Polling stops — no additional calls after the terminal state is detected.
+    const callCountAfterTerminal = mockedGetClientSessionStatus.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(mockedGetClientSessionStatus.mock.calls.length).toBe(
+      callCountAfterTerminal,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it("leaves a terminated client session and navigates home when the leave button is clicked", async () => {
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+    mockedGetClientSessionStatus.mockResolvedValue(
+      createClientSession({ terminated: true, lastError: "Disconnected from host" }),
+    );
+    mockedLeaveClientSession.mockResolvedValue(undefined);
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    await act(async () => {
+      renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+        bootstrap,
+        initialEntries: ["/lobby"],
+      });
+    });
+
+    expect(screen.getByText(/disconnected from host/i)).toBeTruthy();
+
+    // The leave button is always visible — click it to open the leave modal.
+    const [leaveButton] = screen.getAllByRole("button", {
+      name: /close table|leave table/i,
+    });
+    await act(async () => {
+      fireEvent.click(leaveButton);
+    });
+
+    // The modal dialog appears; the confirm button has the same label as the
+    // original leave button so there are now two matching buttons. The second
+    // (index 1) is the primary confirm button inside the dialog.
+    const [, confirmButton] = await screen.findAllByRole("button", {
+      name: /close table|leave table/i,
+    });
+    await act(async () => {
+      fireEvent.click(confirmButton);
+    });
+
+    expect(mockedLeaveClientSession).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
   });
 });

@@ -408,6 +408,7 @@ mod tests {
     fn sample_table_view() -> TableViewSnapshot {
         TableViewSnapshot {
             viewer_mode: TableViewerMode::Local,
+            session_connection: "normal".to_string(),
             tournament_name: "Friday Night".to_string(),
             table_name: "Table 1".to_string(),
             table_id: "table-1".to_string(),

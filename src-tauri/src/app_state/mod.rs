@@ -190,6 +190,9 @@ pub struct TableActionTrayView {
 #[serde(rename_all = "camelCase")]
 pub struct TableViewSnapshot {
     pub viewer_mode: TableViewerMode,
+    /// `"normal"` for a healthy session, `"reconnecting"` while TCP recovery
+    /// is in progress, or `"terminated"` after a permanent disconnect.
+    pub session_connection: String,
     pub tournament_name: String,
     pub table_name: String,
     pub table_id: String,
@@ -300,6 +303,9 @@ pub struct ClientSessionStatus {
     pub active_seat_count: u8,
     pub open_seat_count: u8,
     pub reconnecting: bool,
+    /// `true` after the runtime emits `Disconnected` — the session cannot
+    /// recover without a fresh join.
+    pub terminated: bool,
     pub last_error: Option<String>,
     pub participants: Vec<HostSessionParticipantView>,
 }
@@ -316,6 +322,9 @@ struct DesktopClientSession {
     join_payload: domain::JoinPayload,
     latest_snapshot: domain::SnapshotState,
     reconnecting: bool,
+    /// Set when the background runtime emits `Disconnected` — the session
+    /// cannot recover without rejoining.
+    terminated: bool,
     last_error: Option<String>,
     event_feed: Vec<TableEventView>,
 }

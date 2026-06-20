@@ -46,6 +46,7 @@ describe("JoinTournamentScreen", () => {
       activeSeatCount: 1,
       openSeatCount: 5,
       reconnecting: false,
+      terminated: false,
       lastError: null,
       participants: [],
     });
