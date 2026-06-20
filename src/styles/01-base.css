@@ -307,6 +307,10 @@ dt {
   color: #9eb0c7;
 }
 
+.field-hint--warning {
+  color: #c9943a;
+}
+
 .sidebar nav {
   display: flex;
   flex-direction: column;

@@ -179,7 +179,9 @@ describe("AppShell integration (client and routing)", () => {
   });
 
   it("applies bootstrap subscription updates and reroutes away from routes removed by the new catalog", async () => {
-    h.renderAppShell("/table");
+    h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
@@ -330,6 +332,7 @@ describe("AppShell integration (client and routing)", () => {
     const firstRender = h.renderAppShell(
       "/table",
       createAppBootstrap({ debugToolsEnabled: false }),
+      { allowImplicitTableSession: true },
     );
 
     expect(
@@ -375,7 +378,9 @@ describe("AppShell integration (client and routing)", () => {
       }),
     );
 
-    const aliceRender = h.renderAppShell("/table", aliceBootstrap);
+    const aliceRender = h.renderAppShell("/table", aliceBootstrap, {
+      allowImplicitTableSession: true,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),

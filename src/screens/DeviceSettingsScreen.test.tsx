@@ -113,6 +113,28 @@ describe("DeviceSettingsScreen", () => {
     });
   });
 
+  it("shows plaintext-storage warning when an API-key-requiring provider is selected", () => {
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: false });
+    renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
+
+    // Anthropic is selected by default — warning should be visible.
+    expect(
+      screen.getByText(/api keys are stored in plaintext/i),
+    ).toBeTruthy();
+  });
+
+  it("does not show plaintext-storage warning for providers that do not require API keys", () => {
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: false });
+    renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
+
+    // Switch to Ollama, which needs no key.
+    fireEvent.change(screen.getByLabelText("LLM provider"), {
+      target: { value: "ollama" },
+    });
+
+    expect(screen.queryByText(/api keys are stored in plaintext/i)).toBeNull();
+  });
+
   it("shows error when setLlmProviderConfig fails", async () => {
     mockedSetLlmProviderConfig.mockRejectedValue(
       new Error("Connection refused"),

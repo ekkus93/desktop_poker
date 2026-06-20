@@ -258,6 +258,89 @@ mod tests {
     }
 
     #[test]
+    fn api_error_sets_request_failed_fallback_reason() {
+        use httpmock::prelude::*;
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/v1/messages");
+            then.status(401).body(r#"{"error":"invalid key"}"#);
+        });
+        let url = server.base_url();
+        std::mem::forget(server);
+        let client = LlmClient::new(anthropic_cfg("bad-key")).with_endpoint_override(url);
+
+        let profile = make_profile("conservative");
+        let snap = snap_with_raise();
+
+        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
+        assert!(snap.legal_actions.contains(&at));
+        assert_eq!(fallback, Some(LlmFallbackReason::RequestFailed));
+    }
+
+    #[test]
+    fn malformed_response_sets_parse_failed_fallback_reason() {
+        use httpmock::prelude::*;
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/v1/messages");
+            then.status(200)
+                .header("content-type", "application/json")
+                .json_body(serde_json::json!({
+                    "content": [{"type": "text", "text": "not json at all"}],
+                    "model": "claude-haiku-4-5-20251001",
+                    "stop_reason": "end_turn"
+                }));
+        });
+        let url = server.base_url();
+        std::mem::forget(server);
+        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
+
+        let profile = make_profile("conservative");
+        let snap = snap_with_raise();
+
+        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
+        assert!(snap.legal_actions.contains(&at));
+        assert_eq!(fallback, Some(LlmFallbackReason::ResponseParseFailed));
+    }
+
+    #[test]
+    fn aggressive_style_prefers_raise_when_call_amount_is_small() {
+        let profile = make_profile("aggressive");
+        let snap = snap_with_raise(); // call_amount=50, stack=950 → 50 <= 950/3 → raise
+
+        let (at, raise_to) = super::rule_based_fallback(&profile, &snap);
+        assert_eq!(at, ActionType::Raise);
+        assert!(
+            raise_to.is_some(),
+            "aggressive should include a raise amount"
+        );
+    }
+
+    #[test]
+    fn conservative_style_folds_on_large_bet() {
+        let profile = make_profile("conservative");
+        let mut snap = snap_with_raise();
+        // call_amount (200) > stack/20 (950/20 = 47) → fold
+        snap.call_amount = 200;
+        snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
+
+        let (at, _) = super::rule_based_fallback(&profile, &snap);
+        assert_eq!(at, ActionType::Fold);
+    }
+
+    #[test]
+    fn conservative_style_calls_on_tiny_bet() {
+        let profile = make_profile("conservative");
+        let mut snap = snap_with_raise();
+        // call_amount (10) <= stack/20 (950/20 = 47) → call
+        snap.call_amount = 10;
+        snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
+
+        let (at, _) = super::rule_based_fallback(&profile, &snap);
+        assert_eq!(at, ActionType::Call);
+    }
+
+    #[test]
     fn illegal_action_from_llm_produces_legal_fallback() {
         use httpmock::prelude::*;
         let server = MockServer::start();

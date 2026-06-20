@@ -172,18 +172,25 @@ export function DeviceSettingsScreen() {
             </label>
 
             {requiresApiKey(selectedProvider) ? (
-              <label className="field">
-                API key
-                <input
-                  type="password"
-                  placeholder={
-                    selectedProvider === "anthropic" ? "sk-ant-..." : "sk-..."
-                  }
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  aria-label="API key"
-                />
-              </label>
+              <>
+                <label className="field">
+                  API key
+                  <input
+                    type="password"
+                    placeholder={
+                      selectedProvider === "anthropic" ? "sk-ant-..." : "sk-..."
+                    }
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    aria-label="API key"
+                  />
+                </label>
+                <p className="field-hint field-hint--warning">
+                  API keys are stored in plaintext on this device. Do not use
+                  production keys with access to sensitive resources. Use a
+                  dedicated low-privilege key.
+                </p>
+              </>
             ) : null}
 
             <label className="field">

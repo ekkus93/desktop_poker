@@ -195,10 +195,13 @@ function syncLiveSessions(
 function renderAppShell(
   initialEntry: string,
   bootstrap = createAppBootstrap(),
+  // allowImplicitTableSession: tests that navigate directly to /table without
+  // setting up a session first must opt in explicitly. Defaults to false so
+  // new tests cannot accidentally rely on the implicit fallback.
   options?: { allowImplicitTableSession?: boolean },
 ) {
   if (
-    options?.allowImplicitTableSession !== false &&
+    options?.allowImplicitTableSession === true &&
     initialEntry === "/table" &&
     !ctx.currentHostSession &&
     !ctx.currentClientSession

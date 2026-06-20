@@ -77,7 +77,9 @@ describe("AppShell integration (table and debug)", () => {
         }),
       );
 
-    h.renderAppShell("/table");
+    h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
 
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
     expect((await screen.findAllByText(/Pot 120/)).length).toBeGreaterThan(0);
@@ -110,7 +112,9 @@ describe("AppShell integration (table and debug)", () => {
       }),
     );
 
-    const tableRender = h.renderAppShell("/table");
+    const tableRender = h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
@@ -143,7 +147,9 @@ describe("AppShell integration (table and debug)", () => {
       new Error("Action window expired."),
     );
 
-    const aliceRender = h.renderAppShell("/table", aliceBootstrap);
+    const aliceRender = h.renderAppShell("/table", aliceBootstrap, {
+      allowImplicitTableSession: true,
+    });
 
     fireEvent.click(await screen.findByRole("button", { name: "Fold" }));
     expect(await screen.findByText("Action window expired.")).toBeTruthy();
@@ -175,7 +181,7 @@ describe("AppShell integration (table and debug)", () => {
 
     h.mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
 
-    h.renderAppShell("/table", bootstrap);
+    h.renderAppShell("/table", bootstrap, { allowImplicitTableSession: true });
 
     expect(await screen.findByRole("button", { name: "Fold" })).toBeTruthy();
     expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
@@ -200,7 +206,7 @@ describe("AppShell integration (table and debug)", () => {
       new Error("Host connection lost. Reopen the lobby or rejoin."),
     );
 
-    h.renderAppShell("/table", bootstrap);
+    h.renderAppShell("/table", bootstrap, { allowImplicitTableSession: true });
 
     expect(
       await screen.findByText(
@@ -500,7 +506,9 @@ describe("AppShell integration (table and debug)", () => {
       new Error("Host connection lost. Reopen the lobby or rejoin."),
     );
 
-    h.renderAppShell("/table");
+    h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),
@@ -574,7 +582,9 @@ describe("AppShell integration (table and debug)", () => {
       }),
     );
 
-    h.renderAppShell("/table");
+    h.renderAppShell("/table", createAppBootstrap(), {
+      allowImplicitTableSession: true,
+    });
 
     expect(
       await screen.findByRole("heading", { level: 2, name: "Main Table" }),

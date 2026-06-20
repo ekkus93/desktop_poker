@@ -33,6 +33,9 @@ function BootstrapProbe() {
       <p>Error: {error ?? "none"}</p>
       <p>Instance: {bootstrap?.instanceId ?? "none"}</p>
       <p>Label: {bootstrap?.instanceLabel ?? "none"}</p>
+      <p>
+        Provider: {bootstrap?.llmApiKeyConfigured ? "configured" : "not configured"}
+      </p>
     </div>
   );
 }
@@ -81,6 +84,64 @@ describe("DesktopBootstrapProvider", () => {
 
     renderResult.unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("provider save event refreshes llmApiKeyConfigured via bootstrap subscription", async () => {
+    const initial = createAppBootstrap({ llmApiKeyConfigured: false });
+    const afterSave = createAppBootstrap({ llmApiKeyConfigured: true, llmProviderType: "anthropic" });
+    const unsubscribe = vi.fn();
+    let subscriptionHandler:
+      | ((bootstrap: ReturnType<typeof createAppBootstrap>) => void)
+      | undefined;
+
+    mockedSubscribeBootstrap.mockImplementation(async (handler) => {
+      subscriptionHandler = handler;
+      return unsubscribe;
+    });
+    mockedFetchBootstrapState.mockResolvedValue(initial);
+
+    render(
+      <DesktopBootstrapProvider>
+        <BootstrapProbe />
+      </DesktopBootstrapProvider>,
+    );
+
+    expect(await screen.findByText("Provider: not configured")).toBeTruthy();
+
+    await act(async () => {
+      subscriptionHandler?.(afterSave);
+    });
+
+    expect(screen.getByText("Provider: configured")).toBeTruthy();
+  });
+
+  it("provider clear event refreshes llmApiKeyConfigured via bootstrap subscription", async () => {
+    const initial = createAppBootstrap({ llmApiKeyConfigured: true });
+    const afterClear = createAppBootstrap({ llmApiKeyConfigured: false });
+    const unsubscribe = vi.fn();
+    let subscriptionHandler:
+      | ((bootstrap: ReturnType<typeof createAppBootstrap>) => void)
+      | undefined;
+
+    mockedSubscribeBootstrap.mockImplementation(async (handler) => {
+      subscriptionHandler = handler;
+      return unsubscribe;
+    });
+    mockedFetchBootstrapState.mockResolvedValue(initial);
+
+    render(
+      <DesktopBootstrapProvider>
+        <BootstrapProbe />
+      </DesktopBootstrapProvider>,
+    );
+
+    expect(await screen.findByText("Provider: configured")).toBeTruthy();
+
+    await act(async () => {
+      subscriptionHandler?.(afterClear);
+    });
+
+    expect(screen.getByText("Provider: not configured")).toBeTruthy();
   });
 
   it("surfaces bootstrap load failures", async () => {
