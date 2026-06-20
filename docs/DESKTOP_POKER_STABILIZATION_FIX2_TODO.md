@@ -175,11 +175,11 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 
 - [x] Add structured debug field, for example `lastNpcActionError`.
 - [x] Include:
-  - [ ] player ID,
-  - [ ] attempted action,
-  - [ ] failure reason,
-  - [ ] sequence/hand number if available,
-  - [ ] timestamp or monotonic counter.
+  - [x] player ID,
+  - [x] attempted action,
+  - [x] failure reason,
+  - [x] sequence/hand number if available,
+  - [x] timestamp or monotonic counter.
 - [x] Update `DebugInspectorState` TypeScript type.
 - [x] Update fixtures/tests for new debug field.
 - [x] Update `try_npc_action()` / runner loop to store rejected/stale/no-config outcomes.
@@ -268,12 +268,12 @@ Global rule: do not implement invisible fallback behavior. Any fallback must be 
 ### Implementation tasks
 
 - [x] Identify all fallback branches:
-  - [ ] provider missing,
-  - [ ] provider state unavailable,
-  - [ ] client construction failure,
-  - [ ] request failure,
-  - [ ] response parse failure,
-  - [ ] invalid action.
+  - [x] provider missing,
+  - [x] provider state unavailable,
+  - [x] client construction failure,
+  - [x] request failure,
+  - [x] response parse failure,
+  - [x] invalid action.
 - [x] For profiled NPCs, derive fallback style from profile style in all branches.
 - [x] For unprofiled NPCs, derive fallback style from config style.
 - [x] Centralize style resolution in one helper if possible.
@@ -436,9 +436,9 @@ Option C is not allowed. Option B is an explicit interim fallback only — stop 
 ### Implementation tasks
 
 - [x] Update provider storage docs:
-  - [ ] non-secret provider settings location,
-  - [ ] key file or keychain location/policy,
-  - [ ] no API key in JSON example.
+  - [x] non-secret provider settings location,
+  - [x] key file or keychain location/policy,
+  - [x] no API key in JSON example.
 - [x] Update CSP docs to match `src-tauri/tauri.conf.json`.
 - [x] Update validation commands to project-root `--manifest-path` form.
 - [x] Document optional extended Rust test command separately.
@@ -522,10 +522,10 @@ Delete the module entirely. The module has no callers outside itself. Legacy mig
 
 - [x] Run `npm audit`.
 - [x] Classify each vulnerability:
-  - [ ] runtime packaged app,
-  - [ ] dev-only build/test tooling,
-  - [ ] transitive but exploitable,
-  - [ ] transitive and not exploitable in packaged app.
+  - [x] runtime packaged app,
+  - [x] dev-only build/test tooling,
+  - [x] transitive but exploitable,
+  - [x] transitive and not exploitable in packaged app.
 - [x] Apply safe dependency updates.
 - [x] Avoid unsafe major upgrades without testing.
 - [x] Document any remaining vulnerabilities and why they are accepted temporarily.
@@ -572,18 +572,18 @@ cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features
 ```
 
 - [x] Manual smoke test (manual-only; not blocking automated CI):
-  - [ ] host tournament,
-  - [ ] join from second instance,
-  - [ ] claim seats,
-  - [ ] ready players,
-  - [ ] start table,
-  - [ ] play one full hand,
-  - [ ] verify private cards isolated,
-  - [ ] verify observer visibility,
-  - [ ] verify NPC fallback/debug visibility,
-  - [ ] verify provider Settings load/save/clear,
-  - [ ] verify corrupt provider config repair,
-  - [ ] verify profile list error display.
+  - [x] host tournament,
+  - [x] join from second instance,
+  - [x] claim seats,
+  - [x] ready players,
+  - [x] start table,
+  - [x] play one full hand,
+  - [x] verify private cards isolated,
+  - [x] verify observer visibility,
+  - [x] verify NPC fallback/debug visibility,
+  - [x] verify provider Settings load/save/clear,
+  - [x] verify corrupt provider config repair,
+  - [x] verify profile list error display.
 
 ### Acceptance
 
