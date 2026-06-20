@@ -1,6 +1,10 @@
 use super::super::{DesktopAppState, JoinHostSessionRequest, StartHostSessionRequest};
 use crate::domain::{ActionType, ActionWindow};
 
+/// Serializes tests that read and write the shared provider config on disk.
+/// `DesktopAppState::detect()` uses a fixed path; concurrent writers race.
+pub(super) static PROVIDER_CFG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub(super) fn sample_host_session_request(host_address: &str) -> StartHostSessionRequest {
     StartHostSessionRequest {
         host_address: host_address.to_string(),

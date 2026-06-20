@@ -1,259 +1,42 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Clock3, LogOut, Play, WifiOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   clientClaimLobbySeat,
   clientSetLobbyReadyState,
-  getClientSessionStatus,
-  getHostSessionStatus,
   hostClaimLobbySeat,
   hostSetLobbyReadyState,
   hostStartTournament,
   leaveClientSession,
-  onSessionUpdate,
   stopHostSession,
-  type ClientSessionStatus,
-  type HostSessionStatus,
 } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { ScreenShell } from "./ScreenShell";
+import { buildLiveSeats, useLobbySession } from "./useLobbySession";
 import type { ScreenProps } from "./types";
-
-type LobbySeatView = {
-  seatIndex: number;
-  label: string;
-  detail: string;
-  kind: "host" | "pending" | "open";
-  isLocal: boolean;
-  ready: boolean;
-  isNpc: boolean;
-};
-
-function buildLiveSeats(
-  liveSession: HostSessionStatus | ClientSessionStatus,
-): LobbySeatView[] {
-  const totalSeats = liveSession.activeSeatCount + liveSession.openSeatCount;
-  const seats: LobbySeatView[] = Array.from(
-    { length: totalSeats },
-    (_, index) => ({
-      seatIndex: index + 1,
-      label: "Open seat",
-      detail: "",
-      kind: "open",
-      isLocal: false,
-      ready: false,
-      isNpc: false,
-    }),
-  );
-  const localPlayerId =
-    "localPlayerId" in liveSession ? liveSession.localPlayerId : "local-player";
-
-  for (const participant of liveSession.participants) {
-    const preferredIndex =
-      participant.seatIndex ?? seats.findIndex((seat) => seat.kind === "open");
-    if (preferredIndex < 0 || preferredIndex >= seats.length) {
-      continue;
-    }
-
-    const isNpc = participant.playerId.startsWith("npc-seat-");
-    seats[preferredIndex] = {
-      seatIndex: preferredIndex + 1,
-      label:
-        participant.playerId === localPlayerId
-          ? "You"
-          : participant.displayName,
-      detail: isNpc
-        ? "(AI) · Always ready"
-        : participant.seatIndex === null
-          ? `${participant.participantState} · ${participant.connectionState} · awaiting seat`
-          : participant.isHost
-            ? `Host · ${participant.connectionState}`
-            : participant.connectionState,
-      kind: participant.seatIndex === null ? "pending" : "host",
-      isLocal: participant.playerId === localPlayerId,
-      ready: isNpc ? true : participant.isReady,
-      isNpc,
-    };
-  }
-
-  return seats;
-}
-
-const LOBBY_POLL_NORMAL_MS = 5000;
-const LOBBY_POLL_SLOW_MS = 10000;
-const LOBBY_BACKOFF_THRESHOLD = 3;
-const LOBBY_ERROR_LIMIT = 10;
 
 export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
   const navigate = useNavigate();
   const { setLastEndedSession } = useDesktopShell();
+  const {
+    hostSession,
+    clientSession,
+    sessionStatus,
+    hostRecoveryError,
+    connectionSlow,
+    clientReconnecting,
+    clientTerminated,
+    setHostSession,
+    setClientSession,
+  } = useLobbySession(navigate);
+
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
-  const [hostSession, setHostSession] = useState<HostSessionStatus | null>(
-    null,
-  );
-  const [clientSession, setClientSession] =
-    useState<ClientSessionStatus | null>(null);
-  const [sessionStatus, setSessionStatus] = useState<"loading" | "ready">(
-    "loading",
-  );
   const [lobbyError, setLobbyError] = useState<string | null>(null);
-  const [hostRecoveryError, setHostRecoveryError] = useState<string | null>(
-    null,
-  );
-  const [connectionSlow, setConnectionSlow] = useState(false);
-  const [clientReconnecting, setClientReconnecting] = useState(false);
-  const [clientTerminated, setClientTerminated] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<
     boolean | null
   >(null);
-  const hostSessionRef = useRef<HostSessionStatus | null>(null);
-  const consecutiveErrorsRef = useRef(0);
-
-  useEffect(() => {
-    hostSessionRef.current = hostSession;
-  }, [hostSession]);
-
-  useEffect(() => {
-    let active = true;
-    let timeoutId: number | undefined;
-
-    const scheduleNext = (delayMs: number) => {
-      if (!active) {
-        return;
-      }
-
-      timeoutId = window.setTimeout(refresh, delayMs);
-    };
-
-    const refresh = () => {
-      void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
-        .then(([nextHostSession, nextClientSession]) => {
-          if (!active) {
-            return;
-          }
-
-          consecutiveErrorsRef.current = 0;
-          setConnectionSlow(false);
-
-          const previousHostSession = hostSessionRef.current;
-
-          if (
-            previousHostSession &&
-            previousHostSession.phase !== "running" &&
-            !nextHostSession &&
-            !nextClientSession
-          ) {
-            setHostRecoveryError(
-              "Hosting stopped before the table went live. Start hosting again or return home.",
-            );
-          } else if (nextHostSession) {
-            setHostRecoveryError(null);
-          }
-
-          setHostSession(nextHostSession);
-          setClientSession(nextClientSession);
-          setSessionStatus("ready");
-
-          if (nextClientSession) {
-            if (nextClientSession.terminated) {
-              setClientTerminated(true);
-              setClientReconnecting(false);
-              return; // stop polling — session is terminal
-            }
-            setClientReconnecting(nextClientSession.reconnecting);
-          } else {
-            setClientReconnecting(false);
-            setClientTerminated(false);
-          }
-
-          scheduleNext(LOBBY_POLL_NORMAL_MS);
-        })
-        .catch(() => {
-          if (!active) {
-            return;
-          }
-
-          consecutiveErrorsRef.current += 1;
-
-          if (consecutiveErrorsRef.current >= LOBBY_ERROR_LIMIT) {
-            navigate("/errors", { replace: true });
-            return;
-          }
-
-          // Keep the last-known session on screen and surface the "connection
-          // slow" banner instead of dropping to the no-session/recovery screen on
-          // a transient poll failure. A genuine host-stop is detected on the
-          // success path (the poll resolves to null), so a thrown error here is
-          // treated as recoverable degradation, not a stopped session.
-          setConnectionSlow(
-            consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD,
-          );
-          setSessionStatus("ready");
-          scheduleNext(
-            consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD
-              ? LOBBY_POLL_SLOW_MS
-              : LOBBY_POLL_NORMAL_MS,
-          );
-        });
-    };
-
-    refresh();
-
-    // Subscribe to session-update events for immediate refresh on state changes.
-    // The fallback poll above catches any missed events.
-    const unlistenPromise = onSessionUpdate(() => {
-      if (active) {
-        void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
-          .then(([nextHostSession, nextClientSession]) => {
-            if (!active) {
-              return;
-            }
-
-            consecutiveErrorsRef.current = 0;
-            setConnectionSlow(false);
-
-            const previousHostSession = hostSessionRef.current;
-            if (
-              previousHostSession &&
-              previousHostSession.phase !== "running" &&
-              !nextHostSession &&
-              !nextClientSession
-            ) {
-              setHostRecoveryError(
-                "Hosting stopped before the table went live. Start hosting again or return home.",
-              );
-            } else if (nextHostSession) {
-              setHostRecoveryError(null);
-            }
-
-            setHostSession(nextHostSession);
-            setClientSession(nextClientSession);
-            setSessionStatus("ready");
-
-            if (nextClientSession) {
-              setClientTerminated(nextClientSession.terminated);
-              setClientReconnecting(
-                !nextClientSession.terminated && nextClientSession.reconnecting,
-              );
-            } else {
-              setClientReconnecting(false);
-              setClientTerminated(false);
-            }
-          })
-          .catch(() => {
-            // Ignore event-driven refresh errors; the fallback poll handles recovery
-          });
-      }
-    });
-
-    return () => {
-      active = false;
-      window.clearTimeout(timeoutId);
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [navigate]);
 
   const liveSession = hostSession ?? clientSession;
   const liveLocalPlayerId = hostSession
