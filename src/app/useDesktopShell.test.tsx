@@ -13,7 +13,9 @@ function ShellHookProbe() {
     recentJoinPayloads,
     persistedHandHistoryCount,
     startupWarnings,
+    lastEndedSession,
     setDisplayName,
+    setLastEndedSession,
     updateHostDraft,
     resetHostDraft,
     setJoinPayloadDraft,
@@ -30,6 +32,12 @@ function ShellHookProbe() {
       <p>Recent: {recentJoinPayloads.join(",") || "empty"}</p>
       <p>History count: {persistedHandHistoryCount}</p>
       <p>Warnings: {startupWarnings.join(" | ") || "none"}</p>
+      <p>
+        Last session:{" "}
+        {lastEndedSession
+          ? `${lastEndedSession.role}:${lastEndedSession.tournamentName}`
+          : "none"}
+      </p>
       <button onClick={() => setDisplayName("Alice")} type="button">
         Set Alice
       </button>
@@ -55,6 +63,17 @@ function ShellHookProbe() {
       </button>
       <button onClick={() => clearRecentJoinPayloads()} type="button">
         Clear recents
+      </button>
+      <button
+        onClick={() =>
+          setLastEndedSession({ role: "client", tournamentName: "Night Turbo" })
+        }
+        type="button"
+      >
+        Set last ended
+      </button>
+      <button onClick={() => setLastEndedSession(null)} type="button">
+        Clear last ended
       </button>
     </div>
   );
@@ -269,5 +288,35 @@ describe("useDesktopShell", () => {
     renderShellHook(hostBootstrap);
     expect(screen.getByText("Display: Alice")).toBeTruthy();
     expect(screen.getByText("Recent: pkr1_alpha")).toBeTruthy();
+  });
+
+  it("persists lastEndedSession and restores it on remount", () => {
+    const bootstrap = createBootstrap({
+      instanceId: "persist-les",
+      instanceLabel: "Persist LES",
+      storageNamespace: "desktop-poker:persist-les",
+    });
+
+    const { unmount } = renderShellHook(bootstrap);
+
+    expect(screen.getByText("Last session: none")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set last ended" }));
+    expect(
+      screen.getByText("Last session: client:Night Turbo"),
+    ).toBeTruthy();
+    expect(
+      localStorage.getItem("desktop-poker:persist-les:last-ended-session"),
+    ).toContain("Night Turbo");
+
+    unmount();
+
+    renderShellHook(bootstrap);
+    expect(
+      screen.getByText("Last session: client:Night Turbo"),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear last ended" }));
+    expect(screen.getByText("Last session: none")).toBeTruthy();
   });
 });

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CircleHelp, Flag, History, LogIn, Settings } from "lucide-react";
+import { CircleHelp, Flag, History, LogIn, Settings, WifiOff } from "lucide-react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -11,11 +11,13 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
     recentJoinPayloads,
     persistedHandHistoryCount,
     startupWarnings,
+    lastEndedSession,
   } = useDesktopShell();
   const hasSavedProgress =
     recentJoinPayloads.length > 0 ||
     persistedHandHistoryCount > 0 ||
-    startupWarnings.length > 0;
+    startupWarnings.length > 0 ||
+    Boolean(lastEndedSession);
   const hasLaunchPayload = Boolean(
     bootstrap.launchJoinPayload || bootstrap.launchJoinPayloadError,
   );
@@ -122,6 +124,35 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                       <span className="button-content">
                         <LogIn className="button-icon" strokeWidth={1.9} />
                         <span>Open</span>
+                      </span>
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
+              {lastEndedSession ? (
+                <article className="list-panel compact-list-panel">
+                  <div>
+                    <strong>
+                      {lastEndedSession.role === "host"
+                        ? "Session closed"
+                        : "Left session"}
+                    </strong>
+                    <p className="field-hint">
+                      {lastEndedSession.tournamentName}
+                    </p>
+                  </div>
+                  <div className="button-row">
+                    <Link
+                      className="secondary-button"
+                      to={lastEndedSession.role === "client" ? "/join" : "/host"}
+                    >
+                      <span className="button-content">
+                        <WifiOff className="button-icon" strokeWidth={1.9} />
+                        <span>
+                          {lastEndedSession.role === "client"
+                            ? "Rejoin"
+                            : "New session"}
+                        </span>
                       </span>
                     </Link>
                   </div>

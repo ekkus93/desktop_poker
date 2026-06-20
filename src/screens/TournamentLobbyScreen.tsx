@@ -15,6 +15,7 @@ import {
   type ClientSessionStatus,
   type HostSessionStatus,
 } from "../api/desktop";
+import { useDesktopShell } from "../app/useDesktopShell";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
@@ -86,6 +87,7 @@ const LOBBY_ERROR_LIMIT = 10;
 export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   void bootstrap;
   const navigate = useNavigate();
+  const { setLastEndedSession } = useDesktopShell();
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
   const [hostSession, setHostSession] = useState<HostSessionStatus | null>(
     null,
@@ -472,9 +474,17 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
 
     try {
       if (hostSession) {
+        setLastEndedSession({
+          role: "host",
+          tournamentName: hostSession.tournamentName,
+        });
         await stopHostSession();
         setHostSession(null);
       } else if (clientSession) {
+        setLastEndedSession({
+          role: "client",
+          tournamentName: clientSession.tournamentName,
+        });
         await leaveClientSession();
         setClientSession(null);
       }

@@ -222,7 +222,7 @@ The work in this file is done only when all of the following are true:
 - [x] Decide exactly what happens if the app restarts while hosting
 - [x] Decide exactly what happens if the app restarts while joined as a client
 - [x] Implement the chosen restart behavior explicitly rather than letting stale boot state simulate recovery
-- [ ] Ensure the startup UI communicates whether the prior live session is gone, reconnectable, or intentionally not resumed
+- [x] Ensure the startup UI communicates whether the prior live session is gone, reconnectable, or intentionally not resumed
 
 ### 9.3 History and post-game persistence
 - [x] Ensure persisted hand history comes from real completed or in-progress live sessions

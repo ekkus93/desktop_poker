@@ -20,6 +20,11 @@ import {
   readPersistedHandHistoryWithStatus,
 } from "./persistence";
 
+export type LastEndedSession = {
+  role: "host" | "client";
+  tournamentName: string;
+};
+
 type DesktopShellContextValue = {
   bootstrap: DesktopBootstrapState;
   displayName: string;
@@ -28,9 +33,11 @@ type DesktopShellContextValue = {
   recentJoinPayloads: string[];
   persistedHandHistoryCount: number;
   startupWarnings: string[];
+  lastEndedSession: LastEndedSession | null;
   wasHost: boolean;
   tableSidePanelOpen: boolean;
   setDisplayName: (value: string) => void;
+  setLastEndedSession: (value: LastEndedSession | null) => void;
   setWasHost: (value: boolean) => void;
   setTableSidePanelOpen: (value: boolean) => void;
   updateHostDraft: (patch: Partial<HostDraft>) => void;
@@ -107,6 +114,16 @@ export function DesktopShellProvider({
     () => readPersistedHandHistoryWithStatus(bootstrap.storageNamespace),
     [bootstrap.storageNamespace],
   );
+  const storedLastEndedSession = useMemo(
+    () =>
+      readStoredValueWithStatus<LastEndedSession | null>(
+        localStorage.getItem(
+          storageKey(bootstrap.storageNamespace, "last-ended-session"),
+        ),
+        null,
+      ),
+    [bootstrap.storageNamespace],
+  );
   const startupWarnings = useMemo(() => {
     const warnings = new Set<string>();
 
@@ -137,6 +154,9 @@ export function DesktopShellProvider({
   ]);
 
   const [displayName, setDisplayName] = useState(() => storedDisplayName.value);
+  const [lastEndedSession, setLastEndedSessionState] = useState<LastEndedSession | null>(
+    () => storedLastEndedSession.value,
+  );
   const [wasHost, setWasHost] = useState(false);
   const [tableSidePanelOpen, setTableSidePanelOpen] = useState(false);
   const [hostDraft, setHostDraft] = useState(() =>
@@ -185,6 +205,7 @@ export function DesktopShellProvider({
     );
   }, [bootstrap.storageNamespace, recentJoinPayloads]);
 
+
   const value = useMemo<DesktopShellContextValue>(
     () => ({
       bootstrap,
@@ -194,9 +215,17 @@ export function DesktopShellProvider({
       recentJoinPayloads,
       persistedHandHistoryCount,
       startupWarnings,
+      lastEndedSession,
       wasHost,
       tableSidePanelOpen,
       setDisplayName,
+      setLastEndedSession: (v) => {
+        localStorage.setItem(
+          storageKey(bootstrap.storageNamespace, "last-ended-session"),
+          JSON.stringify(v),
+        );
+        setLastEndedSessionState(v);
+      },
       setWasHost,
       setTableSidePanelOpen,
       updateHostDraft: (patch) => {
@@ -232,6 +261,7 @@ export function DesktopShellProvider({
       displayName,
       hostDraft,
       joinPayloadDraft,
+      lastEndedSession,
       persistedHandHistoryCount,
       recentJoinPayloads,
       startupWarnings,
