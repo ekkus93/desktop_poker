@@ -488,75 +488,94 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
         profile: None,
     }];
 
-    // Wait for the first action window to open.
+    // Advance until the NPC has the action window. If the human has the window,
+    // have the human call so the action can advance to the NPC.
     let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
+    let npc_window_state = loop {
         let state = host.authoritative_state().expect("state");
-        if state
+        if let Some(window) = state
             .current_hand
             .as_ref()
             .and_then(|h| h.action_window.as_ref())
-            .is_some()
         {
-            break;
+            if window.player_id == npc_id {
+                // NPC has the window — break with this state.
+                break state;
+            }
+            // Human has the window — use the first legal action to advance.
+            let advance_action = window
+                .legal_actions
+                .first()
+                .copied()
+                .unwrap_or(ActionType::Call);
+            let _ = host.submit_action(
+                human_id,
+                window.action_window_id.clone(),
+                advance_action,
+                None,
+            );
         }
-        assert!(Instant::now() < deadline, "action window never opened");
+        assert!(
+            Instant::now() < deadline,
+            "NPC action window never opened after human calls"
+        );
         thread::sleep(Duration::from_millis(20));
-    }
+    };
 
-    // Consume the window ourselves so a subsequent submit is stale.
-    let state = host.authoritative_state().expect("state for consume");
-    if let Some(window) = state
+    // Capture the NPC's window ID from the state before consuming it.
+    let npc_window = npc_window_state
         .current_hand
         .as_ref()
         .and_then(|h| h.action_window.as_ref())
-    {
-        // Only consume it if it belongs to the NPC — otherwise the human
-        // has the window and it doesn't matter for this test.
-        if window.player_id == npc_id {
-            // Submit a valid action on behalf of the NPC to close the window.
-            let _ = host.submit_action(
-                &npc_id,
-                window.action_window_id.clone(),
-                ActionType::Fold,
-                None,
-            );
-            thread::sleep(Duration::from_millis(50));
+        .expect("NPC has action window");
+    assert_eq!(
+        npc_window.player_id, npc_id,
+        "stale-window test: expected NPC window"
+    );
 
-            // Now call try_npc_action again with the already-consumed state.
-            // It should detect the stale window and return false — NOT panic or
-            // succeed.
-            let stop = Arc::new(AtomicBool::new(false));
-            let api_key_holder = Arc::new(Mutex::new(None));
-            let tilt = Arc::new(Mutex::new(BTreeMap::new()));
-            let fallback = Arc::new(Mutex::new(None));
-            let mut runner_state = crate::npc::runner::RunnerState::new(
-                &npc_configs,
-                Arc::clone(&tilt),
-                Arc::clone(&fallback),
-                Arc::new(Mutex::new(None)),
-            );
+    // Consume the NPC's window using its first legal action so the subsequent
+    // try_npc_action sees a stale state.
+    let consume_action = npc_window
+        .legal_actions
+        .first()
+        .copied()
+        .unwrap_or(ActionType::Fold);
+    let consume_result = host.submit_action(
+        &npc_id,
+        npc_window.action_window_id.clone(),
+        consume_action,
+        None,
+    );
+    assert!(
+        consume_result.is_ok(),
+        "failed to consume NPC window before stale test: {consume_result:?}"
+    );
+    thread::sleep(Duration::from_millis(50));
 
-            // Re-read the stale state (window was consumed above).
-            let stale_state = host.authoritative_state().expect("stale state");
-            let outcome = try_npc_action(
-                &host,
-                &stale_state,
-                &npc_configs,
-                &stop,
-                &api_key_holder,
-                &mut runner_state,
-            );
-            // Either the window is gone (StaleWindow/NoOpportunity) or it was
-            // a different player's turn (NotNpcTurn). Either way: not Success.
-            assert!(
-                !outcome.acted(),
-                "try_npc_action must not report Success for a stale/consumed window; got {outcome:?}"
-            );
-        }
-    }
-    // If the window belonged to the human we cannot force a stale rejection
-    // from the NPC side; the test still passed because no panic occurred.
+    let stop = Arc::new(AtomicBool::new(false));
+    let api_key_holder = Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback = Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &npc_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+        Arc::new(Mutex::new(None)),
+    );
+
+    // Call try_npc_action with the old (pre-consume) state — window is stale.
+    let outcome = try_npc_action(
+        &host,
+        &npc_window_state,
+        &npc_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+    assert!(
+        !outcome.acted(),
+        "try_npc_action must not report acted() for a stale/consumed window; got {outcome:?}"
+    );
 }
 
 #[test]

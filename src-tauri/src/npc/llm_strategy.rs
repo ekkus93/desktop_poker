@@ -271,7 +271,11 @@ mod tests {
 
         let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
         assert!(snap.legal_actions.contains(&at));
-        assert!(fallback.is_some(), "timeout must set a fallback reason");
+        assert_eq!(
+            fallback,
+            Some(crate::npc::LlmFallbackReason::Timeout),
+            "timeout must produce LlmFallbackReason::Timeout, not {fallback:?}"
+        );
     }
 
     #[test]

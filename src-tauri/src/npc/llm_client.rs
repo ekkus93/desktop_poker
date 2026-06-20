@@ -405,7 +405,9 @@ mod tests {
     }
 
     #[test]
-    fn timeout_returns_timeout_or_network_error() {
+    fn timeout_triggers_timeout_error() {
+        // The mock server delays 3s; the client is set to 1s timeout.
+        // reqwest maps this to is_timeout() == true → LlmError::Timeout.
         let server = MockServer::start();
         server.mock(|when, then| {
             when.method(POST).path("/v1/messages");
@@ -424,6 +426,9 @@ mod tests {
         let client =
             LlmClient::with_timeout_secs(cfg, 1, server.base_url()).expect("test client builds");
         let err = client.complete("system", "user").unwrap_err();
-        assert!(matches!(err, LlmError::Timeout | LlmError::Network(_)));
+        assert!(
+            matches!(err, LlmError::Timeout),
+            "expected LlmError::Timeout from a 3s delay with 1s client timeout; got {err:?}"
+        );
     }
 }
