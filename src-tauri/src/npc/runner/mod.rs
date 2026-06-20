@@ -44,12 +44,15 @@ pub(crate) struct RunnerState {
     pre_hand_stacks: BTreeMap<String, u32>,
     /// Shared tilt level snapshot for the debug inspector (player_id → "none"/"mild"/"full").
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+    /// Most recent LLM fallback event; written by the runner, read by the debug inspector.
+    shared_fallback: Arc<Mutex<Option<String>>>,
 }
 
 impl RunnerState {
     pub(crate) fn new(
         npc_configs: &[NpcConfig],
         shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+        shared_fallback: Arc<Mutex<Option<String>>>,
     ) -> Self {
         let session_histories = npc_configs
             .iter()
@@ -62,20 +65,22 @@ impl RunnerState {
             last_hand_result_count: 0,
             pre_hand_stacks: BTreeMap::new(),
             shared_tilt,
+            shared_fallback,
         }
     }
 }
 
 /// Start the NPC auto-action background thread.
 ///
-/// Returns the join handle. The caller supplies `shared_tilt` and may read from it
-/// at any time to observe current tilt levels (e.g. for the debug inspector).
+/// Returns the join handle. The caller supplies `shared_tilt` and `shared_fallback` and may
+/// read from them at any time (e.g. for the debug inspector).
 pub fn start_npc_runner(
     host_server: Arc<HostServer>,
     npc_configs: Vec<NpcConfig>,
     stop: Arc<AtomicBool>,
     api_key_holder: Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+    shared_fallback: Arc<Mutex<Option<String>>>,
 ) -> thread::JoinHandle<()> {
     thread::Builder::new()
         .name("npc-runner".into())
@@ -86,6 +91,7 @@ pub fn start_npc_runner(
                 &stop,
                 &api_key_holder,
                 shared_tilt,
+                shared_fallback,
             );
         })
         .expect("failed to spawn npc-runner thread")
@@ -98,7 +104,15 @@ pub fn run_npc_loop(
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
 ) {
     let shared_tilt = Arc::new(Mutex::new(BTreeMap::new()));
-    npc_runner_loop(host_server, npc_configs, stop, api_key_holder, shared_tilt);
+    let shared_fallback = Arc::new(Mutex::new(None));
+    npc_runner_loop(
+        host_server,
+        npc_configs,
+        stop,
+        api_key_holder,
+        shared_tilt,
+        shared_fallback,
+    );
 }
 
 fn npc_runner_loop(
@@ -107,9 +121,10 @@ fn npc_runner_loop(
     stop: &AtomicBool,
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+    shared_fallback: Arc<Mutex<Option<String>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
-    let mut runner_state = RunnerState::new(npc_configs, shared_tilt);
+    let mut runner_state = RunnerState::new(npc_configs, shared_tilt, shared_fallback);
 
     loop {
         if stop.load(Ordering::SeqCst) {
@@ -471,10 +486,14 @@ pub(crate) fn try_npc_action(
                 choose_llm_action(&LlmClient::new(cfg), profile, &snapshot);
 
             if let Some(reason) = &fallback_reason {
-                eprintln!(
-                    "[npc-runner] LLM fallback for {} (profile={}, provider={}): {reason}",
-                    fresh_window.player_id, profile.id, provider_label,
+                let msg = format!(
+                    "{}: {reason} (profile={}, provider={provider_label})",
+                    fresh_window.player_id, profile.id,
                 );
+                eprintln!("[npc-runner] LLM fallback — {msg}");
+                if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                    *g = Some(msg);
+                }
             }
 
             // Record the action into the hand log.
@@ -491,6 +510,15 @@ pub(crate) fn try_npc_action(
 
             (llm_action, llm_raise)
         } else {
+            // Profile is set but no usable provider config is available.
+            let msg = format!(
+                "{}: ProviderNotConfigured (profile={})",
+                fresh_window.player_id, profile.id,
+            );
+            eprintln!("[npc-runner] LLM fallback — {msg}");
+            if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                *g = Some(msg);
+            }
             rule_based_decision(
                 style,
                 hole_cards,
@@ -572,6 +600,8 @@ pub struct NpcRunnerGuard {
     handle: Mutex<Option<thread::JoinHandle<()>>>,
     /// Shared tilt level snapshot; written by the runner, readable by the host session.
     pub tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
+    /// Most recent LLM fallback event; written by the runner, readable by the debug inspector.
+    pub last_llm_fallback: Arc<Mutex<Option<String>>>,
 }
 
 impl NpcRunnerGuard {
@@ -579,11 +609,13 @@ impl NpcRunnerGuard {
         stop: Arc<AtomicBool>,
         handle: thread::JoinHandle<()>,
         tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
+        last_llm_fallback: Arc<Mutex<Option<String>>>,
     ) -> Self {
         Self {
             stop,
             handle: Mutex::new(Some(handle)),
             tilt_levels,
+            last_llm_fallback,
         }
     }
 }

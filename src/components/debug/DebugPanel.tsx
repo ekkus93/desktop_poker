@@ -288,6 +288,14 @@ export function DebugPanel({
         </SectionCard>
       ) : null}
 
+      {debugState?.lastLlmFallback ? (
+        <SectionCard title="Last LLM fallback" data-testid="llm-fallback-section">
+          <p data-testid="llm-fallback-reason" className="inline-banner warning">
+            {debugState.lastLlmFallback}
+          </p>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Rust backend module map">
         <ul>
           {bootstrap.backendModules.map((moduleInfo) => (

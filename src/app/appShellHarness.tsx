@@ -406,6 +406,7 @@ function setupAppShellMocks() {
     launchHint:
       "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
     npcTiltLevels: {},
+    lastLlmFallback: null,
   });
   mockedLaunchAdditionalClientInstance.mockResolvedValue("debug-child-1");
   mockedGetTableView.mockImplementation(async (viewerMode) =>

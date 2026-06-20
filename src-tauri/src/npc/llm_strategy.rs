@@ -46,11 +46,24 @@ pub fn choose_llm_action(
         Ok(text) => match parse_llm_response(&text) {
             Ok(response) => {
                 let (at, amt) = validate_llm_action(&response, snapshot);
-                // validate_llm_action returns the first legal action on invalid input;
-                // treat that as an InvalidAction fallback if the response action wasn't
-                // directly legal (we can't easily distinguish here, so trust the caller
-                // to surface this if needed).
-                (at, amt, None)
+                // Detect whether the LLM response contained an action that wasn't in
+                // legal_actions. validate_llm_action already corrected it; we surface
+                // InvalidAction so the caller can log or display the fallback.
+                let action_was_legal = {
+                    let normalized = response.action.to_lowercase().replace(['_', '-'], "");
+                    snapshot.legal_actions.iter().any(|la| {
+                        let la_str = format!("{la:?}").to_lowercase();
+                        normalized == la_str
+                            || (normalized == "bet" && la_str == "raise")
+                            || (normalized == "raise" && la_str == "bet")
+                    })
+                };
+                let fallback = if action_was_legal {
+                    None
+                } else {
+                    Some(LlmFallbackReason::InvalidAction)
+                };
+                (at, amt, fallback)
             }
             Err(e) => {
                 eprintln!("[llm_strategy] parse error: {e}; falling back to rule-based");
@@ -366,6 +379,37 @@ mod tests {
         let (at, _, _fallback) = choose_llm_action(&client, &profile, &snap);
         // "check" not legal → validate_llm_action → first_check_or_call → Call
         assert!(matches!(at, ActionType::Call | ActionType::Fold));
+    }
+
+    #[test]
+    fn illegal_action_from_llm_sets_invalid_action_fallback_reason() {
+        use httpmock::prelude::*;
+        let server = MockServer::start();
+        server.mock(|when, then| {
+            when.method(POST).path("/v1/messages");
+            then.status(200)
+                .header("content-type", "application/json")
+                // "check" is not in legal_actions (fold/call/raise only)
+                .json_body(serde_json::json!({
+                    "content": [{"type": "text", "text": "{\"action\":\"check\",\"amount\":null}"}],
+                    "model": "claude-haiku-4-5-20251001",
+                    "stop_reason": "end_turn"
+                }));
+        });
+        let url = server.base_url();
+        std::mem::forget(server);
+        let client = LlmClient::new(anthropic_cfg("test-key")).with_endpoint_override(url);
+
+        let profile = make_profile("balanced");
+        let mut snap = snap_with_raise();
+        snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
+
+        let (_, _, fallback_reason) = choose_llm_action(&client, &profile, &snap);
+        assert_eq!(
+            fallback_reason,
+            Some(LlmFallbackReason::InvalidAction),
+            "LLM returning an illegal action should set InvalidAction fallback reason"
+        );
     }
 }
 

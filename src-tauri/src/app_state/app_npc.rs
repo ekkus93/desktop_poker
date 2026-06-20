@@ -119,17 +119,20 @@ impl DesktopAppState {
 
         let stop = Arc::new(AtomicBool::new(false));
         let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
+        let last_llm_fallback = Arc::new(Mutex::new(None));
         let runner_handle = crate::npc::runner::start_npc_runner(
             Arc::clone(&session.host_server),
             npc_configs,
             Arc::clone(&stop),
             Arc::clone(&self.llm_provider),
             Arc::clone(&tilt_levels),
+            Arc::clone(&last_llm_fallback),
         );
         session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
             stop,
             runner_handle,
             tilt_levels,
+            last_llm_fallback,
         ));
 
         session.status()

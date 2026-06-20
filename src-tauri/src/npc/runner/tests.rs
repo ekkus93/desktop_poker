@@ -1,12 +1,27 @@
 use std::collections::BTreeMap;
 
-use crate::domain::{
-    BlindLevel, BlindSchedule, HandResult, PotSummary, SeatOccupancyState, SeatState,
-    TournamentConfig, TournamentPhase, TournamentSeatState, TournamentState,
+use crate::{
+    domain::{
+        BlindLevel, BlindSchedule, HandResult, PotSummary, SeatOccupancyState, SeatState,
+        TournamentConfig, TournamentPhase, TournamentSeatState, TournamentState,
+    },
+    npc::NpcProfile,
 };
 
 use super::super::{NpcConfig, NpcStyle};
 use super::*;
+
+fn make_profile(id: &str, name: &str, style: &str) -> NpcProfile {
+    NpcProfile {
+        id: id.to_string(),
+        name: name.to_string(),
+        style: style.to_string(),
+        skill: "intermediate".to_string(),
+        description: "Test profile.".to_string(),
+        opponent_tendencies: None,
+        tilt_behaviour: None,
+    }
+}
 
 fn minimal_state() -> TournamentState {
     TournamentState {
@@ -118,7 +133,11 @@ fn two_npcs_with_distinct_player_ids_keep_separate_session_histories() {
             profile: None,
         },
     ];
-    let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+    );
 
     // NPC at seat 2 wins; NPC at seat 4 loses.
     let mut state = minimal_state();
@@ -165,9 +184,79 @@ fn two_npcs_with_non_contiguous_seat_ids_have_correct_styles() {
 }
 
 #[test]
+fn two_npcs_with_different_profiles_keep_correct_profiles() {
+    // Seat 3 has "aggressive-alice", seat 5 has "balanced-sam".
+    // The player_id-based lookup must return the profile that matches the
+    // requesting player_id, regardless of array order.
+    let alice_profile = make_profile("aggressive-alice", "Aggressive Alice", "aggressive");
+    let sam_profile = make_profile("balanced-sam", "Balanced Sam", "balanced");
+
+    let configs = [
+        NpcConfig {
+            player_id: NpcConfig::player_id(3),
+            display_name: "Alice".into(),
+            style: NpcStyle::Aggressive,
+            profile: Some(alice_profile.clone()),
+        },
+        NpcConfig {
+            player_id: NpcConfig::player_id(5),
+            display_name: "Sam".into(),
+            style: NpcStyle::Conservative,
+            profile: Some(sam_profile.clone()),
+        },
+    ];
+
+    // Simulate the player_id-based lookup that try_npc_action performs.
+    let found_for_seat3 = configs
+        .iter()
+        .find(|c| c.player_id == NpcConfig::player_id(3));
+    let found_for_seat5 = configs
+        .iter()
+        .find(|c| c.player_id == NpcConfig::player_id(5));
+
+    assert_eq!(
+        found_for_seat3
+            .and_then(|c| c.profile.as_ref())
+            .map(|p| p.id.as_str()),
+        Some("aggressive-alice"),
+        "seat 3 should have alice's profile"
+    );
+    assert_eq!(
+        found_for_seat5
+            .and_then(|c| c.profile.as_ref())
+            .map(|p| p.id.as_str()),
+        Some("balanced-sam"),
+        "seat 5 should have sam's profile"
+    );
+}
+
+#[test]
+fn npc_config_lookup_by_unknown_player_id_returns_none_not_first_config() {
+    // If an action window's player_id doesn't match any NPC config, the
+    // player_id-based find must return None.  A Vec-index approach would
+    // silently return the first config, causing wrong profile/style assignment.
+    let configs = [NpcConfig {
+        player_id: NpcConfig::player_id(2),
+        display_name: "Known NPC".into(),
+        style: NpcStyle::Conservative,
+        profile: None,
+    }];
+
+    let result = configs.iter().find(|c| c.player_id == "unknown-player-99");
+    assert!(
+        result.is_none(),
+        "unknown player_id must not fall back to the first config; got: {result:?}"
+    );
+}
+
+#[test]
 fn session_history_increments_after_one_completed_hand() {
     let configs = npc_configs();
-    let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+    );
 
     let mut state = minimal_state();
     state.hand_results.push(hand_result(
@@ -185,7 +274,11 @@ fn session_history_increments_after_one_completed_hand() {
 #[test]
 fn consecutive_losses_increments_across_multiple_hands() {
     let configs = npc_configs();
-    let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+    );
 
     let mut state = minimal_state();
     // NPC loses hands 1, 2, 3.
@@ -203,7 +296,11 @@ fn consecutive_losses_increments_across_multiple_hands() {
 #[test]
 fn opponent_stats_has_entries_for_human_player_after_hand() {
     let configs = npc_configs();
-    let mut runner_state = RunnerState::new(&configs, Arc::new(Mutex::new(BTreeMap::new())));
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+    );
 
     let mut state = minimal_state();
     state

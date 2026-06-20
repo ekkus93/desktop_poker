@@ -39,6 +39,7 @@ function baseDebugState(
     launchHint:
       "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff.",
     npcTiltLevels: {},
+    lastLlmFallback: null,
     ...overrides,
   };
 }
@@ -152,5 +153,35 @@ describe("DebugPanel", () => {
 
     await screen.findByText("Rust backend module map");
     expect(screen.queryByTestId("npc-tilt-list")).toBeNull();
+  });
+
+  it("shows LLM fallback section when last_llm_fallback is set", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        lastLlmFallback:
+          "npc-seat-1: ProviderNotConfigured (profile=sharp-pat)",
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    const reason = await screen.findByTestId("llm-fallback-reason");
+    expect(reason.textContent).toContain("ProviderNotConfigured");
+    expect(reason.textContent).toContain("npc-seat-1");
+  });
+
+  it("hides LLM fallback section when last_llm_fallback is null", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({ lastLlmFallback: null }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByText("Rust backend module map");
+    expect(screen.queryByTestId("llm-fallback-section")).toBeNull();
   });
 });

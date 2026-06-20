@@ -585,7 +585,54 @@ fn bootstrap_llm_api_key_configured_reflects_clear_without_restart() {
     );
 }
 
-// P0.2 — missing and corrupt explicit NPC profiles fail loudly with no NPC created.
+// P0.2 — explicit NPC profiles: happy-path, missing, and corrupt all behave correctly.
+
+#[test]
+fn add_npc_players_succeeds_with_valid_explicit_profile() {
+    let host_state = DesktopAppState::detect();
+    host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    let profiles_dir = crate::npc::profile_store::profiles_dir(&host_state.app_data_dir);
+    std::fs::create_dir_all(&profiles_dir).expect("profiles dir");
+    std::fs::write(
+        profiles_dir.join("sharp-pat.md"),
+        "---\nname: Sharp Pat\nstyle: balanced\n---\nA sharp balanced player.",
+    )
+    .expect("write valid profile");
+
+    let status = host_state
+        .add_npc_players(AddNpcPlayersRequest {
+            npcs: vec![NpcConfigRequest {
+                display_name: "Sharp Pat".to_string(),
+                style: NpcStyle::Conservative,
+                profile_id: Some("sharp-pat".to_string()),
+            }],
+        })
+        .expect("adding NPC with valid profile should succeed");
+
+    assert_eq!(
+        status.participants.len(),
+        2,
+        "host and NPC should both be seated after valid profile load"
+    );
+
+    // Verify the runner was started (it is only started when at least one NPC is configured).
+    let runner_present = host_state
+        .host_session
+        .lock()
+        .expect("host session lock")
+        .as_ref()
+        .is_some_and(|s| s.npc_runner.is_some());
+    assert!(
+        runner_present,
+        "NPC runner should be active after successful add"
+    );
+}
 
 #[test]
 fn add_npc_players_fails_loudly_when_explicit_profile_is_missing() {
@@ -763,4 +810,35 @@ fn client_ready_toggle_times_out_and_returns_error_when_host_does_not_confirm() 
             );
         }
     }
+}
+
+// P0.5 — table action returns an explicit error; never silently succeeds without a game in progress.
+
+#[test]
+fn client_table_action_returns_explicit_error_when_no_action_window_is_open() {
+    let host_state = DesktopAppState::detect();
+    let host_status = host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    let client_state = DesktopAppState::detect();
+    client_state
+        .join_host_session(sample_join_host_session_request(&host_status.invite))
+        .expect("client joins");
+
+    // No tournament has started yet — there is no open action window.
+    // The command must return an explicit descriptive error, not a silent no-op.
+    let err = client_state
+        .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::Fold, None)
+        .expect_err("table action with no open window must fail");
+
+    assert!(
+        err.contains("no open action window")
+            || err.contains("no active client session")
+            || err.contains("action tray"),
+        "error should describe why the action failed; got: {err}"
+    );
 }

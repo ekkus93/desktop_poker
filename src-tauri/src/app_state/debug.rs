@@ -129,6 +129,7 @@ impl DebugTableRuntime {
             launch_hint: "Spawn another debug client with its own storage namespace, or attach a copied pkr1_ payload to exercise local multi-instance join handoff."
                 .to_string(),
             npc_tilt_levels: std::collections::BTreeMap::new(),
+            last_llm_fallback: None,
         })
     }
 

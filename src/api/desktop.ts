@@ -274,6 +274,8 @@ export type DebugInspectorState = {
   launchHint: string;
   /** Maps NPC player_id → tilt level ("none", "mild", "full"). Empty when no host session. */
   npcTiltLevels: Record<string, string>;
+  /** Most recent LLM fallback event, or null if none occurred this session. */
+  lastLlmFallback: string | null;
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";

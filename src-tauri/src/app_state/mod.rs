@@ -218,6 +218,9 @@ pub struct DebugInspectorState {
     /// Maps NPC player_id → tilt level string ("none", "mild", "full").
     /// Only populated when debug tools are enabled and a host session is active.
     pub npc_tilt_levels: std::collections::BTreeMap<String, String>,
+    /// Most recent LLM fallback event for any NPC, if any occurred this session.
+    /// Format: "<player_id>: <reason>". Cleared when a new game starts.
+    pub last_llm_fallback: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]

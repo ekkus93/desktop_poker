@@ -202,12 +202,14 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
     let stop = Arc::new(AtomicBool::new(false));
     let api_key_holder = Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback = Arc::new(Mutex::new(None));
     let runner = crate::npc::runner::start_npc_runner(
         Arc::clone(&host),
         npc_configs,
         Arc::clone(&stop),
         api_key_holder,
         tilt,
+        fallback,
     );
 
     // Play the hand: the human always checks/calls (never folds) so the hand
@@ -525,8 +527,12 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
             let stop = Arc::new(AtomicBool::new(false));
             let api_key_holder = Arc::new(Mutex::new(None));
             let tilt = Arc::new(Mutex::new(BTreeMap::new()));
-            let mut runner_state =
-                crate::npc::runner::RunnerState::new(&npc_configs, Arc::clone(&tilt));
+            let fallback = Arc::new(Mutex::new(None));
+            let mut runner_state = crate::npc::runner::RunnerState::new(
+                &npc_configs,
+                Arc::clone(&tilt),
+                Arc::clone(&fallback),
+            );
 
             // Re-read the stale state (window was consumed above).
             let stale_state = host.authoritative_state().expect("stale state");
@@ -548,4 +554,101 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
     }
     // If the window belonged to the human we cannot force a stale rejection
     // from the NPC side; the test still passed because no panic occurred.
+}
+
+#[test]
+fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provider_configured() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-npc-provider-missing", 89));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Profiled NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    // NPC has a profile but no provider config is supplied.
+    let profile = crate::npc::NpcProfile {
+        id: "sharp-pat".to_string(),
+        name: "Sharp Pat".to_string(),
+        style: "balanced".to_string(),
+        skill: "intermediate".to_string(),
+        description: "Test profile.".to_string(),
+        opponent_tendencies: None,
+        tilt_behaviour: None,
+    };
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Profiled NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: Some(profile),
+    }];
+
+    // Wait for the first action window to open.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let state = host.authoritative_state().expect("state");
+        if state
+            .current_hand
+            .as_ref()
+            .and_then(|h| h.action_window.as_ref())
+            .map(|w| w.player_id == npc_id)
+            .unwrap_or(false)
+        {
+            break;
+        }
+        if Instant::now() >= deadline {
+            // Human has the first window; not the NPC. Test passes vacuously.
+            return;
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+
+    let state = host.authoritative_state().expect("state for action");
+    let stop = Arc::new(AtomicBool::new(false));
+    // No provider config: the NPC should fall back to rule-based and record the reason.
+    let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
+        Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &npc_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+    );
+
+    try_npc_action(
+        &host,
+        &state,
+        &npc_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+
+    let recorded = fallback.lock().expect("fallback lock").clone();
+    assert!(
+        recorded.is_some(),
+        "shared_fallback must be set when NPC has a profile but no provider is configured"
+    );
+    let msg = recorded.unwrap();
+    assert!(
+        msg.contains("ProviderNotConfigured"),
+        "fallback message should mention ProviderNotConfigured; got: {msg}"
+    );
+    assert!(
+        msg.contains(&npc_id),
+        "fallback message should include player_id; got: {msg}"
+    );
 }

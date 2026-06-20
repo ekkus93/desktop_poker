@@ -169,12 +169,15 @@ impl DesktopAppState {
             })
             .debug_state(viewer_mode)?;
 
-        // Attach live tilt levels from the active host session's NPC runner.
+        // Attach live data from the active host session's NPC runner.
         if let Ok(host_session) = self.host_session.lock() {
             if let Some(session) = host_session.as_ref() {
                 if let Some(runner) = session.npc_runner.as_ref() {
                     if let Ok(tilt_map) = runner.tilt_levels.lock() {
                         state.npc_tilt_levels = tilt_map.clone();
+                    }
+                    if let Ok(fallback) = runner.last_llm_fallback.lock() {
+                        state.last_llm_fallback = fallback.clone();
                     }
                 }
             }
