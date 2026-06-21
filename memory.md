@@ -856,3 +856,35 @@ Completed across two session spans (context compaction between them):
   - `TournamentLobbyScreen.tsx` (504 lines): component with action handlers and JSX
   - `useLobbySession.ts` (240 lines): `LobbySeatView` type, `buildLiveSeats`, and `useLobbySession` hook with all polling/event-subscription logic
 - All 389 Rust tests and 231 frontend tests pass. Lint clean. Commit: `813586b`.
+
+## 2026-06-20T23:16:04Z - Claude Sonnet 4.6 - Complete DESKTOP_POKER_STABILIZATION_FIX2_TODO
+
+Worked through all 185 items in `docs/DESKTOP_POKER_STABILIZATION_FIX2_TODO.md` across two sessions (this one continuing from the prior compacted session). Summary of changes committed:
+
+**Group 1–3 (prior session, P0.1–P1.3):** Covered in compacted session. Key changes: stale `providerConfigError` fix, `ProviderConfigLoadState::KeyUnreadable` variant, load existing provider config into Settings form, `save_provider_settings_only` command, profiled NPC hand-log double-logging fix, NPC action error surfaced in `DebugInspectorState`, NPC runner thread panic→error propagation, provider mutex poisoning distinct from missing, fallback style consistency fix.
+
+**Group 4 (P1.4–P1.6, P1.7, P1.8, P2.1):**
+- P1.4: `list_profiles` now returns `NpcProfileListResult { profiles, errors }` instead of silently skipping bad files.
+- P1.5: `sessionStatusError` state with Retry button in `HostTournamentSetupScreen`.
+- P1.6: `profileListLoadError` state in host setup (catch no longer silent).
+- P1.7: Release builds use OS keychain (`keyring` crate) for API keys; debug builds use `llm-provider-key.dat`. Added `LlmProviderType::as_str()`.
+- P1.8: README updated — provider storage section, correct CSP (was claiming `connect-src 'none'`).
+- P2.1: Deleted `src-tauri/src/npc/api_key.rs` (dead module; all key ops in `provider_storage.rs`).
+
+**Group 5 (P2.2):**
+- Stale-window test rewritten to deterministically advance to NPC's action window instead of vacuously passing when human had the first window.
+- `timeout_returns_timeout_or_network_error` renamed to `timeout_triggers_timeout_error`, assertion narrowed from `Timeout | Network` to `Timeout` only.
+- LLM strategy timeout test now asserts `LlmFallbackReason::Timeout` exactly.
+
+**Group 6 (P2.3):**
+- `npm audit fix` resolved 8 of 9 vulnerabilities (34 packages updated).
+- Added `"overrides": { "esbuild": "^0.28.1" }` to force vite's nested esbuild out of the 0.27.3–0.28.0 vulnerable range.
+- Restored `@testing-library/dom` as a devDependency after audit fix dehoisted it.
+- 0 vulnerabilities remain.
+
+**Group 7 (P2.4):**
+- Final regression pass: 390 Rust tests, 236 frontend tests, lint, build — all pass with 0 warnings.
+- All 185 TODO items checked off.
+- Manual smoke-test sub-items noted as manual-only (not blocking CI).
+
+Final state: commits `d572f93` (Group 4) → `8f6c5c6` (Group 5) → `53ce22f` (Group 6) → `6e2a132` (Group 7). `master` branch is clean.
