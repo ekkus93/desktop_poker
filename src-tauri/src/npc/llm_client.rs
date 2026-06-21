@@ -519,13 +519,19 @@ mod tests {
 
     #[test]
     fn ollama_without_key_does_not_return_api_key_missing() {
-        // Ollama doesn't require a key; it should not return ApiKeyMissing.
-        // (It will fail with a network error since there's no server, but NOT ApiKeyMissing.)
+        // Ollama doesn't require a key; it must never return ApiKeyMissing.
+        // If a local Ollama daemon happens to be running the request may succeed (Ok is fine —
+        // a successful completion is the strongest proof there is no key requirement).
+        // If no daemon is running the result is a network error, which must not be ApiKeyMissing.
         let client = client_without_key(LlmProviderType::Ollama);
-        let err = client.complete("sys", "user").unwrap_err();
-        assert!(
-            !matches!(err, LlmError::ApiKeyMissing(_)),
-            "Ollama without key must not return ApiKeyMissing; got {err:?}"
-        );
+        match client.complete("sys", "user") {
+            Ok(_) => { /* Real Ollama responded — definitely not ApiKeyMissing. */ }
+            Err(e) => {
+                assert!(
+                    !matches!(e, LlmError::ApiKeyMissing(_)),
+                    "Ollama without key must not return ApiKeyMissing; got {e:?}"
+                );
+            }
+        }
     }
 }
