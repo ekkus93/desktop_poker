@@ -141,8 +141,11 @@ pub(crate) fn try_npc_action(
         .count() as u8;
 
     let dealer_seat = fresh_hand.dealer_seat_index;
-    let position =
-        crate::npc::strategy::derive_position(fresh_window.seat_index, dealer_seat, active_count.max(2));
+    let position = crate::npc::strategy::derive_position(
+        fresh_window.seat_index,
+        dealer_seat,
+        active_count.max(2),
+    );
 
     // Resolve provider config with explicit lock-failure detection (P1.2).
     let provider_state = if npc_config.profile.is_some() {
