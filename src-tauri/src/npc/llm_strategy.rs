@@ -1,10 +1,35 @@
 use crate::domain::ActionType;
+use crate::npc::NpcStyle;
 
 use super::llm_action::{parse_llm_response, validate_llm_action};
 use super::llm_client::{LlmClient, LlmError};
 use super::profile::NpcProfile;
 use super::prompt::{build_system_prompt, build_user_message, GameStateSnapshot};
 use super::runner::first_check_or_call;
+
+/// Convert a freeform profile style string to an `NpcStyle` for rule-based fallback.
+///
+/// The profile style is user/persona data, so parsing is keyword-based and
+/// case-insensitive. Unknown strings fall back to `NpcStyle::Conservative`.
+fn profile_style_to_npc_style(style: &str) -> NpcStyle {
+    let norm = style.trim().to_ascii_lowercase().replace('_', "-");
+    match norm.as_str() {
+        "aggressive" | "loose-aggressive" | "lag" | "maniac" | "bully" | "pressure"
+        | "bluffer" | "bluff-heavy" | "loose" => NpcStyle::Aggressive,
+        _ => NpcStyle::Conservative,
+    }
+}
+
+/// Resolve the rule-based fallback style for an NPC.
+///
+/// - Profile present → derive from `NpcProfile.style` so profiled fallback is consistent.
+/// - Profile absent → use `NpcConfig.style`.
+pub fn resolve_fallback_style(profile: Option<&NpcProfile>, config_style: NpcStyle) -> NpcStyle {
+    match profile {
+        Some(p) => profile_style_to_npc_style(&p.style),
+        None => config_style,
+    }
+}
 
 /// Structured reason for falling back from LLM to rule-based decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -425,6 +450,94 @@ mod tests {
             fallback_reason,
             Some(LlmFallbackReason::InvalidAction),
             "LLM returning an illegal action should set InvalidAction fallback reason"
+        );
+    }
+
+    fn style_profile(style: &str) -> crate::npc::profile::NpcProfile {
+        crate::npc::profile::NpcProfile {
+            id: "test-profile".to_string(),
+            name: "Test".to_string(),
+            style: style.to_string(),
+            skill: "beginner".to_string(),
+            description: String::new(),
+            opponent_tendencies: None,
+            tilt_behaviour: None,
+        }
+    }
+
+    #[test]
+    fn unprofiled_fallback_uses_config_style() {
+        assert_eq!(
+            resolve_fallback_style(None, crate::npc::NpcStyle::Aggressive),
+            crate::npc::NpcStyle::Aggressive
+        );
+        assert_eq!(
+            resolve_fallback_style(None, crate::npc::NpcStyle::Conservative),
+            crate::npc::NpcStyle::Conservative
+        );
+    }
+
+    #[test]
+    fn profiled_aggressive_strings_map_to_aggressive() {
+        for s in &[
+            "aggressive",
+            "loose-aggressive",
+            "lag",
+            "maniac",
+            "bully",
+            "pressure",
+            "bluffer",
+            "bluff-heavy",
+            "loose",
+            "  Aggressive ",  // whitespace + case
+            "LOOSE-AGGRESSIVE",
+        ] {
+            let p = style_profile(s);
+            assert_eq!(
+                resolve_fallback_style(Some(&p), crate::npc::NpcStyle::Conservative),
+                crate::npc::NpcStyle::Aggressive,
+                "expected Aggressive for style {:?}",
+                s
+            );
+        }
+    }
+
+    #[test]
+    fn profiled_conservative_strings_map_to_conservative() {
+        for s in &["conservative", "tight", "passive", "nit", "cautious", "rock", "defensive"] {
+            let p = style_profile(s);
+            assert_eq!(
+                resolve_fallback_style(Some(&p), crate::npc::NpcStyle::Aggressive),
+                crate::npc::NpcStyle::Conservative,
+                "expected Conservative for style {:?}",
+                s
+            );
+        }
+    }
+
+    #[test]
+    fn profiled_unknown_style_falls_back_to_conservative() {
+        let p = style_profile("tricky table captain");
+        assert_eq!(
+            resolve_fallback_style(Some(&p), crate::npc::NpcStyle::Aggressive),
+            crate::npc::NpcStyle::Conservative,
+            "unrecognized profile style should fall back to Conservative"
+        );
+    }
+
+    #[test]
+    fn profiled_fallback_overrides_config_style() {
+        // Profile says aggressive, config says conservative — profile wins.
+        let p = style_profile("loose-aggressive");
+        assert_eq!(
+            resolve_fallback_style(Some(&p), crate::npc::NpcStyle::Conservative),
+            crate::npc::NpcStyle::Aggressive
+        );
+        // Profile says conservative, config says aggressive — profile wins.
+        let p2 = style_profile("tight");
+        assert_eq!(
+            resolve_fallback_style(Some(&p2), crate::npc::NpcStyle::Aggressive),
+            crate::npc::NpcStyle::Conservative
         );
     }
 }

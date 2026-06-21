@@ -11,7 +11,7 @@ use crate::networking::HostServer;
 use crate::npc::{
     hand_log::{HandActionRecord, HandLog},
     llm_client::LlmClient,
-    llm_strategy::{choose_llm_action, LlmFallbackReason},
+    llm_strategy::{choose_llm_action, resolve_fallback_style, LlmFallbackReason},
     prompt::GameStateSnapshot,
     provider::LlmProviderConfig,
     tilt::TiltState,
@@ -95,9 +95,8 @@ pub(crate) fn try_npc_action(
         }
     };
 
-    // Fallback style is always npc_config.style so all fallback branches are consistent (P1.3).
-    // NpcProfile.style is a human-readable persona string for the LLM, not an NpcStyle enum.
-    let fallback_style: &crate::npc::NpcStyle = &npc_config.style;
+    // Profile present → use profile style; profile absent → use config style.
+    let fallback_style = resolve_fallback_style(npc_config.profile.as_ref(), npc_config.style.clone());
 
     let seed = hash_str(&window_player_id) ^ hash_str(&window.action_window_id);
 
@@ -320,7 +319,7 @@ pub(crate) fn try_npc_action(
                     Err(_) => {
                         // Client construction failed — fall back to rule-based with profile style (P1.3).
                         let rb = rule_based_decision(
-                            fallback_style,
+                            &fallback_style,
                             hole_cards,
                             board,
                             street,
@@ -367,7 +366,7 @@ pub(crate) fn try_npc_action(
                     *g = Some(msg);
                 }
                 rule_based_decision(
-                    fallback_style, // use profile style consistently (P1.3)
+                    &fallback_style,
                     hole_cards,
                     board,
                     street,
@@ -397,7 +396,7 @@ pub(crate) fn try_npc_action(
                     *g = Some(msg);
                 }
                 rule_based_decision(
-                    fallback_style,
+                    &fallback_style,
                     hole_cards,
                     board,
                     street,
@@ -419,7 +418,7 @@ pub(crate) fn try_npc_action(
         }
     } else {
         rule_based_decision(
-            fallback_style,
+            &fallback_style,
             hole_cards,
             board,
             street,
