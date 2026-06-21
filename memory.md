@@ -888,3 +888,51 @@ Worked through all 185 items in `docs/DESKTOP_POKER_STABILIZATION_FIX2_TODO.md` 
 - Manual smoke-test sub-items noted as manual-only (not blocking CI).
 
 Final state: commits `d572f93` (Group 4) → `8f6c5c6` (Group 5) → `53ce22f` (Group 6) → `6e2a132` (Group 7). `master` branch is clean.
+
+## 2026-06-21T04:05:10Z - Claude Sonnet 4.6 - FIX3 stabilization pass complete (P0.4–P2.2)
+
+Resumed from previous session (context compacted). All remaining FIX3 TODO items implemented across 6 commits:
+
+**P0.4 + P0.5 (`85d1764`):**
+- `ProviderSecretStore` trait with `PlaintextFileSecretStore` (debug) and `KeychainSecretStore` (release)
+- `default_secret_store` factory stored in `DesktopAppState.secret_store: Arc<dyn …>`
+- All three provider storage functions now take `&dyn ProviderSecretStore`
+- Migration only rewrites settings file when key-store write succeeds (P0.4)
+- `save_provider_config(None, store)` iterates `KNOWN_PROVIDER_ACCOUNTS` to delete all secrets regardless of settings parse state (P0.5)
+- Added `FailingWriteSecretStore`, `TrackingSecretStore` test helpers; 4 new P0.4/P0.5 tests
+
+**P1.1 (`90b5826`):**
+- `profile_style_to_npc_style` — keyword mapping (aggressive group → Aggressive, everything else → Conservative)
+- `resolve_fallback_style(profile, config_style)` — profile present uses profile.style, absent uses config style
+- Used in all fallback branches in `action.rs`; 5 new unit tests
+
+**P1.2–P1.5 (`738d3fd`):**
+- `bootstrap()`: `.lock().ok()` replaced with explicit match; poisoned `llm_provider` mutex surfaces as `provider_config_error`
+- `profile_store.rs`: `entries.flatten()` replaced with explicit `DirEntry` match — errors pushed into profile error collection
+- `llm_client.rs`: `LlmError::ApiKeyMissing` variant; early rejection for Anthropic and OpenAI before any HTTP; Ollama/llama-server unaffected; 5 new tests
+- `provider_storage.rs`: delete failures during `clear` are now collected and returned as `Err`, not eprintln-only; `FailingDeleteSecretStore` test helper + test
+
+**P2.1 audit + P2.2 rename (`2df5e62`):**
+- P2.1: audit found no remaining vacuous NPC tests; all provider-missing/stale-window tests already force the intended branch
+- P2.2: renamed two timeout tests to `…confirms_or_times_out_gracefully` — `HostRuntimeMode::Test` only skips IP validation, host still responds, both `Ok` and `Err` are valid; meaningful assertions preserved in both branches
+
+Final state: 408 Rust tests pass, 242 frontend tests pass, lint clean, build clean. 6 commits ahead of origin. All FIX3 items done.
+
+## 2026-06-21T04:46:16Z - Claude Sonnet 4.6 - P0 UI/UX fixes implemented
+
+- Implemented all five P0 items from docs/UIUX_FIXES6.md (commit `3063ce3`).
+- P0.1: Port field error only renders after user blurs the input (`portTouched` state).
+- P0.2: NPC add failure post-session-start shows a recoverable banner with "Retry adding bots"; `npcRetrying` guard blocks continue while retrying.
+- P0.3: `TournamentCompleteScreen` guards `standings.length > 0` before accessing index 0 — renders "No result available." on empty standings instead of crashing.
+- P0.4: "Clear and enter a different invite" now calls `navigate(location.pathname, {replace:true})` to strip query params; `deepLinkImportedRef` prevents re-import during the batch window; test verifies URL cleanup and error-banner dismissal.
+- P0.5: Clipboard fallback textarea has a "Done" button that sets `fallbackInvite` to null.
+- All 248 frontend tests pass; lint and build clean.
+- Next: P1 UI/UX improvements from UIUX_FIXES6.md.
+
+## 2026-06-21T04:51:26Z - Claude Sonnet 4.6 - FIX3 TODO checked off; Ollama test hardened
+
+- All FIX3 implementation was already done in prior commits (feb33d4–2df5e62).
+- TODO file checkboxes were never updated; checked off all automated items now (commit `45004b6`).
+- Manual smoke-test items in P2.3 left unchecked — require a live app session.
+- Fixed `ollama_without_key_does_not_return_api_key_missing` test: it called `unwrap_err()` but panicked when a local Ollama daemon was running and returned Ok. Now accepts Ok (no key required = correct) and only asserts non-ApiKeyMissing on Err.
+- 408 Rust tests pass, 248 frontend tests pass, lint and build clean.
