@@ -351,13 +351,40 @@ pub fn save_provider_settings_only(
     settings: &LlmProviderSettings,
 ) -> Result<(), std::io::Error> {
     let sp = settings_path(app_data_dir);
+
+    // P0.3: Debug builds use a single shared key file (not per-provider).
+    // When the provider type changes, clear the key file so the old key is not
+    // re-read and associated with the new provider on the next load.
+    // Release builds use per-provider keychain accounts, so no action is needed.
+    #[cfg(debug_assertions)]
+    {
+        if sp.exists() {
+            if let Ok(text) = fs::read_to_string(&sp) {
+                if let Ok(current) = serde_json::from_str::<LlmProviderSettings>(&text) {
+                    if current.provider != settings.provider {
+                        let kp = key_path(app_data_dir);
+                        if kp.exists() {
+                            if let Err(e) = fs::remove_file(&kp) {
+                                eprintln!(
+                                    "[provider-storage] could not clear stale key file after \
+                                     provider change ({} → {}): {e}",
+                                    current.provider.as_str(),
+                                    settings.provider.as_str()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if let Some(parent) = sp.parent() {
         fs::create_dir_all(parent)?;
     }
     let settings_json = serde_json::to_string_pretty(settings)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     fs::write(&sp, settings_json)?;
-    // Key file is intentionally left untouched.
     Ok(())
 }
 
@@ -605,7 +632,38 @@ mod tests {
         assert_eq!(
             loaded.api_key.as_deref(),
             Some("sk-ant-original"),
-            "existing API key must be preserved"
+            "existing API key must be preserved for same-provider edit"
+        );
+    }
+
+    /// P0.3: In debug builds the key is stored in a shared file, not per-provider.
+    /// Switching providers via save_settings_only must clear the old key file so
+    /// the next load does not hand the old key to the new provider.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn save_settings_only_clears_key_file_on_provider_type_change() {
+        let dir = tempfile::tempdir().unwrap();
+        // Set up Anthropic with a key.
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let before = unwrap_loaded(load_provider_config(dir.path()));
+        assert_eq!(before.api_key.as_deref(), Some("sk-ant-secret"));
+
+        // Switch to OpenAI via settings-only (simulates frontend provider change with blank key).
+        let openai_settings = LlmProviderSettings {
+            provider: LlmProviderType::OpenAi,
+            endpoint_url: None,
+            model: None,
+        };
+        save_provider_settings_only(dir.path(), &openai_settings).unwrap();
+
+        // The Anthropic key must not appear on the next load.
+        let after = unwrap_loaded(load_provider_config(dir.path()));
+        assert_eq!(after.settings.provider, LlmProviderType::OpenAi);
+        assert!(
+            after.api_key.is_none(),
+            "switching provider must not preserve the previous provider's key; \
+             got: {:?}",
+            after.api_key
         );
     }
 }

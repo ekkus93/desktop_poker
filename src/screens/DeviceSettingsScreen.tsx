@@ -100,13 +100,19 @@ export function DeviceSettingsScreen() {
     setModel("");
   }, [selectedProvider, loadedSettings]);
 
+  // P0.3: A stored key is only reusable when saving to the same provider type.
+  // An Anthropic key must not be preserved when switching to OpenAI, and vice versa.
+  const storedProviderMatchesSelected =
+    loadedSettings?.provider === selectedProvider;
+  const hasExistingKeyForProvider =
+    providerConfigured && storedProviderMatchesSelected;
+
   async function handleSave() {
     setProviderError(null);
     setProviderStatus(null);
     const trimmedKey = apiKey.trim();
-    const hasExistingKey = providerConfigured;
-    // Require a key if the provider needs one and there is no existing key.
-    if (requiresApiKey(selectedProvider) && !trimmedKey && !hasExistingKey) {
+    // Require a key if the provider needs one and there is no key for this provider.
+    if (requiresApiKey(selectedProvider) && !trimmedKey && !hasExistingKeyForProvider) {
       setProviderError("An API key is required for this provider.");
       return;
     }
@@ -123,7 +129,7 @@ export function DeviceSettingsScreen() {
         await setLlmProviderConfig(config);
         setApiKey("");
       } else {
-        // Key-requiring provider, blank key — preserve existing key on disk.
+        // Key-requiring provider, blank key, same provider — preserve existing key.
         const settings: LlmProviderSettings = {
           provider: selectedProvider,
           endpointUrl: endpointUrl.trim() || null,
@@ -230,7 +236,7 @@ export function DeviceSettingsScreen() {
                   <input
                     type="password"
                     placeholder={
-                      providerConfigured
+                      hasExistingKeyForProvider
                         ? "Leave blank to keep existing key"
                         : selectedProvider === "anthropic"
                           ? "sk-ant-..."
@@ -280,7 +286,7 @@ export function DeviceSettingsScreen() {
                 saving ||
                 (requiresApiKey(selectedProvider) &&
                   !apiKey.trim() &&
-                  !providerConfigured)
+                  !hasExistingKeyForProvider)
               }
               type="button"
             >

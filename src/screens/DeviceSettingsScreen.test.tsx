@@ -150,6 +150,107 @@ describe("DeviceSettingsScreen", () => {
     expect(screen.queryByText(/release builds store api keys in the os keychain/i)).toBeNull();
   });
 
+  it("preserves existing key when editing same-provider non-secret fields", async () => {
+    // Anthropic is configured; user edits the endpoint but leaves key blank.
+    mockedGetLlmProviderConfig.mockResolvedValue({
+      provider: "anthropic",
+      endpointUrl: null,
+      model: null,
+    });
+    const bootstrap = createBootstrap({
+      llmApiKeyConfigured: true,
+      llmProviderType: "anthropic",
+    });
+    renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
+
+    // Wait for the loaded settings to populate the form.
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Leave blank to keep existing key"),
+      ).toBeTruthy();
+    });
+
+    // Leave the key blank and click Save.
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mockedSaveNonSecretProviderSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: "anthropic" }),
+      );
+      expect(mockedSetLlmProviderConfig).not.toHaveBeenCalled();
+    });
+  });
+
+  it("requires a new key when switching from Anthropic to OpenAI with blank key field", async () => {
+    // Anthropic is configured; user switches to OpenAI but leaves key blank.
+    mockedGetLlmProviderConfig.mockResolvedValue({
+      provider: "anthropic",
+      endpointUrl: null,
+      model: null,
+    });
+    const bootstrap = createBootstrap({
+      llmApiKeyConfigured: true,
+      llmProviderType: "anthropic",
+    });
+    renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
+
+    // Wait for load.
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Leave blank to keep existing key"),
+      ).toBeTruthy();
+    });
+
+    // Switch to OpenAI — the placeholder must change and Save must be disabled.
+    fireEvent.change(screen.getByLabelText("LLM provider"), {
+      target: { value: "openAi" },
+    });
+
+    expect(screen.getByPlaceholderText("sk-...")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+
+    // saveNonSecretProviderSettings must never be called — would cross-contaminate.
+    expect(mockedSaveNonSecretProviderSettings).not.toHaveBeenCalled();
+    expect(mockedSetLlmProviderConfig).not.toHaveBeenCalled();
+  });
+
+  it("calls setLlmProviderConfig (full save) when switching providers and providing a new key", async () => {
+    mockedGetLlmProviderConfig.mockResolvedValue({
+      provider: "anthropic",
+      endpointUrl: null,
+      model: null,
+    });
+    const bootstrap = createBootstrap({
+      llmApiKeyConfigured: true,
+      llmProviderType: "anthropic",
+    });
+    renderWithProviders(<DeviceSettingsScreen />, { bootstrap });
+
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Leave blank to keep existing key"),
+      ).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("LLM provider"), {
+      target: { value: "openAi" },
+    });
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "sk-openai-new" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mockedSetLlmProviderConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: "openAi", apiKey: "sk-openai-new" }),
+      );
+      expect(mockedSaveNonSecretProviderSettings).not.toHaveBeenCalled();
+    });
+  });
+
   it("shows error when setLlmProviderConfig fails", async () => {
     mockedSetLlmProviderConfig.mockRejectedValue(
       new Error("Connection refused"),

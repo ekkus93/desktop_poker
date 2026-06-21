@@ -172,6 +172,10 @@ impl DesktopAppState {
             .lock()
             .map_err(|_| "llm provider lock poisoned".to_string())?;
         if let Some(cfg) = provider.as_mut() {
+            // P0.3: Do not carry the existing API key across a provider-type change.
+            if cfg.settings.provider != settings.provider {
+                cfg.api_key = None;
+            }
             cfg.settings = settings;
         } else {
             *provider = Some(crate::npc::LlmProviderConfig {
