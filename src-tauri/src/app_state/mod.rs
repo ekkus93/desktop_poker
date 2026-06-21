@@ -216,6 +216,35 @@ pub struct TableViewSnapshot {
     pub action_tray: Option<TableActionTrayView>,
 }
 
+/// Reason category for a recorded NPC action failure.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NpcActionErrorReason {
+    Rejected,
+    StaleWindow,
+    RuntimeUnavailable,
+    NoConfig,
+    ProviderStateUnavailable,
+    InvalidAction,
+    InternalError,
+}
+
+/// Structured NPC action failure record for the debug inspector.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct NpcActionErrorDebug {
+    pub player_id: Option<String>,
+    pub action: Option<String>,
+    pub reason: NpcActionErrorReason,
+    pub message: String,
+    pub hand_number: Option<u32>,
+    /// Monotonically increasing per-runner error counter.
+    pub sequence: u64,
+    /// True if the action was submitted to the host before the failure.
+    pub submitted: bool,
+    pub occurred_at_ms: u64,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugInspectorState {
@@ -231,9 +260,8 @@ pub struct DebugInspectorState {
     /// Most recent LLM fallback event for any NPC, if any occurred this session.
     /// Format: "<player_id>: <reason>". Cleared when a new game starts.
     pub last_llm_fallback: Option<String>,
-    /// Most recent NPC action submission failure, if any occurred this session.
-    /// Format: "<player_id>: <reason>". Cleared when a new game starts.
-    pub last_npc_action_error: Option<String>,
+    /// Most recent NPC action failure, structured for debug rendering.
+    pub last_npc_action_error: Option<NpcActionErrorDebug>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]

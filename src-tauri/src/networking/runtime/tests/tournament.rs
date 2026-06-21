@@ -203,7 +203,8 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
     let api_key_holder = Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let fallback = Arc::new(Mutex::new(None));
-    let action_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
     let runner = crate::npc::runner::start_npc_runner(
         Arc::clone(&host),
         npc_configs,
@@ -556,11 +557,13 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
     let api_key_holder = Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let fallback = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
     let mut runner_state = crate::npc::runner::RunnerState::new(
         &npc_configs,
         Arc::clone(&tilt),
         Arc::clone(&fallback),
-        Arc::new(Mutex::new(None)),
+        Arc::clone(&action_error),
     );
 
     // Call try_npc_action with the old (pre-consume) state — window is stale.
@@ -575,6 +578,34 @@ fn npc_runner_returns_false_after_stale_window_rejection() {
     assert!(
         !outcome.acted(),
         "try_npc_action must not report acted() for a stale/consumed window; got {outcome:?}"
+    );
+
+    // P0.1 — stale action must not appear in the hand log.
+    assert_eq!(
+        runner_state.hand_log_action_count(),
+        0,
+        "rejected (stale-window) NPC action must not be written to the hand log"
+    );
+
+    // P0.2 — stale-window error must be recorded in debug state.
+    let recorded_error = action_error.lock().expect("action_error lock").clone();
+    let err = recorded_error
+        .as_ref()
+        .expect("shared_action_error must be set after a StaleWindow outcome");
+    assert_eq!(
+        err.reason,
+        crate::app_state::NpcActionErrorReason::StaleWindow,
+        "error reason must be StaleWindow; got {:?}",
+        err.reason
+    );
+    assert!(
+        !err.submitted,
+        "stale-window error must have submitted=false"
+    );
+    assert_eq!(
+        err.player_id.as_deref(),
+        Some(npc_id.as_str()),
+        "error must record the NPC player_id"
     );
 }
 
@@ -617,34 +648,47 @@ fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provi
         profile: Some(profile),
     }];
 
-    // Wait for the first action window to open.
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        let state = host.authoritative_state().expect("state");
-        if state
-            .current_hand
-            .as_ref()
-            .and_then(|h| h.action_window.as_ref())
-            .map(|w| w.player_id == npc_id)
-            .unwrap_or(false)
-        {
-            break;
+    // Advance to the NPC's action window. If the human has the first window,
+    // submit a human action to let the NPC's turn open. Never return early —
+    // the test must exercise the NPC branch to be meaningful.
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
+                .cloned();
+            if let Some(ref w) = window {
+                if w.player_id == npc_id {
+                    break state;
+                }
+                // Human has the window — submit to advance.
+                if last_human_window.as_deref() != Some(w.action_window_id.as_str()) {
+                    let action = w.legal_actions.first().copied().unwrap_or(ActionType::Call);
+                    let _ =
+                        host.submit_action(&w.player_id, w.action_window_id.clone(), action, None);
+                    last_human_window = Some(w.action_window_id.clone());
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "NPC action window never opened within the deadline; cannot test provider-missing branch"
+            );
+            thread::sleep(Duration::from_millis(20));
         }
-        if Instant::now() >= deadline {
-            // Human has the first window; not the NPC. Test passes vacuously.
-            return;
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
+    };
 
-    let state = host.authoritative_state().expect("state for action");
     let stop = Arc::new(AtomicBool::new(false));
     // No provider config: the NPC should fall back to rule-based and record the reason.
     let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
         Arc::new(Mutex::new(None));
     let tilt = Arc::new(Mutex::new(BTreeMap::new()));
     let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-    let action_error: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
     let mut runner_state = crate::npc::runner::RunnerState::new(
         &npc_configs,
         Arc::clone(&tilt),
@@ -674,11 +718,212 @@ fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provi
     );
     let msg = recorded.unwrap();
     assert!(
-        msg.contains("ProviderNotConfigured"),
-        "fallback message should mention ProviderNotConfigured; got: {msg}"
+        msg.contains("provider not configured") || msg.contains("ProviderNotConfigured"),
+        "fallback message should indicate provider not configured; got: {msg}"
     );
     assert!(
         msg.contains(&npc_id),
         "fallback message should include player_id; got: {msg}"
     );
+}
+
+// P0.1 — accepted NPC action is written to the hand log exactly once.
+
+#[test]
+fn npc_action_hand_log_written_exactly_once_on_accepted_action() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-npc-log-success", 91));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Rule NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Rule NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: None,
+    }];
+
+    // Advance until the NPC has the action window.
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
+                .cloned();
+            if let Some(ref w) = window {
+                if w.player_id == npc_id {
+                    break state;
+                }
+                if last_human_window.as_deref() != Some(w.action_window_id.as_str()) {
+                    let action = w.legal_actions.first().copied().unwrap_or(ActionType::Call);
+                    let _ =
+                        host.submit_action(&w.player_id, w.action_window_id.clone(), action, None);
+                    last_human_window = Some(w.action_window_id.clone());
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "NPC action window never opened; cannot test hand-log write"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    };
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
+        Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &npc_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+        Arc::clone(&action_error),
+    );
+
+    let outcome = try_npc_action(
+        &host,
+        &state,
+        &npc_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+    assert!(
+        outcome.acted(),
+        "NPC must successfully submit a rule-based action; got {outcome:?}"
+    );
+
+    // P0.1 — accepted action appended to hand log exactly once.
+    let log_len = runner_state.hand_log_action_count();
+    assert_eq!(
+        log_len, 1,
+        "accepted NPC action must be written to the hand log exactly once; got {log_len} entries"
+    );
+
+    // P0.2 — no error recorded when action succeeds.
+    let err = action_error.lock().expect("action_error lock").clone();
+    assert!(
+        err.is_none(),
+        "action_error must be None after a successful NPC action"
+    );
+}
+
+// P0.2 — NoConfig outcome sets structured error in debug state.
+
+#[test]
+fn npc_action_error_set_for_no_config_outcome() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-npc-noconfig-error", 92));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Rule NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    // Advance until the NPC has the action window.
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
+                .cloned();
+            if let Some(ref w) = window {
+                if w.player_id == npc_id {
+                    break state;
+                }
+                if last_human_window.as_deref() != Some(w.action_window_id.as_str()) {
+                    let action = w.legal_actions.first().copied().unwrap_or(ActionType::Call);
+                    let _ =
+                        host.submit_action(&w.player_id, w.action_window_id.clone(), action, None);
+                    last_human_window = Some(w.action_window_id.clone());
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "NPC action window never opened; cannot test NoConfig error path"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    };
+
+    // Pass empty npc_configs — the NPC whose window is open has no config entry.
+    let empty_configs: Vec<crate::npc::NpcConfig> = vec![];
+    let stop = Arc::new(AtomicBool::new(false));
+    let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
+        Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &empty_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+        Arc::clone(&action_error),
+    );
+
+    let outcome = try_npc_action(
+        &host,
+        &state,
+        &empty_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+    assert_eq!(
+        outcome,
+        crate::npc::runner::NpcActionOutcome::NoConfig,
+        "outcome must be NoConfig when no config entry matches the acting player"
+    );
+
+    // P0.2 — NoConfig error recorded in debug state.
+    let recorded = action_error.lock().expect("action_error lock").clone();
+    let err = recorded
+        .as_ref()
+        .expect("shared_action_error must be set after NoConfig outcome");
+    assert_eq!(
+        err.reason,
+        crate::app_state::NpcActionErrorReason::NoConfig,
+        "error reason must be NoConfig; got {:?}",
+        err.reason
+    );
+    assert!(!err.submitted, "NoConfig error must have submitted=false");
 }

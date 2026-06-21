@@ -7,6 +7,8 @@ use std::time::Duration;
 
 use crate::networking::HostServer;
 
+use crate::app_state::NpcActionErrorDebug;
+
 use super::super::provider::LlmProviderConfig;
 use super::super::NpcConfig;
 use super::{process_completed_hands, try_npc_action, RunnerState, POLL_INTERVAL_MS};
@@ -18,7 +20,7 @@ pub(super) fn npc_runner_loop(
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<std::collections::BTreeMap<String, String>>>,
     shared_fallback: Arc<Mutex<Option<String>>>,
-    shared_action_error: Arc<Mutex<Option<String>>>,
+    shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
 ) {
     let mut consecutive_errors: u32 = 0;
     let mut runner_state = RunnerState::new(

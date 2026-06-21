@@ -5,6 +5,7 @@ use std::sync::{
 };
 use std::thread;
 
+use crate::app_state::NpcActionErrorDebug;
 use crate::domain::TournamentState;
 use crate::networking::HostServer;
 
@@ -74,8 +75,10 @@ pub(crate) struct RunnerState {
     pub(super) shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     /// Most recent LLM fallback event; written by the runner, read by the debug inspector.
     pub(super) shared_fallback: Arc<Mutex<Option<String>>>,
-    /// Most recent NPC action submission failure; written by runner, read by debug inspector.
-    pub(super) shared_action_error: Arc<Mutex<Option<String>>>,
+    /// Most recent NPC action failure; written by runner, read by debug inspector.
+    pub(super) shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
+    /// Monotonically increasing counter, incremented each time an error is recorded.
+    pub(super) error_sequence: u64,
 }
 
 impl RunnerState {
@@ -83,7 +86,7 @@ impl RunnerState {
         npc_configs: &[NpcConfig],
         shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
         shared_fallback: Arc<Mutex<Option<String>>>,
-        shared_action_error: Arc<Mutex<Option<String>>>,
+        shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
     ) -> Self {
         let session_histories = npc_configs
             .iter()
@@ -98,7 +101,14 @@ impl RunnerState {
             shared_tilt,
             shared_fallback,
             shared_action_error,
+            error_sequence: 0,
         }
+    }
+
+    /// Number of actions recorded in the current hand log. Returns 0 when no log exists.
+    #[cfg(test)]
+    pub(crate) fn hand_log_action_count(&self) -> usize {
+        self.hand_log.as_ref().map(|l| l.actions.len()).unwrap_or(0)
     }
 }
 
@@ -139,7 +149,7 @@ pub fn start_npc_runner(
     api_key_holder: Arc<Mutex<Option<LlmProviderConfig>>>,
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     shared_fallback: Arc<Mutex<Option<String>>>,
-    shared_action_error: Arc<Mutex<Option<String>>>,
+    shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
 ) -> thread::JoinHandle<()> {
     thread::Builder::new()
         .name("npc-runner".into())
@@ -164,8 +174,8 @@ pub fn run_npc_loop(
     api_key_holder: &Arc<Mutex<Option<LlmProviderConfig>>>,
 ) {
     let shared_tilt = Arc::new(Mutex::new(BTreeMap::new()));
-    let shared_fallback = Arc::new(Mutex::new(None));
-    let shared_action_error = Arc::new(Mutex::new(None));
+    let shared_fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>> = Arc::new(Mutex::new(None));
     loop_core::npc_runner_loop(
         host_server,
         npc_configs,
@@ -185,8 +195,8 @@ pub struct NpcRunnerGuard {
     pub tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
     /// Most recent LLM fallback event; written by the runner, readable by the debug inspector.
     pub last_llm_fallback: Arc<Mutex<Option<String>>>,
-    /// Most recent NPC action submission failure; written by runner, read by debug inspector.
-    pub last_npc_action_error: Arc<Mutex<Option<String>>>,
+    /// Most recent NPC action failure; written by runner, read by debug inspector.
+    pub last_npc_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
 }
 
 impl NpcRunnerGuard {
@@ -195,7 +205,7 @@ impl NpcRunnerGuard {
         handle: thread::JoinHandle<()>,
         tilt_levels: Arc<Mutex<BTreeMap<String, String>>>,
         last_llm_fallback: Arc<Mutex<Option<String>>>,
-        last_npc_action_error: Arc<Mutex<Option<String>>>,
+        last_npc_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
     ) -> Self {
         Self {
             stop,

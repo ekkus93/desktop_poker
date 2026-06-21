@@ -301,9 +301,38 @@ export function DebugPanel({
           title="Last NPC action error"
           data-testid="npc-action-error-section"
         >
-          <p data-testid="npc-action-error-reason" className="inline-banner error">
-            {debugState.lastNpcActionError}
+          <p data-testid="npc-action-error-message" className="inline-banner error">
+            {debugState.lastNpcActionError.message}
           </p>
+          <ul data-testid="npc-action-error-fields">
+            <li>
+              <strong>Reason:</strong>{" "}
+              <span data-testid="npc-action-error-reason">
+                {debugState.lastNpcActionError.reason}
+              </span>
+            </li>
+            <li>
+              <strong>Submitted:</strong>{" "}
+              <span data-testid="npc-action-error-submitted">
+                {debugState.lastNpcActionError.submitted ? "yes" : "no"}
+              </span>
+            </li>
+            {debugState.lastNpcActionError.playerId != null && (
+              <li>
+                <strong>Player:</strong> {debugState.lastNpcActionError.playerId}
+              </li>
+            )}
+            {debugState.lastNpcActionError.action != null && (
+              <li>
+                <strong>Action:</strong> {debugState.lastNpcActionError.action}
+              </li>
+            )}
+            {debugState.lastNpcActionError.handNumber != null && (
+              <li>
+                <strong>Hand:</strong> {debugState.lastNpcActionError.handNumber}
+              </li>
+            )}
+          </ul>
         </SectionCard>
       ) : null}
 

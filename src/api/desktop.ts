@@ -273,6 +273,26 @@ export type TableViewSnapshot = {
   actionTray: TableActionTrayView | null;
 };
 
+export type NpcActionErrorReason =
+  | "rejected"
+  | "staleWindow"
+  | "runtimeUnavailable"
+  | "noConfig"
+  | "providerStateUnavailable"
+  | "invalidAction"
+  | "internalError";
+
+export type NpcActionErrorDebug = {
+  playerId: string | null;
+  action: string | null;
+  reason: NpcActionErrorReason;
+  message: string;
+  handNumber: number | null;
+  sequence: number;
+  submitted: boolean;
+  occurredAtMs: number;
+};
+
 export type DebugInspectorState = {
   protocolLog: TableEventView[];
   snapshotJson: string;
@@ -284,8 +304,8 @@ export type DebugInspectorState = {
   npcTiltLevels: Record<string, string>;
   /** Most recent LLM fallback event, or null if none occurred this session. */
   lastLlmFallback: string | null;
-  /** Most recent NPC action submission failure, or null if none occurred this session. */
-  lastNpcActionError: string | null;
+  /** Most recent NPC action failure, structured for debug rendering. */
+  lastNpcActionError: NpcActionErrorDebug | null;
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";

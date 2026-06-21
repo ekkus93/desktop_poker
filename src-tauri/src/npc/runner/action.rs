@@ -5,6 +5,7 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
+use crate::app_state::{NpcActionErrorDebug, NpcActionErrorReason};
 use crate::domain::{ActionType, TournamentSeatState};
 use crate::networking::HostServer;
 use crate::npc::{
@@ -27,6 +28,13 @@ enum ProviderState {
     Usable(LlmProviderConfig),
     NotConfigured,
     StateUnavailable,
+}
+
+fn now_epoch_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -52,18 +60,37 @@ pub(crate) fn try_npc_action(
         return NpcActionOutcome::NotNpcTurn;
     }
 
+    // Capture early for error records — available for all subsequent returns.
+    let window_player_id = window.player_id.clone();
+    let initial_hand_number = hand.hand_number;
+
     let config_entry = npc_configs
         .iter()
         .enumerate()
-        .find(|(_, c)| c.player_id == window.player_id);
+        .find(|(_, c)| c.player_id == window_player_id);
 
     let (npc_config_idx, npc_config) = match config_entry {
         Some(pair) => pair,
         None => {
-            eprintln!(
+            let msg = format!(
                 "[npc-runner] no config found for player {}; skipping action",
-                window.player_id
+                window_player_id
             );
+            eprintln!("{msg}");
+            runner_state.error_sequence += 1;
+            let seq = runner_state.error_sequence;
+            if let Ok(mut g) = runner_state.shared_action_error.lock() {
+                *g = Some(NpcActionErrorDebug {
+                    player_id: Some(window_player_id),
+                    action: None,
+                    reason: NpcActionErrorReason::NoConfig,
+                    message: msg,
+                    hand_number: Some(initial_hand_number),
+                    sequence: seq,
+                    submitted: false,
+                    occurred_at_ms: now_epoch_ms(),
+                });
+            }
             return NpcActionOutcome::NoConfig;
         }
     };
@@ -72,7 +99,7 @@ pub(crate) fn try_npc_action(
     // NpcProfile.style is a human-readable persona string for the LLM, not an NpcStyle enum.
     let fallback_style: &crate::npc::NpcStyle = &npc_config.style;
 
-    let seed = hash_str(&window.player_id) ^ hash_str(&window.action_window_id);
+    let seed = hash_str(&window_player_id) ^ hash_str(&window.action_window_id);
 
     let delay_ms = MIN_DELAY_MS + (seed % (MAX_DELAY_MS - MIN_DELAY_MS + 1));
     thread::sleep(Duration::from_millis(delay_ms));
@@ -83,7 +110,28 @@ pub(crate) fn try_npc_action(
 
     let fresh_state = match host_server.authoritative_state() {
         Ok(s) => s,
-        Err(_) => return NpcActionOutcome::RuntimeUnavailable,
+        Err(_) => {
+            let msg = format!(
+                "[npc-runner] runtime unavailable for player {}",
+                window_player_id
+            );
+            eprintln!("{msg}");
+            runner_state.error_sequence += 1;
+            let seq = runner_state.error_sequence;
+            if let Ok(mut g) = runner_state.shared_action_error.lock() {
+                *g = Some(NpcActionErrorDebug {
+                    player_id: Some(window_player_id),
+                    action: None,
+                    reason: NpcActionErrorReason::RuntimeUnavailable,
+                    message: msg,
+                    hand_number: Some(initial_hand_number),
+                    sequence: seq,
+                    submitted: false,
+                    occurred_at_ms: now_epoch_ms(),
+                });
+            }
+            return NpcActionOutcome::RuntimeUnavailable;
+        }
     };
     let fresh_window = match fresh_state
         .current_hand
@@ -91,11 +139,53 @@ pub(crate) fn try_npc_action(
         .and_then(|h| h.action_window.as_ref())
     {
         Some(w) if w.action_window_id == window.action_window_id => w.clone(),
-        _ => return NpcActionOutcome::StaleWindow,
+        _ => {
+            let msg = format!(
+                "[npc-runner] action window expired for player {} (window={})",
+                window_player_id, window.action_window_id
+            );
+            eprintln!("{msg}");
+            runner_state.error_sequence += 1;
+            let seq = runner_state.error_sequence;
+            if let Ok(mut g) = runner_state.shared_action_error.lock() {
+                *g = Some(NpcActionErrorDebug {
+                    player_id: Some(window_player_id),
+                    action: None,
+                    reason: NpcActionErrorReason::StaleWindow,
+                    message: msg,
+                    hand_number: Some(initial_hand_number),
+                    sequence: seq,
+                    submitted: false,
+                    occurred_at_ms: now_epoch_ms(),
+                });
+            }
+            return NpcActionOutcome::StaleWindow;
+        }
     };
     let fresh_hand = match &fresh_state.current_hand {
         Some(h) => h,
-        None => return NpcActionOutcome::StaleWindow,
+        None => {
+            let msg = format!(
+                "[npc-runner] no current hand after window check for player {}",
+                fresh_window.player_id
+            );
+            eprintln!("{msg}");
+            runner_state.error_sequence += 1;
+            let seq = runner_state.error_sequence;
+            if let Ok(mut g) = runner_state.shared_action_error.lock() {
+                *g = Some(NpcActionErrorDebug {
+                    player_id: Some(fresh_window.player_id.clone()),
+                    action: None,
+                    reason: NpcActionErrorReason::StaleWindow,
+                    message: msg,
+                    hand_number: Some(initial_hand_number),
+                    sequence: seq,
+                    submitted: false,
+                    occurred_at_ms: now_epoch_ms(),
+                });
+            }
+            return NpcActionOutcome::StaleWindow;
+        }
     };
 
     // Initialize or reset the hand log when we detect a new hand.
@@ -164,9 +254,7 @@ pub(crate) fn try_npc_action(
         ProviderState::NotConfigured
     };
 
-    // LLM path when the NPC has a profile and a usable provider config is available.
-    // action_logged tracks whether the hand-log entry was written to prevent double-logging (P0.4).
-    let mut action_logged = false;
+    // Choose an action. Hand-log write happens AFTER submit_action returns Ok(()).
     let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
         match provider_state {
             ProviderState::Usable(cfg) => {
@@ -265,19 +353,6 @@ pub(crate) fn try_npc_action(
                     }
                 }
 
-                // Record the action into the hand log (P0.4 — exactly once).
-                if let Some(log) = &mut runner_state.hand_log {
-                    log.push(HandActionRecord {
-                        hand_number: fresh_hand.hand_number,
-                        street,
-                        player_id: fresh_window.player_id.clone(),
-                        action_type: llm_action,
-                        amount: llm_raise,
-                        is_voluntary: true,
-                    });
-                    action_logged = true;
-                }
-
                 (llm_action, llm_raise)
             }
             ProviderState::NotConfigured => {
@@ -364,37 +439,47 @@ pub(crate) fn try_npc_action(
         )
     };
 
-    // Record the action into the hand log exactly once (P0.4).
-    // The LLM success path logs inside the match arm above; all other paths fall through here.
-    if !action_logged {
-        if let Some(log) = &mut runner_state.hand_log {
-            log.push(HandActionRecord {
-                hand_number: fresh_hand.hand_number,
-                street,
-                player_id: fresh_window.player_id.clone(),
-                action_type,
-                amount: raise_to,
-                is_voluntary: !matches!(action_type, ActionType::AllIn) || call_amount == 0,
-            });
-        }
-    }
+    let is_voluntary = !matches!(action_type, ActionType::AllIn) || call_amount == 0;
 
+    // Submit first; only write to the hand log on acceptance (P0.1).
     match host_server.submit_action(
         &fresh_window.player_id,
         fresh_window.action_window_id.clone(),
         action_type,
         raise_to,
     ) {
-        Ok(()) => NpcActionOutcome::Success,
+        Ok(()) => {
+            if let Some(log) = &mut runner_state.hand_log {
+                log.push(HandActionRecord {
+                    hand_number: fresh_hand.hand_number,
+                    street,
+                    player_id: fresh_window.player_id.clone(),
+                    action_type,
+                    amount: raise_to,
+                    is_voluntary,
+                });
+            }
+            NpcActionOutcome::Success
+        }
         Err(e) => {
             let msg = format!(
                 "{}: submit_action rejected (window={}, action={action_type:?}): {e}",
                 fresh_window.player_id, fresh_window.action_window_id
             );
             eprintln!("[npc-runner] {msg}");
-            // Surface in debug state (P0.5).
+            runner_state.error_sequence += 1;
+            let seq = runner_state.error_sequence;
             if let Ok(mut g) = runner_state.shared_action_error.lock() {
-                *g = Some(msg);
+                *g = Some(NpcActionErrorDebug {
+                    player_id: Some(fresh_window.player_id.clone()),
+                    action: Some(format!("{action_type:?}")),
+                    reason: NpcActionErrorReason::Rejected,
+                    message: msg,
+                    hand_number: Some(fresh_hand.hand_number),
+                    sequence: seq,
+                    submitted: true,
+                    occurred_at_ms: now_epoch_ms(),
+                });
             }
             NpcActionOutcome::Rejected(e.to_string())
         }

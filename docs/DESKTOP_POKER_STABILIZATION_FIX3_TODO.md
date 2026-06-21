@@ -120,7 +120,7 @@ P0
 - [ ] When switching Anthropic -> OpenAI with blank key, require a new OpenAI key or return visible error.
 - [ ] When switching OpenAI -> Anthropic with blank key, require a new Anthropic key or return visible error.
 - [ ] When switching to Ollama/llama-server, active API-key state must be cleared/detached.
-- [ ] Backend `save_lmm_provider_settings` or equivalent must not preserve an old in-memory key across provider type changes.
+- [ ] Backend `save_llm_provider_settings` or equivalent must not preserve an old in-memory key across provider type changes.
 - [ ] Decide and implement stale old-key cleanup policy:
   - [ ] delete old provider key when switching away, or
   - [ ] keep per-provider key only if explicitly documented and never attached to the wrong provider.

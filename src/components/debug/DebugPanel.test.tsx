@@ -185,4 +185,75 @@ describe("DebugPanel", () => {
     await screen.findByText("Rust backend module map");
     expect(screen.queryByTestId("llm-fallback-section")).toBeNull();
   });
+
+  it("shows structured NPC action error section when lastNpcActionError is set", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        lastNpcActionError: {
+          playerId: "npc-seat-1",
+          action: "Fold",
+          reason: "staleWindow",
+          message: "npc-seat-1: action window expired",
+          handNumber: 3,
+          sequence: 1,
+          submitted: false,
+          occurredAtMs: 1700000000000,
+        },
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByTestId("npc-action-error-section");
+    const msg = screen.getByTestId("npc-action-error-message");
+    expect(msg.textContent).toContain("action window expired");
+    const reason = screen.getByTestId("npc-action-error-reason");
+    expect(reason.textContent).toBe("staleWindow");
+    const submitted = screen.getByTestId("npc-action-error-submitted");
+    expect(submitted.textContent).toBe("no");
+  });
+
+  it("hides NPC action error section when lastNpcActionError is null", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({ lastNpcActionError: null }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByText("Rust backend module map");
+    expect(screen.queryByTestId("npc-action-error-section")).toBeNull();
+  });
+
+  it("shows submitted=yes for rejected NPC action error", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        lastNpcActionError: {
+          playerId: "npc-seat-1",
+          action: "Call",
+          reason: "rejected",
+          message: "npc-seat-1: submit_action rejected",
+          handNumber: 2,
+          sequence: 2,
+          submitted: true,
+          occurredAtMs: 1700000001000,
+        },
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByTestId("npc-action-error-section");
+    expect(screen.getByTestId("npc-action-error-reason").textContent).toBe(
+      "rejected",
+    );
+    expect(
+      screen.getByTestId("npc-action-error-submitted").textContent,
+    ).toBe("yes");
+  });
 });
