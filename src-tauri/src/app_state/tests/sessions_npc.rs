@@ -195,11 +195,15 @@ fn add_npc_players_fails_loudly_when_explicit_profile_is_corrupt() {
 
 // P0.5 — client-side timeout errors are explicit, not silent.
 
+// P2.2 audit: HostRuntimeMode::Test only skips production-IP validation; the host still
+// runs and CAN process messages. These tests are "state eventually consistent" — they
+// pass via Ok(status) with a confirmed seat when the host responds, or via Err(timeout)
+// if it doesn't respond within 1 second. Both outcomes are meaningful and asserted.
+// A fully deterministic timeout test would require a no-ack transport fixture.
 #[test]
-fn client_seat_claim_times_out_and_returns_error_when_host_does_not_confirm() {
-    // Use Test mode so the loopback host responds immediately to the session join,
-    // but we connect to a non-listening port for the seat-claim request so it
-    // never gets an acknowledgement, forcing the 1-second await_condition timeout.
+fn client_seat_claim_confirms_or_times_out_gracefully() {
+    // Join via Test-mode host (loopback, no production-IP check). Seat claim is
+    // sent over real TCP; await_condition polls for confirmation for up to 1 s.
     let host_state = DesktopAppState::detect();
     let host_status = host_state
         .start_host_session_with_mode(
@@ -219,9 +223,8 @@ fn client_seat_claim_times_out_and_returns_error_when_host_does_not_confirm() {
     // no further events arrive — it expires after 1 s.
     let result = client_state.client_claim_lobby_seat(ClaimLobbySeatRequest { seat_index: 1 });
 
-    // Two outcomes are acceptable: an immediate error from the runtime (seat
-    // already taken / protocol rejection) OR the timeout message.  What is NOT
-    // acceptable is Ok(()) without a confirmed seat.
+    // Two outcomes are acceptable: Ok with a confirmed seat (host responded quickly),
+    // or Err with a timeout/rejection message. Ok without a confirmed seat is not acceptable.
     match result {
         Ok(status) => {
             let local = status
@@ -247,7 +250,7 @@ fn client_seat_claim_times_out_and_returns_error_when_host_does_not_confirm() {
 }
 
 #[test]
-fn client_ready_toggle_times_out_and_returns_error_when_host_does_not_confirm() {
+fn client_ready_toggle_confirms_or_times_out_gracefully() {
     let host_state = DesktopAppState::detect();
     let host_status = host_state
         .start_host_session_with_mode(
@@ -367,7 +370,10 @@ fn bootstrap_reports_error_when_provider_mutex_is_poisoned() {
         panic!("intentional panic to poison mutex");
     })
     .join();
-    assert!(mutex.is_poisoned(), "mutex must be poisoned after panicking thread");
+    assert!(
+        mutex.is_poisoned(),
+        "mutex must be poisoned after panicking thread"
+    );
 
     // Now replicate bootstrap's lock-error branch: a poisoned lock on llm_provider
     // must produce a provider_config_error.

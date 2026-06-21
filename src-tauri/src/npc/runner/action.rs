@@ -96,7 +96,8 @@ pub(crate) fn try_npc_action(
     };
 
     // Profile present → use profile style; profile absent → use config style.
-    let fallback_style = resolve_fallback_style(npc_config.profile.as_ref(), npc_config.style.clone());
+    let fallback_style =
+        resolve_fallback_style(npc_config.profile.as_ref(), npc_config.style.clone());
 
     let seed = hash_str(&window_player_id) ^ hash_str(&window.action_window_id);
 

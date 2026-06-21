@@ -14,8 +14,8 @@ use super::runner::first_check_or_call;
 fn profile_style_to_npc_style(style: &str) -> NpcStyle {
     let norm = style.trim().to_ascii_lowercase().replace('_', "-");
     match norm.as_str() {
-        "aggressive" | "loose-aggressive" | "lag" | "maniac" | "bully" | "pressure"
-        | "bluffer" | "bluff-heavy" | "loose" => NpcStyle::Aggressive,
+        "aggressive" | "loose-aggressive" | "lag" | "maniac" | "bully" | "pressure" | "bluffer"
+        | "bluff-heavy" | "loose" => NpcStyle::Aggressive,
         _ => NpcStyle::Conservative,
     }
 }
@@ -490,7 +490,7 @@ mod tests {
             "bluffer",
             "bluff-heavy",
             "loose",
-            "  Aggressive ",  // whitespace + case
+            "  Aggressive ", // whitespace + case
             "LOOSE-AGGRESSIVE",
         ] {
             let p = style_profile(s);
@@ -505,7 +505,15 @@ mod tests {
 
     #[test]
     fn profiled_conservative_strings_map_to_conservative() {
-        for s in &["conservative", "tight", "passive", "nit", "cautious", "rock", "defensive"] {
+        for s in &[
+            "conservative",
+            "tight",
+            "passive",
+            "nit",
+            "cautious",
+            "rock",
+            "defensive",
+        ] {
             let p = style_profile(s);
             assert_eq!(
                 resolve_fallback_style(Some(&p), crate::npc::NpcStyle::Aggressive),

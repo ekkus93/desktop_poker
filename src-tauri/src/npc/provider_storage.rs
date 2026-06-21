@@ -618,8 +618,7 @@ mod tests {
     fn settings_file_does_not_contain_api_key() {
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
-            .unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store).unwrap();
         let settings_json = fs::read_to_string(settings_path(dir.path())).unwrap();
         assert!(
             !settings_json.contains("sk-ant-secret"),
@@ -635,8 +634,7 @@ mod tests {
     fn api_key_is_stored_in_dedicated_key_file() {
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
-            .unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store).unwrap();
         let key_content = fs::read_to_string(key_path(dir.path())).unwrap();
         assert_eq!(
             key_content.trim(),
@@ -712,8 +710,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
         // Write valid settings and an unreadable key file (mode 000).
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
-            .unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store).unwrap();
         let kp = key_path(dir.path());
         fs::set_permissions(&kp, fs::Permissions::from_mode(0o000)).unwrap();
         let result = load_provider_config(dir.path(), &store);
@@ -747,8 +744,12 @@ mod tests {
     fn save_settings_only_preserves_existing_key() {
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-original")), &store)
-            .unwrap();
+        save_provider_config(
+            dir.path(),
+            Some(&anthropic_config("sk-ant-original")),
+            &store,
+        )
+        .unwrap();
 
         let new_settings = LlmProviderSettings {
             provider: LlmProviderType::Anthropic,
@@ -777,8 +778,7 @@ mod tests {
     fn save_settings_only_clears_key_on_provider_type_change() {
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
-            .unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store).unwrap();
         let before = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(before.api_key.as_deref(), Some("sk-ant-secret"));
 
