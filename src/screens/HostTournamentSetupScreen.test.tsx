@@ -352,7 +352,21 @@ describe("HostTournamentSetupScreen", () => {
     ).toBe(true);
   });
 
-  it("shows port validation feedback when an out-of-range port is entered (F2)", async () => {
+  it("does not show port error on initial render before the user interacts (P0.1)", async () => {
+    mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
+    mockedGetHostSessionStatus.mockResolvedValue(null);
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    await screen.findByLabelText("Host port");
+    expect(screen.queryByText("Port must be between 1 and 65535.")).toBeNull();
+  });
+
+  it("shows port validation feedback after the user blurs an out-of-range port (F2)", async () => {
     mockedResolveHostLanAddress.mockResolvedValue("192.168.1.10");
     mockedGetHostSessionStatus.mockResolvedValue(null);
 
@@ -363,13 +377,14 @@ describe("HostTournamentSetupScreen", () => {
     });
 
     const portInput = await screen.findByLabelText("Host port");
-    // The onChange handler checks the raw value before clamping
     fireEvent.change(portInput, { target: { value: "99999" } });
+    // Error is suppressed until the user leaves the field
+    expect(screen.queryByText("Port must be between 1 and 65535.")).toBeNull();
 
+    fireEvent.blur(portInput);
     expect(screen.getByText("Port must be between 1 and 65535.")).toBeTruthy();
 
     fireEvent.change(portInput, { target: { value: "43818" } });
-
     expect(screen.queryByText("Port must be between 1 and 65535.")).toBeNull();
   });
 
@@ -562,6 +577,85 @@ describe("HostTournamentSetupScreen", () => {
     });
     expect(await screen.findByTestId("profile-list-load-error")).toBeTruthy();
     expect(screen.getByText(/profiles failed/)).toBeTruthy();
+  });
+
+  it("shows retry-adding-bots banner when npcCount>0, session is live, but addNpcPlayers fails (P0.2)", async () => {
+    mockedAddNpcPlayers.mockRejectedValueOnce(new Error("NPC service down"));
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const npcSelect = await screen.findByLabelText(/npc players/i);
+    fireEvent.change(npcSelect, { target: { value: "1" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /start hosting/i }));
+
+    expect(await screen.findByTestId("npc-error-with-session")).toBeTruthy();
+    expect(screen.getByText(/bots could not be added/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /retry adding bots/i })).toBeTruthy();
+    // Lobby is still accessible (session is live)
+    expect(await screen.findByRole("link", { name: /continue to lobby/i })).toBeTruthy();
+  });
+
+  it("retry adding bots succeeds and clears the error banner (P0.2)", async () => {
+    mockedAddNpcPlayers
+      .mockRejectedValueOnce(new Error("NPC service down"))
+      .mockResolvedValueOnce(sampleHostSessionStatus());
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    const npcSelect = await screen.findByLabelText(/npc players/i);
+    fireEvent.change(npcSelect, { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: /start hosting/i }));
+
+    await screen.findByTestId("npc-error-with-session");
+
+    fireEvent.click(screen.getByRole("button", { name: /retry adding bots/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("npc-error-with-session")).toBeNull();
+    });
+    expect(mockedAddNpcPlayers).toHaveBeenCalledTimes(2);
+  });
+
+  it("fallback invite textarea can be dismissed with the Done button (P0.5)", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("Clipboard denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /start hosting/i }),
+    );
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled"),
+      ).toBe(false);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /copy invite/i }));
+
+    expect(await screen.findByDisplayValue("pkr1_generated_invite")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /done/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /done/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue("pkr1_generated_invite")).toBeNull();
+    });
   });
 
   it("empty profile list without error does not show the load-error banner", async () => {

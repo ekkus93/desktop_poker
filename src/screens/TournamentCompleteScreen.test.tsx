@@ -105,6 +105,22 @@ describe("TournamentCompleteScreen", () => {
     expect(screen.getByText(/12 hands played/i)).toBeTruthy();
   });
 
+  it("renders without crashing when standings array is empty (P0.3)", async () => {
+    const bootstrap = createBootstrap();
+    mockedGetTableView.mockResolvedValue(
+      createTableViewSnapshot({
+        tournamentPhase: "complete",
+        phaseLabel: "Complete",
+        standings: [],
+      }),
+    );
+
+    renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
+
+    expect(await screen.findByText(/no result available/i)).toBeTruthy();
+    expect(screen.queryByText(/undefined/i)).toBeNull();
+  });
+
   it("shows statusLabel not chip count for observer standings entries (B1)", async () => {
     const bootstrap = createBootstrap();
     mockedGetTableView.mockResolvedValue(

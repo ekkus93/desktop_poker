@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useLocation } from "react-router-dom";
 import {
   joinHostSession,
   type JoinPayload,
@@ -9,6 +10,11 @@ import {
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { createParsedJoinPayload } from "../test/appIntegrationFixtures";
 import { JoinTournamentScreen } from "./JoinTournamentScreen";
+
+function LocationDisplay() {
+  const loc = useLocation();
+  return <span data-testid="location-search">{loc.search}</span>;
+}
 
 vi.mock("../api/desktop", async () => {
   const actual =
@@ -328,6 +334,55 @@ describe("JoinTournamentScreen", () => {
     expect(await screen.findByText(/connection refused/i)).toBeTruthy();
     // The user should be able to retry: invite field and check button still visible.
     expect(screen.getByRole("button", { name: "Check invite" })).toBeTruthy();
+  });
+
+  it("clears query params when the user dismisses a failed deep-link join (P0.4)", async () => {
+    const payload = createParsedJoinPayload();
+    const bootstrap = createBootstrap({
+      launchJoinPayload: "pkr1_launch",
+      parsedLaunchJoinPayload: payload,
+    });
+    // Ensure the shell initializes joinPayloadDraft from the bootstrap value ("pkr1_launch"),
+    // not from a stale value left in localStorage by a previous test. Without this,
+    // the deep-link effect fires because it sees a different joinPayloadDraft.
+    localStorage.removeItem(`${bootstrap.storageNamespace}:join-draft`);
+    // If the deep-link effect fires anyway (test ordering variance), handle the validation call.
+    mockedValidateJoinPayloadInput.mockResolvedValue(payload);
+    // Auto-join calls joinHostSession which fails.
+    mockedJoinHostSession.mockRejectedValueOnce(
+      new Error("Host rejected the connection"),
+    );
+
+    renderWithProviders(
+      <>
+        <LocationDisplay />
+        <JoinTournamentScreen bootstrap={bootstrap} />
+      </>,
+      {
+        bootstrap,
+        initialEntries: ["/join?payload=pkr1_launch"],
+      },
+    );
+
+    await screen.findByText(/host rejected the connection/i);
+    // Query string is present before the user clears
+    expect(screen.getByTestId("location-search").textContent).toContain(
+      "payload=pkr1_launch",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Clear and enter a different invite",
+      }),
+    );
+
+    // P0.4: the URL query string must be stripped so navigating back does not
+    // re-import the bad payload.
+    await waitFor(() => {
+      expect(screen.getByTestId("location-search").textContent).toBe("");
+    });
+    // The join error banner must also clear so the user can start fresh.
+    expect(screen.queryByText(/host rejected the connection/i)).toBeNull();
   });
 
   it("keeps keyboard focus moving through the join flow in a sane order", async () => {

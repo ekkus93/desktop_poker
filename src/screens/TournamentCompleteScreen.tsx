@@ -50,7 +50,9 @@ export function TournamentCompleteScreen() {
           {error ? <p className="inline-banner error">{error}</p> : null}
           <p>
             {tableView?.tournamentPhase === "complete"
-              ? `${tableView.standings[0]?.displayName ?? "The winner"} wins ${hostDraft.tournamentName}.`
+              ? tableView.standings.length > 0
+                ? `${tableView.standings[0].displayName} wins ${hostDraft.tournamentName}.`
+                : "No result available."
               : "Final order appears here when the tournament closes."}
           </p>
           {tableView ? (

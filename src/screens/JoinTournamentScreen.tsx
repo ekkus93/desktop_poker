@@ -60,6 +60,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
     Map<string, { label: string; invalid?: boolean }>
   >(new Map());
   const launchJoinAttemptedForPayload = useRef<string | null>(null);
+  const deepLinkImportedRef = useRef<string | null>(null);
 
   const deepLinkPayload = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -96,22 +97,30 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   }, [recentJoinPayloads]);
 
   useEffect(() => {
-    if (deepLinkPayload && deepLinkPayload !== joinPayloadDraft) {
-      setJoinPayloadDraft(deepLinkPayload);
-
-      void validateJoinPayloadInput(deepLinkPayload)
-        .then((parsedPayload) => {
-          setValidationState({ status: "valid", payload: parsedPayload });
-          setInviteBanner("Invite imported from a deep-link launch.");
-        })
-        .catch((error: unknown) => {
-          setValidationState({
-            status: "invalid",
-            message: normaliseError(error),
-          });
-          setInviteBanner(null);
-        });
+    if (!deepLinkPayload || deepLinkPayload === joinPayloadDraft) {
+      return;
     }
+    // Prevent re-importing the same payload if the user clears the field while the
+    // URL update and draft reset are still being batched into separate renders.
+    if (deepLinkImportedRef.current === deepLinkPayload) {
+      return;
+    }
+
+    deepLinkImportedRef.current = deepLinkPayload;
+    setJoinPayloadDraft(deepLinkPayload);
+
+    void validateJoinPayloadInput(deepLinkPayload)
+      .then((parsedPayload) => {
+        setValidationState({ status: "valid", payload: parsedPayload });
+        setInviteBanner("Invite imported from a deep-link launch.");
+      })
+      .catch((error: unknown) => {
+        setValidationState({
+          status: "invalid",
+          message: normaliseError(error),
+        });
+        setInviteBanner(null);
+      });
   }, [deepLinkPayload, joinPayloadDraft, setJoinPayloadDraft]);
 
   useEffect(() => {
@@ -419,6 +428,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                           setValidationState({ status: "idle" });
                           setJoinError(null);
                           setInviteBanner(null);
+                          navigate(location.pathname, { replace: true });
                         }}
                         type="button"
                       >

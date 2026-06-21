@@ -74,7 +74,9 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [portError, setPortError] = useState<string | null>(null);
+  const [portTouched, setPortTouched] = useState(false);
   const [npcError, setNpcError] = useState<string | null>(null);
+  const [npcRetrying, setNpcRetrying] = useState(false);
 
   useEffect(() => {
     if (bootstrap.llmApiKeyConfigured) {
@@ -173,7 +175,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
     BLIND_PRESETS.find((preset) => preset.id === hostDraft.blindPresetId) ??
     BLIND_PRESETS[0];
   const inviteReady = Boolean(hostSession);
-  const canContinueToLobby = Boolean(hostSession);
+  const canContinueToLobby = Boolean(hostSession) && !npcRetrying;
   const blockedProgressMessage = lanError
     ? "Resolve the LAN address before continuing to the lobby."
     : "Start hosting before continuing to the lobby.";
@@ -240,6 +242,31 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
       setHostSession(null);
     } finally {
       setStarting(false);
+    }
+  };
+
+  const retryAddingNpcs = async () => {
+    if (!hostSession || npcRetrying) {
+      return;
+    }
+
+    setNpcRetrying(true);
+    setNpcError(null);
+
+    try {
+      const npcs = Array.from({ length: hostDraft.npcCount }, (_, i) => ({
+        displayName: npcDisplayName(i),
+        style: hostDraft.npcStyle as NpcStyle,
+        profileId: hostDraft.npcProfileId ?? null,
+      }));
+      const npcStatus = await addNpcPlayers({ npcs });
+      setHostSession(npcStatus);
+    } catch (npcErr) {
+      setNpcError(
+        npcErr instanceof Error ? npcErr.message : "Unable to add NPC players.",
+      );
+    } finally {
+      setNpcRetrying(false);
     }
   };
 
@@ -400,6 +427,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                   Host port
                   <input
                     min={1}
+                    onBlur={() => setPortTouched(true)}
                     onChange={(event) => {
                       const raw = event.target.value;
                       const parsed = Number.parseInt(raw, 10);
@@ -419,7 +447,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                     type="number"
                     value={hostDraft.hostPort}
                   />
-                  {portError ? (
+                  {portTouched && portError ? (
                     <span className="field-hint error-hint">{portError}</span>
                   ) : null}
                 </label>
@@ -504,7 +532,30 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 <p className="inline-banner error">{lanError}</p>
               ) : null}
               {npcError ? (
-                <p className="inline-banner error">{npcError}</p>
+                hostSession ? (
+                  <div
+                    className="inline-banner error"
+                    data-testid="npc-error-with-session"
+                  >
+                    <p>
+                      Bots could not be added — session is live without them.{" "}
+                      {npcError}
+                    </p>
+                    <button
+                      className="secondary-button"
+                      disabled={npcRetrying}
+                      onClick={() => {
+                        void retryAddingNpcs();
+                      }}
+                      style={{ marginTop: "0.5rem" }}
+                      type="button"
+                    >
+                      {npcRetrying ? "Adding bots…" : "Retry adding bots"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="inline-banner error">{npcError}</p>
+                )
               ) : null}
             </div>
 
@@ -647,15 +698,25 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 <p className="inline-banner error">{copyError}</p>
               ) : null}
               {fallbackInvite ? (
-                <label className="field">
-                  Invite
-                  <textarea
-                    className="compact-invite-textarea"
-                    readOnly
-                    rows={6}
-                    value={fallbackInvite}
-                  />
-                </label>
+                <div>
+                  <label className="field">
+                    Invite
+                    <textarea
+                      className="compact-invite-textarea"
+                      readOnly
+                      rows={6}
+                      value={fallbackInvite}
+                    />
+                  </label>
+                  <button
+                    className="secondary-button compact-button"
+                    onClick={() => setFallbackInvite(null)}
+                    style={{ marginTop: "0.5rem" }}
+                    type="button"
+                  >
+                    Done
+                  </button>
+                </div>
               ) : null}
             </div>
           </div>
