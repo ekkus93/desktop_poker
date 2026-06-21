@@ -21,7 +21,11 @@ impl DesktopAppState {
         let (parsed_launch_join_payload, launch_join_payload_error) =
             parse_launch_join_payload(launch_join_payload.as_deref());
         let app_data_dir = detect_app_data_dir();
-        let load_state = crate::npc::provider_storage::load_provider_config(&app_data_dir);
+        let secret_store: std::sync::Arc<
+            dyn crate::npc::provider_storage::ProviderSecretStore + Send + Sync,
+        > = crate::npc::provider_storage::default_secret_store(&app_data_dir).into();
+        let load_state =
+            crate::npc::provider_storage::load_provider_config(&app_data_dir, &*secret_store);
         let provider_config_error = match &load_state {
             crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { error }
             | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { error }
@@ -73,6 +77,7 @@ impl DesktopAppState {
             },
             app_data_dir,
             llm_provider,
+            secret_store,
             live_provider_config_error: Mutex::new(provider_config_error),
             debug_table_runtime: Mutex::new(None),
             host_session: Mutex::new(None),

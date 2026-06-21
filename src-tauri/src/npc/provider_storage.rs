@@ -15,51 +15,123 @@ const LEGACY_KEY_FILE_NAME: &str = "claude-api-key.txt";
 #[cfg(not(debug_assertions))]
 const KEYCHAIN_SERVICE: &str = "desktop-poker-llm-provider";
 
+/// All known per-provider keychain account identifiers.
+/// Used for exhaustive clear when provider settings are unavailable (P0.5).
+const KNOWN_PROVIDER_ACCOUNTS: &[&str] = &["anthropic", "openAi"];
+
 // ---------------------------------------------------------------------------
-// Key storage backends: OS keychain (release) and plaintext file (debug).
+// ProviderSecretStore trait — abstract secret storage boundary.
 //
-// Debug builds use the file-based approach so tests can run without a live
-// keychain daemon and developers can inspect the stored key.
-// Release builds must use the OS keychain — falling back to plaintext is not
-// an option and results in an explicit error.
+// Implementations:
+//   KeychainSecretStore      — release builds, OS keychain per-provider account.
+//   PlaintextFileSecretStore — debug builds, single shared key file.
+//   InMemorySecretStore      — tests, in-process hash map (behind #[cfg(test)]).
+//   FailingSecretStore       — tests, simulates keychain failures.
+//
+// The `provider` parameter maps to a keychain account name in release builds;
+// it is ignored in debug builds (single shared file, not per-provider).
 // ---------------------------------------------------------------------------
 
-/// Read the API key for the given provider account from the OS keychain.
-///
-/// Returns `Ok(None)` when no entry exists.
-/// Returns `Err` when the keychain is unavailable or the entry is unreadable.
+pub trait ProviderSecretStore {
+    fn read_key(&self, provider: &str) -> Result<Option<String>, String>;
+    fn write_key(&self, provider: &str, key: &str) -> Result<(), String>;
+    fn delete_key(&self, provider: &str) -> Result<(), String>;
+}
+
+// ---------------------------------------------------------------------------
+// Release build: OS keychain implementation.
+// ---------------------------------------------------------------------------
+
+pub struct KeychainSecretStore;
+
 #[cfg(not(debug_assertions))]
-fn read_key_from_keychain(provider: &str) -> Result<Option<String>, String> {
-    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
-        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
-    match entry.get_password() {
-        Ok(pw) if pw.is_empty() => Ok(None),
-        Ok(pw) => Ok(Some(pw)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("keychain read failed: {e}")),
+impl ProviderSecretStore for KeychainSecretStore {
+    fn read_key(&self, provider: &str) -> Result<Option<String>, String> {
+        let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+            .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+        match entry.get_password() {
+            Ok(pw) if pw.is_empty() => Ok(None),
+            Ok(pw) => Ok(Some(pw)),
+            Err(keyring::Error::NoEntry) => Ok(None),
+            Err(e) => Err(format!("keychain read failed: {e}")),
+        }
+    }
+
+    fn write_key(&self, provider: &str, key: &str) -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+            .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+        entry
+            .set_password(key)
+            .map_err(|e| format!("keychain write failed: {e}"))
+    }
+
+    fn delete_key(&self, provider: &str) -> Result<(), String> {
+        let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
+            .map_err(|e| format!("keychain entry creation failed: {e}"))?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(format!("keychain delete failed: {e}")),
+        }
     }
 }
 
-/// Write the API key for the given provider account to the OS keychain.
-#[cfg(not(debug_assertions))]
-fn write_key_to_keychain(provider: &str, key: &str) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
-        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
-    entry
-        .set_password(key)
-        .map_err(|e| format!("keychain write failed: {e}"))
+// In debug builds we still need a KeychainSecretStore to satisfy the type
+// system at call sites even if it is never reached at runtime.
+#[cfg(debug_assertions)]
+impl ProviderSecretStore for KeychainSecretStore {
+    fn read_key(&self, _provider: &str) -> Result<Option<String>, String> {
+        Err("KeychainSecretStore not available in debug builds".to_string())
+    }
+    fn write_key(&self, _provider: &str, _key: &str) -> Result<(), String> {
+        Err("KeychainSecretStore not available in debug builds".to_string())
+    }
+    fn delete_key(&self, _provider: &str) -> Result<(), String> {
+        Err("KeychainSecretStore not available in debug builds".to_string())
+    }
 }
 
-/// Delete the API key for the given provider account from the OS keychain.
-///
-/// Silently succeeds if the entry does not exist.
-#[cfg(not(debug_assertions))]
-fn delete_key_from_keychain(provider: &str) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYCHAIN_SERVICE, provider)
-        .map_err(|e| format!("keychain entry creation failed: {e}"))?;
-    match entry.delete_credential() {
-        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("keychain delete failed: {e}")),
+// ---------------------------------------------------------------------------
+// Debug build: plaintext file implementation (one shared key file).
+// ---------------------------------------------------------------------------
+
+pub struct PlaintextFileSecretStore {
+    key_path: PathBuf,
+}
+
+impl PlaintextFileSecretStore {
+    pub fn new(app_data_dir: &Path) -> Self {
+        Self {
+            key_path: app_data_dir.join(KEY_FILE_NAME),
+        }
+    }
+}
+
+impl ProviderSecretStore for PlaintextFileSecretStore {
+    fn read_key(&self, _provider: &str) -> Result<Option<String>, String> {
+        read_key_file(&self.key_path)
+    }
+
+    fn write_key(&self, _provider: &str, key: &str) -> Result<(), String> {
+        write_key_file(&self.key_path, key).map_err(|e| e.to_string())
+    }
+
+    fn delete_key(&self, _provider: &str) -> Result<(), String> {
+        if self.key_path.exists() {
+            fs::remove_file(&self.key_path).map_err(|e| e.to_string())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+/// Construct the appropriate secret store for the current build configuration.
+pub fn default_secret_store(app_data_dir: &Path) -> Box<dyn ProviderSecretStore + Send + Sync> {
+    #[cfg(debug_assertions)]
+    return Box::new(PlaintextFileSecretStore::new(app_data_dir));
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = app_data_dir;
+        return Box::new(KeychainSecretStore);
     }
 }
 
@@ -86,6 +158,7 @@ fn settings_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(SETTINGS_FILE_NAME)
 }
 
+#[cfg(test)]
 fn key_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(KEY_FILE_NAME)
 }
@@ -132,18 +205,23 @@ fn write_key_file(path: &Path, key: &str) -> Result<(), std::io::Error> {
 ///
 /// ## File layout (current)
 /// - `llm-provider.json` — non-secret settings (`LlmProviderSettings`)
-/// - `llm-provider-key.dat` — raw API key string, 0600 permissions
+/// - Key storage per build type:
+///   - Release: OS keychain (per-provider account)
+///   - Debug: `llm-provider-key.dat` (single shared file)
 ///
 /// ## Migration paths
 /// 1. **Combined old format** — `llm-provider.json` contains both settings and
-///    `apiKey` field (written by an older version).  On first load the key is
-///    moved to `llm-provider-key.dat` and the settings file is rewritten
-///    without it.
+///    `apiKey` field (written by an older version). On first load the key is
+///    moved to the appropriate key storage and the settings file is rewritten
+///    without it. If the key storage write fails (P0.4), the settings file is
+///    NOT rewritten and a visible error is returned instead.
 /// 2. **Legacy plain-text key** — `claude-api-key.txt` from Phase 2 is promoted
 ///    to an Anthropic config if neither current file exists.
-pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
+pub fn load_provider_config(
+    app_data_dir: &Path,
+    store: &dyn ProviderSecretStore,
+) -> ProviderConfigLoadState {
     let sp = settings_path(app_data_dir);
-    let kp = key_path(app_data_dir);
 
     if sp.exists() {
         let text = match fs::read_to_string(&sp) {
@@ -176,65 +254,51 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
             }
         };
 
-        // Determine the API key.
-        // Release: from the OS keychain. Debug: from the dedicated key file.
+        // Determine the API key via the injected store.
         // Fall back to the legacy embedded `apiKey` field for one-time migration.
-        #[cfg(not(debug_assertions))]
         let provider_str = settings.provider.as_str();
-        let api_key = {
-            #[cfg(not(debug_assertions))]
-            let key_result = read_key_from_keychain(provider_str);
-            #[cfg(debug_assertions)]
-            let key_result = read_key_file(&kp);
+        let api_key = match store.read_key(provider_str) {
+            Err(e) => {
+                // Key storage exists/attempted but returned an error — surface explicitly.
+                return ProviderConfigLoadState::KeyUnreadable { error: e };
+            }
+            Ok(Some(key)) => Some(key),
+            Ok(None) => {
+                // Migration: extract key embedded in old combined format.
+                let embedded = json_val
+                    .get("apiKey")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string());
 
-            match key_result {
-                Err(e) => {
-                    // Key storage exists/attempted but returned an error — surface explicitly.
-                    return ProviderConfigLoadState::KeyUnreadable { error: e };
-                }
-                Ok(Some(key)) => Some(key),
-                Ok(None) => {
-                    // Migration: extract key embedded in old combined format.
-                    let embedded = json_val
-                        .get("apiKey")
-                        .and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string());
-
-                    if let Some(ref key) = embedded {
-                        // Migrate immediately to the appropriate key storage.
-                        #[cfg(not(debug_assertions))]
-                        if let Err(e) = write_key_to_keychain(provider_str, key) {
-                            eprintln!(
-                                "[provider-storage] migration: failed to write to keychain: {e}"
-                            );
-                        }
-                        #[cfg(debug_assertions)]
-                        if let Err(e) = write_key_file(&kp, key) {
-                            eprintln!(
-                                "[provider-storage] migration: failed to write key file: {e}"
-                            );
-                        }
-                        if let Ok(json) = serde_json::to_string_pretty(&settings) {
-                            if let Err(e) = fs::write(&sp, json) {
-                                eprintln!(
-                                    "[provider-storage] migration: failed to rewrite settings \
-                                     file: {e}"
-                                );
-                            } else {
-                                eprintln!(
-                                    "[provider-storage] migrated API key from llm-provider.json"
-                                );
+                if let Some(ref key) = embedded {
+                    // P0.4: Only rewrite settings file if key storage write succeeded.
+                    // A failed write must not erase the embedded key — that would cause
+                    // silent key loss on next load.
+                    match store.write_key(provider_str, key) {
+                        Ok(()) => {
+                            if let Ok(json) = serde_json::to_string_pretty(&settings) {
+                                if let Err(e) = fs::write(&sp, json) {
+                                    eprintln!(
+                                        "[provider-storage] migration: failed to rewrite settings \
+                                         file: {e}"
+                                    );
+                                } else {
+                                    eprintln!(
+                                        "[provider-storage] migrated API key from embedded field"
+                                    );
+                                }
                             }
                         }
-                        // In debug mode, remove the old file-based key after migration.
-                        #[cfg(debug_assertions)]
-                        if !kp.exists() {
-                            // write_key_file created kp; nothing to remove here.
+                        Err(e) => {
+                            // Migration failed — return a visible error and leave settings intact.
+                            return ProviderConfigLoadState::KeyUnreadable {
+                                error: format!("migration to secure storage failed: {e}"),
+                            };
                         }
                     }
-                    embedded
                 }
+                embedded
             }
         };
 
@@ -257,51 +321,28 @@ pub fn load_provider_config(app_data_dir: &Path) -> ProviderConfigLoadState {
 
 /// Write the provider config.
 ///
-/// In release builds the API key is stored in the OS keychain.
-/// In debug builds it is written to `llm-provider-key.dat` (for testability).
-/// If `config` is `None`, the settings file and the key storage entry are both removed.
+/// The API key is stored via the injected `store` (keychain in release, file in debug).
+/// If `config` is `None`, the settings file is removed and all known API-provider secret
+/// accounts are deleted — even when the settings file is corrupt or missing (P0.5).
 pub fn save_provider_config(
     app_data_dir: &Path,
     config: Option<&LlmProviderConfig>,
+    store: &dyn ProviderSecretStore,
 ) -> Result<(), std::io::Error> {
     let sp = settings_path(app_data_dir);
-    let kp = key_path(app_data_dir);
 
     match config {
         None => {
-            // Determine the provider type from the existing settings file so we
-            // know which keychain account to delete (release mode only).
-            #[cfg(not(debug_assertions))]
-            let provider_to_clear: Option<String> = {
-                if sp.exists() {
-                    fs::read_to_string(&sp)
-                        .ok()
-                        .and_then(|text| {
-                            serde_json::from_str::<super::provider::LlmProviderSettings>(&text).ok()
-                        })
-                        .map(|s| s.provider.as_str().to_string())
-                } else {
-                    None
+            // P0.5: Delete all known provider accounts unconditionally — don't rely on
+            // being able to parse the settings file (it may be corrupt or missing).
+            for account in KNOWN_PROVIDER_ACCOUNTS {
+                if let Err(e) = store.delete_key(account) {
+                    eprintln!("[provider-storage] clear: delete '{account}' failed: {e}");
                 }
-            };
+            }
 
             if sp.exists() {
                 fs::remove_file(&sp)?;
-            }
-
-            #[cfg(not(debug_assertions))]
-            {
-                if let Some(provider) = provider_to_clear {
-                    if let Err(e) = delete_key_from_keychain(&provider) {
-                        return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
-                    }
-                }
-            }
-            #[cfg(debug_assertions)]
-            {
-                if kp.exists() {
-                    fs::remove_file(&kp)?;
-                }
             }
         }
         Some(cfg) => {
@@ -314,65 +355,51 @@ pub fn save_provider_config(
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
             fs::write(&sp, settings_json)?;
 
-            // Store or clear the API key.
             let key = cfg.api_key.as_deref().unwrap_or("").trim().to_string();
-            #[cfg(not(debug_assertions))]
             let provider_str = cfg.settings.provider.as_str();
 
             if key.is_empty() {
                 // No key — remove any previously stored key for this provider.
-                #[cfg(not(debug_assertions))]
-                if let Err(e) = delete_key_from_keychain(provider_str) {
-                    return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
-                }
-                #[cfg(debug_assertions)]
-                if kp.exists() {
-                    fs::remove_file(&kp)?;
-                }
+                store
+                    .delete_key(provider_str)
+                    .map_err(std::io::Error::other)?;
             } else {
                 // Store the key in the appropriate backend.
-                #[cfg(not(debug_assertions))]
-                write_key_to_keychain(provider_str, &key)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                #[cfg(debug_assertions)]
-                write_key_file(&kp, &key)?;
+                store
+                    .write_key(provider_str, &key)
+                    .map_err(std::io::Error::other)?;
             }
         }
     }
     Ok(())
 }
 
-/// Save only the non-secret provider settings, preserving any existing key file.
+/// Save only the non-secret provider settings, preserving any existing stored key.
 ///
 /// Use this when the user edits endpoint/model/provider fields without entering
-/// a new API key — the existing key must not be erased.
+/// a new API key. If the provider type changes, the old key is deleted via the
+/// store so it cannot be re-associated with the new provider (P0.3).
 pub fn save_provider_settings_only(
     app_data_dir: &Path,
     settings: &LlmProviderSettings,
+    store: &dyn ProviderSecretStore,
 ) -> Result<(), std::io::Error> {
     let sp = settings_path(app_data_dir);
 
-    // P0.3: Debug builds use a single shared key file (not per-provider).
-    // When the provider type changes, clear the key file so the old key is not
+    // P0.3: When the provider type changes, delete the old key so it cannot be
     // re-read and associated with the new provider on the next load.
-    // Release builds use per-provider keychain accounts, so no action is needed.
-    #[cfg(debug_assertions)]
-    {
-        if sp.exists() {
-            if let Ok(text) = fs::read_to_string(&sp) {
-                if let Ok(current) = serde_json::from_str::<LlmProviderSettings>(&text) {
-                    if current.provider != settings.provider {
-                        let kp = key_path(app_data_dir);
-                        if kp.exists() {
-                            if let Err(e) = fs::remove_file(&kp) {
-                                eprintln!(
-                                    "[provider-storage] could not clear stale key file after \
-                                     provider change ({} → {}): {e}",
-                                    current.provider.as_str(),
-                                    settings.provider.as_str()
-                                );
-                            }
-                        }
+    // This is needed for both debug (shared file) and release (keychain).
+    if sp.exists() {
+        if let Ok(text) = fs::read_to_string(&sp) {
+            if let Ok(current) = serde_json::from_str::<LlmProviderSettings>(&text) {
+                if current.provider != settings.provider {
+                    if let Err(e) = store.delete_key(current.provider.as_str()) {
+                        eprintln!(
+                            "[provider-storage] could not clear stale key after provider change \
+                             ({} → {}): {e}",
+                            current.provider.as_str(),
+                            settings.provider.as_str()
+                        );
                     }
                 }
             }
@@ -390,6 +417,9 @@ pub fn save_provider_settings_only(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
     use super::super::provider::LlmProviderType;
     use super::*;
 
@@ -411,23 +441,90 @@ mod tests {
         }
     }
 
+    /// File-based store (mirrors debug production behavior); accepts a tempdir path.
+    fn file_store(dir: &std::path::Path) -> PlaintextFileSecretStore {
+        PlaintextFileSecretStore::new(dir)
+    }
+
+    /// Simulates a store where every write operation fails. Used for P0.4 tests.
+    struct FailingWriteSecretStore;
+
+    impl ProviderSecretStore for FailingWriteSecretStore {
+        fn read_key(&self, _provider: &str) -> Result<Option<String>, String> {
+            Ok(None)
+        }
+        fn write_key(&self, _provider: &str, _key: &str) -> Result<(), String> {
+            Err("simulated secure storage write failure".to_string())
+        }
+        fn delete_key(&self, _provider: &str) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    /// In-memory store that tracks which accounts were deleted. Used for P0.5 tests.
+    struct TrackingSecretStore {
+        keys: RefCell<HashMap<String, String>>,
+        deleted: RefCell<Vec<String>>,
+    }
+
+    impl TrackingSecretStore {
+        fn new() -> Self {
+            Self {
+                keys: RefCell::new(HashMap::new()),
+                deleted: RefCell::new(Vec::new()),
+            }
+        }
+
+        fn with_key(self, provider: &str, key: &str) -> Self {
+            self.keys
+                .borrow_mut()
+                .insert(provider.to_string(), key.to_string());
+            self
+        }
+
+        fn deleted_accounts(&self) -> Vec<String> {
+            self.deleted.borrow().clone()
+        }
+    }
+
+    impl ProviderSecretStore for TrackingSecretStore {
+        fn read_key(&self, provider: &str) -> Result<Option<String>, String> {
+            Ok(self.keys.borrow().get(provider).cloned())
+        }
+
+        fn write_key(&self, provider: &str, key: &str) -> Result<(), String> {
+            self.keys
+                .borrow_mut()
+                .insert(provider.to_string(), key.to_string());
+            Ok(())
+        }
+
+        fn delete_key(&self, provider: &str) -> Result<(), String> {
+            self.keys.borrow_mut().remove(provider);
+            self.deleted.borrow_mut().push(provider.to_string());
+            Ok(())
+        }
+    }
+
     #[test]
     fn save_and_load_roundtrip() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         let cfg = anthropic_config("sk-ant-test");
-        save_provider_config(dir.path(), Some(&cfg)).unwrap();
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        save_provider_config(dir.path(), Some(&cfg), &store).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-test"));
     }
 
     #[test]
-    fn save_none_removes_both_files() {
+    fn save_none_removes_settings_file_and_key() {
         let dir = tempfile::tempdir().unwrap();
-        save_provider_config(dir.path(), Some(&anthropic_config("k"))).unwrap();
-        save_provider_config(dir.path(), None).unwrap();
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("k")), &store).unwrap();
+        save_provider_config(dir.path(), None, &store).unwrap();
         assert!(matches!(
-            load_provider_config(dir.path()),
+            load_provider_config(dir.path(), &store),
             ProviderConfigLoadState::Missing
         ));
         assert!(!settings_path(dir.path()).exists());
@@ -437,8 +534,9 @@ mod tests {
     #[test]
     fn load_nonexistent_returns_missing() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         assert!(matches!(
-            load_provider_config(dir.path()),
+            load_provider_config(dir.path(), &store),
             ProviderConfigLoadState::Missing
         ));
     }
@@ -446,9 +544,10 @@ mod tests {
     #[test]
     fn corrupt_json_returns_invalid_json() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         fs::write(settings_path(dir.path()), "not json at all").unwrap();
         assert!(matches!(
-            load_provider_config(dir.path()),
+            load_provider_config(dir.path(), &store),
             ProviderConfigLoadState::InvalidJson { .. }
         ));
     }
@@ -456,9 +555,10 @@ mod tests {
     #[test]
     fn invalid_schema_returns_invalid_schema() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         fs::write(settings_path(dir.path()), r#"{"unexpected":"field"}"#).unwrap();
         assert!(matches!(
-            load_provider_config(dir.path()),
+            load_provider_config(dir.path(), &store),
             ProviderConfigLoadState::InvalidSchema { .. }
         ));
     }
@@ -466,8 +566,9 @@ mod tests {
     #[test]
     fn legacy_key_file_is_promoted_to_anthropic_config() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
     }
@@ -475,6 +576,7 @@ mod tests {
     #[test]
     fn new_settings_file_takes_precedence_over_legacy_key() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
         let new_cfg = LlmProviderConfig {
             settings: LlmProviderSettings {
@@ -484,15 +586,17 @@ mod tests {
             },
             api_key: None,
         };
-        save_provider_config(dir.path(), Some(&new_cfg)).unwrap();
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        save_provider_config(dir.path(), Some(&new_cfg), &store).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Ollama);
     }
 
     #[test]
     fn settings_file_does_not_contain_api_key() {
         let dir = tempfile::tempdir().unwrap();
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
+            .unwrap();
         let settings_json = fs::read_to_string(settings_path(dir.path())).unwrap();
         assert!(
             !settings_json.contains("sk-ant-secret"),
@@ -507,7 +611,9 @@ mod tests {
     #[test]
     fn api_key_is_stored_in_dedicated_key_file() {
         let dir = tempfile::tempdir().unwrap();
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
+            .unwrap();
         let key_content = fs::read_to_string(key_path(dir.path())).unwrap();
         assert_eq!(
             key_content.trim(),
@@ -519,12 +625,13 @@ mod tests {
     #[test]
     fn migration_from_combined_old_format_extracts_key_and_rewrites_settings() {
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         // Write old combined format (settings + apiKey in one file).
         let old_json = r#"{"provider":"anthropic","apiKey":"sk-ant-migrated","endpointUrl":null,"model":null}"#;
         fs::write(settings_path(dir.path()), old_json).unwrap();
 
         // Load should trigger migration.
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-migrated"));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
 
@@ -565,7 +672,8 @@ mod tests {
     fn saved_key_file_has_restricted_file_permissions() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-secret"))).unwrap();
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-secret")), &store).unwrap();
         let meta = fs::metadata(key_path(dir.path())).unwrap();
         let mode = meta.permissions().mode() & 0o777;
         assert_eq!(
@@ -579,11 +687,13 @@ mod tests {
     fn unreadable_key_file_returns_key_unreadable_not_missing() {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().unwrap();
+        let store = file_store(dir.path());
         // Write valid settings and an unreadable key file (mode 000).
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
+            .unwrap();
         let kp = key_path(dir.path());
         fs::set_permissions(&kp, fs::Permissions::from_mode(0o000)).unwrap();
-        let result = load_provider_config(dir.path());
+        let result = load_provider_config(dir.path(), &store);
         // Restore permissions so the temp dir cleanup can remove the file.
         fs::set_permissions(&kp, fs::Permissions::from_mode(0o600)).unwrap();
         assert!(
@@ -595,14 +705,14 @@ mod tests {
     #[test]
     fn missing_key_file_with_key_required_provider_loads_with_no_key() {
         let dir = tempfile::tempdir().unwrap();
-        // Write settings only, no key file.
+        let store = file_store(dir.path());
         let settings = LlmProviderSettings {
             provider: LlmProviderType::Anthropic,
             endpoint_url: None,
             model: None,
         };
-        save_provider_settings_only(dir.path(), &settings).unwrap();
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        save_provider_settings_only(dir.path(), &settings, &store).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert!(
             loaded.api_key.is_none(),
@@ -613,17 +723,18 @@ mod tests {
     #[test]
     fn save_settings_only_preserves_existing_key() {
         let dir = tempfile::tempdir().unwrap();
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-original"))).unwrap();
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-original")), &store)
+            .unwrap();
 
-        // Update only the settings.
         let new_settings = LlmProviderSettings {
             provider: LlmProviderType::Anthropic,
             endpoint_url: Some("https://custom.example.com".to_string()),
             model: Some("claude-haiku-4-5-20251001".to_string()),
         };
-        save_provider_settings_only(dir.path(), &new_settings).unwrap();
+        save_provider_settings_only(dir.path(), &new_settings, &store).unwrap();
 
-        let loaded = unwrap_loaded(load_provider_config(dir.path()));
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(
             loaded.settings.endpoint_url.as_deref(),
             Some("https://custom.example.com"),
@@ -636,34 +747,102 @@ mod tests {
         );
     }
 
-    /// P0.3: In debug builds the key is stored in a shared file, not per-provider.
-    /// Switching providers via save_settings_only must clear the old key file so
+    /// P0.3: Switching providers via save_settings_only must clear the old key so
     /// the next load does not hand the old key to the new provider.
-    #[cfg(debug_assertions)]
+    /// This holds for both debug (shared key file) and release (per-provider keychain).
     #[test]
-    fn save_settings_only_clears_key_file_on_provider_type_change() {
+    fn save_settings_only_clears_key_on_provider_type_change() {
         let dir = tempfile::tempdir().unwrap();
-        // Set up Anthropic with a key.
-        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret"))).unwrap();
-        let before = unwrap_loaded(load_provider_config(dir.path()));
+        let store = file_store(dir.path());
+        save_provider_config(dir.path(), Some(&anthropic_config("sk-ant-secret")), &store)
+            .unwrap();
+        let before = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(before.api_key.as_deref(), Some("sk-ant-secret"));
 
-        // Switch to OpenAI via settings-only (simulates frontend provider change with blank key).
         let openai_settings = LlmProviderSettings {
             provider: LlmProviderType::OpenAi,
             endpoint_url: None,
             model: None,
         };
-        save_provider_settings_only(dir.path(), &openai_settings).unwrap();
+        save_provider_settings_only(dir.path(), &openai_settings, &store).unwrap();
 
-        // The Anthropic key must not appear on the next load.
-        let after = unwrap_loaded(load_provider_config(dir.path()));
+        let after = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(after.settings.provider, LlmProviderType::OpenAi);
         assert!(
             after.api_key.is_none(),
-            "switching provider must not preserve the previous provider's key; \
-             got: {:?}",
+            "switching provider must not preserve the previous provider's key; got: {:?}",
             after.api_key
+        );
+    }
+
+    /// P0.4: When migration to secure storage fails, the function must return a visible
+    /// error and must NOT rewrite/remove the embedded key from the settings file.
+    #[test]
+    fn migration_failure_returns_error_and_preserves_embedded_key_in_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let old_json = r#"{"provider":"anthropic","apiKey":"sk-ant-precious","endpointUrl":null,"model":null}"#;
+        fs::write(settings_path(dir.path()), old_json).unwrap();
+
+        let failing_store = FailingWriteSecretStore;
+        let result = load_provider_config(dir.path(), &failing_store);
+
+        assert!(
+            matches!(result, ProviderConfigLoadState::KeyUnreadable { .. }),
+            "failed migration must return KeyUnreadable, got {result:?}"
+        );
+
+        // The embedded key must still be present — it must not have been erased.
+        let settings_after = fs::read_to_string(settings_path(dir.path())).unwrap();
+        assert!(
+            settings_after.contains("sk-ant-precious"),
+            "failed migration must not erase the embedded key; settings: {settings_after}"
+        );
+    }
+
+    /// P0.5: Clearing provider config must delete all known API-provider secret accounts,
+    /// even when settings JSON is corrupt or missing — not just the stored provider's account.
+    #[test]
+    fn clear_deletes_all_known_provider_accounts() {
+        let dir = tempfile::tempdir().unwrap();
+        let tracking = TrackingSecretStore::new()
+            .with_key("anthropic", "sk-ant-key")
+            .with_key("openAi", "sk-openai-key");
+
+        save_provider_config(dir.path(), None, &tracking).unwrap();
+
+        let deleted = tracking.deleted_accounts();
+        assert!(
+            deleted.contains(&"anthropic".to_string()),
+            "clear must delete the 'anthropic' account; deleted: {deleted:?}"
+        );
+        assert!(
+            deleted.contains(&"openAi".to_string()),
+            "clear must delete the 'openAi' account; deleted: {deleted:?}"
+        );
+    }
+
+    /// P0.5: If settings JSON is corrupt, the clear path must still attempt deletion for
+    /// all known accounts rather than skipping because the provider type cannot be parsed.
+    #[test]
+    fn clear_with_corrupt_settings_still_deletes_all_known_accounts() {
+        let dir = tempfile::tempdir().unwrap();
+        // Write corrupt settings so provider type cannot be determined.
+        fs::write(settings_path(dir.path()), "this is not valid json!").unwrap();
+
+        let tracking = TrackingSecretStore::new().with_key("anthropic", "stale-key");
+
+        save_provider_config(dir.path(), None, &tracking).unwrap();
+
+        let deleted = tracking.deleted_accounts();
+        assert!(
+            deleted.contains(&"anthropic".to_string()),
+            "clear with corrupt settings must still attempt to delete 'anthropic'; \
+             deleted: {deleted:?}"
+        );
+        assert!(
+            deleted.contains(&"openAi".to_string()),
+            "clear with corrupt settings must still attempt to delete 'openAi'; \
+             deleted: {deleted:?}"
         );
     }
 }

@@ -146,8 +146,12 @@ impl DesktopAppState {
         &self,
         config: crate::npc::LlmProviderConfig,
     ) -> Result<(), String> {
-        crate::npc::provider_storage::save_provider_config(&self.app_data_dir, Some(&config))
-            .map_err(|e| e.to_string())?;
+        crate::npc::provider_storage::save_provider_config(
+            &self.app_data_dir,
+            Some(&config),
+            &*self.secret_store,
+        )
+        .map_err(|e| e.to_string())?;
         *self
             .llm_provider
             .lock()
@@ -164,8 +168,12 @@ impl DesktopAppState {
         &self,
         settings: crate::npc::LlmProviderSettings,
     ) -> Result<(), String> {
-        crate::npc::provider_storage::save_provider_settings_only(&self.app_data_dir, &settings)
-            .map_err(|e| e.to_string())?;
+        crate::npc::provider_storage::save_provider_settings_only(
+            &self.app_data_dir,
+            &settings,
+            &*self.secret_store,
+        )
+        .map_err(|e| e.to_string())?;
         // Update the in-memory provider's settings without touching the key.
         let mut provider = self
             .llm_provider
@@ -193,8 +201,12 @@ impl DesktopAppState {
 
     /// Clear the provider config from disk and memory.
     pub fn clear_llm_provider_config(&self) -> Result<(), String> {
-        crate::npc::provider_storage::save_provider_config(&self.app_data_dir, None)
-            .map_err(|e| e.to_string())?;
+        crate::npc::provider_storage::save_provider_config(
+            &self.app_data_dir,
+            None,
+            &*self.secret_store,
+        )
+        .map_err(|e| e.to_string())?;
         *self
             .llm_provider
             .lock()

@@ -368,6 +368,8 @@ pub struct DesktopAppState {
     bootstrap: DesktopBootstrapState,
     app_data_dir: PathBuf,
     llm_provider: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>>,
+    /// Secret store for API key operations (keychain in release, file in debug).
+    secret_store: Arc<dyn crate::npc::provider_storage::ProviderSecretStore + Send + Sync>,
     /// Live provider config error — cleared when provider is successfully saved or cleared.
     /// Takes precedence over the startup-time snapshot in `bootstrap.provider_config_error`.
     live_provider_config_error: Mutex<Option<String>>,
