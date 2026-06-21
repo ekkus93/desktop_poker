@@ -27,6 +27,8 @@ pub enum LlmError {
     Network(String),
     #[error("response parse error: {0}")]
     Parse(String),
+    #[error("API key missing or empty for provider {0}")]
+    ApiKeyMissing(String),
 }
 
 // ── Anthropic wire types ──────────────────────────────────────────────────────
@@ -161,7 +163,12 @@ impl LlmClient {
     }
 
     fn complete_anthropic(&self, system: &str, user: &str) -> Result<String, LlmError> {
-        let api_key = self.config.api_key.as_deref().unwrap_or_default();
+        let api_key = self
+            .config
+            .api_key
+            .as_deref()
+            .filter(|k| !k.trim().is_empty())
+            .ok_or_else(|| LlmError::ApiKeyMissing("anthropic".to_string()))?;
 
         let url = format!("{}/v1/messages", self.base_url());
 
@@ -203,6 +210,18 @@ impl LlmClient {
     }
 
     fn complete_openai_compatible(&self, system: &str, user: &str) -> Result<String, LlmError> {
+        // OpenAI requires an API key; local providers (Ollama, llama-server) do not.
+        if self.config.settings.provider == LlmProviderType::OpenAi {
+            let key_present = self
+                .config
+                .api_key
+                .as_deref()
+                .is_some_and(|k| !k.trim().is_empty());
+            if !key_present {
+                return Err(LlmError::ApiKeyMissing("openAi".to_string()));
+            }
+        }
+
         let url = format!("{}/v1/chat/completions", self.base_url());
 
         let body = OpenAiRequest {
@@ -429,6 +448,84 @@ mod tests {
         assert!(
             matches!(err, LlmError::Timeout),
             "expected LlmError::Timeout from a 3s delay with 1s client timeout; got {err:?}"
+        );
+    }
+
+    // P1.4 — reject missing or empty API keys before making HTTP requests.
+
+    fn client_without_key(provider: LlmProviderType) -> LlmClient {
+        let cfg = LlmProviderConfig {
+            settings: LlmProviderSettings {
+                provider,
+                endpoint_url: None,
+                model: None,
+            },
+            api_key: None,
+        };
+        LlmClient::new(cfg).expect("client builds even without key")
+    }
+
+    fn client_with_empty_key(provider: LlmProviderType) -> LlmClient {
+        let cfg = LlmProviderConfig {
+            settings: LlmProviderSettings {
+                provider,
+                endpoint_url: None,
+                model: None,
+            },
+            api_key: Some("   ".to_string()),
+        };
+        LlmClient::new(cfg).expect("client builds even with blank key")
+    }
+
+    #[test]
+    fn anthropic_missing_key_returns_api_key_missing_before_http() {
+        let client = client_without_key(LlmProviderType::Anthropic);
+        let err = client.complete("sys", "user").unwrap_err();
+        assert!(
+            matches!(err, LlmError::ApiKeyMissing(_)),
+            "missing Anthropic key must return ApiKeyMissing; got {err:?}"
+        );
+    }
+
+    #[test]
+    fn anthropic_empty_key_returns_api_key_missing_before_http() {
+        let client = client_with_empty_key(LlmProviderType::Anthropic);
+        let err = client.complete("sys", "user").unwrap_err();
+        assert!(
+            matches!(err, LlmError::ApiKeyMissing(_)),
+            "whitespace-only Anthropic key must return ApiKeyMissing; got {err:?}"
+        );
+    }
+
+    #[test]
+    fn openai_missing_key_returns_api_key_missing_before_http() {
+        let client = client_without_key(LlmProviderType::OpenAi);
+        let err = client.complete("sys", "user").unwrap_err();
+        assert!(
+            matches!(err, LlmError::ApiKeyMissing(_)),
+            "missing OpenAI key must return ApiKeyMissing; got {err:?}"
+        );
+    }
+
+    #[test]
+    fn openai_empty_key_returns_api_key_missing_before_http() {
+        let client = client_with_empty_key(LlmProviderType::OpenAi);
+        let err = client.complete("sys", "user").unwrap_err();
+        assert!(
+            matches!(err, LlmError::ApiKeyMissing(_)),
+            "whitespace-only OpenAI key must return ApiKeyMissing; got {err:?}"
+        );
+    }
+
+    #[test]
+    fn ollama_without_key_does_not_return_api_key_missing() {
+        // Ollama doesn't require a key; it should not return ApiKeyMissing.
+        // (It will fail with a network error since there's no server, but NOT ApiKeyMissing.)
+        let client = client_without_key(LlmProviderType::Ollama);
+        let err = client.complete("sys", "user").unwrap_err();
+        assert!(
+            !matches!(err, LlmError::ApiKeyMissing(_)),
+            "Ollama without key must not return ApiKeyMissing; got {err:?}"
         );
     }
 }

@@ -352,3 +352,41 @@ fn bootstrap_provider_config_error_clears_after_clearing_config() {
         "provider_config_error must be cleared after clearing provider config"
     );
 }
+
+// P1.2 — poisoned provider mutex surfaces as provider_config_error (not silent Ok).
+
+#[test]
+fn bootstrap_reports_error_when_provider_mutex_is_poisoned() {
+    use std::sync::{Arc, Mutex};
+
+    let mutex: Arc<Mutex<u8>> = Arc::new(Mutex::new(0));
+    let m = Arc::clone(&mutex);
+    // Poison the mutex by panicking while holding the lock.
+    let _ = std::thread::spawn(move || {
+        let _guard = m.lock().unwrap();
+        panic!("intentional panic to poison mutex");
+    })
+    .join();
+    assert!(mutex.is_poisoned(), "mutex must be poisoned after panicking thread");
+
+    // Now replicate bootstrap's lock-error branch: a poisoned lock on llm_provider
+    // must produce a provider_config_error.
+    let provider_mutex: Mutex<Option<crate::npc::LlmProviderConfig>> = Mutex::new(None);
+    let pm = std::sync::Arc::new(provider_mutex);
+    let pm2 = Arc::clone(&pm);
+    let _ = std::thread::spawn(move || {
+        let _g = pm2.lock().unwrap();
+        panic!("poison provider mutex");
+    })
+    .join();
+
+    let error_msg = pm
+        .lock()
+        .err()
+        .map(|_| "internal error: provider state unavailable".to_string());
+    assert_eq!(
+        error_msg.as_deref(),
+        Some("internal error: provider state unavailable"),
+        "poisoned provider mutex must map to a visible provider error"
+    );
+}

@@ -335,10 +335,18 @@ pub fn save_provider_config(
         None => {
             // P0.5: Delete all known provider accounts unconditionally — don't rely on
             // being able to parse the settings file (it may be corrupt or missing).
+            // P1.5: Collect delete failures; attempt all deletes before returning an error.
+            let mut delete_errors: Vec<String> = Vec::new();
             for account in KNOWN_PROVIDER_ACCOUNTS {
                 if let Err(e) = store.delete_key(account) {
-                    eprintln!("[provider-storage] clear: delete '{account}' failed: {e}");
+                    delete_errors.push(format!("delete '{account}': {e}"));
                 }
+            }
+            if !delete_errors.is_empty() {
+                return Err(std::io::Error::other(format!(
+                    "provider secret clear failed: {}",
+                    delete_errors.join("; ")
+                )));
             }
 
             if sp.exists() {
@@ -448,6 +456,21 @@ mod tests {
 
     /// Simulates a store where every write operation fails. Used for P0.4 tests.
     struct FailingWriteSecretStore;
+
+    /// Simulates a store where every delete operation fails. Used for P1.5 tests.
+    struct FailingDeleteSecretStore;
+
+    impl ProviderSecretStore for FailingDeleteSecretStore {
+        fn read_key(&self, _provider: &str) -> Result<Option<String>, String> {
+            Ok(None)
+        }
+        fn write_key(&self, _provider: &str, _key: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn delete_key(&self, _provider: &str) -> Result<(), String> {
+            Err("simulated secure storage delete failure".to_string())
+        }
+    }
 
     impl ProviderSecretStore for FailingWriteSecretStore {
         fn read_key(&self, _provider: &str) -> Result<Option<String>, String> {
@@ -843,6 +866,23 @@ mod tests {
             deleted.contains(&"openAi".to_string()),
             "clear with corrupt settings must still attempt to delete 'openAi'; \
              deleted: {deleted:?}"
+        );
+    }
+
+    /// P1.5: A failing delete during clear must surface as an error, not be silently logged.
+    #[test]
+    fn clear_returns_error_when_delete_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let failing_store = FailingDeleteSecretStore;
+        let result = save_provider_config(dir.path(), None, &failing_store);
+        assert!(
+            result.is_err(),
+            "clear must return an error when secret deletion fails; got Ok(())"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("delete") || msg.contains("clear"),
+            "error message should mention deletion/clear; got: {msg}"
         );
     }
 }

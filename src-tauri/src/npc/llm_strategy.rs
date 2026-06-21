@@ -99,6 +99,7 @@ pub fn choose_llm_action(
         Err(e) => {
             let reason = match &e {
                 LlmError::Timeout => LlmFallbackReason::Timeout,
+                LlmError::ApiKeyMissing(_) => LlmFallbackReason::ApiKeyMissing,
                 _ => LlmFallbackReason::RequestFailed,
             };
             eprintln!("[llm_strategy] LLM error: {e}; falling back to rule-based");

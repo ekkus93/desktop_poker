@@ -89,20 +89,30 @@ impl DesktopAppState {
     #[must_use]
     pub fn bootstrap(&self) -> DesktopBootstrapState {
         let mut state = self.bootstrap.clone();
-        let provider = self.llm_provider.lock().ok();
-        let provider_ref = provider.as_ref().and_then(|g| g.as_ref());
-        state.llm_api_key_configured = provider_ref.is_some_and(|c| c.is_usable());
-        state.llm_provider_type = provider_ref.and_then(|c| {
-            serde_json::to_value(&c.settings.provider)
-                .ok()
-                .and_then(|v| v.as_str().map(str::to_string))
-        });
+        match self.llm_provider.lock() {
+            Ok(provider) => {
+                let provider_ref = provider.as_ref();
+                state.llm_api_key_configured = provider_ref.is_some_and(|c| c.is_usable());
+                state.llm_provider_type = provider_ref.and_then(|c| {
+                    serde_json::to_value(&c.settings.provider)
+                        .ok()
+                        .and_then(|v| v.as_str().map(str::to_string))
+                });
+            }
+            Err(_) => {
+                // Mutex poisoned — treat as provider state unavailable (P1.2).
+                state.llm_api_key_configured = false;
+                state.llm_provider_type = None;
+                state.provider_config_error =
+                    Some("internal error: provider state unavailable".to_string());
+                return state;
+            }
+        }
         // Return the live error state so callers see it cleared after save/clear.
-        state.provider_config_error = self
-            .live_provider_config_error
-            .lock()
-            .ok()
-            .and_then(|g| g.clone());
+        state.provider_config_error = match self.live_provider_config_error.lock() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Some("internal error: provider error state unavailable".to_string()),
+        };
         state
     }
 

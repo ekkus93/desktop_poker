@@ -83,7 +83,17 @@ pub fn list_profiles(dir: &Path) -> Result<NpcProfileListResult, ProfileError> {
     let mut errors = Vec::new();
 
     let entries = fs::read_dir(dir)?;
-    for entry in entries.flatten() {
+    for entry_result in entries {
+        let entry = match entry_result {
+            Ok(e) => e,
+            Err(e) => {
+                errors.push(NpcProfileError {
+                    filename: dir.display().to_string(),
+                    error: format!("directory read error: {e}"),
+                });
+                continue;
+            }
+        };
         let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) != Some("md") {
             continue;
