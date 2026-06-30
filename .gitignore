@@ -33,3 +33,4 @@ tmp/
 
 # Claude Code local state
 .claude/scheduled_tasks.lock
+run_claude.sh
