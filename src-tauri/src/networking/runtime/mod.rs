@@ -199,6 +199,11 @@ pub enum ClientRuntimeEvent {
         player_id: String,
         last_seen_server_sequence: u64,
     },
+    ProtocolWarning {
+        player_id: String,
+        reason: String,
+        count: u64,
+    },
     SafeError {
         player_id: String,
         message: String,

@@ -291,6 +291,7 @@ impl DesktopClientSession {
             networking::ClientRuntimeEvent::ResyncRequested { .. } => {
                 self.reconnecting = true;
             }
+            networking::ClientRuntimeEvent::ProtocolWarning { .. } => {}
             networking::ClientRuntimeEvent::SafeError { message, .. } => {
                 self.reconnecting = false;
                 self.last_error = Some(message);

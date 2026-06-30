@@ -151,6 +151,7 @@ pub(super) fn assert_public_event(
             Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
             Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
             Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+            Ok(ClientRuntimeEvent::ProtocolWarning { .. }) => {}
             Ok(ClientRuntimeEvent::PrivateHoleCards(other)) => {
                 panic!("expected public event, got private hole cards: {other:?}");
             }
@@ -196,6 +197,7 @@ pub(super) fn wait_for_public_event_where(
             Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
             Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
             Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+            Ok(ClientRuntimeEvent::ProtocolWarning { .. }) => {}
             Ok(ClientRuntimeEvent::SafeError { message, .. }) => {
                 panic!("expected public event, got safe error: {message}");
             }
@@ -222,6 +224,7 @@ pub(super) fn wait_for_private_hole_cards(client: &ClientRuntime) -> PrivateHole
             Ok(ClientRuntimeEvent::Reconnecting { .. }) => {}
             Ok(ClientRuntimeEvent::Disconnected { .. }) => {}
             Ok(ClientRuntimeEvent::ResyncRequested { .. }) => {}
+            Ok(ClientRuntimeEvent::ProtocolWarning { .. }) => {}
             Ok(ClientRuntimeEvent::SafeError { message, .. }) => {
                 panic!("expected private hole cards, got safe error: {message}");
             }
@@ -287,6 +290,34 @@ pub(super) fn disconnect_client(host: &HostServer, player_id: &str) {
     stream
         .shutdown(Shutdown::Both)
         .expect("shutdown client stream");
+}
+
+/// Write a raw JSON frame to the client's stream (from the host side).
+/// Blocks until the client is registered (i.e., the join handshake completed).
+pub(super) fn send_frame_to_client(host: &HostServer, player_id: &str, value: &serde_json::Value) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let mut write_stream = loop {
+        if let Some(stream) = host
+            .clients
+            .lock()
+            .expect("client registry")
+            .get(player_id)
+            .map(|client| {
+                client
+                    .stream
+                    .lock()
+                    .expect("client stream")
+                    .try_clone()
+                    .expect("clone stream")
+            })
+        {
+            break stream;
+        }
+
+        assert!(Instant::now() < deadline, "client did not connect in time");
+        thread::sleep(Duration::from_millis(20));
+    };
+    crate::networking::write_json_frame(&mut write_stream, value).expect("write frame to client");
 }
 
 pub(super) fn wait_for_host_participant_state(

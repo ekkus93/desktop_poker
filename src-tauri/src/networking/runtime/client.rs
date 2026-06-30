@@ -77,6 +77,8 @@ impl ClientRuntime {
         let command_connection_for_thread = Arc::clone(&command_connection);
 
         thread::spawn(move || {
+            let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
+                std::collections::BTreeMap::new();
             loop {
                 let frame_value = match read_json_frame::<Value>(&mut stream) {
                     Ok(frame_value) => frame_value,
@@ -143,6 +145,12 @@ impl ClientRuntime {
 
                 let Some(message_type) = frame_value.get("messageType").and_then(Value::as_str)
                 else {
+                    emit_protocol_warning(
+                        &sender,
+                        &mut protocol_warning_counts,
+                        &player_id,
+                        "incoming frame missing messageType",
+                    );
                     continue;
                 };
 
@@ -151,6 +159,12 @@ impl ClientRuntime {
                         let Ok(envelope) =
                             serde_json::from_value::<EncryptedPrivateEnvelope>(frame_value.clone())
                         else {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "malformed private hole-card envelope",
+                            );
                             continue;
                         };
 
@@ -158,6 +172,12 @@ impl ClientRuntime {
                             .verify(&crypto_provider, &host_signing_public_key)
                             .is_err()
                         {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "private hole-card envelope signature verification failed",
+                            );
                             continue;
                         }
 
@@ -229,12 +249,24 @@ impl ClientRuntime {
                                 .unwrap_or_default()
                                 .as_slice(),
                         ) else {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "private hole-card payload decrypt failed",
+                            );
                             continue;
                         };
 
                         let Ok(private_payload) =
                             serde_json::from_slice::<PrivateHoleCardsEvent>(&plaintext)
                         else {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "private hole-card payload JSON was invalid",
+                            );
                             continue;
                         };
 
@@ -244,6 +276,12 @@ impl ClientRuntime {
                         let Ok(envelope) =
                             serde_json::from_value::<SignedEnvelope<SnapshotEvent>>(frame_value)
                         else {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "malformed snapshot envelope",
+                            );
                             continue;
                         };
 
@@ -251,6 +289,12 @@ impl ClientRuntime {
                             .verify(&crypto_provider, &host_signing_public_key)
                             .is_err()
                         {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "snapshot envelope signature verification failed",
+                            );
                             continue;
                         }
 
@@ -269,6 +313,12 @@ impl ClientRuntime {
                         let Ok(envelope) =
                             serde_json::from_value::<JsonSignedEnvelope>(frame_value.clone())
                         else {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "malformed public envelope",
+                            );
                             continue;
                         };
 
@@ -276,6 +326,12 @@ impl ClientRuntime {
                             .verify(&crypto_provider, &host_signing_public_key)
                             .is_err()
                         {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "public envelope signature verification failed",
+                            );
                             continue;
                         }
 
@@ -494,5 +550,23 @@ impl ClientRuntime {
             .try_clone()
             .map_err(|error| NetworkingError::new(format!("failed to clone stream: {error}")))?;
         write_json_frame(&mut stream, &envelope)
+    }
+}
+
+fn emit_protocol_warning(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    counts: &mut std::collections::BTreeMap<String, u64>,
+    player_id: &str,
+    reason: impl Into<String>,
+) {
+    let reason = reason.into();
+    let count = counts.entry(reason.clone()).or_insert(0);
+    *count += 1;
+    if *count == 1 || count.is_power_of_two() {
+        let _ = sender.send(ClientRuntimeEvent::ProtocolWarning {
+            player_id: player_id.to_string(),
+            reason,
+            count: *count,
+        });
     }
 }
