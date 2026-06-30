@@ -11,6 +11,13 @@ export default defineConfig(async () => ({
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     exclude: [...configDefaults.exclude, "tests/browser/**", "test-results/**"],
+    pool: "threads",
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      },
+    },
+    testTimeout: 10_000,
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
