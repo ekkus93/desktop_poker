@@ -114,6 +114,7 @@ fn npc_configs() -> Vec<NpcConfig> {
         display_name: "NPC".into(),
         style: NpcStyle::Aggressive,
         profile: None,
+        allow_rule_based_llm_fallback: false,
     }]
 }
 
@@ -125,12 +126,14 @@ fn two_npcs_with_distinct_player_ids_keep_separate_session_histories() {
             display_name: "Tight Npc".into(),
             style: NpcStyle::Conservative,
             profile: None,
+            allow_rule_based_llm_fallback: false,
         },
         NpcConfig {
             player_id: NpcConfig::player_id(4),
             display_name: "Aggro Npc".into(),
             style: NpcStyle::Aggressive,
             profile: None,
+            allow_rule_based_llm_fallback: false,
         },
     ];
     let mut runner_state = RunnerState::new(
@@ -169,12 +172,14 @@ fn two_npcs_with_non_contiguous_seat_ids_have_correct_styles() {
             display_name: "Conservative Npc".into(),
             style: NpcStyle::Conservative,
             profile: None,
+            allow_rule_based_llm_fallback: false,
         },
         NpcConfig {
             player_id: NpcConfig::player_id(4),
             display_name: "Aggressive Npc".into(),
             style: NpcStyle::Aggressive,
             profile: None,
+            allow_rule_based_llm_fallback: false,
         },
     ];
 
@@ -198,12 +203,14 @@ fn two_npcs_with_different_profiles_keep_correct_profiles() {
             display_name: "Alice".into(),
             style: NpcStyle::Aggressive,
             profile: Some(alice_profile.clone()),
+            allow_rule_based_llm_fallback: false,
         },
         NpcConfig {
             player_id: NpcConfig::player_id(5),
             display_name: "Sam".into(),
             style: NpcStyle::Conservative,
             profile: Some(sam_profile.clone()),
+            allow_rule_based_llm_fallback: false,
         },
     ];
 
@@ -241,6 +248,7 @@ fn npc_config_lookup_by_unknown_player_id_returns_none_not_first_config() {
         display_name: "Known NPC".into(),
         style: NpcStyle::Conservative,
         profile: None,
+        allow_rule_based_llm_fallback: false,
     }];
 
     let result = configs.iter().find(|c| c.player_id == "unknown-player-99");
@@ -248,6 +256,72 @@ fn npc_config_lookup_by_unknown_player_id_returns_none_not_first_config() {
         result.is_none(),
         "unknown player_id must not fall back to the first config; got: {result:?}"
     );
+}
+
+// P0.4 — NpcConfig serde and allow_rule_based_llm_fallback default.
+
+#[test]
+fn npc_config_allow_rule_based_llm_fallback_defaults_to_false() {
+    // Serialized configs missing the field should deserialize as false.
+    let json = r#"{
+        "playerId": "npc-seat-0",
+        "displayName": "Bot",
+        "style": "aggressive",
+        "profile": null
+    }"#;
+    let cfg: NpcConfig = serde_json::from_str(json).expect("deserialize NpcConfig");
+    assert!(
+        !cfg.allow_rule_based_llm_fallback,
+        "missing allowRuleBasedLlmFallback must default to false"
+    );
+}
+
+#[test]
+fn npc_config_allow_rule_based_llm_fallback_explicit_true() {
+    let json = r#"{
+        "playerId": "npc-seat-0",
+        "displayName": "Bot",
+        "style": "aggressive",
+        "profile": null,
+        "allowRuleBasedLlmFallback": true
+    }"#;
+    let cfg: NpcConfig = serde_json::from_str(json).expect("deserialize NpcConfig");
+    assert!(cfg.allow_rule_based_llm_fallback);
+}
+
+// P0.4 — record_npc_internal_error helper populates RunnerState correctly.
+
+#[test]
+fn record_npc_internal_error_sets_shared_action_error_and_returns_runtime_unavailable() {
+    use crate::app_state::NpcActionErrorReason;
+
+    let configs = npc_configs();
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
+    );
+
+    let outcome = super::action::record_npc_internal_error(
+        &mut runner_state,
+        "npc-seat-0".to_string(),
+        Some(3),
+        NpcActionErrorReason::ProviderStateUnavailable,
+        "test internal error".to_string(),
+    );
+
+    assert_eq!(outcome, NpcActionOutcome::RuntimeUnavailable);
+    assert_eq!(runner_state.error_sequence, 1);
+    let err = runner_state
+        .shared_action_error
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("error should be set");
+    assert_eq!(err.reason, NpcActionErrorReason::ProviderStateUnavailable);
+    assert_eq!(err.hand_number, Some(3));
+    assert!(!err.submitted);
 }
 
 // P0.4 — NpcActionOutcome enum reports acted() correctly for each variant.

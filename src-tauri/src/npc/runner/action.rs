@@ -11,7 +11,7 @@ use crate::networking::HostServer;
 use crate::npc::{
     hand_log::{HandActionRecord, HandLog},
     llm_client::LlmClient,
-    llm_strategy::{choose_llm_action, resolve_fallback_style, LlmFallbackReason},
+    llm_strategy::{choose_llm_action, resolve_fallback_style},
     prompt::GameStateSnapshot,
     provider::LlmProviderConfig,
     tilt::TiltState,
@@ -35,6 +35,36 @@ fn now_epoch_ms() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+/// Record a structured NPC internal error and return `RuntimeUnavailable`.
+///
+/// Use for failures where the NPC cannot act and no rule-based fallback is
+/// appropriate: poisoned provider state, invalid stored config, or LLM failure
+/// when `allow_rule_based_llm_fallback` is false.
+pub(super) fn record_npc_internal_error(
+    runner_state: &mut RunnerState,
+    player_id: String,
+    hand_number: Option<u32>,
+    reason: NpcActionErrorReason,
+    message: String,
+) -> NpcActionOutcome {
+    eprintln!("[npc-runner] {message}");
+    runner_state.error_sequence += 1;
+    let seq = runner_state.error_sequence;
+    if let Ok(mut g) = runner_state.shared_action_error.lock() {
+        *g = Some(NpcActionErrorDebug {
+            player_id: Some(player_id),
+            action: None,
+            reason,
+            message,
+            hand_number,
+            sequence: seq,
+            submitted: false,
+            occurred_at_ms: now_epoch_ms(),
+        });
+    }
+    NpcActionOutcome::RuntimeUnavailable
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -237,7 +267,7 @@ pub(crate) fn try_npc_action(
         active_count.max(2),
     );
 
-    // Resolve provider config with explicit lock-failure detection (P1.2).
+    // Resolve provider config with explicit lock-failure detection.
     let provider_state = if npc_config.profile.is_some() {
         match api_key_holder.lock() {
             Ok(g) => {
@@ -247,16 +277,83 @@ pub(crate) fn try_npc_action(
                     None => ProviderState::NotConfigured,
                 }
             }
-            // Mutex poisoning is an internal failure, not "provider not configured". (P1.2)
+            // Mutex poisoning is an internal failure, not "provider not configured".
             Err(_) => ProviderState::StateUnavailable,
         }
     } else {
         ProviderState::NotConfigured
     };
 
+    // Inline helper to avoid repeating 17 rule_based_decision parameters.
+    let do_rule_based = || {
+        rule_based_decision(
+            &fallback_style,
+            hole_cards,
+            board,
+            street,
+            pot_total,
+            call_amount,
+            min_raise_to,
+            max_raise_to,
+            facing_bet,
+            stack,
+            active_count,
+            dealer_seat,
+            fresh_window.seat_index,
+            fresh_state.blind_level_index,
+            &fresh_state,
+            legal_actions,
+            seed,
+        )
+    };
+
     // Choose an action. Hand-log write happens AFTER submit_action returns Ok(()).
     let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
         match provider_state {
+            ProviderState::StateUnavailable => {
+                // Mutex poisoning is an internal failure — never use rule-based fallback.
+                let msg = format!(
+                    "{}: provider state lock unavailable for profile-backed NPC {}; no action submitted",
+                    fresh_window.player_id, profile.id,
+                );
+                if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                    *g = Some(msg.clone());
+                }
+                return record_npc_internal_error(
+                    runner_state,
+                    fresh_window.player_id.clone(),
+                    Some(fresh_hand.hand_number),
+                    NpcActionErrorReason::ProviderStateUnavailable,
+                    msg,
+                );
+            }
+            ProviderState::NotConfigured => {
+                // Profile-backed NPC has no usable provider config.
+                let msg = format!(
+                    "{}: profile-backed NPC {} cannot act — no usable LLM provider configured",
+                    fresh_window.player_id, profile.id,
+                );
+                if npc_config.allow_rule_based_llm_fallback {
+                    let rb = do_rule_based();
+                    let log_msg = format!("{msg} → rule-based:{:?} at ts={}", rb.0, now_epoch_ms());
+                    eprintln!("[npc-runner] LLM fallback — {log_msg}");
+                    if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                        *g = Some(log_msg);
+                    }
+                    rb
+                } else {
+                    if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                        *g = Some(msg.clone());
+                    }
+                    return record_npc_internal_error(
+                        runner_state,
+                        fresh_window.player_id.clone(),
+                        Some(fresh_hand.hand_number),
+                        NpcActionErrorReason::InternalError,
+                        msg,
+                    );
+                }
+            }
             ProviderState::Usable(cfg) => {
                 let blind_level = fresh_state
                     .config
@@ -311,132 +408,64 @@ pub(crate) fn try_npc_action(
                 };
 
                 let provider_label = format!("{:?}", cfg.settings.provider);
-                let llm_client = LlmClient::new(cfg);
-                if let Err(ref e) = llm_client {
-                    eprintln!("[npc-runner] failed to build LLM client: {e}");
-                }
-                let (llm_action, llm_raise, fallback_reason) = match llm_client {
-                    Ok(client) => choose_llm_action(&client, profile, &snapshot),
-                    Err(_) => {
-                        // Client construction failed — fall back to rule-based with profile style (P1.3).
-                        let rb = rule_based_decision(
-                            &fallback_style,
-                            hole_cards,
-                            board,
-                            street,
-                            pot_total,
-                            call_amount,
-                            min_raise_to,
-                            max_raise_to,
-                            facing_bet,
-                            stack,
-                            active_count,
-                            dealer_seat,
-                            fresh_window.seat_index,
-                            fresh_state.blind_level_index,
-                            &fresh_state,
-                            legal_actions,
-                            seed,
+                // LLM client construction failure is an internal error (bad stored config).
+                let client = match LlmClient::new(cfg) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        let msg = format!(
+                            "{}: failed to build LLM client for profile {} (provider={}): {e}; no action submitted",
+                            fresh_window.player_id, profile.id, provider_label
                         );
-                        (rb.0, rb.1, Some(LlmFallbackReason::RequestFailed))
+                        if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                            *g = Some(msg.clone());
+                        }
+                        return record_npc_internal_error(
+                            runner_state,
+                            fresh_window.player_id.clone(),
+                            Some(fresh_hand.hand_number),
+                            NpcActionErrorReason::InternalError,
+                            msg,
+                        );
                     }
                 };
 
-                if let Some(reason) = &fallback_reason {
-                    let msg = format!(
-                        "{}: {reason} (profile={}, provider={provider_label})",
-                        fresh_window.player_id, profile.id,
-                    );
-                    eprintln!("[npc-runner] LLM fallback — {msg}");
-                    if let Ok(mut g) = runner_state.shared_fallback.lock() {
-                        *g = Some(msg);
+                match choose_llm_action(&client, profile, &snapshot) {
+                    Ok((at, amt)) => (at, amt),
+                    Err(reason) => {
+                        let failure_msg = format!(
+                            "{}: {reason} (profile={}, provider={provider_label})",
+                            fresh_window.player_id, profile.id,
+                        );
+                        if npc_config.allow_rule_based_llm_fallback {
+                            let rb = do_rule_based();
+                            let log_msg = format!(
+                                "{failure_msg} → rule-based:{:?} at ts={}",
+                                rb.0,
+                                now_epoch_ms()
+                            );
+                            eprintln!("[npc-runner] LLM fallback — {log_msg}");
+                            if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                                *g = Some(log_msg);
+                            }
+                            rb
+                        } else {
+                            if let Ok(mut g) = runner_state.shared_fallback.lock() {
+                                *g = Some(failure_msg.clone());
+                            }
+                            return record_npc_internal_error(
+                                runner_state,
+                                fresh_window.player_id.clone(),
+                                Some(fresh_hand.hand_number),
+                                NpcActionErrorReason::InternalError,
+                                failure_msg,
+                            );
+                        }
                     }
                 }
-
-                (llm_action, llm_raise)
-            }
-            ProviderState::NotConfigured => {
-                // Profile is set but no usable provider config is available.
-                let fallback_reason = LlmFallbackReason::ProviderNotConfigured;
-                let msg = format!(
-                    "{}: {fallback_reason} (profile={})",
-                    fresh_window.player_id, profile.id,
-                );
-                eprintln!("[npc-runner] LLM fallback — {msg}");
-                if let Ok(mut g) = runner_state.shared_fallback.lock() {
-                    *g = Some(msg);
-                }
-                rule_based_decision(
-                    &fallback_style,
-                    hole_cards,
-                    board,
-                    street,
-                    pot_total,
-                    call_amount,
-                    min_raise_to,
-                    max_raise_to,
-                    facing_bet,
-                    stack,
-                    active_count,
-                    dealer_seat,
-                    fresh_window.seat_index,
-                    fresh_state.blind_level_index,
-                    &fresh_state,
-                    legal_actions,
-                    seed,
-                )
-            }
-            ProviderState::StateUnavailable => {
-                // Mutex poisoning — distinct from provider not configured (P1.2).
-                let msg = format!(
-                    "{}: ProviderStateUnavailable (profile={})",
-                    fresh_window.player_id, profile.id,
-                );
-                eprintln!("[npc-runner] LLM fallback — {msg}");
-                if let Ok(mut g) = runner_state.shared_fallback.lock() {
-                    *g = Some(msg);
-                }
-                rule_based_decision(
-                    &fallback_style,
-                    hole_cards,
-                    board,
-                    street,
-                    pot_total,
-                    call_amount,
-                    min_raise_to,
-                    max_raise_to,
-                    facing_bet,
-                    stack,
-                    active_count,
-                    dealer_seat,
-                    fresh_window.seat_index,
-                    fresh_state.blind_level_index,
-                    &fresh_state,
-                    legal_actions,
-                    seed,
-                )
             }
         }
     } else {
-        rule_based_decision(
-            &fallback_style,
-            hole_cards,
-            board,
-            street,
-            pot_total,
-            call_amount,
-            min_raise_to,
-            max_raise_to,
-            facing_bet,
-            stack,
-            active_count,
-            dealer_seat,
-            fresh_window.seat_index,
-            fresh_state.blind_level_index,
-            &fresh_state,
-            legal_actions,
-            seed,
-        )
+        do_rule_based()
     };
 
     let is_voluntary = !matches!(action_type, ActionType::AllIn) || call_amount == 0;

@@ -99,6 +99,7 @@ impl DesktopAppState {
                 display_name: draft.display_name,
                 style: draft.style,
                 profile: draft.profile,
+                allow_rule_based_llm_fallback: false,
             })
             .collect();
 

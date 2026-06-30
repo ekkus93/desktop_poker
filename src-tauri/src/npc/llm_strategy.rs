@@ -5,6 +5,7 @@ use super::llm_action::{parse_llm_response, validate_llm_action};
 use super::llm_client::{LlmClient, LlmError};
 use super::profile::NpcProfile;
 use super::prompt::{build_system_prompt, build_user_message, GameStateSnapshot};
+#[cfg(test)]
 use super::runner::first_check_or_call;
 
 /// Convert a freeform profile style string to an `NpcStyle` for rule-based fallback.
@@ -57,13 +58,15 @@ impl std::fmt::Display for LlmFallbackReason {
 
 /// Choose an action using the LLM.
 ///
-/// Returns the chosen action and, if the LLM path failed and fell back to
-/// rule-based, the reason for the fallback.
+/// Returns `Ok((action, amount))` when the LLM produced a valid legal action.
+/// Returns `Err(reason)` on any LLM failure (timeout, parse error, invalid action,
+/// etc.) so the caller can decide whether to apply rule-based fallback.
+/// Rule-based fallback is NOT applied here.
 pub fn choose_llm_action(
     client: &LlmClient,
     profile: &NpcProfile,
     snapshot: &GameStateSnapshot,
-) -> (ActionType, Option<u32>, Option<LlmFallbackReason>) {
+) -> Result<(ActionType, Option<u32>), LlmFallbackReason> {
     let system = build_system_prompt();
     let user = build_user_message(profile, snapshot);
 
@@ -71,9 +74,7 @@ pub fn choose_llm_action(
         Ok(text) => match parse_llm_response(&text) {
             Ok(response) => {
                 let (at, amt) = validate_llm_action(&response, snapshot);
-                // Detect whether the LLM response contained an action that wasn't in
-                // legal_actions. validate_llm_action already corrected it; we surface
-                // InvalidAction so the caller can log or display the fallback.
+                // Check whether the LLM's action was already in legal_actions.
                 let action_was_legal = {
                     let normalized = response.action.to_lowercase().replace(['_', '-'], "");
                     snapshot.legal_actions.iter().any(|la| {
@@ -83,17 +84,19 @@ pub fn choose_llm_action(
                             || (normalized == "raise" && la_str == "bet")
                     })
                 };
-                let fallback = if action_was_legal {
-                    None
+                if action_was_legal {
+                    Ok((at, amt))
                 } else {
-                    Some(LlmFallbackReason::InvalidAction)
-                };
-                (at, amt, fallback)
+                    eprintln!(
+                        "[llm_strategy] LLM returned illegal action {:?}",
+                        response.action
+                    );
+                    Err(LlmFallbackReason::InvalidAction)
+                }
             }
             Err(e) => {
-                eprintln!("[llm_strategy] parse error: {e}; falling back to rule-based");
-                let (at, amt) = rule_based_fallback(profile, snapshot);
-                (at, amt, Some(LlmFallbackReason::ResponseParseFailed))
+                eprintln!("[llm_strategy] parse error: {e}");
+                Err(LlmFallbackReason::ResponseParseFailed)
             }
         },
         Err(e) => {
@@ -102,9 +105,8 @@ pub fn choose_llm_action(
                 LlmError::ApiKeyMissing(_) => LlmFallbackReason::ApiKeyMissing,
                 _ => LlmFallbackReason::RequestFailed,
             };
-            eprintln!("[llm_strategy] LLM error: {e}; falling back to rule-based");
-            let (at, amt) = rule_based_fallback(profile, snapshot);
-            (at, amt, Some(reason))
+            eprintln!("[llm_strategy] LLM error: {e}");
+            Err(reason)
         }
     }
 }
@@ -114,6 +116,7 @@ pub fn choose_llm_action(
 /// - aggressive/loose: prefer raising when sensible
 /// - balanced: check or call on modest bets, fold on large bets
 /// - tight/passive/conservative (default): fold on any meaningful bet, check otherwise
+#[cfg(test)]
 fn rule_based_fallback(
     profile: &NpcProfile,
     snapshot: &GameStateSnapshot,
@@ -280,7 +283,8 @@ mod tests {
         let profile = make_profile("loose-aggressive");
         let snap = snap_with_raise();
 
-        let (at, amt, _fallback) = choose_llm_action(&client, &profile, &snap);
+        let (at, amt) =
+            choose_llm_action(&client, &profile, &snap).expect("LLM returned a valid action");
         assert_eq!(at, ActionType::Raise);
         let amount = amt.unwrap();
         assert!(
@@ -290,22 +294,21 @@ mod tests {
     }
 
     #[test]
-    fn timeout_falls_back_to_rule_based_legal_action() {
+    fn timeout_returns_err_timeout_reason() {
         let client = timeout_client();
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
 
-        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
-        assert!(snap.legal_actions.contains(&at));
+        let result = choose_llm_action(&client, &profile, &snap);
         assert_eq!(
-            fallback,
-            Some(crate::npc::LlmFallbackReason::Timeout),
-            "timeout must produce LlmFallbackReason::Timeout, not {fallback:?}"
+            result,
+            Err(crate::npc::LlmFallbackReason::Timeout),
+            "timeout must return Err(Timeout), not {result:?}"
         );
     }
 
     #[test]
-    fn api_error_sets_request_failed_fallback_reason() {
+    fn api_error_returns_err_request_failed_reason() {
         use httpmock::prelude::*;
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -321,13 +324,12 @@ mod tests {
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
 
-        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
-        assert!(snap.legal_actions.contains(&at));
-        assert_eq!(fallback, Some(LlmFallbackReason::RequestFailed));
+        let result = choose_llm_action(&client, &profile, &snap);
+        assert_eq!(result, Err(LlmFallbackReason::RequestFailed));
     }
 
     #[test]
-    fn malformed_response_sets_parse_failed_fallback_reason() {
+    fn malformed_response_returns_err_parse_failed_reason() {
         use httpmock::prelude::*;
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -349,9 +351,8 @@ mod tests {
         let profile = make_profile("conservative");
         let snap = snap_with_raise();
 
-        let (at, _, fallback) = choose_llm_action(&client, &profile, &snap);
-        assert!(snap.legal_actions.contains(&at));
-        assert_eq!(fallback, Some(LlmFallbackReason::ResponseParseFailed));
+        let result = choose_llm_action(&client, &profile, &snap);
+        assert_eq!(result, Err(LlmFallbackReason::ResponseParseFailed));
     }
 
     #[test]
@@ -392,37 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn illegal_action_from_llm_produces_legal_fallback() {
-        use httpmock::prelude::*;
-        let server = MockServer::start();
-        server.mock(|when, then| {
-            when.method(POST).path("/v1/messages");
-            then.status(200)
-                .header("content-type", "application/json")
-                // "check" is not in legal_actions (only fold/call/raise)
-                .json_body(serde_json::json!({
-                    "content": [{"type": "text", "text": "{\"action\":\"check\",\"amount\":null}"}],
-                    "model": "claude-haiku-4-5-20251001",
-                    "stop_reason": "end_turn"
-                }));
-        });
-        let url = server.base_url();
-        std::mem::forget(server);
-        let client = LlmClient::new(anthropic_cfg("test-key"))
-            .expect("test client builds")
-            .with_endpoint_override(url);
-
-        let profile = make_profile("balanced");
-        let mut snap = snap_with_raise();
-        snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
-
-        let (at, _, _fallback) = choose_llm_action(&client, &profile, &snap);
-        // "check" not legal → validate_llm_action → first_check_or_call → Call
-        assert!(matches!(at, ActionType::Call | ActionType::Fold));
-    }
-
-    #[test]
-    fn illegal_action_from_llm_sets_invalid_action_fallback_reason() {
+    fn illegal_action_from_llm_returns_err_invalid_action() {
         use httpmock::prelude::*;
         let server = MockServer::start();
         server.mock(|when, then| {
@@ -446,11 +417,11 @@ mod tests {
         let mut snap = snap_with_raise();
         snap.legal_actions = vec![ActionType::Fold, ActionType::Call, ActionType::Raise];
 
-        let (_, _, fallback_reason) = choose_llm_action(&client, &profile, &snap);
+        let result = choose_llm_action(&client, &profile, &snap);
         assert_eq!(
-            fallback_reason,
-            Some(LlmFallbackReason::InvalidAction),
-            "LLM returning an illegal action should set InvalidAction fallback reason"
+            result,
+            Err(LlmFallbackReason::InvalidAction),
+            "LLM returning an illegal action must return Err(InvalidAction)"
         );
     }
 
@@ -712,9 +683,13 @@ mod ollama_live_tests {
         let profile = balanced_profile();
         let snap = preflop_snap();
 
-        let (action_type, raise_to, _fallback) = choose_llm_action(&client, &profile, &snap);
-        assert_legal_live_action(&snap, action_type, raise_to);
-        eprintln!("llama3.2 preflop chose: {action_type:?} {raise_to:?}");
+        match choose_llm_action(&client, &profile, &snap) {
+            Ok((action_type, raise_to)) => {
+                assert_legal_live_action(&snap, action_type, raise_to);
+                eprintln!("llama3.2 preflop chose: {action_type:?} {raise_to:?}");
+            }
+            Err(reason) => panic!("LLM action failed: {reason:?}"),
+        }
     }
 
     #[test]
@@ -727,8 +702,12 @@ mod ollama_live_tests {
         let profile = balanced_profile();
         let snap = postflop_snap();
 
-        let (action_type, raise_to, _fallback) = choose_llm_action(&client, &profile, &snap);
-        assert_legal_live_action(&snap, action_type, raise_to);
-        eprintln!("llama3.2 postflop chose: {action_type:?} {raise_to:?}");
+        match choose_llm_action(&client, &profile, &snap) {
+            Ok((action_type, raise_to)) => {
+                assert_legal_live_action(&snap, action_type, raise_to);
+                eprintln!("llama3.2 postflop chose: {action_type:?} {raise_to:?}");
+            }
+            Err(reason) => panic!("LLM action failed: {reason:?}"),
+        }
     }
 }

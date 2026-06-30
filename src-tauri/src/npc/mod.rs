@@ -40,6 +40,13 @@ pub struct NpcConfig {
     pub style: NpcStyle,
     /// Optional LLM profile; when present the NPC uses LLM-based decisions.
     pub profile: Option<NpcProfile>,
+    /// When `true`, external LLM failures (timeout, network error, provider unavailable,
+    /// missing config, provider error response) fall back to rule-based play.
+    /// When `false` (default), any LLM failure records an error and submits no action.
+    /// Internal failures (poisoned state lock, invalid stored config) never use fallback
+    /// regardless of this flag.
+    #[serde(default)]
+    pub allow_rule_based_llm_fallback: bool,
 }
 
 impl NpcConfig {
