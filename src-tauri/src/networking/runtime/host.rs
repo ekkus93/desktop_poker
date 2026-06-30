@@ -369,6 +369,107 @@ impl HostServer {
         })
     }
 
+    /// Register, seat, and ready every NPC in `assignments` under a single
+    /// authoritative-state lock.  Either all succeed or none are applied.
+    pub fn add_npc_participants_atomic(
+        &self,
+        assignments: Vec<super::NpcSeatAssignment>,
+    ) -> Result<Vec<String>, NetworkingError> {
+        use crate::domain::{
+            ConnectionState, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
+        };
+
+        let player_ids: Vec<String> = assignments.iter().map(|a| a.player_id.clone()).collect();
+
+        self.update_lobby_state(|state| {
+            ensure_lobby_phase(state.phase)?;
+            ensure_lobby_seat_map(state);
+
+            // --- Validate all assignments before mutating anything ---
+
+            // Duplicate player_ids within the batch.
+            let mut seen_ids = std::collections::HashSet::new();
+            for a in &assignments {
+                if !seen_ids.insert(a.player_id.as_str()) {
+                    return Err(NetworkingError::new(format!(
+                        "duplicate player_id in NPC batch: {}",
+                        a.player_id
+                    )));
+                }
+            }
+
+            // Duplicate seat_indices within the batch.
+            let mut seen_seats = std::collections::HashSet::new();
+            for a in &assignments {
+                if !seen_seats.insert(a.seat_index) {
+                    return Err(NetworkingError::new(format!(
+                        "duplicate seat_index in NPC batch: {}",
+                        a.seat_index
+                    )));
+                }
+            }
+
+            for a in &assignments {
+                // Already registered?
+                if state.participants.contains_key(&a.player_id) {
+                    return Err(NetworkingError::new(format!(
+                        "participant {} is already registered",
+                        a.player_id
+                    )));
+                }
+                // Seat in range?
+                if a.seat_index >= state.config.max_players {
+                    return Err(NetworkingError::new(format!(
+                        "seat {} is out of range (max_players={})",
+                        a.seat_index, state.config.max_players
+                    )));
+                }
+                // Seat available?
+                if state
+                    .seats
+                    .get(a.seat_index as usize)
+                    .is_some_and(|s| s.occupancy == crate::domain::SeatOccupancyState::Occupied)
+                {
+                    return Err(NetworkingError::new(format!(
+                        "seat {} is already occupied",
+                        a.seat_index
+                    )));
+                }
+            }
+
+            // --- Apply all ---
+
+            for a in &assignments {
+                state.participants.insert(
+                    a.player_id.clone(),
+                    ParticipantRegistryEntry {
+                        identity: PlayerIdentity {
+                            player_id: a.player_id.clone(),
+                            display_name: a.display_name.clone(),
+                            signing_public_key: format!("npc-signing-{}", a.player_id),
+                            encryption_public_key: format!("npc-encryption-{}", a.player_id),
+                            signing_key_fingerprint: format!("npc-fingerprint-{}", a.player_id),
+                        },
+                        state: ParticipantState::Admitted,
+                        connection_state: ConnectionState::Connected,
+                        seat_index: None,
+                        admitted_at_ms: now_epoch_ms(),
+                        reconnect_token: None,
+                        reconnect_expiry_ms: None,
+                        is_host: false,
+                    },
+                );
+                apply_seat_claim(state, &a.player_id, a.seat_index)?;
+                apply_ready_state(state, &a.player_id, true)?;
+            }
+
+            Ok(())
+        })?;
+
+        self.sync_snapshots_to_clients()?;
+        Ok(player_ids)
+    }
+
     pub fn claim_seat(&self, player_id: &str, seat_index: u8) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_seat_claim(state, player_id, seat_index))?;
         self.sync_snapshots_to_clients()

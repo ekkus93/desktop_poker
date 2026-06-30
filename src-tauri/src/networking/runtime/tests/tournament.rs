@@ -1051,3 +1051,102 @@ fn npc_action_error_set_for_no_config_outcome() {
     );
     assert!(!err.submitted, "NoConfig error must have submitted=false");
 }
+
+// P1.1 — add_npc_participants_atomic: all-or-nothing NPC registration.
+
+#[test]
+fn add_npc_participants_atomic_registers_seats_and_readys_all_npcs() {
+    use crate::networking::NpcSeatAssignment;
+
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-atomic-npc-ok", 9901);
+
+    let assignments = vec![
+        NpcSeatAssignment {
+            player_id: "npc-seat-0".to_string(),
+            display_name: "Bot A".to_string(),
+            seat_index: 0,
+        },
+        NpcSeatAssignment {
+            player_id: "npc-seat-1".to_string(),
+            display_name: "Bot B".to_string(),
+            seat_index: 1,
+        },
+    ];
+
+    let ids = host
+        .add_npc_participants_atomic(assignments)
+        .expect("atomic add should succeed");
+
+    assert_eq!(ids, vec!["npc-seat-0", "npc-seat-1"]);
+
+    let state = host.authoritative_state().expect("authoritative state");
+    for (expected_id, expected_seat) in [("npc-seat-0", 0u8), ("npc-seat-1", 1u8)] {
+        let participant = state
+            .participants
+            .get(expected_id)
+            .unwrap_or_else(|| panic!("{expected_id} must be registered"));
+        assert_eq!(
+            participant.seat_index,
+            Some(expected_seat),
+            "{expected_id} must hold seat {expected_seat}"
+        );
+        let seat = state
+            .seats
+            .get(expected_seat as usize)
+            .unwrap_or_else(|| panic!("seat {expected_seat} must exist"));
+        assert!(seat.is_ready, "seat {expected_seat} must be ready");
+        assert_eq!(
+            seat.participant_id.as_deref(),
+            Some(expected_id),
+            "seat {expected_seat} must be owned by {expected_id}"
+        );
+    }
+}
+
+/// If any assignment in the batch is invalid (seat already occupied), none of
+/// the NPCs in the batch should be registered.
+#[test]
+fn add_npc_participants_atomic_leaves_no_partial_state_on_failure() {
+    use crate::networking::NpcSeatAssignment;
+
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-atomic-npc-fail", 9902);
+
+    // Occupy seat 1 with a human first.
+    host.register_npc_participant("player-human", "Human")
+        .expect("register human");
+    host.claim_seat("player-human", 1)
+        .expect("human claims seat 1");
+
+    // Now try an atomic add: NPC-A wants seat 0 (free), NPC-B wants seat 1 (taken).
+    let assignments = vec![
+        NpcSeatAssignment {
+            player_id: "npc-seat-0".to_string(),
+            display_name: "Bot A".to_string(),
+            seat_index: 0,
+        },
+        NpcSeatAssignment {
+            player_id: "npc-seat-1".to_string(),
+            display_name: "Bot B".to_string(),
+            seat_index: 1,
+        },
+    ];
+
+    let result = host.add_npc_participants_atomic(assignments);
+    assert!(
+        result.is_err(),
+        "atomic add must fail when a requested seat is occupied"
+    );
+
+    // NPC-A must not be registered — no partial state.
+    let state = host.authoritative_state().expect("authoritative state");
+    assert!(
+        !state.participants.contains_key("npc-seat-0"),
+        "npc-seat-0 must not be registered after a failed atomic add"
+    );
+    assert!(
+        !state.participants.contains_key("npc-seat-1"),
+        "npc-seat-1 must not be registered after a failed atomic add"
+    );
+}

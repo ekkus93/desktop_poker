@@ -96,6 +96,14 @@ pub struct PublicEventLogEntry {
     pub payload: Value,
 }
 
+/// One NPC participant to register, seat, and mark ready atomically.
+#[derive(Clone, Debug)]
+pub struct NpcSeatAssignment {
+    pub player_id: String,
+    pub display_name: String,
+    pub seat_index: u8,
+}
+
 pub struct HostServer {
     listener_addr: SocketAddr,
     join_payload: JoinPayload,

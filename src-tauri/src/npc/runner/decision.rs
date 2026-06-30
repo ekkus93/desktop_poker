@@ -133,13 +133,19 @@ pub(crate) fn hash_str(s: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{ActionType, Card, Rank, Suit, StreetPhase};
+    use crate::domain::{ActionType, Card, Rank, StreetPhase, Suit};
     use crate::npc::NpcStyle;
 
     fn two_cards() -> [Card; 2] {
         [
-            Card { rank: Rank::Ace, suit: Suit::Spades },
-            Card { rank: Rank::King, suit: Suit::Hearts },
+            Card {
+                rank: Rank::Ace,
+                suit: Suit::Spades,
+            },
+            Card {
+                rank: Rank::King,
+                suit: Suit::Hearts,
+            },
         ]
     }
 

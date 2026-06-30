@@ -103,20 +103,20 @@ impl DesktopAppState {
             })
             .collect();
 
-        for (npc_config, &seat_index) in npc_configs.iter().zip(open_seats.iter()) {
-            session
-                .host_server
-                .register_npc_participant(&npc_config.player_id, &npc_config.display_name)
-                .map_err(|e| e.to_string())?;
-            session
-                .host_server
-                .claim_seat(&npc_config.player_id, seat_index)
-                .map_err(|e| e.to_string())?;
-            session
-                .host_server
-                .set_ready_state(&npc_config.player_id, true)
-                .map_err(|e| e.to_string())?;
-        }
+        let assignments: Vec<crate::networking::NpcSeatAssignment> = npc_configs
+            .iter()
+            .zip(open_seats.iter())
+            .map(|(cfg, &seat_index)| crate::networking::NpcSeatAssignment {
+                player_id: cfg.player_id.clone(),
+                display_name: cfg.display_name.clone(),
+                seat_index,
+            })
+            .collect();
+
+        session
+            .host_server
+            .add_npc_participants_atomic(assignments)
+            .map_err(|e| e.to_string())?;
 
         let stop = Arc::new(AtomicBool::new(false));
         let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
