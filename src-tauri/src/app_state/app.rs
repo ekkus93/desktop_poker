@@ -30,7 +30,10 @@ impl DesktopAppState {
             crate::npc::provider_storage::ProviderConfigLoadState::Unreadable { error }
             | crate::npc::provider_storage::ProviderConfigLoadState::InvalidJson { error }
             | crate::npc::provider_storage::ProviderConfigLoadState::InvalidSchema { error }
-            | crate::npc::provider_storage::ProviderConfigLoadState::KeyUnreadable { error } => {
+            | crate::npc::provider_storage::ProviderConfigLoadState::KeyUnreadable { error }
+            | crate::npc::provider_storage::ProviderConfigLoadState::LegacyKeyUnreadable {
+                error,
+            } => {
                 eprintln!("[app] provider config load error: {error}");
                 Some(error.clone())
             }

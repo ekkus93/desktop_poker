@@ -152,6 +152,10 @@ pub enum ProviderConfigLoadState {
     /// Settings file loaded fine but the API key file exists and cannot be read.
     /// Distinct from missing key — indicates broken local state or permissions.
     KeyUnreadable { error: String },
+    /// The legacy `claude-api-key.txt` file exists but cannot be read.
+    /// Distinct from `Missing` — the file is present but inaccessible, which
+    /// indicates broken permissions or filesystem state.
+    LegacyKeyUnreadable { error: String },
 }
 
 fn settings_path(app_data_dir: &Path) -> PathBuf {
@@ -308,11 +312,22 @@ pub fn load_provider_config(
     // Fall back to the legacy plain-text API key.
     let legacy = legacy_key_path(app_data_dir);
     if legacy.exists() {
-        if let Ok(raw) = fs::read_to_string(&legacy) {
-            let key = raw.trim().to_string();
-            if !key.is_empty() {
-                return ProviderConfigLoadState::Loaded(LlmProviderConfig::from_anthropic_key(key));
+        let raw = match fs::read_to_string(&legacy) {
+            Ok(raw) => raw,
+            Err(e) => {
+                // The file exists but cannot be read — this is distinct from
+                // "not configured" and must not silently become Missing.
+                return ProviderConfigLoadState::LegacyKeyUnreadable {
+                    error: format!(
+                        "legacy provider key exists but cannot be read ({}): {e}",
+                        legacy.display()
+                    ),
+                };
             }
+        };
+        let key = raw.trim().to_string();
+        if !key.is_empty() {
+            return ProviderConfigLoadState::Loaded(LlmProviderConfig::from_anthropic_key(key));
         }
     }
 
@@ -387,6 +402,39 @@ pub fn save_provider_config(
 /// Use this when the user edits endpoint/model/provider fields without entering
 /// a new API key. If the provider type changes, the old key is deleted via the
 /// store so it cannot be re-associated with the new provider (P0.3).
+/// Read existing settings only if the file is absent (returns `Ok(None)`) or
+/// fully valid (returns `Ok(Some(...))`).  If the file exists but cannot be
+/// read or parsed, returns an error — the caller must not overwrite a corrupt
+/// settings file without understanding what it contains.
+fn read_existing_provider_settings_for_update(
+    sp: &Path,
+) -> Result<Option<LlmProviderSettings>, std::io::Error> {
+    if !sp.exists() {
+        return Ok(None);
+    }
+    let text = fs::read_to_string(sp).map_err(|e| {
+        std::io::Error::new(
+            e.kind(),
+            format!(
+                "existing provider settings file exists but cannot be read ({}): {e}",
+                sp.display()
+            ),
+        )
+    })?;
+    serde_json::from_str::<LlmProviderSettings>(&text)
+        .map(Some)
+        .map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "existing provider settings file is invalid and cannot be safely updated \
+                     ({}): {e}",
+                    sp.display()
+                ),
+            )
+        })
+}
+
 pub fn save_provider_settings_only(
     app_data_dir: &Path,
     settings: &LlmProviderSettings,
@@ -394,23 +442,24 @@ pub fn save_provider_settings_only(
 ) -> Result<(), std::io::Error> {
     let sp = settings_path(app_data_dir);
 
-    // P0.3: When the provider type changes, delete the old key so it cannot be
-    // re-read and associated with the new provider on the next load.
-    // This is needed for both debug (shared file) and release (keychain).
-    if sp.exists() {
-        if let Ok(text) = fs::read_to_string(&sp) {
-            if let Ok(current) = serde_json::from_str::<LlmProviderSettings>(&text) {
-                if current.provider != settings.provider {
-                    if let Err(e) = store.delete_key(current.provider.as_str()) {
-                        eprintln!(
-                            "[provider-storage] could not clear stale key after provider change \
-                             ({} → {}): {e}",
-                            current.provider.as_str(),
-                            settings.provider.as_str()
-                        );
-                    }
-                }
-            }
+    // If the existing settings file is unreadable or corrupt, refuse to
+    // overwrite it — returning an error surfaces the problem instead of
+    // silently destroying state.
+    let current = read_existing_provider_settings_for_update(&sp)?;
+
+    // When the provider type changes, delete the old key first.  If deletion
+    // fails the new settings must NOT be written — leaving the old key behind
+    // while the UI believes the provider changed is a silent-failure violation.
+    if let Some(current) = current.as_ref() {
+        if current.provider != settings.provider {
+            store.delete_key(current.provider.as_str()).map_err(|e| {
+                std::io::Error::other(format!(
+                    "could not clear stale key after provider change \
+                         ({} → {}): {e}",
+                    current.provider.as_str(),
+                    settings.provider.as_str()
+                ))
+            })?;
         }
     }
 
@@ -866,6 +915,95 @@ mod tests {
             deleted.contains(&"openAi".to_string()),
             "clear with corrupt settings must still attempt to delete 'openAi'; \
              deleted: {deleted:?}"
+        );
+    }
+
+    /// P0.3: Legacy key that exists but cannot be read must surface as
+    /// `LegacyKeyUnreadable`, not silently fall through to `Missing`.
+    #[cfg(unix)]
+    #[test]
+    fn unreadable_legacy_key_is_reported_not_missing() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = legacy_key_path(dir.path());
+        fs::write(&legacy, "sk-ant-legacy").unwrap();
+        fs::set_permissions(&legacy, fs::Permissions::from_mode(0o000)).unwrap();
+
+        let result = load_provider_config(dir.path(), &FailingWriteSecretStore);
+
+        // Restore permissions so tempdir cleanup can remove the file.
+        fs::set_permissions(&legacy, fs::Permissions::from_mode(0o600)).unwrap();
+
+        assert!(
+            matches!(result, ProviderConfigLoadState::LegacyKeyUnreadable { .. }),
+            "expected LegacyKeyUnreadable, got {result:?}"
+        );
+    }
+
+    /// P0.2: Provider switch via save_settings_only must fail if the old key cannot be
+    /// deleted, and the settings file must remain unchanged on failure.
+    #[test]
+    fn settings_only_provider_switch_fails_if_old_key_delete_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        // Write initial Anthropic config using a normal store.
+        save_provider_config(
+            dir.path(),
+            Some(&anthropic_config("sk-ant-old")),
+            &file_store(dir.path()),
+        )
+        .unwrap();
+
+        let openai_settings = LlmProviderSettings {
+            provider: LlmProviderType::OpenAi,
+            endpoint_url: None,
+            model: None,
+        };
+
+        // Attempt the provider switch with a store whose delete always fails.
+        let result =
+            save_provider_settings_only(dir.path(), &openai_settings, &FailingDeleteSecretStore);
+
+        assert!(
+            result.is_err(),
+            "provider switch must fail when old key cannot be deleted"
+        );
+        // The settings file must still reflect the original Anthropic provider.
+        let persisted = fs::read_to_string(settings_path(dir.path())).unwrap();
+        let current: LlmProviderSettings = serde_json::from_str(&persisted).unwrap();
+        assert_eq!(
+            current.provider,
+            LlmProviderType::Anthropic,
+            "settings file must not be updated when old-key deletion fails"
+        );
+    }
+
+    /// P0.2: If the existing settings file is present but corrupt, save_settings_only
+    /// must return an error and leave the file unchanged.
+    #[test]
+    fn settings_only_fails_on_invalid_existing_settings_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let sp = settings_path(dir.path());
+        // Parent dir may not exist yet in a fresh tempdir; create it.
+        fs::create_dir_all(sp.parent().unwrap()).unwrap();
+        fs::write(&sp, "not-json").unwrap();
+
+        let settings = LlmProviderSettings {
+            provider: LlmProviderType::OpenAi,
+            endpoint_url: None,
+            model: None,
+        };
+        let result = save_provider_settings_only(dir.path(), &settings, &FailingDeleteSecretStore);
+
+        assert!(
+            result.is_err(),
+            "save_settings_only must fail when existing settings file is invalid JSON"
+        );
+        // The corrupt file must not have been overwritten.
+        assert_eq!(
+            fs::read_to_string(&sp).unwrap(),
+            "not-json",
+            "corrupt settings file must be preserved on error"
         );
     }
 

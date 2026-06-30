@@ -52,7 +52,18 @@ declare global {
   }
 }
 
+export function browserMocksAllowedForEnv(env: {
+  DEV?: boolean;
+  MODE?: string;
+}): boolean {
+  return env.DEV === true || env.MODE === "test";
+}
+
 function getBrowserMocks() {
+  if (!browserMocksAllowedForEnv(import.meta.env)) {
+    return undefined;
+  }
+
   if (typeof window === "undefined") {
     return undefined;
   }

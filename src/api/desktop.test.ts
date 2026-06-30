@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  browserMocksAllowedForEnv,
   clientClaimLobbySeat,
   clientSetLobbyReadyState,
   type ClaimLobbySeatRequest,
@@ -599,5 +600,29 @@ describe("desktop API bridge", () => {
 
       expect(mockedInvoke).toHaveBeenCalledWith("get_bootstrap_state");
     });
+  });
+});
+
+describe("browserMocksAllowedForEnv (P0.1)", () => {
+  it("disables browser mocks in a production-like env", () => {
+    expect(browserMocksAllowedForEnv({ DEV: false, MODE: "production" })).toBe(
+      false,
+    );
+  });
+
+  it("disables browser mocks when DEV is false and MODE is unrecognised", () => {
+    expect(browserMocksAllowedForEnv({ DEV: false, MODE: "staging" })).toBe(
+      false,
+    );
+  });
+
+  it("allows browser mocks in test env", () => {
+    expect(browserMocksAllowedForEnv({ DEV: false, MODE: "test" })).toBe(true);
+  });
+
+  it("allows browser mocks in dev env", () => {
+    expect(browserMocksAllowedForEnv({ DEV: true, MODE: "development" })).toBe(
+      true,
+    );
   });
 });
