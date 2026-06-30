@@ -182,11 +182,23 @@ impl HostServer {
         match write_json_frame(&mut stream, &envelope) {
             Ok(()) => Ok(()),
             Err(error) => {
-                if let Ok(mut connected_clients) = self.clients.lock() {
-                    connected_clients.remove(recipient_id);
+                match self.clients.lock() {
+                    Ok(mut connected_clients) => {
+                        connected_clients.remove(recipient_id);
+                    }
+                    Err(_) => {
+                        update_health(&self.runtime_health, |h| {
+                            h.record_client_registry_error();
+                        });
+                    }
                 }
-                let _ =
-                    mark_participant_reconnect_eligible(&self.authoritative_state, recipient_id);
+                if let Err(mark_error) =
+                    mark_participant_reconnect_eligible(&self.authoritative_state, recipient_id)
+                {
+                    update_health(&self.runtime_health, |h| {
+                        h.record_reconnect_mark_error(recipient_id, &mark_error);
+                    });
+                }
                 Err(error)
             }
         }

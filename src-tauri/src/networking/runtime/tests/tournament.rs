@@ -1180,7 +1180,10 @@ fn remove_npc_participants_atomic_frees_seats_and_removes_participants() {
         "NPC must be registered before removal"
     );
     assert_eq!(
-        state.seats.first().and_then(|s| s.participant_id.as_deref()),
+        state
+            .seats
+            .first()
+            .and_then(|s| s.participant_id.as_deref()),
         Some(npc_id.as_str()),
         "seat 0 must be occupied by the NPC before removal"
     );

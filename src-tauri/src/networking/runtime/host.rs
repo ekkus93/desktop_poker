@@ -19,15 +19,6 @@ use crate::{
 
 use super::*;
 
-fn update_health(
-    health: &Arc<Mutex<HostRuntimeHealth>>,
-    update: impl FnOnce(&mut HostRuntimeHealth),
-) {
-    if let Ok(mut guard) = health.lock() {
-        update(&mut guard);
-    }
-}
-
 impl HostServer {
     pub fn bind(config: HostRuntimeConfig) -> Result<Self, NetworkingError> {
         let advertised_ip: IpAddr = config
@@ -129,6 +120,7 @@ impl HostServer {
                             });
                         }
 
+                        let runtime_health_conn2 = Arc::clone(&runtime_health_conn);
                         thread::spawn(move || {
                             let crypto_provider = DefaultCryptoProvider;
                             let initial_request =
@@ -159,17 +151,33 @@ impl HostServer {
                                                 Arc::new(Mutex::new(cloned_stream))
                                             }) {
                                                 Ok(handle) => handle,
-                                                Err(_) => return,
+                                                Err(e) => {
+                                                    update_health(&runtime_health_conn2, |h| {
+                                                        h.record_stream_clone_error(e);
+                                                    });
+                                                    return;
+                                                }
                                             };
 
-                                        if let Ok(mut connected_clients) = clients.lock() {
-                                            connected_clients.insert(
-                                                player_id.clone(),
-                                                ConnectedClient {
-                                                    stream: Arc::clone(&stream_handle),
-                                                    encryption_public_key,
-                                                },
-                                            );
+                                        match clients.lock() {
+                                            Ok(mut connected_clients) => {
+                                                connected_clients.insert(
+                                                    player_id.clone(),
+                                                    ConnectedClient {
+                                                        stream: Arc::clone(&stream_handle),
+                                                        encryption_public_key,
+                                                    },
+                                                );
+                                            }
+                                            Err(_) => {
+                                                update_health(&runtime_health_conn2, |h| {
+                                                    h.record_client_registry_error();
+                                                });
+                                                // The client cannot be registered; return so
+                                                // we do not spawn a session for an untracked
+                                                // stream.
+                                                return;
+                                            }
                                         }
 
                                         spawn_host_client_session(
@@ -196,6 +204,8 @@ impl HostServer {
                                         error.to_string(),
                                         None,
                                     ) {
+                                        // Best-effort rejection write; client is not yet
+                                        // registered so there is no session to clean up.
                                         let _ = write_json_frame(&mut stream, &envelope);
                                     }
                                 }

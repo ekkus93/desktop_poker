@@ -1004,3 +1004,13 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **P0.5 (persistence test noise):** Tests already clean — `__TAURI_INTERNALS__` guard prevents dynamic import in test env; no additional work needed.
 - **P1.2 (LayoutProbeApp dynamic import):** Replaced static import in `main.tsx` with `React.lazy` + `Suspense`. `LayoutProbeApp` is now a separate chunk only loaded when the probe surface is active; it is absent from the production bundle.
 - All 431 Rust tests pass; all 252 frontend tests pass; fmt, clippy, lint, build all clean.
+
+## 2026-06-30T23:29:44Z - Claude Sonnet 4.6 - FIX5 P1.1 host runtime health coverage
+
+- Added `stream_clone_error_count`, `client_registry_error_count`, `reconnect_mark_error_count` fields to `HostRuntimeHealth` in `mod.rs`.
+- Added helper methods `record_stream_clone_error`, `record_client_registry_error`, `record_reconnect_mark_error` (all `pub(super)`).
+- Moved `update_health` free function from `host.rs` to `mod.rs` (`pub(super)`) so `host_broadcast.rs` can use it via `use super::*`.
+- `host.rs` accept loop inner spawn: stream `try_clone()` failure now calls `record_stream_clone_error`; `clients.lock()` poison now calls `record_client_registry_error` and returns (does not spawn an untracked session). Added comment on best-effort rejection write.
+- `host_broadcast.rs send_private_hole_cards`: lock poison on client registry cleanup now calls `record_client_registry_error`; `mark_participant_reconnect_eligible` failure now calls `record_reconnect_mark_error`.
+- 4 unit tests in `misc.rs` verify the three helper methods individually and that counters accumulate independently.
+- 435 Rust tests pass.

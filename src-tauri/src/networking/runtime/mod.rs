@@ -111,6 +111,12 @@ pub struct HostRuntimeHealth {
     pub tick_advance_error_count: u64,
     pub publish_error_count: u64,
     pub state_lock_error_count: u64,
+    /// Incremented when a newly-accepted TCP stream cannot be cloned.
+    pub stream_clone_error_count: u64,
+    /// Incremented when the connected-client registry mutex is poisoned.
+    pub client_registry_error_count: u64,
+    /// Incremented when marking a disconnected participant reconnect-eligible fails.
+    pub reconnect_mark_error_count: u64,
     pub last_error: Option<String>,
     pub last_successful_tick_ms: Option<u64>,
     pub last_successful_publish_ms: Option<u64>,
@@ -119,6 +125,38 @@ pub struct HostRuntimeHealth {
 impl HostRuntimeHealth {
     fn record_error(&mut self, message: impl Into<String>) {
         self.last_error = Some(message.into());
+    }
+
+    pub(super) fn record_stream_clone_error(&mut self, error: impl std::fmt::Display) {
+        self.stream_clone_error_count += 1;
+        self.record_error(format!("failed to clone client stream: {error}"));
+    }
+
+    pub(super) fn record_client_registry_error(&mut self) {
+        self.client_registry_error_count += 1;
+        self.record_error("connected-client registry lock poisoned");
+    }
+
+    pub(super) fn record_reconnect_mark_error(
+        &mut self,
+        player_id: &str,
+        error: impl std::fmt::Display,
+    ) {
+        self.reconnect_mark_error_count += 1;
+        self.record_error(format!(
+            "failed to mark {player_id} reconnect-eligible: {error}"
+        ));
+    }
+}
+
+/// Update the health state from any thread that holds an `Arc<Mutex<HostRuntimeHealth>>`.
+/// Silently ignores a poisoned mutex (the health update is best-effort).
+pub(super) fn update_health(
+    health: &Arc<Mutex<HostRuntimeHealth>>,
+    update: impl FnOnce(&mut HostRuntimeHealth),
+) {
+    if let Ok(mut guard) = health.lock() {
+        update(&mut guard);
     }
 }
 

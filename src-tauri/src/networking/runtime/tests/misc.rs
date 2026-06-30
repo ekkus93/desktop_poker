@@ -392,3 +392,99 @@ fn host_ip_resolution_returns_error_when_no_connectable_address_exists() {
     assert!(result.is_err());
     let _ = resolve_connectable_host_ip;
 }
+
+// P1.1 — HostRuntimeHealth helper methods record the right counter and last_error.
+
+#[test]
+fn host_runtime_health_record_stream_clone_error_increments_counter() {
+    use crate::networking::HostRuntimeHealth;
+
+    let mut health = HostRuntimeHealth::default();
+    assert_eq!(health.stream_clone_error_count, 0);
+    assert!(health.last_error.is_none());
+
+    health.record_stream_clone_error("simulated OS error");
+
+    assert_eq!(health.stream_clone_error_count, 1);
+    assert!(
+        health
+            .last_error
+            .as_deref()
+            .unwrap_or("")
+            .contains("simulated OS error"),
+        "last_error must include the original error message; got: {:?}",
+        health.last_error
+    );
+}
+
+#[test]
+fn host_runtime_health_record_client_registry_error_increments_counter() {
+    use crate::networking::HostRuntimeHealth;
+
+    let mut health = HostRuntimeHealth::default();
+    assert_eq!(health.client_registry_error_count, 0);
+    assert!(health.last_error.is_none());
+
+    health.record_client_registry_error();
+
+    assert_eq!(health.client_registry_error_count, 1);
+    assert!(
+        health
+            .last_error
+            .as_deref()
+            .unwrap_or("")
+            .contains("registry lock poisoned"),
+        "last_error must describe the lock poison; got: {:?}",
+        health.last_error
+    );
+}
+
+#[test]
+fn host_runtime_health_record_reconnect_mark_error_increments_counter() {
+    use crate::networking::HostRuntimeHealth;
+
+    let mut health = HostRuntimeHealth::default();
+    assert_eq!(health.reconnect_mark_error_count, 0);
+    assert!(health.last_error.is_none());
+
+    health.record_reconnect_mark_error("player-x", "state lock poisoned");
+
+    assert_eq!(health.reconnect_mark_error_count, 1);
+    assert!(
+        health
+            .last_error
+            .as_deref()
+            .unwrap_or("")
+            .contains("player-x"),
+        "last_error must name the affected player; got: {:?}",
+        health.last_error
+    );
+    assert!(
+        health
+            .last_error
+            .as_deref()
+            .unwrap_or("")
+            .contains("state lock poisoned"),
+        "last_error must include the cause; got: {:?}",
+        health.last_error
+    );
+}
+
+#[test]
+fn host_runtime_health_counters_accumulate_independently() {
+    use crate::networking::HostRuntimeHealth;
+
+    let mut health = HostRuntimeHealth::default();
+
+    health.record_stream_clone_error("err1");
+    health.record_stream_clone_error("err2");
+    health.record_client_registry_error();
+    health.record_reconnect_mark_error("p1", "cause");
+
+    assert_eq!(
+        health.stream_clone_error_count, 2,
+        "two stream-clone errors"
+    );
+    assert_eq!(health.client_registry_error_count, 1, "one registry error");
+    assert_eq!(health.reconnect_mark_error_count, 1, "one reconnect error");
+}
