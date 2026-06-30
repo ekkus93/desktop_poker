@@ -262,6 +262,8 @@ pub struct DebugInspectorState {
     pub last_llm_fallback: Option<String>,
     /// Most recent NPC action failure, structured for debug rendering.
     pub last_npc_action_error: Option<NpcActionErrorDebug>,
+    /// Host background-loop health counters.  None when no host session is active.
+    pub host_runtime_health: Option<crate::networking::HostRuntimeHealth>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]

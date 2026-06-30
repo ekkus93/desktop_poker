@@ -91,6 +91,7 @@ function sampleDebugState(): DebugInspectorState {
     npcTiltLevels: {},
     lastLlmFallback: null,
     lastNpcActionError: null,
+    hostRuntimeHealth: null,
   };
 }
 

@@ -198,7 +198,7 @@ impl DesktopAppState {
             })
             .debug_state(viewer_mode)?;
 
-        // Attach live data from the active host session's NPC runner.
+        // Attach live data from the active host session's NPC runner and health.
         if let Ok(host_session) = self.host_session.lock() {
             if let Some(session) = host_session.as_ref() {
                 if let Some(runner) = session.npc_runner.as_ref() {
@@ -212,6 +212,7 @@ impl DesktopAppState {
                         state.last_npc_action_error = action_err.clone();
                     }
                 }
+                state.host_runtime_health = Some(session.host_server.runtime_health());
             }
         }
 

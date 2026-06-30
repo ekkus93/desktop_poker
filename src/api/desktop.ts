@@ -317,6 +317,19 @@ export type DebugInspectorState = {
   lastLlmFallback: string | null;
   /** Most recent NPC action failure, structured for debug rendering. */
   lastNpcActionError: NpcActionErrorDebug | null;
+  /** Host background-loop health counters. Null when no host session is active. */
+  hostRuntimeHealth: HostRuntimeHealth | null;
+};
+
+export type HostRuntimeHealth = {
+  acceptErrorCount: number;
+  streamTimeoutErrorCount: number;
+  tickAdvanceErrorCount: number;
+  publishErrorCount: number;
+  stateLockErrorCount: number;
+  lastError: string | null;
+  lastSuccessfulTickMs: number | null;
+  lastSuccessfulPublishMs: number | null;
 };
 
 const BOOTSTRAP_EVENT = "desktop://bootstrap";

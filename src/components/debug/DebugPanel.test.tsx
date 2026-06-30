@@ -41,6 +41,7 @@ function baseDebugState(
     npcTiltLevels: {},
     lastLlmFallback: null,
     lastNpcActionError: null,
+    hostRuntimeHealth: null,
     ...overrides,
   };
 }

@@ -19,6 +19,15 @@ use crate::{
 
 use super::*;
 
+fn update_health(
+    health: &Arc<Mutex<HostRuntimeHealth>>,
+    update: impl FnOnce(&mut HostRuntimeHealth),
+) {
+    if let Ok(mut guard) = health.lock() {
+        update(&mut guard);
+    }
+}
+
 impl HostServer {
     pub fn bind(config: HostRuntimeConfig) -> Result<Self, NetworkingError> {
         let advertised_ip: IpAddr = config
@@ -62,6 +71,7 @@ impl HostServer {
         let stop_signal = Arc::new(AtomicBool::new(false));
         let server_sequence = Arc::new(AtomicU64::new(0));
         let public_events = Arc::new(Mutex::new(Vec::new()));
+        let runtime_health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
 
         let accept_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
@@ -73,6 +83,7 @@ impl HostServer {
             let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
             let public_events = Arc::clone(&public_events);
             let join_payload = join_payload.clone();
+            let runtime_health = Arc::clone(&runtime_health);
 
             thread::Builder::new()
                 .name("desktop-poker-host".to_string())
@@ -82,8 +93,17 @@ impl HostServer {
                             break;
                         }
 
-                        let Ok(mut stream) = incoming else {
-                            continue;
+                        let mut stream = match incoming {
+                            Ok(s) => s,
+                            Err(e) => {
+                                update_health(&runtime_health, |h| {
+                                    h.accept_error_count += 1;
+                                    h.record_error(format!(
+                                        "host listener failed to accept incoming connection: {e}"
+                                    ));
+                                });
+                                continue;
+                            }
                         };
 
                         let clients = Arc::clone(&clients);
@@ -94,9 +114,20 @@ impl HostServer {
                         let host_encryption_keys = Arc::clone(&host_encryption_keys);
                         let public_events = Arc::clone(&public_events);
                         let join_payload = join_payload.clone();
+                        let runtime_health_conn = Arc::clone(&runtime_health);
 
-                        let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-                        let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+                        if let Err(e) = stream.set_read_timeout(Some(Duration::from_secs(5))) {
+                            update_health(&runtime_health_conn, |h| {
+                                h.stream_timeout_error_count += 1;
+                                h.record_error(format!("failed to set client read timeout: {e}"));
+                            });
+                        }
+                        if let Err(e) = stream.set_write_timeout(Some(Duration::from_secs(5))) {
+                            update_health(&runtime_health_conn, |h| {
+                                h.stream_timeout_error_count += 1;
+                                h.record_error(format!("failed to set client write timeout: {e}"));
+                            });
+                        }
 
                         thread::spawn(move || {
                             let crypto_provider = DefaultCryptoProvider;
@@ -187,25 +218,43 @@ impl HostServer {
             let host_encryption_keys = Arc::clone(&config.host_encryption_keys);
             let public_events = Arc::clone(&public_events);
             let join_payload = join_payload.clone();
+            let runtime_health = Arc::clone(&runtime_health);
 
             thread::Builder::new()
                 .name("desktop-poker-host-tick".to_string())
                 .spawn(move || {
                     while !stop_signal.load(Ordering::SeqCst) {
+                        let now = now_epoch_ms();
                         // Acquire the lock only for the duration of advance_time,
                         // NOT for the sleep, so that start_tournament() can install
                         // the controller without being starved by this idle loop.
                         let next_state = match tournament_runtime.lock() {
-                            Err(_) => break,
+                            Err(_) => {
+                                update_health(&runtime_health, |h| {
+                                    h.state_lock_error_count += 1;
+                                    h.record_error("tournament runtime lock poisoned");
+                                });
+                                break;
+                            }
                             Ok(mut runtime) => match runtime.as_mut() {
                                 None => None,
                                 Some(controller) => {
                                     let before = controller.state().clone();
-                                    if controller.advance_time(now_epoch_ms()).is_err() {
-                                        None
-                                    } else {
-                                        let after = controller.state().clone();
-                                        (after != before).then_some(after)
+                                    match controller.advance_time(now) {
+                                        Ok(()) => {
+                                            update_health(&runtime_health, |h| {
+                                                h.last_successful_tick_ms = Some(now);
+                                            });
+                                            let after = controller.state().clone();
+                                            (after != before).then_some(after)
+                                        }
+                                        Err(e) => {
+                                            update_health(&runtime_health, |h| {
+                                                h.tick_advance_error_count += 1;
+                                                h.record_error(format!("advance_time failed: {e}"));
+                                            });
+                                            None
+                                        }
                                     }
                                 }
                             },
@@ -221,7 +270,7 @@ impl HostServer {
                             let _ = authoritative_state.lock().map(|mut authoritative| {
                                 *authoritative = state.clone();
                             });
-                            let _ = publish_runtime_transition(
+                            match publish_runtime_transition(
                                 &join_payload,
                                 &authoritative_state,
                                 &previous_state,
@@ -231,7 +280,17 @@ impl HostServer {
                                 &host_signing_keys,
                                 &host_encryption_keys,
                                 &public_events,
-                            );
+                            ) {
+                                Ok(()) => update_health(&runtime_health, |h| {
+                                    h.last_successful_publish_ms = Some(now_epoch_ms());
+                                }),
+                                Err(e) => update_health(&runtime_health, |h| {
+                                    h.publish_error_count += 1;
+                                    h.record_error(format!(
+                                        "runtime transition publish failed: {e}"
+                                    ));
+                                }),
+                            }
                         }
 
                         thread::sleep(Duration::from_millis(50));
@@ -256,6 +315,7 @@ impl HostServer {
             host_signing_keys: config.host_signing_keys,
             host_encryption_keys: config.host_encryption_keys,
             public_events,
+            runtime_health,
         })
     }
 
@@ -289,6 +349,20 @@ impl HostServer {
             .lock()
             .map(|state| state.clone())
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
+    }
+
+    /// Snapshot of host background-loop health counters.
+    /// Returns a sentinel with `state_lock_error_count = 1` if the lock is poisoned.
+    #[must_use]
+    pub fn runtime_health(&self) -> HostRuntimeHealth {
+        self.runtime_health
+            .lock()
+            .map(|h| h.clone())
+            .unwrap_or_else(|_| HostRuntimeHealth {
+                state_lock_error_count: 1,
+                last_error: Some("host runtime health lock poisoned".to_string()),
+                ..HostRuntimeHealth::default()
+            })
     }
 
     pub fn replace_authoritative_state(

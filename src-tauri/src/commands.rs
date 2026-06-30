@@ -452,6 +452,7 @@ mod tests {
             npc_tilt_levels: std::collections::BTreeMap::new(),
             last_llm_fallback: None,
             last_npc_action_error: None,
+            host_runtime_health: None,
         }
     }
 

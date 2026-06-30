@@ -11,6 +11,7 @@ use std::{
 };
 
 use local_ip_address::list_afinet_netifas;
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::{
@@ -96,6 +97,31 @@ pub struct PublicEventLogEntry {
     pub payload: Value,
 }
 
+/// Live health counters for the host background loops.
+///
+/// Counts stay at zero while the host is healthy.  Non-zero values or a
+/// non-None `last_error` indicate that at least one background failure was
+/// silently swallowed (accept error, tick error, publish error, lock poison).
+/// Readable via `HostServer::runtime_health()`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostRuntimeHealth {
+    pub accept_error_count: u64,
+    pub stream_timeout_error_count: u64,
+    pub tick_advance_error_count: u64,
+    pub publish_error_count: u64,
+    pub state_lock_error_count: u64,
+    pub last_error: Option<String>,
+    pub last_successful_tick_ms: Option<u64>,
+    pub last_successful_publish_ms: Option<u64>,
+}
+
+impl HostRuntimeHealth {
+    fn record_error(&mut self, message: impl Into<String>) {
+        self.last_error = Some(message.into());
+    }
+}
+
 /// One NPC participant to register, seat, and mark ready atomically.
 #[derive(Clone, Debug)]
 pub struct NpcSeatAssignment {
@@ -118,6 +144,7 @@ pub struct HostServer {
     host_signing_keys: Arc<SigningKeyMaterial>,
     host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
     public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
+    runtime_health: Arc<Mutex<HostRuntimeHealth>>,
 }
 
 #[derive(Debug)]

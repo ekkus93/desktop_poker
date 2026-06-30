@@ -336,6 +336,54 @@ export function DebugPanel({
         </SectionCard>
       ) : null}
 
+      {debugState?.hostRuntimeHealth &&
+      (debugState.hostRuntimeHealth.acceptErrorCount > 0 ||
+        debugState.hostRuntimeHealth.tickAdvanceErrorCount > 0 ||
+        debugState.hostRuntimeHealth.publishErrorCount > 0 ||
+        debugState.hostRuntimeHealth.stateLockErrorCount > 0 ||
+        debugState.hostRuntimeHealth.streamTimeoutErrorCount > 0 ||
+        debugState.hostRuntimeHealth.lastError != null) ? (
+        <SectionCard
+          title="Host runtime health"
+          data-testid="host-runtime-health-section"
+        >
+          <ul data-testid="host-runtime-health-fields">
+            {debugState.hostRuntimeHealth.acceptErrorCount > 0 && (
+              <li>
+                <strong>Accept errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.acceptErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.tickAdvanceErrorCount > 0 && (
+              <li>
+                <strong>Tick errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.tickAdvanceErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.publishErrorCount > 0 && (
+              <li>
+                <strong>Publish errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.publishErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.stateLockErrorCount > 0 && (
+              <li>
+                <strong>Lock errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.stateLockErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.lastError != null && (
+              <li>
+                <strong>Last error:</strong>{" "}
+                <span data-testid="host-runtime-health-last-error">
+                  {debugState.hostRuntimeHealth.lastError}
+                </span>
+              </li>
+            )}
+          </ul>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Rust backend module map">
         <ul>
           {bootstrap.backendModules.map((moduleInfo) => (

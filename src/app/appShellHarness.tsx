@@ -409,6 +409,7 @@ function setupAppShellMocks() {
     npcTiltLevels: {},
     lastLlmFallback: null,
     lastNpcActionError: null,
+    hostRuntimeHealth: null,
   });
   mockedLaunchAdditionalClientInstance.mockResolvedValue("debug-child-1");
   mockedGetTableView.mockImplementation(async (viewerMode) =>

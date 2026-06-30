@@ -6,8 +6,8 @@ use crate::app_state::ModuleDescriptor;
 pub use framing::{read_json_frame, write_json_frame};
 pub use runtime::{
     resolve_connectable_host_ip, ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent,
-    HostRuntimeConfig, HostRuntimeMode, HostServer, NetworkingError, NpcSeatAssignment,
-    PublicEventLogEntry,
+    HostRuntimeConfig, HostRuntimeHealth, HostRuntimeMode, HostServer, NetworkingError,
+    NpcSeatAssignment, PublicEventLogEntry,
 };
 
 pub const DEFAULT_HOST_PORT: u16 = 43_818;
