@@ -44,11 +44,9 @@ impl DesktopAppState {
             _ => None,
         };
         let llm_api_key_configured = loaded_provider.as_ref().is_some_and(|c| c.is_usable());
-        let llm_provider_type = loaded_provider.as_ref().and_then(|c| {
-            serde_json::to_value(&c.settings.provider)
-                .ok()
-                .and_then(|v| v.as_str().map(|s| s.to_string()))
-        });
+        let llm_provider_type = loaded_provider
+            .as_ref()
+            .map(|c| c.settings.provider.as_str().to_string());
         let llm_provider = Arc::new(Mutex::new(loaded_provider));
 
         Self {
@@ -96,11 +94,8 @@ impl DesktopAppState {
             Ok(provider) => {
                 let provider_ref = provider.as_ref();
                 state.llm_api_key_configured = provider_ref.is_some_and(|c| c.is_usable());
-                state.llm_provider_type = provider_ref.and_then(|c| {
-                    serde_json::to_value(&c.settings.provider)
-                        .ok()
-                        .and_then(|v| v.as_str().map(str::to_string))
-                });
+                state.llm_provider_type =
+                    provider_ref.map(|c| c.settings.provider.as_str().to_string());
             }
             Err(_) => {
                 // Mutex poisoned — treat as provider state unavailable (P1.2).

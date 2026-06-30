@@ -936,3 +936,48 @@ Final state: 408 Rust tests pass, 242 frontend tests pass, lint clean, build cle
 - Manual smoke-test items in P2.3 left unchecked — require a live app session.
 - Fixed `ollama_without_key_does_not_return_api_key_missing` test: it called `unwrap_err()` but panicked when a local Ollama daemon was running and returned Ok. Now accepts Ok (no key required = correct) and only asserts non-ApiKeyMissing on Err.
 - 408 Rust tests pass, 248 frontend tests pass, lint and build clean.
+
+## 2026-06-30T22:04:55Z - Claude Sonnet 4.6 - FIX4 runtime hardening complete
+
+Completed all P0–P2 items from docs/DESKTOP_POKER_RUNTIME_HARDENING_FIX4_TODO.md across two sessions.
+
+**P0.1–P0.4 (prior session, commits `498efe8`, `27b3100`):**
+- Browser mocks gated behind `__DESKTOP_POKER_BROWSER_MOCKS__` check; not reachable in production.
+- Provider settings-only save is transactional: old key deleted before new key written; `StoredKeyDeleteError` on rollback failure.
+- Unreadable legacy `claude-api-key.txt` surfaces as `provider_config_error` in bootstrap state.
+- `allowRuleBasedLlmFallback` flag added to NPC profiles; controls whether operational LLM failures may fall back to rule-based — internal failures never fall back regardless.
+
+**P0.5 (`3458179`):**
+- `RuleDecisionContext` removes inner defaults: `big_blind` and `current_bet` are non-optional; callers must provide values. Three tests verify context fields are actually used.
+
+**P1.1 (`a706370`):**
+- `add_npc_participants_atomic` on `HostServer`: validate-all-then-apply-all under single lock; no partial state on failure. Two tests (success path, rollback-on-second-seat-conflict).
+
+**P1.2 (`e818754`):**
+- `start_npc_runner` returns `Result<JoinHandle<()>, String>` instead of panicking.
+- `start_npc_runner_with_spawner<F>` injectable for tests. Spawn-failure test added.
+
+**P1.3 (`7d03d8a`):**
+- `HostRuntimeHealth` struct on `HostServer`: counts accept/timeout/tick/publish/lock errors, records last-error string and successful-tick/publish timestamps.
+- Wired into accept and tick loops via `update_health` helper.
+- Exposed through `DebugInspectorState` and rendered in `DebugPanel`.
+
+**P1.4 (`9c54e02`):**
+- `ClientRuntimeEvent::ProtocolWarning { player_id, reason, count }` replaces all silent `continue` cases in client read loop.
+- Low-noise policy: emit on first occurrence and powers-of-two counts.
+- Three tests in `protocol_warning.rs` verify emission, suppression, and independent reason tracking.
+
+**P1.5 (already done):**
+- `vi.mock("@tauri-apps/api/window", ...)` already present in `persistence.test.ts` from commit `95c3219`; no new work needed.
+
+**P1.6 (`93cff20`):**
+- `vite.config.ts` adds `pool: "threads"`, `singleThread: true`, `testTimeout: 10_000` to make `npm test` reliable.
+
+**P2.1 (this session):**
+- `app_state/app.rs`: `serde_json::to_value(&c.settings.provider).ok().and_then(...)` replaced with `c.settings.provider.as_str().to_string()` (two sites).
+
+**P2.2 (this session — audit):**
+- FIX4-introduced patterns are all safe: `continue;` after `update_health` (error counted before skip); `.unwrap_or_else(|_| HostRuntimeHealth{...})` sentinel (documented); `let _ = sender.send(ProtocolWarning{...})` (channel close on shutdown path is expected).
+- Broader audit of networking/npc/app_state: all `let _ = write_json_frame/broadcast(...)` are intentional best-effort writes to potentially-disconnected clients. `unwrap_or(...)` hits use sensible defaults. No unsafe silent failures found.
+
+Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.

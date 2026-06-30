@@ -1,9 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::{
-    crypto::DefaultCryptoProvider,
-    networking::ClientRuntimeEvent,
-};
+use crate::{crypto::DefaultCryptoProvider, networking::ClientRuntimeEvent};
 
 use super::support::*;
 
