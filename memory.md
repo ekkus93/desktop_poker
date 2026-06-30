@@ -1014,3 +1014,12 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - `host_broadcast.rs send_private_hole_cards`: lock poison on client registry cleanup now calls `record_client_registry_error`; `mark_participant_reconnect_eligible` failure now calls `record_reconnect_mark_error`.
 - 4 unit tests in `misc.rs` verify the three helper methods individually and that counters accumulate independently.
 - 435 Rust tests pass.
+
+## 2026-06-30T23:54:26Z - Claude Sonnet 4.6 - FIX5 P2.1–P2.5 Cargo workspace and poker-core extraction
+
+- **P2.1 (workspace setup):** Added root `Cargo.toml` (workspace with members `crates/poker-core` and `src-tauri`). Added `crates/poker-core/Cargo.toml` with serde/serde_json/thiserror/rand_core deps. Added `poker-core = { path = "../crates/poker-core" }` to `src-tauri/Cargo.toml`. Updated CLAUDE.md and lint-n-test skill to use `--workspace` Cargo flags. `cargo metadata` works from repo root.
+- **P2.2 (module migration):** Moved `domain/`, `engine/`, `tournament/` from `src-tauri/src/` to `crates/poker-core/src/`. Removed `app_state::ModuleDescriptor` dependency and `descriptor()` free functions from moved modules. Made `EngineError::new` and `evaluate_five_card_hand` `pub` (used by `npc/postflop.rs`). Re-export via `pub use poker_core::{domain,engine,tournament}` in `src-tauri/src/lib.rs`. Inlined descriptor literals in `app_state/config.rs`. Deleted orphaned source dirs from `src-tauri/src/`. All 437 Rust tests pass.
+- **P2.3 (facade):** Added `crates/poker-core/src/facade.rs` with `PokerCoreError`, `EngineCommand`, `EngineEvent`, `PokerEngine`. Facade wraps real `TournamentController` API. Two tests: `poker_engine_exports_state_json` and `poker_engine_advance_time_command_is_deterministic`.
+- **P2.4 (Android arch doc):** Created `docs/ANDROID_ARCHITECTURE.md` documenting Kotlin-owns-networking / Rust-owns-poker-rules boundary and UniFFI as preferred future binding.
+- **P2.5 (purity audit):** `poker-core` has no Tauri, keyring, dirs, reqwest, networking, or platform dependencies.
+- 437 Rust + 252 frontend tests pass; all lint/fmt/clippy/build clean.
