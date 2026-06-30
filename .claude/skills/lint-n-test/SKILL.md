@@ -11,9 +11,9 @@ Run the full lint and test suite for this project. Execute all steps from the re
 ### 1. Rust
 
 ```bash
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace
 ```
 
 ### 2. Frontend
@@ -26,4 +26,4 @@ npm test
 
 ## Output
 
-Report a pass/fail summary for each step. If any step fails, show the relevant error output so the user knows what to fix. Stop at the first failure per group (Rust or frontend) — no need to continue if fmt/clippy/clippy already failed.
+Report a pass/fail summary for each step. If any step fails, show the relevant error output so the user knows what to fix. Stop at the first failure per group (Rust or frontend) — no need to continue if fmt/clippy already failed.

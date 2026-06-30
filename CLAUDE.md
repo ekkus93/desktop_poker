@@ -6,12 +6,12 @@ Build a **real desktop poker client/host** with **Tauri + Rust** for **single-ta
 
 ## Build, test, and run
 
-Rust backend lives in `src-tauri/` (single crate, not a workspace) — Cargo commands need `--manifest-path src-tauri/Cargo.toml`. Frontend is React 19 + TypeScript + Vite, driven via npm.
+Rust lives in a Cargo workspace at the repo root (`Cargo.toml`). `src-tauri/` is the Tauri crate; `crates/poker-core/` is the shared pure poker engine. Frontend is React 19 + TypeScript + Vite, driven via npm. Run all Cargo commands from the repo root.
 
-- Rust: `cargo fmt --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`, `cargo test --manifest-path src-tauri/Cargo.toml`.
+- Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace`.
 - Frontend: `npm run lint` (ESLint, `--max-warnings 0`), `npm run format` (Prettier), `npm run test` (Vitest), `npm run build` (`tsc && vite build`).
 - Run the app: `npm run tauri dev` (debug) / `npm run tauri build` (release bundle).
-- LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --manifest-path src-tauri/Cargo.toml -- --ignored`.
+- LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --workspace -- --ignored`.
 
 ## Core architecture rules
 
