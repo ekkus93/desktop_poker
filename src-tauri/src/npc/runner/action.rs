@@ -18,9 +18,10 @@ use crate::npc::{
     NpcConfig,
 };
 
+use super::decision::RuleDecisionContext;
 use super::{
-    current_stacks, fallback_blind_level, hash_str, rule_based_decision, NpcActionOutcome,
-    RunnerState, MAX_DELAY_MS, MIN_DELAY_MS,
+    current_stacks, hash_str, rule_based_decision, NpcActionOutcome, RunnerState, MAX_DELAY_MS,
+    MIN_DELAY_MS,
 };
 
 /// Resolved state of the LLM provider for a single action decision.
@@ -247,12 +248,28 @@ pub(crate) fn try_npc_action(
     let facing_bet = call_amount > 0;
     let legal_actions = &fresh_window.legal_actions;
 
-    let stack = fresh_state
+    // P0.5: checked stack extraction — missing stack is an internal error, not a default.
+    let stack = match fresh_state
         .seats
         .iter()
         .find(|s| s.participant_id.as_deref() == Some(fresh_window.player_id.as_str()))
         .and_then(|s| s.chip_count)
-        .unwrap_or(1);
+    {
+        Some(s) => s,
+        None => {
+            let msg = format!(
+                "[npc-runner] cannot determine stack for player {}; no action submitted",
+                fresh_window.player_id
+            );
+            return record_npc_internal_error(
+                runner_state,
+                fresh_window.player_id.clone(),
+                Some(fresh_hand.hand_number),
+                NpcActionErrorReason::InternalError,
+                msg,
+            );
+        }
+    };
 
     let active_count = fresh_state
         .seats
@@ -266,6 +283,32 @@ pub(crate) fn try_npc_action(
         dealer_seat,
         active_count.max(2),
     );
+
+    // P0.5: checked blind level extraction — missing blind is an internal error, not a default.
+    let blind_level = match fresh_state
+        .config
+        .blind_schedule
+        .levels
+        .get(fresh_state.blind_level_index)
+    {
+        Some(l) => l.clone(),
+        None => {
+            let msg = format!(
+                "[npc-runner] blind schedule has no entry for index {} (player={}); no action submitted",
+                fresh_state.blind_level_index, fresh_window.player_id
+            );
+            return record_npc_internal_error(
+                runner_state,
+                fresh_window.player_id.clone(),
+                Some(fresh_hand.hand_number),
+                NpcActionErrorReason::InternalError,
+                msg,
+            );
+        }
+    };
+    let big_blind = blind_level.big_blind;
+    // current_bet is non-optional: we have a validated current_hand (fresh_hand).
+    let current_bet = fresh_hand.betting_round.current_bet;
 
     // Resolve provider config with explicit lock-failure detection.
     let provider_state = if npc_config.profile.is_some() {
@@ -284,28 +327,27 @@ pub(crate) fn try_npc_action(
         ProviderState::NotConfigured
     };
 
-    // Inline helper to avoid repeating 17 rule_based_decision parameters.
-    let do_rule_based = || {
-        rule_based_decision(
-            &fallback_style,
-            hole_cards,
-            board,
-            street,
-            pot_total,
-            call_amount,
-            min_raise_to,
-            max_raise_to,
-            facing_bet,
-            stack,
-            active_count,
-            dealer_seat,
-            fresh_window.seat_index,
-            fresh_state.blind_level_index,
-            &fresh_state,
-            legal_actions,
-            seed,
-        )
+    // Build the rule-based decision context once; all required fields are validated above.
+    let rule_ctx = RuleDecisionContext {
+        style: &fallback_style,
+        hole_cards,
+        board_cards: board,
+        street,
+        pot_total,
+        call_amount,
+        min_raise_to,
+        max_raise_to,
+        facing_bet,
+        stack,
+        active_count,
+        dealer_seat,
+        npc_seat: fresh_window.seat_index,
+        big_blind,
+        current_bet,
+        legal_actions,
+        seed,
     };
+    let do_rule_based = || rule_based_decision(&rule_ctx);
 
     // Choose an action. Hand-log write happens AFTER submit_action returns Ok(()).
     let (action_type, raise_to) = if let Some(profile) = npc_config.profile.as_ref() {
@@ -355,13 +397,7 @@ pub(crate) fn try_npc_action(
                 }
             }
             ProviderState::Usable(cfg) => {
-                let blind_level = fresh_state
-                    .config
-                    .blind_schedule
-                    .levels
-                    .get(fresh_state.blind_level_index)
-                    .cloned()
-                    .unwrap_or_else(fallback_blind_level);
+                // blind_level already validated and extracted above.
 
                 // Build session context.
                 let (session_ctx, tilt_desc) =
