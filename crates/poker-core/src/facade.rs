@@ -47,8 +47,13 @@ impl PokerEngine {
         registered_players: Vec<RegisteredPlayer>,
     ) -> Result<Self, PokerCoreError> {
         Ok(Self {
-            controller: TournamentController::new(table_id, session_epoch, config, registered_players)
-                .map_err(|error| PokerCoreError::Engine(error.to_string()))?,
+            controller: TournamentController::new(
+                table_id,
+                session_epoch,
+                config,
+                registered_players,
+            )
+            .map_err(|error| PokerCoreError::Engine(error.to_string()))?,
         })
     }
 
@@ -99,7 +104,7 @@ impl PokerEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::{BlindLevel, BlindSchedule, ConnectionState, PlayerIdentity};
+    use crate::domain::{BlindLevel, BlindSchedule, PlayerIdentity};
 
     fn test_config() -> TournamentConfig {
         TournamentConfig {
@@ -141,10 +146,7 @@ mod tests {
             "table-1",
             1,
             test_config(),
-            vec![
-                test_player("host", 0, true),
-                test_player("guest", 1, false),
-            ],
+            vec![test_player("host", 0, true), test_player("guest", 1, false)],
         )
         .expect("engine should construct")
     }
@@ -169,6 +171,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(events_a, events_b);
-        assert_eq!(a.export_state_json().unwrap(), b.export_state_json().unwrap());
+        assert_eq!(
+            a.export_state_json().unwrap(),
+            b.export_state_json().unwrap()
+        );
     }
 }
