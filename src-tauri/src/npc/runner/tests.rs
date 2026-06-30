@@ -412,3 +412,95 @@ fn opponent_stats_has_entries_for_human_player_after_hand() {
         1
     );
 }
+
+// P1.2 — start_npc_runner_with_spawner propagates spawn failure as Err.
+
+#[test]
+fn start_npc_runner_with_spawner_returns_err_when_spawn_fails() {
+    use std::sync::atomic::AtomicBool;
+
+    use crate::crypto::{DefaultCryptoProvider, ProtocolCryptoProvider};
+    use crate::networking::{HostRuntimeConfig, HostRuntimeMode, HostServer};
+
+    let provider = DefaultCryptoProvider;
+    let host_signing_keys = Arc::new(provider.generate_signing_keypair());
+    let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+    let host = Arc::new(
+        HostServer::bind(HostRuntimeConfig {
+            bind_addr: "127.0.0.1:0".parse().unwrap(),
+            advertised_host: "127.0.0.1".to_string(),
+            session_epoch: 1,
+            table_id: "t-spawn-fail".to_string(),
+            table_name: None,
+            join_token: "tok".to_string(),
+            host_signing_keys,
+            host_encryption_keys,
+            snapshot_state: crate::domain::TournamentState {
+                table_id: "t-spawn-fail".to_string(),
+                session_epoch: 1,
+                phase: crate::domain::TournamentPhase::WaitingForPlayers,
+                config: crate::domain::TournamentConfig {
+                    tournament_name: "test".to_string(),
+                    table_name: None,
+                    max_players: 2,
+                    starting_stack: 1000,
+                    turn_timer_seconds: 30,
+                    blind_schedule: crate::domain::BlindSchedule {
+                        levels: vec![crate::domain::BlindLevel {
+                            level_index: 0,
+                            label: "L1".to_string(),
+                            small_blind: 10,
+                            big_blind: 20,
+                            ante: 0,
+                            duration_seconds: 300,
+                        }],
+                    },
+                },
+                blind_schedule: crate::domain::BlindSchedule {
+                    levels: vec![crate::domain::BlindLevel {
+                        level_index: 0,
+                        label: "L1".to_string(),
+                        small_blind: 10,
+                        big_blind: 20,
+                        ante: 0,
+                        duration_seconds: 300,
+                    }],
+                },
+                blind_level_index: 0,
+                participants: std::collections::BTreeMap::new(),
+                seats: vec![],
+                current_hand: None,
+                hand_results: vec![],
+                placements: vec![],
+            },
+            runtime_mode: HostRuntimeMode::Test,
+        })
+        .expect("host should bind"),
+    );
+
+    let configs = npc_configs();
+    let stop = Arc::new(AtomicBool::new(false));
+    let tilt = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
+    let fallback = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
+    let api_key = Arc::new(Mutex::new(None));
+
+    let result = super::start_npc_runner_with_spawner(
+        host,
+        configs,
+        stop,
+        api_key,
+        tilt,
+        fallback,
+        action_error,
+        |_builder, _f| Err(std::io::Error::other("injected spawn error")),
+    );
+
+    assert!(result.is_err(), "spawn failure must propagate as Err");
+    let msg = result.unwrap_err();
+    assert!(
+        msg.contains("failed to spawn npc-runner thread"),
+        "error message must mention spawn failure; got: {msg}"
+    );
+}

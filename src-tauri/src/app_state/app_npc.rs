@@ -130,7 +130,8 @@ impl DesktopAppState {
             Arc::clone(&tilt_levels),
             Arc::clone(&last_llm_fallback),
             Arc::clone(&last_npc_action_error),
-        );
+        )
+        .map_err(|e| e.to_string())?;
         session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
             stop,
             runner_handle,

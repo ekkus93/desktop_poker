@@ -138,10 +138,13 @@ pub(super) fn current_stacks(state: &TournamentState) -> BTreeMap<String, u32> {
         .collect()
 }
 
+type SpawnResult = std::io::Result<thread::JoinHandle<()>>;
+
 /// Start the NPC auto-action background thread.
 ///
-/// Returns the join handle. The caller supplies `shared_tilt`, `shared_fallback`, and
-/// `shared_action_error` and may read from them at any time (e.g. for the debug inspector).
+/// Returns `Err` if the OS refuses to spawn the thread.  The caller supplies
+/// `shared_tilt`, `shared_fallback`, and `shared_action_error` and may read
+/// from them at any time (e.g. for the debug inspector).
 pub fn start_npc_runner(
     host_server: Arc<HostServer>,
     npc_configs: Vec<NpcConfig>,
@@ -150,10 +153,38 @@ pub fn start_npc_runner(
     shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
     shared_fallback: Arc<Mutex<Option<String>>>,
     shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
-) -> thread::JoinHandle<()> {
-    thread::Builder::new()
-        .name("npc-runner".into())
-        .spawn(move || {
+) -> Result<thread::JoinHandle<()>, String> {
+    start_npc_runner_with_spawner(
+        host_server,
+        npc_configs,
+        stop,
+        api_key_holder,
+        shared_tilt,
+        shared_fallback,
+        shared_action_error,
+        |builder, f| builder.spawn(f),
+    )
+}
+
+/// Like `start_npc_runner` but accepts an injectable spawn function for
+/// testing the spawn-failure path without touching the OS thread limit.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn start_npc_runner_with_spawner<F>(
+    host_server: Arc<HostServer>,
+    npc_configs: Vec<NpcConfig>,
+    stop: Arc<AtomicBool>,
+    api_key_holder: Arc<Mutex<Option<LlmProviderConfig>>>,
+    shared_tilt: Arc<Mutex<BTreeMap<String, String>>>,
+    shared_fallback: Arc<Mutex<Option<String>>>,
+    shared_action_error: Arc<Mutex<Option<NpcActionErrorDebug>>>,
+    spawn: F,
+) -> Result<thread::JoinHandle<()>, String>
+where
+    F: FnOnce(thread::Builder, Box<dyn FnOnce() + Send + 'static>) -> SpawnResult,
+{
+    spawn(
+        thread::Builder::new().name("npc-runner".into()),
+        Box::new(move || {
             loop_core::npc_runner_loop(
                 &host_server,
                 &npc_configs,
@@ -163,8 +194,9 @@ pub fn start_npc_runner(
                 shared_fallback,
                 shared_action_error,
             );
-        })
-        .expect("failed to spawn npc-runner thread")
+        }),
+    )
+    .map_err(|e| format!("failed to spawn npc-runner thread: {e}"))
 }
 
 pub fn run_npc_loop(

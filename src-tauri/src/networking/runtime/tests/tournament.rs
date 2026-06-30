@@ -214,7 +214,8 @@ fn npc_opponent_plays_a_full_hand_against_a_human_through_the_real_runtime() {
         tilt,
         fallback,
         action_error,
-    );
+    )
+    .expect("npc-runner thread should spawn");
 
     // Play the hand: the human always checks/calls (never folds) so the hand
     // reaches a natural conclusion regardless of how the NPC plays, while the
