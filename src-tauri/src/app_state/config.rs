@@ -8,7 +8,7 @@ use rand_core::{OsRng, RngCore};
 
 use crate::{
     crypto::{self},
-    domain, engine, interop, networking, protocol, storage, tournament,
+    domain, interop, networking, protocol, storage,
 };
 
 use super::*;
@@ -378,9 +378,18 @@ pub fn screen_catalog(debug_tools_enabled: bool) -> Vec<ScreenDescriptor> {
 pub(crate) fn backend_modules() -> Vec<ModuleDescriptor> {
     vec![
         app_state_descriptor(),
-        domain::descriptor(),
-        engine::descriptor(),
-        tournament::descriptor(),
+        ModuleDescriptor {
+            name: "domain",
+            responsibility: "Defines poker, tournament, seat, participant, and projection value types shared across the runtime.",
+        },
+        ModuleDescriptor {
+            name: "engine",
+            responsibility: "Evaluates poker hands, betting legality, and hand settlement without letting the frontend become the source of truth.",
+        },
+        ModuleDescriptor {
+            name: "tournament",
+            responsibility: "Coordinates roster freeze, blind scheduling, hand loops, eliminations, and tournament completion.",
+        },
         protocol::descriptor(),
         networking::descriptor(),
         crypto::descriptor(),

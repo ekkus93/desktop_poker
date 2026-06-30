@@ -1,14 +1,15 @@
 pub mod app_state;
 pub mod commands;
 pub mod crypto;
-pub mod domain;
-pub mod engine;
 pub mod interop;
 pub mod networking;
 pub mod npc;
 pub mod protocol;
 pub mod storage;
-pub mod tournament;
+
+pub use poker_core::domain;
+pub use poker_core::engine;
+pub use poker_core::tournament;
 
 use app_state::DesktopAppState;
 use commands::{

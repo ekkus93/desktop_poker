@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    app_state::ModuleDescriptor,
     domain::{ActionType, PlayerIdentity, TournamentState},
     engine::{Deck, EngineError},
 };
@@ -80,15 +79,6 @@ pub struct TournamentController {
     next_action_window_id: u64,
     pending_deck: Option<Deck>,
     active_hand: Option<ActiveHandRuntime>,
-}
-
-#[must_use]
-pub fn descriptor() -> ModuleDescriptor {
-    ModuleDescriptor {
-        name: "tournament",
-        responsibility:
-            "Coordinates roster freeze, blind scheduling, hand loops, eliminations, and tournament completion.",
-    }
 }
 
 #[cfg(test)]

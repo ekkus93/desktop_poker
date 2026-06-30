@@ -5,10 +5,7 @@ use std::{
 
 use rand_core::{OsRng, RngCore};
 
-use crate::{
-    app_state::ModuleDescriptor,
-    domain::{ActionType, Card, PotSummary, Rank, Suit},
-};
+use crate::domain::{ActionType, Card, PotSummary, Rank, Suit};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EngineError {
@@ -16,7 +13,7 @@ pub struct EngineError {
 }
 
 impl EngineError {
-    pub(crate) fn new(message: impl Into<String>) -> Self {
+    pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
         }
@@ -212,15 +209,6 @@ pub struct LegalActionSet {
     pub call_amount: u32,
     pub min_raise_to: Option<u32>,
     pub max_raise_to: Option<u32>,
-}
-
-#[must_use]
-pub fn descriptor() -> ModuleDescriptor {
-    ModuleDescriptor {
-        name: "engine",
-        responsibility:
-            "Evaluates poker hands, betting legality, and hand settlement without letting the frontend become the source of truth.",
-    }
 }
 
 pub fn evaluate_best_holdem_hand(
@@ -437,7 +425,7 @@ fn select_odd_chip_recipient(odd_chip_order: &[String], winners: &[String]) -> S
         .unwrap_or_else(|| winners[0].clone())
 }
 
-pub(crate) fn evaluate_five_card_hand(cards: [Card; 5]) -> HandStrength {
+pub fn evaluate_five_card_hand(cards: [Card; 5]) -> HandStrength {
     let flush = cards.iter().all(|card| card.suit == cards[0].suit);
     let rank_values = cards
         .iter()

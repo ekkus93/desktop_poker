@@ -3,7 +3,6 @@ mod projector;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::app_state::ModuleDescriptor;
 pub use models::*;
 pub use projector::{ProjectionBundle, StateProjector};
 
@@ -27,15 +26,6 @@ impl std::fmt::Display for DomainError {
 }
 
 impl std::error::Error for DomainError {}
-
-#[must_use]
-pub fn descriptor() -> ModuleDescriptor {
-    ModuleDescriptor {
-        name: "domain",
-        responsibility:
-            "Defines poker, tournament, seat, participant, and projection value types shared across the runtime.",
-    }
-}
 
 pub fn validate_tournament_config(config: &TournamentConfig) -> Result<(), DomainError> {
     if !(2..=10).contains(&config.max_players) {
