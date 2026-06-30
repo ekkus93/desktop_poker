@@ -30,3 +30,6 @@ src-tauri/target
 run_copilot.sh
 
 tmp/
+
+# Claude Code local state
+.claude/scheduled_tasks.lock
