@@ -681,6 +681,18 @@
 - **Final counts**: 350 Rust tests pass (3 ignored: 2 Ollama LLM + 1 Android fixture placeholder); 217 frontend tests pass; 0 failures; all files under 700 lines.
 - `docs/INT_TEST3_TODO.md` updated with all tasks checked off.
 
+## 2026-06-30T23:04:48Z - Claude Sonnet 4.6 - FIX5 spec/TODO review; corrective note on FIX4 completion
+
+- Reviewed `docs/DESKTOP_POKER_CORE_EXTRACTION_FIX5_SPEC.md` and `docs/DESKTOP_POKER_CORE_EXTRACTION_FIX5_TODO.md`. Produced structured review; wrote `docs/DESKTOP_POKER_CORE_EXTRACTION_FIX5_RESPONSES.md`; user filled in answers.
+- **Correction**: the previous FIX4 completion note (2026-06-30T22:04:55Z) overstated completion. FIX4 improved provider settings transactional save, NPC fallback policy, host health diagnostics, client protocol warnings, and test reliability — but the following issues were NOT fixed and remain open in FIX5:
+  - `DesktopAppState::add_npc_players` is not all-or-nothing: if `start_npc_runner` fails after `add_npc_participants_atomic` succeeds, NPCs remain registered/seated/ready with no runner. Requires `remove_npc_participants_atomic` rollback on host and injection mechanism for test.
+  - `client.rs` private-message decrypt still calls `associated_data_json().unwrap_or_default()` — an unacceptable empty-AAD fallback in crypto/protocol code.
+  - `try_npc_action` in `action.rs` still falls back to empty hole cards (`unwrap_or(&[])`) when an acting NPC's hole cards are missing or invalid. Must record internal NPC error and submit no action.
+  - `save_provider_config(Some(...))` still writes the non-secret settings file before the key write/delete — if the key operation fails, the settings file reflects a provider state that was never successfully saved.
+  - `npm test` still prints repeated `Failed to initialize window state persistence` errors from persistence test setup.
+  - Host runtime health counters exist but several silent `let _ =`, `return`, and `continue` paths in the host runtime still bypass them.
+- **Architecture decision recorded**: `poker-core` crate will own deterministic poker rules/state/projection only. Desktop and Android are platform adapters. Android will be native Kotlin/Compose + UniFFI Rust bindings, not Tauri Mobile. Networking is NOT part of `poker-core`.
+
 ## 2026-06-20T12:22:02Z - Claude Sonnet 4.6 - Stabilization pass: silent failure elimination
 
 Implemented all P0, P1, and P2 tasks from `docs/DESKTOP_POKER_STABILIZATION_TODO.md`.
@@ -981,3 +993,14 @@ Completed all P0–P2 items from docs/DESKTOP_POKER_RUNTIME_HARDENING_FIX4_TODO.
 - Broader audit of networking/npc/app_state: all `let _ = write_json_frame/broadcast(...)` are intentional best-effort writes to potentially-disconnected clients. `unwrap_or(...)` hits use sensible defaults. No unsafe silent failures found.
 
 Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
+
+## 2026-06-30T23:21:33Z - Claude Sonnet 4.6 - FIX5 P0.1–P0.5 and P1.2 implementation
+
+- **P0.1 (NPC add rollback):** Added `remove_npc_participants_atomic` to `HostServer`. Rewrote `app_npc.rs` cleanly with a free function `add_npc_players_impl<S>` shared by `add_npc_players` and `#[cfg(test)] add_npc_players_with_runner_starter`. On runner spawn failure, the method calls `remove_npc_participants_atomic` to roll back the atomic seat registration. Fixed `TournamentSeatState::Empty` → `TournamentSeatState::Open` in the rollback seat reset.
+- **P0.1 tests:** Added rollback test in `sessions_npc.rs`; added 3 direct tests for `remove_npc_participants_atomic` in `tournament.rs` (happy path, unknown id harmless, reject non-NPC).
+- **P0.2 (empty AAD fallback):** Fixed `associated_data_json().unwrap_or_default()` in `client.rs` to explicit `Err` path with `emit_protocol_warning`.
+- **P0.3 (NPC hole card validation):** Replaced `unwrap_or(&[])` in `action.rs` with a match that calls `record_npc_internal_error` for missing or wrong-count hole cards. Added two unit tests in `npc/runner/tests.rs`.
+- **P0.4 (provider config save ordering):** In `save_provider_config`, moved the key write/delete BEFORE the settings file write. Added `openai_config` helper + 2 regression tests in `provider_storage.rs`.
+- **P0.5 (persistence test noise):** Tests already clean — `__TAURI_INTERNALS__` guard prevents dynamic import in test env; no additional work needed.
+- **P1.2 (LayoutProbeApp dynamic import):** Replaced static import in `main.tsx` with `React.lazy` + `Suspense`. `LayoutProbeApp` is now a separate chunk only loaded when the probe surface is active; it is absent from the production bundle.
+- All 431 Rust tests pass; all 252 frontend tests pass; fmt, clippy, lint, build all clean.

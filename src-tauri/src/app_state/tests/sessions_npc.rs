@@ -6,6 +6,63 @@ use crate::{
 
 use super::support::*;
 
+// P0.1 — NPC add rollback: when the runner fails to start, host state is reverted.
+
+#[test]
+fn add_npc_players_rolls_back_on_runner_spawn_failure() {
+    let host_state = DesktopAppState::detect();
+    host_state
+        .start_host_session_with_mode(
+            sample_host_session_request("127.0.0.1"),
+            HostRuntimeMode::Test,
+        )
+        .expect("host session starts");
+
+    // Inject a runner that always fails after the host-state mutation.
+    let err = host_state
+        .add_npc_players_with_runner_starter(
+            AddNpcPlayersRequest {
+                npcs: vec![NpcConfigRequest {
+                    display_name: "Bot One".to_string(),
+                    style: NpcStyle::Conservative,
+                    profile_id: None,
+                }],
+            },
+            |_host, _configs, _stop, _api, _tilt, _fb, _err| {
+                Err("simulated spawn failure".to_string())
+            },
+        )
+        .expect_err("add_npc_players must fail when the runner cannot start");
+
+    assert!(
+        err.contains("simulated spawn failure"),
+        "error must include the spawn failure message; got: {err}"
+    );
+
+    // After rollback the host session must only have the host participant seated.
+    let status = host_state
+        .host_session_status()
+        .expect("session status")
+        .expect("session still active");
+    assert_eq!(
+        status.participants.len(),
+        1,
+        "rollback must remove the NPC: only the host should remain seated"
+    );
+
+    // The NPC runner must not be set.
+    let runner_present = host_state
+        .host_session
+        .lock()
+        .expect("host session lock")
+        .as_ref()
+        .is_some_and(|s| s.npc_runner.is_some());
+    assert!(
+        !runner_present,
+        "NPC runner must NOT be set after a failed spawn"
+    );
+}
+
 // P0.1 — bootstrap reflects live provider config after save and clear.
 
 #[test]

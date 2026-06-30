@@ -233,11 +233,39 @@ pub(crate) fn try_npc_action(
         }
     }
 
-    let hole_cards = fresh_hand
+    let hole_cards = match fresh_hand
         .hole_cards_by_player_id
         .get(&fresh_window.player_id)
-        .map(|v| v.as_slice())
-        .unwrap_or(&[]);
+    {
+        Some(cards) if cards.len() == 2 => cards.as_slice(),
+        Some(cards) => {
+            let msg = format!(
+                "[npc-runner] NPC {} has invalid hole-card count {}; expected 2; no action submitted",
+                fresh_window.player_id,
+                cards.len()
+            );
+            return record_npc_internal_error(
+                runner_state,
+                fresh_window.player_id.clone(),
+                Some(fresh_hand.hand_number),
+                NpcActionErrorReason::InternalError,
+                msg,
+            );
+        }
+        None => {
+            let msg = format!(
+                "[npc-runner] NPC {} is missing hole cards; no action submitted",
+                fresh_window.player_id
+            );
+            return record_npc_internal_error(
+                runner_state,
+                fresh_window.player_id.clone(),
+                Some(fresh_hand.hand_number),
+                NpcActionErrorReason::InternalError,
+                msg,
+            );
+        }
+    };
 
     let board = &fresh_hand.board_cards;
     let street = fresh_hand.betting_round.street;

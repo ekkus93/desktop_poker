@@ -240,14 +240,25 @@ impl ClientRuntime {
                             });
                             break;
                         };
+                        let associated_data = match envelope.associated_data_json() {
+                            Ok(associated_data) => associated_data,
+                            Err(error) => {
+                                emit_protocol_warning(
+                                    &sender,
+                                    &mut protocol_warning_counts,
+                                    &player_id,
+                                    format!(
+                                        "private hole-card associated-data serialization failed: {error}"
+                                    ),
+                                );
+                                continue;
+                            }
+                        };
                         let Ok(plaintext) = crypto_provider.decrypt(
                             encryption_keys,
                             &host_encryption_public_key,
                             &encrypted_payload,
-                            envelope
-                                .associated_data_json()
-                                .unwrap_or_default()
-                                .as_slice(),
+                            associated_data.as_slice(),
                         ) else {
                             emit_protocol_warning(
                                 &sender,

@@ -373,25 +373,30 @@ pub fn save_provider_config(
                 fs::create_dir_all(parent)?;
             }
 
-            // Write non-secret settings (safe to log, no key inside).
-            let settings_json = serde_json::to_string_pretty(&cfg.settings)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-            fs::write(&sp, settings_json)?;
-
             let key = cfg.api_key.as_deref().unwrap_or("").trim().to_string();
             let provider_str = cfg.settings.provider.as_str();
 
+            // Write/delete the secret FIRST. If the secret operation fails,
+            // the settings file must not be written — leaving a new settings
+            // file without a matching secret would be an inconsistent state.
             if key.is_empty() {
-                // No key — remove any previously stored key for this provider.
-                store
-                    .delete_key(provider_str)
-                    .map_err(std::io::Error::other)?;
+                store.delete_key(provider_str).map_err(|error| {
+                    std::io::Error::other(format!(
+                        "could not delete provider key for {provider_str}: {error}"
+                    ))
+                })?;
             } else {
-                // Store the key in the appropriate backend.
-                store
-                    .write_key(provider_str, &key)
-                    .map_err(std::io::Error::other)?;
+                store.write_key(provider_str, &key).map_err(|error| {
+                    std::io::Error::other(format!(
+                        "could not write provider key for {provider_str}: {error}"
+                    ))
+                })?;
             }
+
+            // Secret succeeded — safe to write non-secret settings now.
+            let settings_json = serde_json::to_string_pretty(&cfg.settings)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+            fs::write(&sp, settings_json)?;
         }
     }
     Ok(())
@@ -479,6 +484,17 @@ mod tests {
 
     use super::super::provider::LlmProviderType;
     use super::*;
+
+    fn openai_config(key: &str) -> LlmProviderConfig {
+        LlmProviderConfig {
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::OpenAi,
+                endpoint_url: None,
+                model: None,
+            },
+            api_key: Some(key.to_string()),
+        }
+    }
 
     fn anthropic_config(key: &str) -> LlmProviderConfig {
         LlmProviderConfig {
@@ -1004,6 +1020,51 @@ mod tests {
             fs::read_to_string(&sp).unwrap(),
             "not-json",
             "corrupt settings file must be preserved on error"
+        );
+    }
+
+    /// P0.4: save_provider_config(Some(...)) must NOT write settings if the secret write fails.
+    #[test]
+    fn save_provider_config_does_not_write_settings_if_secret_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = anthropic_config("sk-ant-new");
+        let result = save_provider_config(dir.path(), Some(&cfg), &FailingWriteSecretStore);
+        assert!(result.is_err(), "save must fail when secret write fails");
+        assert!(
+            !settings_path(dir.path()).exists(),
+            "settings file must not be created when secret write fails"
+        );
+    }
+
+    /// P0.4: If a settings file already exists (prior save), save_provider_config(Some(...))
+    /// must not overwrite it when the new secret write fails.
+    #[test]
+    fn save_provider_config_preserves_existing_settings_if_secret_write_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        // First, write a valid Anthropic config using the real file store.
+        save_provider_config(
+            dir.path(),
+            Some(&anthropic_config("sk-ant-old")),
+            &file_store(dir.path()),
+        )
+        .unwrap();
+
+        // Attempt to overwrite with an OpenAI config using a store that always fails writes.
+        let result = save_provider_config(
+            dir.path(),
+            Some(&openai_config("sk-openai-new")),
+            &FailingWriteSecretStore,
+        );
+
+        assert!(result.is_err(), "save must fail when secret write fails");
+        // The settings file must still reflect the original Anthropic provider.
+        let persisted = fs::read_to_string(settings_path(dir.path())).unwrap();
+        let current: LlmProviderSettings = serde_json::from_str(&persisted).unwrap();
+        assert_eq!(
+            current.provider,
+            LlmProviderType::Anthropic,
+            "settings file must not be updated when secret write fails; got: {:?}",
+            current.provider
         );
     }
 

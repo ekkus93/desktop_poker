@@ -5,142 +5,42 @@ use crate::domain;
 use super::*;
 
 impl DesktopAppState {
+    /// Add NPCs to the active host session.
+    ///
+    /// If the NPC runner thread fails to start after participants have already
+    /// been registered/seated, `remove_npc_participants_atomic` is called to
+    /// roll back the host-state mutation so the operation is all-or-nothing.
     pub fn add_npc_players(
         &self,
         request: crate::npc::AddNpcPlayersRequest,
     ) -> Result<HostSessionStatus, String> {
-        use std::sync::atomic::AtomicBool;
+        add_npc_players_impl(self, request, |host, configs, stop, api, tilt, fb, err| {
+            crate::npc::runner::start_npc_runner(host, configs, stop, api, tilt, fb, err)
+        })
+    }
 
-        if request.npcs.is_empty() {
-            return Err("npcs list must not be empty".to_string());
-        }
-
-        // Resolve profiles before locking the session.
-        // If an explicit profile_id is specified, fail loudly if it cannot be loaded.
-        let profiles_dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
-
-        struct NpcDraft {
-            display_name: String,
-            style: crate::npc::NpcStyle,
-            profile: Option<crate::npc::NpcProfile>,
-        }
-
-        let drafts: Vec<NpcDraft> = request
-            .npcs
-            .iter()
-            .map(|req| -> Result<NpcDraft, String> {
-                let profile = if let Some(id) = req.profile_id.as_deref() {
-                    let loaded = crate::npc::profile_store::load_profile(&profiles_dir, id)
-                        .map_err(|e| format!("could not load NPC profile '{id}': {e}"))?;
-                    Some(loaded)
-                } else {
-                    None
-                };
-                Ok(NpcDraft {
-                    display_name: req.display_name.clone(),
-                    style: req.style.clone(),
-                    profile,
-                })
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-
-        let mut host_session = self
-            .host_session
-            .lock()
-            .map_err(|_| "host session lock poisoned".to_string())?;
-        let session = host_session
-            .as_mut()
-            .ok_or_else(|| "no active host session".to_string())?;
-
-        let authoritative = session
-            .host_server
-            .authoritative_state()
-            .map_err(|e| e.to_string())?;
-
-        if !matches!(
-            authoritative.phase,
-            domain::TournamentPhase::WaitingForPlayers | domain::TournamentPhase::ReadyCheck
-        ) {
-            return Err("NPCs can only be added before the tournament starts".to_string());
-        }
-
-        let occupied = authoritative
-            .seats
-            .iter()
-            .filter(|s| s.occupancy == domain::SeatOccupancyState::Occupied)
-            .count() as u8;
-        let capacity = session.config.max_players;
-        let total_after = occupied.saturating_add(request.npcs.len() as u8);
-        if total_after > capacity {
-            return Err(format!(
-                "not enough open seats: {occupied} occupied, {capacity} max, {} NPCs requested",
-                request.npcs.len()
-            ));
-        }
-
-        let open_seats: Vec<u8> = authoritative
-            .seats
-            .iter()
-            .filter(|s| s.occupancy == domain::SeatOccupancyState::Empty)
-            .map(|s| s.seat_index)
-            .take(request.npcs.len())
-            .collect();
-
-        if open_seats.len() < request.npcs.len() {
-            return Err("not enough open seats for the requested NPCs".to_string());
-        }
-
-        // Build final NpcConfigs with stable player_ids tied to the assigned seat indices.
-        let npc_configs: Vec<crate::npc::NpcConfig> = drafts
-            .into_iter()
-            .zip(open_seats.iter())
-            .map(|(draft, &seat_index)| crate::npc::NpcConfig {
-                player_id: crate::npc::NpcConfig::player_id(seat_index),
-                display_name: draft.display_name,
-                style: draft.style,
-                profile: draft.profile,
-                allow_rule_based_llm_fallback: false,
-            })
-            .collect();
-
-        let assignments: Vec<crate::networking::NpcSeatAssignment> = npc_configs
-            .iter()
-            .zip(open_seats.iter())
-            .map(|(cfg, &seat_index)| crate::networking::NpcSeatAssignment {
-                player_id: cfg.player_id.clone(),
-                display_name: cfg.display_name.clone(),
-                seat_index,
-            })
-            .collect();
-
-        session
-            .host_server
-            .add_npc_participants_atomic(assignments)
-            .map_err(|e| e.to_string())?;
-
-        let stop = Arc::new(AtomicBool::new(false));
-        let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
-        let last_llm_fallback = Arc::new(Mutex::new(None));
-        let last_npc_action_error = Arc::new(Mutex::new(None));
-        let runner_handle = crate::npc::runner::start_npc_runner(
-            Arc::clone(&session.host_server),
-            npc_configs,
-            Arc::clone(&stop),
-            Arc::clone(&self.llm_provider),
-            Arc::clone(&tilt_levels),
-            Arc::clone(&last_llm_fallback),
-            Arc::clone(&last_npc_action_error),
-        )
-        .map_err(|e| e.to_string())?;
-        session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
-            stop,
-            runner_handle,
-            tilt_levels,
-            last_llm_fallback,
-            last_npc_action_error,
-        ));
-
-        session.status()
+    /// Same as `add_npc_players` but accepts a custom runner-start function.
+    ///
+    /// Used by tests to inject a failing spawner and verify that rollback
+    /// correctly removes the registered NPC participants from host state.
+    #[cfg(test)]
+    pub(crate) fn add_npc_players_with_runner_starter<S>(
+        &self,
+        request: crate::npc::AddNpcPlayersRequest,
+        runner_starter: S,
+    ) -> Result<HostSessionStatus, String>
+    where
+        S: FnOnce(
+            Arc<crate::networking::HostServer>,
+            Vec<crate::npc::NpcConfig>,
+            Arc<std::sync::atomic::AtomicBool>,
+            Arc<Mutex<Option<crate::npc::LlmProviderConfig>>>,
+            Arc<Mutex<std::collections::BTreeMap<String, String>>>,
+            Arc<Mutex<Option<String>>>,
+            Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>>,
+        ) -> Result<std::thread::JoinHandle<()>, String>,
+    {
+        add_npc_players_impl(self, request, runner_starter)
     }
 
     /// Save a provider config to disk and update the in-memory holder.
@@ -289,4 +189,178 @@ impl DesktopAppState {
         let dir = crate::npc::profile_store::profiles_dir(&self.app_data_dir);
         crate::npc::profile_store::delete_profile(&dir, id).map_err(|e| e.to_string())
     }
+}
+
+// ---------------------------------------------------------------------------
+// Free function so both add_npc_players and add_npc_players_with_runner_starter
+// share a single code path without duplicating the large body.
+// ---------------------------------------------------------------------------
+
+fn add_npc_players_impl<S>(
+    app: &DesktopAppState,
+    request: crate::npc::AddNpcPlayersRequest,
+    runner_starter: S,
+) -> Result<HostSessionStatus, String>
+where
+    S: FnOnce(
+        Arc<crate::networking::HostServer>,
+        Vec<crate::npc::NpcConfig>,
+        Arc<std::sync::atomic::AtomicBool>,
+        Arc<Mutex<Option<crate::npc::LlmProviderConfig>>>,
+        Arc<Mutex<std::collections::BTreeMap<String, String>>>,
+        Arc<Mutex<Option<String>>>,
+        Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>>,
+    ) -> Result<std::thread::JoinHandle<()>, String>,
+{
+    use std::sync::atomic::AtomicBool;
+
+    if request.npcs.is_empty() {
+        return Err("npcs list must not be empty".to_string());
+    }
+
+    // Resolve profiles before locking the session.
+    // If an explicit profile_id is specified, fail loudly if it cannot be loaded.
+    let profiles_dir = crate::npc::profile_store::profiles_dir(&app.app_data_dir);
+
+    struct NpcDraft {
+        display_name: String,
+        style: crate::npc::NpcStyle,
+        profile: Option<crate::npc::NpcProfile>,
+    }
+
+    let drafts: Vec<NpcDraft> = request
+        .npcs
+        .iter()
+        .map(|req| -> Result<NpcDraft, String> {
+            let profile = if let Some(id) = req.profile_id.as_deref() {
+                let loaded = crate::npc::profile_store::load_profile(&profiles_dir, id)
+                    .map_err(|e| format!("could not load NPC profile '{id}': {e}"))?;
+                Some(loaded)
+            } else {
+                None
+            };
+            Ok(NpcDraft {
+                display_name: req.display_name.clone(),
+                style: req.style.clone(),
+                profile,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    let mut host_session = app
+        .host_session
+        .lock()
+        .map_err(|_| "host session lock poisoned".to_string())?;
+    let session = host_session
+        .as_mut()
+        .ok_or_else(|| "no active host session".to_string())?;
+
+    let authoritative = session
+        .host_server
+        .authoritative_state()
+        .map_err(|e| e.to_string())?;
+
+    if !matches!(
+        authoritative.phase,
+        domain::TournamentPhase::WaitingForPlayers | domain::TournamentPhase::ReadyCheck
+    ) {
+        return Err("NPCs can only be added before the tournament starts".to_string());
+    }
+
+    let occupied = authoritative
+        .seats
+        .iter()
+        .filter(|s| s.occupancy == domain::SeatOccupancyState::Occupied)
+        .count() as u8;
+    let capacity = session.config.max_players;
+    let total_after = occupied.saturating_add(request.npcs.len() as u8);
+    if total_after > capacity {
+        return Err(format!(
+            "not enough open seats: {occupied} occupied, {capacity} max, {} NPCs requested",
+            request.npcs.len()
+        ));
+    }
+
+    let open_seats: Vec<u8> = authoritative
+        .seats
+        .iter()
+        .filter(|s| s.occupancy == domain::SeatOccupancyState::Empty)
+        .map(|s| s.seat_index)
+        .take(request.npcs.len())
+        .collect();
+
+    if open_seats.len() < request.npcs.len() {
+        return Err("not enough open seats for the requested NPCs".to_string());
+    }
+
+    // Build final NpcConfigs with stable player_ids tied to the assigned seat indices.
+    let npc_configs: Vec<crate::npc::NpcConfig> = drafts
+        .into_iter()
+        .zip(open_seats.iter())
+        .map(|(draft, &seat_index)| crate::npc::NpcConfig {
+            player_id: crate::npc::NpcConfig::player_id(seat_index),
+            display_name: draft.display_name,
+            style: draft.style,
+            profile: draft.profile,
+            allow_rule_based_llm_fallback: false,
+        })
+        .collect();
+
+    // Capture player IDs for potential rollback BEFORE the atomic add.
+    let added_player_ids: Vec<String> = npc_configs.iter().map(|c| c.player_id.clone()).collect();
+
+    let assignments: Vec<crate::networking::NpcSeatAssignment> = npc_configs
+        .iter()
+        .zip(open_seats.iter())
+        .map(|(cfg, &seat_index)| crate::networking::NpcSeatAssignment {
+            player_id: cfg.player_id.clone(),
+            display_name: cfg.display_name.clone(),
+            seat_index,
+        })
+        .collect();
+
+    session
+        .host_server
+        .add_npc_participants_atomic(assignments)
+        .map_err(|e| e.to_string())?;
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let tilt_levels = Arc::new(Mutex::new(std::collections::BTreeMap::new()));
+    let last_llm_fallback = Arc::new(Mutex::new(None));
+    let last_npc_action_error = Arc::new(Mutex::new(None));
+
+    let runner_handle = match runner_starter(
+        Arc::clone(&session.host_server),
+        npc_configs,
+        Arc::clone(&stop),
+        Arc::clone(&app.llm_provider),
+        Arc::clone(&tilt_levels),
+        Arc::clone(&last_llm_fallback),
+        Arc::clone(&last_npc_action_error),
+    ) {
+        Ok(handle) => handle,
+        Err(spawn_error) => {
+            let rollback_result = session
+                .host_server
+                .remove_npc_participants_atomic(&added_player_ids)
+                .map_err(|e| e.to_string());
+            return Err(match rollback_result {
+                Ok(()) => spawn_error,
+                Err(rollback_error) => format!(
+                    "{spawn_error}; additionally failed to rollback NPC add after runner spawn \
+                     failure: {rollback_error}"
+                ),
+            });
+        }
+    };
+
+    session.npc_runner = Some(crate::npc::runner::NpcRunnerGuard::new(
+        stop,
+        runner_handle,
+        tilt_levels,
+        last_llm_fallback,
+        last_npc_action_error,
+    ));
+
+    session.status()
 }

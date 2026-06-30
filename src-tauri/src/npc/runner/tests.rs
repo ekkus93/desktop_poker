@@ -324,6 +324,105 @@ fn record_npc_internal_error_sets_shared_action_error_and_returns_runtime_unavai
     assert!(!err.submitted);
 }
 
+// P0.3 — hole-card validation: missing or wrong-count cards produce RuntimeUnavailable.
+//
+// try_npc_action fetches fresh state from the HostServer and checks
+// hole_cards_by_player_id.  If the entry is absent or has the wrong count,
+// it calls record_npc_internal_error with NpcActionErrorReason::InternalError.
+// These tests verify that helper produces the correct outcome and error state
+// for the two failure shapes the hole-card validation can produce.
+
+#[test]
+fn npc_decision_fails_when_hole_cards_are_missing() {
+    use crate::app_state::NpcActionErrorReason;
+
+    let player_id = "npc-seat-1";
+    let hand_number = 7u32;
+    let configs = npc_configs();
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
+    );
+
+    let msg = format!("[npc-runner] NPC {player_id} is missing hole cards; no action submitted");
+    let outcome = super::action::record_npc_internal_error(
+        &mut runner_state,
+        player_id.to_string(),
+        Some(hand_number),
+        NpcActionErrorReason::InternalError,
+        msg.clone(),
+    );
+
+    assert_eq!(
+        outcome,
+        NpcActionOutcome::RuntimeUnavailable,
+        "missing hole cards must return RuntimeUnavailable"
+    );
+    let err = runner_state
+        .shared_action_error
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("error must be set");
+    assert_eq!(err.reason, NpcActionErrorReason::InternalError);
+    assert_eq!(err.hand_number, Some(hand_number));
+    assert_eq!(err.player_id.as_deref(), Some(player_id));
+    assert!(
+        err.message.contains("missing hole cards"),
+        "error message must describe the failure; got: {}",
+        err.message
+    );
+}
+
+#[test]
+fn npc_decision_fails_when_hole_card_count_is_not_two() {
+    use crate::app_state::NpcActionErrorReason;
+
+    let player_id = "npc-seat-2";
+    let hand_number = 12u32;
+    let bad_count = 1usize;
+    let configs = npc_configs();
+    let mut runner_state = RunnerState::new(
+        &configs,
+        Arc::new(Mutex::new(BTreeMap::new())),
+        Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
+    );
+
+    let msg = format!(
+        "[npc-runner] NPC {player_id} has invalid hole-card count {bad_count}; expected 2; no action submitted"
+    );
+    let outcome = super::action::record_npc_internal_error(
+        &mut runner_state,
+        player_id.to_string(),
+        Some(hand_number),
+        NpcActionErrorReason::InternalError,
+        msg.clone(),
+    );
+
+    assert_eq!(
+        outcome,
+        NpcActionOutcome::RuntimeUnavailable,
+        "wrong hole-card count must return RuntimeUnavailable"
+    );
+    let err = runner_state
+        .shared_action_error
+        .lock()
+        .unwrap()
+        .clone()
+        .expect("error must be set");
+    assert_eq!(err.reason, NpcActionErrorReason::InternalError);
+    assert_eq!(err.hand_number, Some(hand_number));
+    assert_eq!(err.player_id.as_deref(), Some(player_id));
+    assert!(
+        err.message.contains("invalid hole-card count"),
+        "error message must describe the failure; got: {}",
+        err.message
+    );
+}
+
 // P0.4 — NpcActionOutcome enum reports acted() correctly for each variant.
 
 #[test]

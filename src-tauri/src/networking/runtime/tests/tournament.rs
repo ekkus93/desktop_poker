@@ -1151,3 +1151,101 @@ fn add_npc_participants_atomic_leaves_no_partial_state_on_failure() {
         "npc-seat-1 must not be registered after a failed atomic add"
     );
 }
+
+// P0.1 — remove_npc_participants_atomic: NPC seats are freed and participants removed.
+
+/// Removing known NPC participants frees their seats and removes them from
+/// the participant map.  Human participants and the host are unaffected.
+#[test]
+fn remove_npc_participants_atomic_frees_seats_and_removes_participants() {
+    use crate::networking::NpcSeatAssignment;
+
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-remove-npc-happy", 9910);
+
+    // Register the host participant and an NPC at seat 0.
+    let npc_id = crate::npc::NpcConfig::player_id(0);
+    let assignments = vec![NpcSeatAssignment {
+        player_id: npc_id.clone(),
+        display_name: "Bot Alpha".to_string(),
+        seat_index: 0,
+    }];
+    host.add_npc_participants_atomic(assignments)
+        .expect("atomic add must succeed");
+
+    // Confirm the NPC is seated.
+    let state = host.authoritative_state().expect("authoritative state");
+    assert!(
+        state.participants.contains_key(&npc_id),
+        "NPC must be registered before removal"
+    );
+    assert_eq!(
+        state.seats.first().and_then(|s| s.participant_id.as_deref()),
+        Some(npc_id.as_str()),
+        "seat 0 must be occupied by the NPC before removal"
+    );
+
+    // Remove the NPC.
+    host.remove_npc_participants_atomic(std::slice::from_ref(&npc_id))
+        .expect("remove must succeed");
+
+    let state = host.authoritative_state().expect("authoritative state");
+    assert!(
+        !state.participants.contains_key(&npc_id),
+        "NPC must not be in the participant map after removal"
+    );
+    let seat0 = state.seats.first().expect("seat 0 must exist");
+    assert_eq!(
+        seat0.occupancy,
+        crate::domain::SeatOccupancyState::Empty,
+        "seat 0 must be empty after NPC removal"
+    );
+    assert!(
+        seat0.participant_id.is_none(),
+        "seat 0 participant_id must be cleared after removal"
+    );
+    assert!(
+        !seat0.is_ready,
+        "seat 0 is_ready must be false after removal"
+    );
+}
+
+/// An unknown player_id in the removal list is silently ignored; the call
+/// returns Ok and other valid removals still go through.
+#[test]
+fn remove_npc_participants_atomic_unknown_id_is_harmless() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-remove-npc-unknown", 9911);
+
+    // Remove a player that was never registered — must not return Err.
+    let result = host.remove_npc_participants_atomic(&["npc_seat_99_nonexistent".to_string()]);
+    assert!(
+        result.is_ok(),
+        "removing an unknown NPC player_id must not return an error; got: {:?}",
+        result
+    );
+}
+
+/// Attempting to remove a non-NPC participant (i.e., one whose ID does not
+/// pass `NpcConfig::is_npc_player_id`) must be rejected.
+#[test]
+fn remove_npc_participants_atomic_rejects_non_npc_participant() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-remove-npc-reject-human", 9912);
+
+    // Register a human participant.
+    host.register_npc_participant("human-player-42", "Human")
+        .expect("register human");
+
+    // Attempt to remove them via the NPC removal path.
+    let result = host.remove_npc_participants_atomic(&["human-player-42".to_string()]);
+    assert!(
+        result.is_err(),
+        "removing a non-NPC participant must fail; got Ok"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("human-player-42"),
+        "error must name the offending participant; got: {err}"
+    );
+}

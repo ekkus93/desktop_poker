@@ -544,6 +544,64 @@ impl HostServer {
         Ok(player_ids)
     }
 
+    /// Remove NPC participants previously added by `add_npc_participants_atomic`.
+    ///
+    /// Used for rollback when the NPC runner thread fails to start after
+    /// participants were already registered. Refuses to remove host participants
+    /// or non-NPC player IDs. Unknown NPC IDs in `player_ids` are silently
+    /// skipped (already absent = nothing to roll back).
+    pub fn remove_npc_participants_atomic(
+        &self,
+        player_ids: &[String],
+    ) -> Result<(), NetworkingError> {
+        let targets: std::collections::HashSet<&str> =
+            player_ids.iter().map(String::as_str).collect();
+
+        self.update_lobby_state(|state| {
+            ensure_lobby_phase(state.phase)?;
+
+            for player_id in &targets {
+                let Some(participant) = state.participants.get(*player_id) else {
+                    continue;
+                };
+                if participant.is_host {
+                    return Err(NetworkingError::new(format!(
+                        "refusing to remove host participant {player_id} during NPC rollback"
+                    )));
+                }
+                if !crate::npc::NpcConfig::is_npc_player_id(player_id) {
+                    return Err(NetworkingError::new(format!(
+                        "refusing to remove non-NPC participant {player_id} during NPC rollback"
+                    )));
+                }
+            }
+
+            for seat in &mut state.seats {
+                if seat
+                    .participant_id
+                    .as_deref()
+                    .is_some_and(|id| targets.contains(id))
+                {
+                    seat.occupancy = crate::domain::SeatOccupancyState::Empty;
+                    seat.participant_id = None;
+                    seat.display_name = None;
+                    seat.chip_count = None;
+                    seat.tournament_state = crate::domain::TournamentSeatState::Open;
+                    seat.is_ready = false;
+                    seat.marker = None;
+                }
+            }
+
+            for player_id in &targets {
+                state.participants.remove(*player_id);
+            }
+
+            Ok(())
+        })?;
+
+        self.sync_snapshots_to_clients()
+    }
+
     pub fn claim_seat(&self, player_id: &str, seat_index: u8) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_seat_claim(state, player_id, seat_index))?;
         self.sync_snapshots_to_clients()
