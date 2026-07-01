@@ -350,50 +350,8 @@ impl ClientRuntime {
                             continue;
                         }
 
-                        if is_stale_server_sequence(
-                            last_seen_server_sequence,
-                            envelope.server_sequence,
-                        ) {
-                            let _ = sender.send(ClientRuntimeEvent::ResyncRequested {
-                                player_id: player_id.clone(),
-                                last_seen_server_sequence: last_seen_server_sequence.unwrap_or(0),
-                            });
-
-                            match request_resync_snapshot(
-                                &crypto_provider,
-                                &mut stream,
-                                &join_payload,
-                                &player_id,
-                                &reconnect_identity_for_thread,
-                                last_seen_server_sequence.unwrap_or(0),
-                                &mut next_counter,
-                            ) {
-                                Ok(snapshot_envelope) => {
-                                    reconnect_token =
-                                        snapshot_envelope.payload.reconnect_token.clone();
-                                    last_seen_server_sequence = snapshot_envelope.server_sequence;
-                                    if let Some(next_host_encryption_public_key) =
-                                        snapshot_envelope.payload.host_encryption_public_key.clone()
-                                    {
-                                        host_encryption_public_key =
-                                            next_host_encryption_public_key;
-                                    }
-                                    let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
-                                        snapshot_envelope.payload,
-                                    )));
-                                }
-                                Err(error) => {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
-                                        player_id: player_id.clone(),
-                                        message: error.to_string(),
-                                    });
-                                    break;
-                                }
-                            }
-                            continue;
-                        }
-                        last_seen_server_sequence = envelope.server_sequence;
-
+                        // ProtocolError is intentionally unsequenced: it must not
+                        // update last_seen_server_sequence or trigger resync.
                         if envelope.message_type == ProtocolMessageType::ProtocolError {
                             let protocol_error =
                                 serde_json::from_value::<ProtocolErrorMessage>(envelope.payload)
@@ -427,6 +385,8 @@ impl ClientRuntime {
                                 | ProtocolMessageType::HandResultCommittedEvent
                                 | ProtocolMessageType::TournamentStartedEvent
                         ) {
+                            // Validate sequence before any stale check or last-seen
+                            // mutation: a missing sequence must not clear last_seen.
                             let Some(server_sequence) = public_event_server_sequence_or_warn(
                                 &sender,
                                 &mut protocol_warning_counts,
@@ -435,6 +395,56 @@ impl ClientRuntime {
                             ) else {
                                 continue;
                             };
+
+                            if is_stale_server_sequence(
+                                last_seen_server_sequence,
+                                Some(server_sequence),
+                            ) {
+                                let _ = sender.send(ClientRuntimeEvent::ResyncRequested {
+                                    player_id: player_id.clone(),
+                                    last_seen_server_sequence: last_seen_server_sequence
+                                        .unwrap_or(0),
+                                });
+
+                                match request_resync_snapshot(
+                                    &crypto_provider,
+                                    &mut stream,
+                                    &join_payload,
+                                    &player_id,
+                                    &reconnect_identity_for_thread,
+                                    last_seen_server_sequence.unwrap_or(0),
+                                    &mut next_counter,
+                                ) {
+                                    Ok(snapshot_envelope) => {
+                                        reconnect_token =
+                                            snapshot_envelope.payload.reconnect_token.clone();
+                                        last_seen_server_sequence =
+                                            snapshot_envelope.server_sequence;
+                                        if let Some(next_host_encryption_public_key) =
+                                            snapshot_envelope
+                                                .payload
+                                                .host_encryption_public_key
+                                                .clone()
+                                        {
+                                            host_encryption_public_key =
+                                                next_host_encryption_public_key;
+                                        }
+                                        let _ = sender.send(ClientRuntimeEvent::Snapshot(
+                                            Box::new(snapshot_envelope.payload),
+                                        ));
+                                    }
+                                    Err(error) => {
+                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                            player_id: player_id.clone(),
+                                            message: error.to_string(),
+                                        });
+                                        break;
+                                    }
+                                }
+                                continue;
+                            }
+
+                            last_seen_server_sequence = Some(server_sequence);
                             let _ = sender.send(ClientRuntimeEvent::PublicEvent {
                                 message_type: envelope.message_type,
                                 server_sequence,
@@ -619,6 +629,25 @@ fn public_event_server_sequence_or_warn(
     }
 }
 
+// Test-only helper that mirrors the production sequencing order without the
+// full resync path, so tests can assert last-seen preservation in isolation.
+#[cfg(test)]
+fn validate_live_public_event_sequence(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    counts: &mut std::collections::BTreeMap<String, u64>,
+    player_id: &str,
+    last_seen_server_sequence: &mut Option<u64>,
+    envelope_sequence: Option<u64>,
+) -> Option<u64> {
+    let sequence =
+        public_event_server_sequence_or_warn(sender, counts, player_id, envelope_sequence)?;
+    if is_stale_server_sequence(*last_seen_server_sequence, Some(sequence)) {
+        return None;
+    }
+    *last_seen_server_sequence = Some(sequence);
+    Some(sequence)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -663,5 +692,63 @@ mod tests {
 
         assert_eq!(result, Some(42));
         assert!(receiver.try_recv().is_err(), "no warning should be emitted");
+    }
+
+    #[test]
+    fn missing_public_event_sequence_warns_and_preserves_last_seen_sequence() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+        let mut last_seen_server_sequence = Some(10u64);
+
+        let result = validate_live_public_event_sequence(
+            &sender,
+            &mut warning_counts,
+            "player-1",
+            &mut last_seen_server_sequence,
+            None,
+        );
+
+        assert_eq!(result, None);
+        assert_eq!(
+            last_seen_server_sequence,
+            Some(10),
+            "last_seen_server_sequence must not be cleared by a malformed frame"
+        );
+
+        let warning = receiver.try_recv().expect("expected protocol warning");
+        assert!(
+            matches!(
+                warning,
+                ClientRuntimeEvent::ProtocolWarning { ref reason, .. }
+                    if reason.contains("missing server sequence")
+            ),
+            "unexpected event: {warning:?}"
+        );
+        assert!(
+            receiver.try_recv().is_err(),
+            "malformed public event should not emit additional events"
+        );
+    }
+
+    #[test]
+    fn present_public_event_sequence_updates_last_seen_sequence() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+        let mut last_seen_server_sequence = Some(10u64);
+
+        let result = validate_live_public_event_sequence(
+            &sender,
+            &mut warning_counts,
+            "player-1",
+            &mut last_seen_server_sequence,
+            Some(11),
+        );
+
+        assert_eq!(result, Some(11));
+        assert_eq!(last_seen_server_sequence, Some(11));
+        assert!(
+            receiver.try_recv().is_err(),
+            "valid sequence should not warn"
+        );
     }
 }
