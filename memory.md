@@ -1062,3 +1062,15 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **P2.1 (silent-failure audit):** Full `rg` sweep across touched modules; no new unguarded `thread::spawn`, `let _ =`, or `unwrap_or` gaps found beyond pre-existing intentional patterns.
 - **Final state:** 376 Rust tests pass (all workspace); 254 frontend tests pass; clippy, fmt, lint, build all clean.
 - Commit: `1a677ad`.
+
+## 2026-07-01T06:38:44Z - Claude Sonnet 4.6 - FIX8 shared-core baseline locked
+
+- **P0.1 (CI):** Updated `.github/workflows/ci.yml` — both `verify` and `release` job Rust caches changed from `workspaces: src-tauri -> target` to `workspaces: . -> target`. Verify job Rust steps replaced with workspace commands (`cargo fmt --check`, `cargo clippy --workspace`, `cargo test --workspace --all-targets --all-features`); added `cargo tree -p poker-core` audit step; added `npm run format:check` step.
+- **P0.2 (Copilot instructions):** Fixed `.github/copilot-instructions.md` — removed "single crate, not a workspace" language, updated all Cargo commands to workspace invocations, restored all six What-to-avoid bullets (were split by a duplicate Memory-file section), removed duplicate Memory file section, kept one canonical section.
+- **P0.3 (DebugPanel):** Added missing `streamTimeoutErrorCount` render row to `DebugPanel.tsx`. Expanded the health-counter test to assert all 9 counters render by label name.
+- **P0.4 (formatting):** Ran `npm run format` to fix 15 files; added `format:check` and `cargo tree` as CI steps; updated `CiWorkflow.test.ts` to assert the new step names (`Check Rust formatting`, `Check frontend formatting`, `Audit poker-core dependency tree`).
+- **P0.5 (NPC hole-card regression):** Added `acting_npc_missing_hole_cards_submits_no_action` near-integration test in `networking/runtime/tests/tournament.rs`. Uses `HostServer::replace_authoritative_state` (already public) to inject corrupt authoritative state (NPC's hole-card entry removed) after the action window opens. `try_npc_action` fetches fresh state from the host internally, sees no hole cards, returns `RuntimeUnavailable`, and records `InternalError` with "missing hole cards" message. No new `#[cfg(test)]` helper was needed.
+- **P1.1 (poker-core purity):** `cargo tree -p poker-core` confirms only `rand_core`, `serde`, `serde_json`, `thiserror` — no networking, OS, or platform deps.
+- **P1.3 (hardening audit):** All previous hardening confirmed: no window-persistence test noise, no mock/probe chunk in production dist, no raw `thread::spawn` in client.rs, no stale `--manifest-path` in validation docs.
+- **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace` ✅ (441 tests: 374 desktop + 67 poker-core), `npm run format:check` ✅, `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (254 tests).
+- Commit: `0ed9fe4`.
