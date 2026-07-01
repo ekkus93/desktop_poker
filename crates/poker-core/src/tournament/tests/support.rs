@@ -71,3 +71,31 @@ pub(super) fn action_window(controller: &TournamentController) -> ActionWindow {
         .and_then(|hand| hand.action_window.clone())
         .expect("expected open action window")
 }
+
+pub(super) fn started_two_player_controller() -> TournamentController {
+    let mut controller = TournamentController::new(
+        "test-table",
+        1,
+        sample_config(1_000),
+        vec![player("p1", 0), player("p2", 1)],
+    )
+    .expect("controller should build");
+    controller
+        .start_tournament(0)
+        .expect("tournament should start");
+    controller
+}
+
+pub(super) fn started_three_player_controller() -> TournamentController {
+    let mut controller = TournamentController::new(
+        "test-table-3",
+        1,
+        sample_config(1_500),
+        vec![player("p1", 0), player("p2", 1), player("p3", 2)],
+    )
+    .expect("controller should build");
+    controller
+        .start_tournament(0)
+        .expect("tournament should start");
+    controller
+}

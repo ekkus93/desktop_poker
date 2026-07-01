@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
 use super::super::{
-    apply_public_event_to_snapshot, blind_schedule_for_preset, build_table_history_for_state,
-    build_table_view_snapshot, ensure_legal, format_marker, format_phase, format_street,
-    issue_join_token, resolve_action_request, screen_catalog, DesktopAppState,
+    apply_private_hole_cards_to_snapshot, apply_public_event_to_snapshot,
+    blind_schedule_for_preset, build_table_history_for_state, build_table_view_snapshot,
+    ensure_legal, format_marker, format_phase, format_street, issue_join_token,
+    parse_protocol_street, resolve_action_request, screen_catalog, DesktopAppState,
     DesktopTableActionKind, TableViewerMode,
 };
 use crate::{
@@ -457,4 +458,162 @@ fn odd_chip_fallback_awards_the_extra_chip_to_the_declared_recipient() {
 
     assert_eq!(state.seats[1].chip_count, Some(13));
     assert_eq!(state.seats[2].chip_count, Some(12));
+}
+
+// T9.1 — parse_protocol_street all valid values and case variants
+
+#[test]
+fn parse_protocol_street_all_valid_variants_and_case_insensitive() {
+    assert_eq!(parse_protocol_street("PREFLOP"), Some(StreetPhase::Preflop));
+    assert_eq!(parse_protocol_street("flop"), Some(StreetPhase::Flop));
+    assert_eq!(parse_protocol_street("Turn"), Some(StreetPhase::Turn));
+    assert_eq!(parse_protocol_street("RIVER"), Some(StreetPhase::River));
+    assert_eq!(
+        parse_protocol_street("SHOWDOWN"),
+        Some(StreetPhase::Showdown)
+    );
+}
+
+#[test]
+fn parse_protocol_street_returns_none_for_unknown_and_empty() {
+    assert_eq!(parse_protocol_street(""), None);
+    assert_eq!(parse_protocol_street("DEAL"), None);
+}
+
+#[test]
+fn parse_protocol_street_trims_whitespace() {
+    assert_eq!(parse_protocol_street(" FLOP "), Some(StreetPhase::Flop));
+}
+
+// T9.2 — apply_private_hole_cards_to_snapshot inserts cards into hand
+
+#[test]
+fn apply_private_hole_cards_inserts_recipient_cards_into_current_hand() {
+    use crate::domain::{
+        BettingRoundState, BlindLevel, BlindSchedule, HandCyclePhase, HandState, TournamentConfig,
+    };
+    use crate::protocol::PrivateHoleCardsEvent;
+
+    let config = TournamentConfig {
+        tournament_name: "Test".to_string(),
+        table_name: None,
+        max_players: 2,
+        starting_stack: 1000,
+        turn_timer_seconds: 10,
+        blind_schedule: BlindSchedule {
+            levels: vec![BlindLevel {
+                level_index: 1,
+                label: "L1".to_string(),
+                small_blind: 10,
+                big_blind: 20,
+                ante: 0,
+                duration_seconds: 60,
+            }],
+        },
+    };
+
+    let mut state = TournamentState {
+        table_id: "t".to_string(),
+        session_epoch: 1,
+        phase: TournamentPhase::Running,
+        config: config.clone(),
+        blind_schedule: config.blind_schedule.clone(),
+        blind_level_index: 0,
+        participants: BTreeMap::new(),
+        seats: vec![],
+        hand_results: vec![],
+        placements: vec![],
+        current_hand: Some(HandState {
+            hand_number: 1,
+            cycle_phase: HandCyclePhase::AwaitingAction,
+            street: StreetPhase::Preflop,
+            dealer_seat_index: 0,
+            small_blind_seat_index: 0,
+            big_blind_seat_index: 1,
+            board_cards: vec![],
+            hole_cards_by_player_id: BTreeMap::new(),
+            participation_by_player_id: BTreeMap::new(),
+            betting_round: BettingRoundState {
+                street: StreetPhase::Preflop,
+                current_bet: 0,
+                min_raise_to: None,
+                max_raise_to: None,
+                pot_size: 0,
+                contributions_by_player_id: BTreeMap::new(),
+            },
+            action_window: None,
+        }),
+    };
+
+    let cards = vec![
+        Card {
+            rank: Rank::Ace,
+            suit: Suit::Spades,
+        },
+        Card {
+            rank: Rank::King,
+            suit: Suit::Hearts,
+        },
+    ];
+    let event = PrivateHoleCardsEvent {
+        recipient_player_id: "player-a".to_string(),
+        hole_cards: cards.clone(),
+    };
+
+    apply_private_hole_cards_to_snapshot(&mut state, &event);
+
+    let hand = state.current_hand.as_ref().unwrap();
+    assert_eq!(hand.hole_cards_by_player_id.get("player-a"), Some(&cards));
+}
+
+// T9.3 — apply_private_hole_cards_to_snapshot no-op when no current hand
+
+#[test]
+fn apply_private_hole_cards_no_op_when_no_current_hand() {
+    use crate::domain::{BlindLevel, BlindSchedule, TournamentConfig};
+    use crate::protocol::PrivateHoleCardsEvent;
+
+    let config = TournamentConfig {
+        tournament_name: "Test".to_string(),
+        table_name: None,
+        max_players: 2,
+        starting_stack: 1000,
+        turn_timer_seconds: 10,
+        blind_schedule: BlindSchedule {
+            levels: vec![BlindLevel {
+                level_index: 1,
+                label: "L1".to_string(),
+                small_blind: 10,
+                big_blind: 20,
+                ante: 0,
+                duration_seconds: 60,
+            }],
+        },
+    };
+
+    let mut state = TournamentState {
+        table_id: "t".to_string(),
+        session_epoch: 1,
+        phase: TournamentPhase::Running,
+        config: config.clone(),
+        blind_schedule: config.blind_schedule.clone(),
+        blind_level_index: 0,
+        participants: BTreeMap::new(),
+        seats: vec![],
+        hand_results: vec![],
+        placements: vec![],
+        current_hand: None,
+    };
+
+    let event = PrivateHoleCardsEvent {
+        recipient_player_id: "player-a".to_string(),
+        hole_cards: vec![Card {
+            rank: Rank::Ace,
+            suit: Suit::Spades,
+        }],
+    };
+
+    // Must not panic
+    apply_private_hole_cards_to_snapshot(&mut state, &event);
+    assert!(state.current_hand.is_none());
 }

@@ -124,3 +124,293 @@ pub(crate) fn is_stale_server_sequence(
         (Some(last_seen), Some(next_sequence)) if next_sequence <= last_seen
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{
+        ConnectionState, ParticipantRegistryEntry, ParticipantState, PlayerIdentity,
+        TournamentPhase, TournamentState,
+    };
+
+    fn test_participant(
+        player_id: &str,
+        state: ParticipantState,
+        seat_index: Option<u8>,
+    ) -> ParticipantRegistryEntry {
+        ParticipantRegistryEntry {
+            identity: PlayerIdentity {
+                player_id: player_id.to_string(),
+                display_name: player_id.to_string(),
+                signing_public_key: format!("sign-{player_id}"),
+                encryption_public_key: format!("enc-{player_id}"),
+                signing_key_fingerprint: format!("fp-{player_id}"),
+            },
+            state,
+            connection_state: ConnectionState::Connected,
+            seat_index,
+            admitted_at_ms: 0,
+            reconnect_token: None,
+            reconnect_expiry_ms: None,
+            is_host: false,
+        }
+    }
+
+    // T4.1 — is_stale_server_sequence boundary cases
+    #[test]
+    fn is_stale_server_sequence_false_when_both_none() {
+        assert!(!is_stale_server_sequence(None, None));
+    }
+
+    #[test]
+    fn is_stale_server_sequence_false_when_last_seen_none() {
+        assert!(!is_stale_server_sequence(None, Some(1)));
+    }
+
+    #[test]
+    fn is_stale_server_sequence_false_when_next_none() {
+        assert!(!is_stale_server_sequence(Some(5), None));
+    }
+
+    #[test]
+    fn is_stale_server_sequence_false_when_next_strictly_ahead() {
+        assert!(!is_stale_server_sequence(Some(5), Some(6)));
+    }
+
+    #[test]
+    fn is_stale_server_sequence_true_when_next_equals_last_seen() {
+        assert!(is_stale_server_sequence(Some(5), Some(5)));
+    }
+
+    #[test]
+    fn is_stale_server_sequence_true_when_next_is_behind() {
+        assert!(is_stale_server_sequence(Some(5), Some(4)));
+    }
+
+    // T4.2 — reconnect_window_ms covers all four branches
+    #[test]
+    fn reconnect_window_ms_eliminated_observer_returns_300000() {
+        assert_eq!(
+            reconnect_window_ms(
+                TournamentPhase::Running,
+                ParticipantState::EliminatedObserver,
+                true
+            ),
+            300_000
+        );
+    }
+
+    #[test]
+    fn reconnect_window_ms_non_running_phase_returns_120000() {
+        assert_eq!(
+            reconnect_window_ms(
+                TournamentPhase::WaitingForPlayers,
+                ParticipantState::Active,
+                true
+            ),
+            120_000
+        );
+    }
+
+    #[test]
+    fn reconnect_window_ms_running_with_active_hand_returns_30000() {
+        assert_eq!(
+            reconnect_window_ms(TournamentPhase::Running, ParticipantState::Active, true),
+            30_000
+        );
+    }
+
+    #[test]
+    fn reconnect_window_ms_running_without_hand_returns_120000() {
+        assert_eq!(
+            reconnect_window_ms(TournamentPhase::Running, ParticipantState::Active, false),
+            120_000
+        );
+    }
+
+    // T4.3 — is_reconnectable_participant
+    #[test]
+    fn is_reconnectable_participant_true_for_eligible_states() {
+        for state in [
+            ParticipantState::Seated,
+            ParticipantState::Active,
+            ParticipantState::EliminatedObserver,
+            ParticipantState::Reconnecting,
+            ParticipantState::Admitted,
+        ] {
+            let participant = test_participant("px", state, Some(0));
+            assert!(
+                is_reconnectable_participant(&participant),
+                "expected reconnectable for {state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn is_reconnectable_participant_false_for_removed() {
+        let participant = test_participant("px", ParticipantState::Removed, Some(0));
+        assert!(!is_reconnectable_participant(&participant));
+    }
+
+    // T4.4 — restore_participant_after_reconnect state transitions
+    #[test]
+    fn restore_participant_keeps_eliminated_observer_state() {
+        let mut p = test_participant("px", ParticipantState::EliminatedObserver, Some(0));
+        p.reconnect_expiry_ms = Some(9999);
+        p.connection_state = ConnectionState::Reconnecting;
+        restore_participant_after_reconnect(&mut p, TournamentPhase::Running);
+        assert_eq!(p.state, ParticipantState::EliminatedObserver);
+        assert_eq!(p.connection_state, ConnectionState::Connected);
+        assert_eq!(p.reconnect_expiry_ms, None);
+    }
+
+    #[test]
+    fn restore_participant_seated_in_running_becomes_active() {
+        let mut p = test_participant("px", ParticipantState::Seated, Some(1));
+        restore_participant_after_reconnect(&mut p, TournamentPhase::Running);
+        assert_eq!(p.state, ParticipantState::Active);
+    }
+
+    #[test]
+    fn restore_participant_seated_in_waiting_stays_seated() {
+        let mut p = test_participant("px", ParticipantState::Seated, Some(1));
+        restore_participant_after_reconnect(&mut p, TournamentPhase::WaitingForPlayers);
+        assert_eq!(p.state, ParticipantState::Seated);
+    }
+
+    #[test]
+    fn restore_participant_no_seat_index_in_running_becomes_admitted() {
+        let mut p = test_participant("px", ParticipantState::Reconnecting, None);
+        restore_participant_after_reconnect(&mut p, TournamentPhase::Running);
+        assert_eq!(p.state, ParticipantState::Admitted);
+    }
+
+    // T4.5 — merge_networking_state preserves networking fields only
+    #[test]
+    fn merge_networking_state_copies_networking_fields_but_not_participant_state() {
+        use crate::domain::{BlindSchedule, TournamentConfig};
+        use std::collections::BTreeMap;
+
+        let make_state = |reconnect_token: Option<String>,
+                          expiry: Option<u64>,
+                          conn: ConnectionState,
+                          admitted: u64,
+                          state: ParticipantState|
+         -> TournamentState {
+            let mut participants = BTreeMap::new();
+            let mut p = test_participant("p1", state, Some(0));
+            p.reconnect_token = reconnect_token;
+            p.reconnect_expiry_ms = expiry;
+            p.connection_state = conn;
+            p.admitted_at_ms = admitted;
+            participants.insert("p1".to_string(), p);
+            TournamentState {
+                table_id: "t".to_string(),
+                session_epoch: 1,
+                phase: TournamentPhase::Running,
+                config: TournamentConfig {
+                    tournament_name: "T".to_string(),
+                    table_name: None,
+                    max_players: 2,
+                    starting_stack: 1000,
+                    turn_timer_seconds: 10,
+                    blind_schedule: BlindSchedule { levels: vec![] },
+                },
+                blind_schedule: BlindSchedule { levels: vec![] },
+                blind_level_index: 0,
+                participants,
+                seats: vec![],
+                hand_results: vec![],
+                placements: vec![],
+                current_hand: None,
+            }
+        };
+
+        let source = make_state(
+            Some("token-from-source".to_string()),
+            Some(5000),
+            ConnectionState::Reconnecting,
+            42,
+            ParticipantState::Reconnecting,
+        );
+        let mut target = make_state(
+            None,
+            None,
+            ConnectionState::Connected,
+            0,
+            ParticipantState::Active,
+        );
+
+        merge_networking_state(&source, &mut target);
+
+        let p = target.participants.get("p1").unwrap();
+        // Networking fields: taken from source
+        assert_eq!(p.reconnect_token, Some("token-from-source".to_string()));
+        assert_eq!(p.reconnect_expiry_ms, Some(5000));
+        assert_eq!(p.connection_state, ConnectionState::Reconnecting);
+        assert_eq!(p.admitted_at_ms, 42);
+        // Controller-derived fields: NOT overwritten
+        assert_eq!(p.state, ParticipantState::Active);
+    }
+
+    #[test]
+    fn merge_networking_state_skips_participant_not_in_target() {
+        use crate::domain::{BlindSchedule, TournamentConfig};
+        use std::collections::BTreeMap;
+
+        let blank_state = |participants| TournamentState {
+            table_id: "t".to_string(),
+            session_epoch: 1,
+            phase: TournamentPhase::Running,
+            config: TournamentConfig {
+                tournament_name: "T".to_string(),
+                table_name: None,
+                max_players: 2,
+                starting_stack: 1000,
+                turn_timer_seconds: 10,
+                blind_schedule: BlindSchedule { levels: vec![] },
+            },
+            blind_schedule: BlindSchedule { levels: vec![] },
+            blind_level_index: 0,
+            participants,
+            seats: vec![],
+            hand_results: vec![],
+            placements: vec![],
+            current_hand: None,
+        };
+
+        let mut source_participants = BTreeMap::new();
+        source_participants.insert(
+            "ghost".to_string(),
+            test_participant("ghost", ParticipantState::Active, Some(0)),
+        );
+        let source = blank_state(source_participants);
+        let mut target = blank_state(BTreeMap::new());
+
+        // Must not panic when source has participant not in target
+        merge_networking_state(&source, &mut target);
+        assert!(target.participants.is_empty());
+    }
+
+    // T4.6 — issue_reconnect_token format and uniqueness
+    #[test]
+    fn issue_reconnect_token_is_base64url_safe_and_correct_length() {
+        let token = issue_reconnect_token();
+        assert!(!token.is_empty());
+        // base64url no-pad: 24 bytes → 32 chars
+        assert_eq!(token.len(), 32, "expected 32-char base64url-no-pad token");
+        assert!(
+            token
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_'),
+            "token contains non-base64url characters: {token}"
+        );
+    }
+
+    #[test]
+    fn issue_reconnect_token_generates_unique_tokens() {
+        let a = issue_reconnect_token();
+        let b = issue_reconnect_token();
+        assert_ne!(a, b, "consecutive tokens should differ (probabilistic)");
+    }
+}
