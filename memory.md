@@ -1049,3 +1049,16 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **Clippy fix:** `map_or(false, |e| e.contains(...))` → `is_some_and(|e| e.contains(...))` in tournament.rs test.
 - **Final state:** 371 Rust + 67 poker-core tests pass (438 total); 252 frontend tests pass; clippy, fmt, lint, build all clean. No window-persistence noise in test output. LayoutProbeApp absent from production bundle. poker-core purity audit clean.
 - Commits: `bb48d6c` (FIX6 P0.1–P0.5 loop completion).
+
+## 2026-07-01T05:49:53Z - Claude Sonnet 4.6 - FIX7 cleanup pass complete
+
+- **P0.1 (README):** Replaced three `--manifest-path src-tauri/Cargo.toml` validation commands with workspace-level `cargo fmt --check`, `cargo clippy --workspace ...`, `cargo test --workspace --all-targets --all-features`; kept `--manifest-path` only in launch/run commands.
+- **P0.2 (HostRuntimeHealth TypeScript + DebugPanel):** Extended `HostRuntimeHealth` type in `src/api/desktop.ts` with four new fields: `streamCloneErrorCount`, `clientRegistryErrorCount`, `reconnectMarkErrorCount`, `snapshotSyncErrorCount`. Added conditional display for each in `DebugPanel.tsx`. Added `baseHostHealth()` test helper and two new tests in `DebugPanel.test.tsx` (non-zero counters visible; all-zero section hidden).
+- **P0.3 (state-lock recording in host_session.rs):** Added `record_state_lock_error` helper that increments `state_lock_error_count` and calls `record_error`. Applied to the two `ActionSubmissionRequest` lock-poisoning paths (pre-read and post-read). Added unit test verifying counter increment and `last_error` message.
+- **P0.4 (named client thread):** Replaced raw `thread::spawn` in `client.rs` with `thread::Builder::new().name(format!("desktop-poker-client-runtime-{player_id}"))`. Spawn error propagated as `NetworkingError`.
+- **P0.5 (validated_acting_hole_cards):** Extracted 25-line inline hole-card validation from `try_npc_action` in `action.rs` into named `pub(crate) fn validated_acting_hole_cards`. Replaced call site with one-liner. Added three direct unit tests: missing-cards → Err containing "missing hole cards"; wrong-count (1 card) → Err containing "invalid hole-card count"; exactly 2 cards → Ok. Full runner-path integration test deferred: `try_npc_action` fetches fresh state from host's internal `authoritative_state` (not exposed publicly), making state injection impractical from outside HostServer.
+- **P1.1 (poker-core purity):** `cargo tree -p poker-core` confirms only `rand_core`, `serde`, `serde_json`, `thiserror` as production deps. No networking, IO, or OS imports in `crates/poker-core/src/`.
+- **P1.2 (set_next_deck_for_test):** Added `#[cfg(test)] impl PokerEngine { pub fn set_next_deck_for_test(...) }` to `crates/poker-core/src/facade.rs`. Uses `Deck::from_cards` to validate uniqueness before calling `controller.set_next_deck`.
+- **P2.1 (silent-failure audit):** Full `rg` sweep across touched modules; no new unguarded `thread::spawn`, `let _ =`, or `unwrap_or` gaps found beyond pre-existing intentional patterns.
+- **Final state:** 376 Rust tests pass (all workspace); 254 frontend tests pass; clippy, fmt, lint, build all clean.
+- Commit: `1a677ad`.
