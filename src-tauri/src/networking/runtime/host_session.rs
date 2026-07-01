@@ -128,6 +128,8 @@ pub(crate) fn spawn_host_client_session(
                                     error.to_string(),
                                     Some(rejected_message_id),
                                 ) {
+                                    // Best-effort rejection reply; if the write fails the
+                                    // client will time out and reconnect.
                                     let _ = write_json_frame(&mut stream, &envelope);
                                 }
                             }
@@ -172,6 +174,8 @@ pub(crate) fn spawn_host_client_session(
                                     error.to_string(),
                                     Some(rejected_message_id),
                                 ) {
+                                    // Best-effort rejection reply; if the write fails the
+                                    // client will time out and reconnect.
                                     let _ = write_json_frame(&mut stream, &envelope);
                                 }
                             }
@@ -204,6 +208,8 @@ pub(crate) fn spawn_host_client_session(
                                             error.to_string(),
                                             Some(rejected_message_id.clone()),
                                         ) {
+                                            // Best-effort rejection reply; if the write fails the
+                                            // client will time out and reconnect.
                                             let _ = write_json_frame(&mut stream, &envelope);
                                         }
                                         break;
@@ -259,6 +265,8 @@ pub(crate) fn spawn_host_client_session(
                                     error.to_string(),
                                     Some(rejected_message_id),
                                 ) {
+                                    // Best-effort rejection reply; if the write fails the
+                                    // client will time out and reconnect.
                                     let _ = write_json_frame(&mut stream, &envelope);
                                 }
                             }
@@ -298,6 +306,8 @@ pub(crate) fn spawn_host_client_session(
                                     error.to_string(),
                                     Some(rejected_message_id),
                                 ) {
+                                    // Best-effort rejection reply; if the write fails the
+                                    // client will time out and reconnect.
                                     let _ = write_json_frame(&mut stream, &envelope);
                                 }
                             }

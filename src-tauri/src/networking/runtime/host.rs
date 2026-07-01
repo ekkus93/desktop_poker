@@ -121,97 +121,108 @@ impl HostServer {
                         }
 
                         let runtime_health_conn2 = Arc::clone(&runtime_health_conn);
-                        thread::spawn(move || {
-                            let crypto_provider = DefaultCryptoProvider;
-                            let initial_request =
-                                read_json_frame::<JsonSignedEnvelope>(&mut stream);
+                        if let Err(error) = thread::Builder::new()
+                            .name("host-initial-join".to_string())
+                            .spawn(move || {
+                                let crypto_provider = DefaultCryptoProvider;
+                                let initial_request =
+                                    read_json_frame::<JsonSignedEnvelope>(&mut stream);
 
-                            let response = match initial_request {
-                                Ok(request_envelope) => handle_initial_client_request(
-                                    &crypto_provider,
-                                    request_envelope,
-                                    &join_payload,
-                                    &authoritative_state,
-                                    &server_sequence,
-                                    &host_signing_keys,
-                                    &host_encryption_keys,
-                                ),
-                                Err(error) => Err(error),
-                            };
-
-                            match response {
-                                Ok(InitialRequestAcceptance {
-                                    player_id,
-                                    snapshot_envelope,
-                                    encryption_public_key,
-                                }) => {
-                                    if write_json_frame(&mut stream, &snapshot_envelope).is_ok() {
-                                        let stream_handle =
-                                            match stream.try_clone().map(|cloned_stream| {
-                                                Arc::new(Mutex::new(cloned_stream))
-                                            }) {
-                                                Ok(handle) => handle,
-                                                Err(e) => {
-                                                    update_health(&runtime_health_conn2, |h| {
-                                                        h.record_stream_clone_error(e);
-                                                    });
-                                                    return;
-                                                }
-                                            };
-
-                                        match clients.lock() {
-                                            Ok(mut connected_clients) => {
-                                                connected_clients.insert(
-                                                    player_id.clone(),
-                                                    ConnectedClient {
-                                                        stream: Arc::clone(&stream_handle),
-                                                        encryption_public_key,
-                                                    },
-                                                );
-                                            }
-                                            Err(_) => {
-                                                update_health(&runtime_health_conn2, |h| {
-                                                    h.record_client_registry_error();
-                                                });
-                                                // The client cannot be registered; return so
-                                                // we do not spawn a session for an untracked
-                                                // stream.
-                                                return;
-                                            }
-                                        }
-
-                                        spawn_host_client_session(
-                                            player_id,
-                                            stream,
-                                            authoritative_state,
-                                            tournament_runtime,
-                                            clients,
-                                            join_payload,
-                                            server_sequence,
-                                            host_signing_keys,
-                                            host_encryption_keys,
-                                            public_events,
-                                            Arc::clone(&runtime_health_conn2),
-                                        );
-                                    }
-                                }
-                                Err(error) => {
-                                    if let Ok(envelope) = build_protocol_error_envelope(
+                                let response = match initial_request {
+                                    Ok(request_envelope) => handle_initial_client_request(
                                         &crypto_provider,
+                                        request_envelope,
                                         &join_payload,
+                                        &authoritative_state,
                                         &server_sequence,
                                         &host_signing_keys,
-                                        "JOIN_REJECTED",
-                                        error.to_string(),
-                                        None,
-                                    ) {
-                                        // Best-effort rejection write; client is not yet
-                                        // registered so there is no session to clean up.
-                                        let _ = write_json_frame(&mut stream, &envelope);
+                                        &host_encryption_keys,
+                                    ),
+                                    Err(error) => Err(error),
+                                };
+
+                                match response {
+                                    Ok(InitialRequestAcceptance {
+                                        player_id,
+                                        snapshot_envelope,
+                                        encryption_public_key,
+                                    }) => {
+                                        if write_json_frame(&mut stream, &snapshot_envelope).is_ok()
+                                        {
+                                            let stream_handle =
+                                                match stream.try_clone().map(|cloned_stream| {
+                                                    Arc::new(Mutex::new(cloned_stream))
+                                                }) {
+                                                    Ok(handle) => handle,
+                                                    Err(e) => {
+                                                        update_health(&runtime_health_conn2, |h| {
+                                                            h.record_stream_clone_error(e);
+                                                        });
+                                                        return;
+                                                    }
+                                                };
+
+                                            match clients.lock() {
+                                                Ok(mut connected_clients) => {
+                                                    connected_clients.insert(
+                                                        player_id.clone(),
+                                                        ConnectedClient {
+                                                            stream: Arc::clone(&stream_handle),
+                                                            encryption_public_key,
+                                                        },
+                                                    );
+                                                }
+                                                Err(_) => {
+                                                    update_health(&runtime_health_conn2, |h| {
+                                                        h.record_client_registry_error();
+                                                    });
+                                                    // The client cannot be registered; return so
+                                                    // we do not spawn a session for an untracked
+                                                    // stream.
+                                                    return;
+                                                }
+                                            }
+
+                                            spawn_host_client_session(
+                                                player_id,
+                                                stream,
+                                                authoritative_state,
+                                                tournament_runtime,
+                                                clients,
+                                                join_payload,
+                                                server_sequence,
+                                                host_signing_keys,
+                                                host_encryption_keys,
+                                                public_events,
+                                                Arc::clone(&runtime_health_conn2),
+                                            );
+                                        }
+                                    }
+                                    Err(error) => {
+                                        if let Ok(envelope) = build_protocol_error_envelope(
+                                            &crypto_provider,
+                                            &join_payload,
+                                            &server_sequence,
+                                            &host_signing_keys,
+                                            "JOIN_REJECTED",
+                                            error.to_string(),
+                                            None,
+                                        ) {
+                                            // Best-effort rejection write; client is not yet
+                                            // registered so there is no session to clean up.
+                                            let _ = write_json_frame(&mut stream, &envelope);
+                                        }
                                     }
                                 }
-                            }
-                        });
+                            })
+                        {
+                            update_health(&runtime_health_conn, |h| {
+                                h.accept_error_count += 1;
+                                h.record_error(format!(
+                                    "failed to spawn initial join handler: {error}"
+                                ));
+                            });
+                        }
                     }
                 })
                 .map_err(|error| {
@@ -622,17 +633,20 @@ impl HostServer {
             Ok(())
         })?;
 
-        self.sync_snapshots_to_clients()
+        self.sync_snapshots_after_lobby_mutation();
+        Ok(())
     }
 
     pub fn claim_seat(&self, player_id: &str, seat_index: u8) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_seat_claim(state, player_id, seat_index))?;
-        self.sync_snapshots_to_clients()
+        self.sync_snapshots_after_lobby_mutation();
+        Ok(())
     }
 
     pub fn set_ready_state(&self, player_id: &str, is_ready: bool) -> Result<(), NetworkingError> {
         self.update_lobby_state(|state| apply_ready_state(state, player_id, is_ready))?;
-        self.sync_snapshots_to_clients()
+        self.sync_snapshots_after_lobby_mutation();
+        Ok(())
     }
 
     pub fn start_tournament(&self) -> Result<(), NetworkingError> {
@@ -799,13 +813,16 @@ impl HostServer {
 impl Drop for HostServer {
     fn drop(&mut self) {
         self.stop_signal.store(true, Ordering::SeqCst);
+        // Best-effort shutdown wake-up: the listener may already be closed.
         let _ = TcpStream::connect(self.listener_addr);
 
         if let Some(join_handle) = self.accept_thread.take() {
+            // Best-effort join: dropping the server must not panic if the worker panicked.
             let _ = join_handle.join();
         }
 
         if let Some(join_handle) = self.tick_thread.take() {
+            // Best-effort join: dropping the server must not panic if the worker panicked.
             let _ = join_handle.join();
         }
     }

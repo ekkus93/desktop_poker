@@ -1252,3 +1252,53 @@ fn remove_npc_participants_atomic_rejects_non_npc_participant() {
         "error must name the offending participant; got: {err}"
     );
 }
+
+// P0.3 — add_npc_participants_atomic honest when snapshot sync fails:
+// the lobby mutation must succeed (Ok) even if broadcasting the updated
+// snapshot to a connected client fails (write error on a closed stream).
+
+#[test]
+fn add_npc_participants_atomic_returns_ok_when_snapshot_sync_fails() {
+    use crate::networking::NpcSeatAssignment;
+    use std::time::Duration;
+
+    let provider = DefaultCryptoProvider;
+    // Use port 0 so the OS assigns a free ephemeral port.
+    let host = bind_test_host(&provider, "table-sync-fail-npc", 9920);
+
+    // Connect a real client so the clients map is non-empty.
+    let client = connect_test_client(&provider, &host, "client-1", "ClientOne");
+    // Consume the initial snapshot to complete the join handshake.
+    expect_snapshot_event(&client);
+
+    // Drop the client runtime — this closes the underlying TCP stream.
+    // The host's clients map still holds the stale stream entry; the next
+    // snapshot write to that stream will fail.
+    drop(client);
+    // Brief pause so the OS reclaims the socket before we attempt the write.
+    thread::sleep(Duration::from_millis(50));
+
+    let assignments = vec![NpcSeatAssignment {
+        player_id: crate::npc::NpcConfig::player_id(2),
+        display_name: "Bot".to_string(),
+        seat_index: 2,
+    }];
+
+    // The mutation must succeed even though the snapshot broadcast to the stale
+    // client stream will fail internally (sync_snapshots_to_clients handles
+    // individual write failures silently — the mutation result must still be Ok).
+    let result = host.add_npc_participants_atomic(assignments);
+    assert!(
+        result.is_ok(),
+        "add_npc_participants_atomic must return Ok when snapshot sync has a write failure; got: {:?}",
+        result.err()
+    );
+
+    // Authoritative state must reflect the mutation regardless of the sync outcome.
+    let state = host.authoritative_state().expect("authoritative state");
+    let npc_id = crate::npc::NpcConfig::player_id(2);
+    assert!(
+        state.participants.contains_key(&npc_id),
+        "NPC must be registered in authoritative state after Ok return"
+    );
+}

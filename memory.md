@@ -1015,6 +1015,12 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - 4 unit tests in `misc.rs` verify the three helper methods individually and that counters accumulate independently.
 - 435 Rust tests pass.
 
+## 2026-07-01T02:35:51Z - Claude Sonnet 4.6 - FIX6 correction: Fix 5 was only partially complete
+
+- Fix 5 frontend lint/build/test passed, but `npm test` still printed expected window-persistence errors; production dist still contained a `LayoutProbeApp` chunk with `__DESKTOP_POKER_BROWSER_MOCKS__`; no root Cargo workspace or `crates/poker-core` existed; Android architecture doc was missing; `add_npc_participants_atomic` / `claim_seat` / `set_ready_state` all returned `Err` when snapshot sync failed after a successful mutation (dishonest API); `host_session.rs` used repeated silent `let _ =` cleanup blocks and raw `thread::spawn`; client timeout setup errors were silently swallowed; authoritative-state lock poisoning in the tick loop used `unwrap_or_else(|_| state.clone())` instead of health-recording.
+- Fix 6 tracks completing those hardening gaps and extracting pure poker rules/state/projection into a shared Rust `poker-core` crate.
+- Architecture decision: Android will be native Kotlin/Compose + Rust bindings (UniFFI preferred), **not** Tauri Mobile. Kotlin owns networking/session transport; `poker-core` owns deterministic rules/state/projection only.
+
 ## 2026-06-30T23:54:26Z - Claude Sonnet 4.6 - FIX5 P2.1–P2.5 Cargo workspace and poker-core extraction
 
 - **P2.1 (workspace setup):** Added root `Cargo.toml` (workspace with members `crates/poker-core` and `src-tauri`). Added `crates/poker-core/Cargo.toml` with serde/serde_json/thiserror/rand_core deps. Added `poker-core = { path = "../crates/poker-core" }` to `src-tauri/Cargo.toml`. Updated CLAUDE.md and lint-n-test skill to use `--workspace` Cargo flags. `cargo metadata` works from repo root.

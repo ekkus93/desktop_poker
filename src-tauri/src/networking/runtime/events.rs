@@ -198,7 +198,7 @@ pub(crate) fn publish_runtime_transition(
     public_events: &Arc<Mutex<Vec<PublicEventLogEntry>>>,
 ) -> Result<(), NetworkingError> {
     if before.phase != TournamentPhase::Running && after.phase == TournamentPhase::Running {
-        let _ = broadcast_public_event_to_clients(
+        broadcast_public_event_to_clients(
             join_payload,
             clients,
             server_sequence,
@@ -213,7 +213,7 @@ pub(crate) fn publish_runtime_transition(
     let before_hand_number = before.current_hand.as_ref().map(|hand| hand.hand_number);
     if let Some(after_hand) = after.current_hand.as_ref() {
         if before_hand_number != Some(after_hand.hand_number) {
-            let _ = broadcast_public_event_to_clients(
+            broadcast_public_event_to_clients(
                 join_payload,
                 clients,
                 server_sequence,
@@ -234,7 +234,7 @@ pub(crate) fn publish_runtime_transition(
     }
 
     if let Some(committed_action) = infer_committed_action(before, after) {
-        let _ = broadcast_public_event_to_clients(
+        broadcast_public_event_to_clients(
             join_payload,
             clients,
             server_sequence,
@@ -258,7 +258,7 @@ pub(crate) fn publish_runtime_transition(
         .unwrap_or_default();
     if let Some(after_hand) = after.current_hand.as_ref() {
         if after_board.len() > before_board.len() {
-            let _ = broadcast_public_event_to_clients(
+            broadcast_public_event_to_clients(
                 join_payload,
                 clients,
                 server_sequence,
@@ -277,7 +277,7 @@ pub(crate) fn publish_runtime_transition(
 
     if after.hand_results.len() > before.hand_results.len() {
         for result in &after.hand_results[before.hand_results.len()..] {
-            let _ = broadcast_public_event_to_clients(
+            broadcast_public_event_to_clients(
                 join_payload,
                 clients,
                 server_sequence,
@@ -295,7 +295,7 @@ pub(crate) fn publish_runtime_transition(
 
     if after.placements.len() > before.placements.len() {
         for placement in &after.placements[before.placements.len()..] {
-            let _ = broadcast_public_event_to_clients(
+            broadcast_public_event_to_clients(
                 join_payload,
                 clients,
                 server_sequence,
@@ -318,7 +318,7 @@ pub(crate) fn publish_runtime_transition(
             .find(|entry| entry.place == 1)
             .map(|entry| entry.player_id.clone())
         {
-            let _ = broadcast_public_event_to_clients(
+            broadcast_public_event_to_clients(
                 join_payload,
                 clients,
                 server_sequence,
@@ -345,7 +345,7 @@ pub(crate) fn publish_runtime_transition(
                 .map(|connected_clients| connected_clients.contains_key(player_id))
                 .unwrap_or(false);
             if before_cards != Some(cards) && has_live_recipient {
-                let _ = send_private_hole_cards_to_recipient(
+                send_private_hole_cards_to_recipient(
                     join_payload,
                     clients,
                     server_sequence,
@@ -368,7 +368,7 @@ pub(crate) fn publish_runtime_transition(
                 .and_then(|hand| hand.action_window.as_ref())
                 .map(|window| window.action_window_id.as_str());
             if before_window_id != Some(window.action_window_id.as_str()) {
-                let _ = broadcast_public_event_to_clients(
+                broadcast_public_event_to_clients(
                     join_payload,
                     clients,
                     server_sequence,
