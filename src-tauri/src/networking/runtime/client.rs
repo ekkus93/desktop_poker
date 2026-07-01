@@ -408,9 +408,10 @@ impl ClientRuntime {
                             host_encryption_public_key = next_host_encryption_public_key;
                         }
 
-                        // Best-effort event delivery: receiver may be gone during shutdown.
-                        let _ =
-                            sender.send(ClientRuntimeEvent::Snapshot(Box::new(envelope.payload)));
+                        send_runtime_event_best_effort(
+                            &sender,
+                            ClientRuntimeEvent::Snapshot(Box::new(envelope.payload)),
+                        );
                     }
                     _ => {
                         let Ok(envelope) =
