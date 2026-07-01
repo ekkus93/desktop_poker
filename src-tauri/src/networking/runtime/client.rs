@@ -87,6 +87,8 @@ impl ClientRuntime {
                 let frame_value = match read_json_frame::<Value>(&mut stream) {
                     Ok(frame_value) => frame_value,
                     Err(_) => {
+                        // Best-effort cleanup: if this lock is poisoned, command submission is
+                        // already unusable and the runtime is about to attempt reconnect.
                         if let Ok(mut connection) = command_connection_for_thread.lock() {
                             connection.stream = None;
                         }
@@ -178,6 +180,9 @@ impl ClientRuntime {
                                 continue;
                             }
                             Err(error) => {
+                                // Best-effort reconnect cleanup: failure to acquire this lock only
+                                // prevents clearing an already-invalid command stream; the
+                                // reconnect failure is reported via SafeError below.
                                 if let Ok(mut connection) = command_connection_for_thread.lock() {
                                     connection.stream = None;
                                 }

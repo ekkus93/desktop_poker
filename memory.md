@@ -1136,3 +1136,22 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - Fixed a `clippy::items_after_test_module` error in `projector.rs`: moved `project_public_state` fn to before the `#[cfg(test)]` block and removed the stale duplicate at EOF.
 - All checks pass: `cargo fmt --check` ✅, `cargo clippy` ✅, `cargo test --workspace` ✅ (125 poker-core tests), frontend lint/build/test ✅ (273 Vitest tests, including 19 new in `mainTableRaise.test.ts`).
 - Committed as `5dccd86`: 15 files changed, 3655 insertions. New files: `tests/core.rs`, `tests/hand.rs`, `tests/query.rs`, `tests/config.rs`, `tests/projection.rs`, `snapshot_utils.rs`, `mainTableRaise.test.ts`, `docs/UNIT_TEST4_TODO.md`.
+
+## 2026-07-01T18:06:40Z - Claude Sonnet 4.6 - Fix 14: validation ledger correction and cleanup-lock comments
+
+- **P0.1 (ledger correction):** The Fix 13 `memory.md` validation list omitted `cargo test -p poker-core` as a separately listed command (the workspace command included poker-core tests but the focused command was not recorded). Fix 14 runs and records it explicitly; 125 tests pass.
+- **P0.2 (cleanup comments):** Added "Best-effort cleanup" comments to the two `if let Ok(mut connection) = command_connection_for_thread.lock() { connection.stream = None; }` blocks in `src-tauri/src/networking/runtime/client.rs` (lines 90 and 181 pre-edit; the read-error path before reconnect attempt, and the reconnect failure Err path). These are not the reconnect install pattern — they are cleanup paths. Comments distinguish them from the required command-stream install block.
+- **P0.3 (reconnect invariant):** Audit confirmed Fix 13 behavior intact. The `try_clone()` and `command_connection_for_thread.lock()` calls in the reconnect-accept path both use `match` with `SafeError`+`break` on failure. Snapshot is only emitted after both succeed. No regression found.
+- **P0.4/P1.1/P2.1 (hardening audits):** All clean:
+  - No window-persistence test noise.
+  - Production dist has no `LayoutProbeApp` or `__DESKTOP_POKER_BROWSER_MOCKS__` chunks.
+  - `associated_data_json()...unwrap_or_default` → 0 hits.
+  - `hole_cards_by_player_id.*unwrap_or` → 0 hits.
+  - `thread::spawn` in client.rs → 0 hits.
+  - `server_sequence.*unwrap_or_default` in client.rs → 0 hits.
+  - `last_seen_server_sequence = envelope.server_sequence` → 0 hits.
+  - `if let Ok(cloned_stream).*try_clone` (silent reconnect install) → 0 hits.
+  - `if let Ok(mut connection).*command_connection` → 2 hits, both now commented as best-effort cleanup.
+  - `poker-core` forbidden-dep grep → 6 hits, all `EngineCommand` in `facade.rs` (expected false positive; no real forbidden dependency).
+- **Architecture unchanged:** No Android app, Tauri Mobile, FFI crate, or networking-in-core added.
+- **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace --all-targets --all-features` ✅ (125 poker-core + desktop-poker tests), `cargo test -p poker-core` ✅ (125 tests), `cargo tree -p poker-core` ✅ (platform-neutral: rand_core, serde, serde_json, thiserror only), `npm run format:check` ✅, `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (273 tests across 30 files).
