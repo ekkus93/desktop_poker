@@ -104,14 +104,12 @@ impl ClientRuntime {
                             &mut next_counter,
                         ) {
                             Ok((reconnected_stream, snapshot_envelope)) => {
-                                if let Ok(cloned_stream) = reconnected_stream.try_clone() {
-                                    if let Ok(mut connection) = command_connection_for_thread.lock()
-                                    {
-                                        connection.stream =
-                                            Some(Arc::new(Mutex::new(cloned_stream)));
-                                    }
-                                }
+                                // Accept the new stream for reading, but do not install the
+                                // cloned command stream until all snapshot validation passes.
+                                // This prevents a malformed reconnect snapshot from leaving
+                                // a stale stream handle in command_connection.
                                 stream = reconnected_stream;
+
                                 let Some(snapshot_sequence) = snapshot_server_sequence_or_warn(
                                     &sender,
                                     &mut protocol_warning_counts,
@@ -125,8 +123,6 @@ impl ClientRuntime {
                                     });
                                     break;
                                 };
-                                reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
-                                last_seen_server_sequence = Some(snapshot_sequence);
 
                                 let Some(next_host_encryption_public_key) =
                                     snapshot_envelope.payload.host_encryption_public_key.clone()
@@ -139,6 +135,18 @@ impl ClientRuntime {
                                     });
                                     break;
                                 };
+
+                                // Snapshot accepted — install the command stream now.
+                                if let Ok(cloned_stream) = stream.try_clone() {
+                                    if let Ok(mut connection) =
+                                        command_connection_for_thread.lock()
+                                    {
+                                        connection.stream =
+                                            Some(Arc::new(Mutex::new(cloned_stream)));
+                                    }
+                                }
+                                reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
+                                last_seen_server_sequence = Some(snapshot_sequence);
                                 host_encryption_public_key = next_host_encryption_public_key;
 
                                 let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
@@ -350,6 +358,20 @@ impl ClientRuntime {
                         ) else {
                             continue;
                         };
+
+                        if is_stale_server_sequence(
+                            last_seen_server_sequence,
+                            Some(snapshot_sequence),
+                        ) {
+                            emit_protocol_warning(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                "stale snapshot server sequence",
+                            );
+                            continue;
+                        }
+
                         reconnect_token = envelope.payload.reconnect_token.clone();
                         last_seen_server_sequence = Some(snapshot_sequence);
                         if let Some(next_host_encryption_public_key) =
@@ -358,6 +380,7 @@ impl ClientRuntime {
                             host_encryption_public_key = next_host_encryption_public_key;
                         }
 
+                        // Best-effort event delivery: receiver may be gone during shutdown.
                         let _ =
                             sender.send(ClientRuntimeEvent::Snapshot(Box::new(envelope.payload)));
                     }
@@ -884,6 +907,53 @@ mod tests {
         assert!(
             receiver.try_recv().is_err(),
             "valid sequence should not warn"
+        );
+    }
+
+    #[test]
+    fn stale_snapshot_sequence_warns_and_preserves_last_seen_sequence() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+        let mut last_seen_server_sequence = Some(42u64);
+
+        // A stale sequence (41 < 42) must pass the missing check but fail the stale check.
+        let sequence =
+            snapshot_server_sequence_or_warn(&sender, &mut warning_counts, "player-1", Some(41));
+        let Some(snapshot_sequence) = sequence else {
+            panic!("present snapshot sequence should validate before stale check");
+        };
+
+        if is_stale_server_sequence(last_seen_server_sequence, Some(snapshot_sequence)) {
+            emit_protocol_warning(
+                &sender,
+                &mut warning_counts,
+                "player-1",
+                "stale snapshot server sequence",
+            );
+        } else {
+            last_seen_server_sequence = Some(snapshot_sequence);
+        }
+
+        assert_eq!(
+            last_seen_server_sequence,
+            Some(42),
+            "stale snapshot must not overwrite last_seen_server_sequence"
+        );
+
+        let warning = receiver
+            .try_recv()
+            .expect("expected stale snapshot warning");
+        assert!(
+            matches!(
+                warning,
+                ClientRuntimeEvent::ProtocolWarning { ref reason, .. }
+                    if reason.contains("stale snapshot server sequence")
+            ),
+            "unexpected event: {warning:?}"
+        );
+        assert!(
+            receiver.try_recv().is_err(),
+            "stale snapshot should not emit additional events"
         );
     }
 }
