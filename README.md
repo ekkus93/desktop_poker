@@ -47,7 +47,7 @@ Open **Settings → LLM provider** to choose a provider and enter the required c
 |---|---|---|---|
 | Anthropic (Claude) | Yes | `https://api.anthropic.com` | `claude-haiku-4-5-20251001` |
 | OpenAI | Yes | `https://api.openai.com` | `gpt-4o-mini` |
-| Ollama | No | `http://localhost:11434` | `llama3.2` |
+| Ollama | No | `http://localhost:11434` | `llama3.2:3b` |
 | llama-server | No | `http://localhost:8080` | *(loaded model)* |
 
 All four providers use the same prompt format. Anthropic uses the `/v1/messages` API; the other three use the OpenAI-compatible `/v1/chat/completions` endpoint.
