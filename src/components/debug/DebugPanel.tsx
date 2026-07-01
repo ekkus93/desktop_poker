@@ -342,6 +342,10 @@ export function DebugPanel({
         debugState.hostRuntimeHealth.publishErrorCount > 0 ||
         debugState.hostRuntimeHealth.stateLockErrorCount > 0 ||
         debugState.hostRuntimeHealth.streamTimeoutErrorCount > 0 ||
+        debugState.hostRuntimeHealth.streamCloneErrorCount > 0 ||
+        debugState.hostRuntimeHealth.clientRegistryErrorCount > 0 ||
+        debugState.hostRuntimeHealth.reconnectMarkErrorCount > 0 ||
+        debugState.hostRuntimeHealth.snapshotSyncErrorCount > 0 ||
         debugState.hostRuntimeHealth.lastError != null) ? (
         <SectionCard
           title="Host runtime health"
@@ -370,6 +374,30 @@ export function DebugPanel({
               <li>
                 <strong>Lock errors:</strong>{" "}
                 {debugState.hostRuntimeHealth.stateLockErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.streamCloneErrorCount > 0 && (
+              <li>
+                <strong>Stream clone errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.streamCloneErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.clientRegistryErrorCount > 0 && (
+              <li>
+                <strong>Client registry errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.clientRegistryErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.reconnectMarkErrorCount > 0 && (
+              <li>
+                <strong>Reconnect mark errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.reconnectMarkErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.snapshotSyncErrorCount > 0 && (
+              <li>
+                <strong>Snapshot sync errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.snapshotSyncErrorCount}
               </li>
             )}
             {debugState.hostRuntimeHealth.lastError != null && (

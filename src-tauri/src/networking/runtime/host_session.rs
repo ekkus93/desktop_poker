@@ -52,6 +52,17 @@ fn disconnect_client(
     mark_reconnect_or_record_health(authoritative_state, runtime_health, player_id);
 }
 
+fn record_state_lock_error(
+    runtime_health: &Arc<Mutex<HostRuntimeHealth>>,
+    context: impl Into<String>,
+) {
+    let context = context.into();
+    update_health(runtime_health, |health| {
+        health.state_lock_error_count += 1;
+        health.record_error(context);
+    });
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_host_client_session(
     player_id: String,
@@ -199,6 +210,14 @@ pub(crate) fn spawn_host_client_session(
                                 let previous_state = match previous_state {
                                     Ok(state) => state,
                                     Err(error) => {
+                                        record_state_lock_error(
+                                            &runtime_health,
+                                            format!(
+                                                "authoritative state lock poisoned reading \
+                                                 previous state for action by {player_id}: \
+                                                 {error}"
+                                            ),
+                                        );
                                         if let Ok(envelope) = build_protocol_error_envelope(
                                             &crypto_provider,
                                             &join_payload,
@@ -224,6 +243,13 @@ pub(crate) fn spawn_host_client_session(
                                 {
                                     Ok(state) => state,
                                     Err(_) => {
+                                        record_state_lock_error(
+                                            &runtime_health,
+                                            format!(
+                                                "authoritative state lock poisoned reading \
+                                                 next state after action by {player_id}"
+                                            ),
+                                        );
                                         disconnect_client(
                                             &clients,
                                             &authoritative_state,
@@ -335,5 +361,21 @@ pub(crate) fn spawn_host_client_session(
                 "failed to spawn host-client-{player_id_for_error} thread: {error}"
             ));
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn record_state_lock_error_increments_counter_and_sets_last_error() {
+        let health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
+
+        record_state_lock_error(&health, "test state lock failure");
+
+        let h = health.lock().unwrap();
+        assert_eq!(h.state_lock_error_count, 1);
+        assert_eq!(h.last_error.as_deref(), Some("test state lock failure"));
     }
 }

@@ -324,103 +324,130 @@ fn record_npc_internal_error_sets_shared_action_error_and_returns_runtime_unavai
     assert!(!err.submitted);
 }
 
-// P0.3 — hole-card validation: missing or wrong-count cards produce RuntimeUnavailable.
-//
-// try_npc_action fetches fresh state from the HostServer and checks
-// hole_cards_by_player_id.  If the entry is absent or has the wrong count,
-// it calls record_npc_internal_error with NpcActionErrorReason::InternalError.
-// These tests verify that helper produces the correct outcome and error state
-// for the two failure shapes the hole-card validation can produce.
+// P0.3 — hole-card validation: the validated_acting_hole_cards helper enforces
+// that an acting NPC has exactly two hole cards.  The helper is called from
+// try_npc_action, which uses the fresh authoritative state from the host.
+// A full runner-path integration test would require injecting corrupt state
+// into the host's internal authoritative_state (not exposed publicly); that
+// test is deferred to a future fix.  The helper tests below exercise the real
+// validation gate directly.
 
 #[test]
-fn npc_decision_fails_when_hole_cards_are_missing() {
-    use crate::app_state::NpcActionErrorReason;
+fn validated_acting_hole_cards_rejects_missing_cards() {
+    use crate::domain::{BettingRoundState, HandCyclePhase, HandState, StreetPhase};
 
     let player_id = "npc-seat-1";
-    let hand_number = 7u32;
-    let configs = npc_configs();
-    let mut runner_state = RunnerState::new(
-        &configs,
-        Arc::new(Mutex::new(BTreeMap::new())),
-        Arc::new(Mutex::new(None)),
-        Arc::new(Mutex::new(None)),
-    );
+    let hand = HandState {
+        hand_number: 7,
+        cycle_phase: HandCyclePhase::AwaitingAction,
+        street: StreetPhase::Preflop,
+        dealer_seat_index: 0,
+        small_blind_seat_index: 0,
+        big_blind_seat_index: 1,
+        board_cards: vec![],
+        hole_cards_by_player_id: BTreeMap::new(),
+        participation_by_player_id: BTreeMap::new(),
+        betting_round: BettingRoundState {
+            street: StreetPhase::Preflop,
+            current_bet: 0,
+            min_raise_to: None,
+            max_raise_to: None,
+            pot_size: 0,
+            contributions_by_player_id: BTreeMap::new(),
+        },
+        action_window: None,
+    };
 
-    let msg = format!("[npc-runner] NPC {player_id} is missing hole cards; no action submitted");
-    let outcome = super::action::record_npc_internal_error(
-        &mut runner_state,
-        player_id.to_string(),
-        Some(hand_number),
-        NpcActionErrorReason::InternalError,
-        msg.clone(),
-    );
-
-    assert_eq!(
-        outcome,
-        NpcActionOutcome::RuntimeUnavailable,
-        "missing hole cards must return RuntimeUnavailable"
-    );
-    let err = runner_state
-        .shared_action_error
-        .lock()
-        .unwrap()
-        .clone()
-        .expect("error must be set");
-    assert_eq!(err.reason, NpcActionErrorReason::InternalError);
-    assert_eq!(err.hand_number, Some(hand_number));
-    assert_eq!(err.player_id.as_deref(), Some(player_id));
+    let error = super::action::validated_acting_hole_cards(&hand, player_id).unwrap_err();
     assert!(
-        err.message.contains("missing hole cards"),
-        "error message must describe the failure; got: {}",
-        err.message
+        error.contains("missing hole cards"),
+        "error must mention missing hole cards; got: {error}"
     );
 }
 
 #[test]
-fn npc_decision_fails_when_hole_card_count_is_not_two() {
-    use crate::app_state::NpcActionErrorReason;
+fn validated_acting_hole_cards_rejects_wrong_card_count() {
+    use crate::domain::{
+        BettingRoundState, Card, HandCyclePhase, HandState, Rank, StreetPhase, Suit,
+    };
 
     let player_id = "npc-seat-2";
-    let hand_number = 12u32;
-    let bad_count = 1usize;
-    let configs = npc_configs();
-    let mut runner_state = RunnerState::new(
-        &configs,
-        Arc::new(Mutex::new(BTreeMap::new())),
-        Arc::new(Mutex::new(None)),
-        Arc::new(Mutex::new(None)),
-    );
-
-    let msg = format!(
-        "[npc-runner] NPC {player_id} has invalid hole-card count {bad_count}; expected 2; no action submitted"
-    );
-    let outcome = super::action::record_npc_internal_error(
-        &mut runner_state,
+    let mut hole_cards_by_player_id = BTreeMap::new();
+    hole_cards_by_player_id.insert(
         player_id.to_string(),
-        Some(hand_number),
-        NpcActionErrorReason::InternalError,
-        msg.clone(),
+        vec![Card {
+            rank: Rank::Ace,
+            suit: Suit::Spades,
+        }],
     );
+    let hand = HandState {
+        hand_number: 12,
+        cycle_phase: HandCyclePhase::AwaitingAction,
+        street: StreetPhase::Preflop,
+        dealer_seat_index: 0,
+        small_blind_seat_index: 0,
+        big_blind_seat_index: 1,
+        board_cards: vec![],
+        hole_cards_by_player_id,
+        participation_by_player_id: BTreeMap::new(),
+        betting_round: BettingRoundState {
+            street: StreetPhase::Preflop,
+            current_bet: 0,
+            min_raise_to: None,
+            max_raise_to: None,
+            pot_size: 0,
+            contributions_by_player_id: BTreeMap::new(),
+        },
+        action_window: None,
+    };
 
-    assert_eq!(
-        outcome,
-        NpcActionOutcome::RuntimeUnavailable,
-        "wrong hole-card count must return RuntimeUnavailable"
-    );
-    let err = runner_state
-        .shared_action_error
-        .lock()
-        .unwrap()
-        .clone()
-        .expect("error must be set");
-    assert_eq!(err.reason, NpcActionErrorReason::InternalError);
-    assert_eq!(err.hand_number, Some(hand_number));
-    assert_eq!(err.player_id.as_deref(), Some(player_id));
+    let error = super::action::validated_acting_hole_cards(&hand, player_id).unwrap_err();
     assert!(
-        err.message.contains("invalid hole-card count"),
-        "error message must describe the failure; got: {}",
-        err.message
+        error.contains("invalid hole-card count"),
+        "error must mention invalid hole-card count; got: {error}"
     );
+}
+
+#[test]
+fn validated_acting_hole_cards_accepts_exactly_two_cards() {
+    use crate::domain::{
+        BettingRoundState, Card, HandCyclePhase, HandState, Rank, StreetPhase, Suit,
+    };
+
+    let player_id = "npc-seat-3";
+    let card_a = Card {
+        rank: Rank::Ace,
+        suit: Suit::Spades,
+    };
+    let card_b = Card {
+        rank: Rank::King,
+        suit: Suit::Hearts,
+    };
+    let mut hole_cards_by_player_id = BTreeMap::new();
+    hole_cards_by_player_id.insert(player_id.to_string(), vec![card_a, card_b]);
+    let hand = HandState {
+        hand_number: 3,
+        cycle_phase: HandCyclePhase::AwaitingAction,
+        street: StreetPhase::Preflop,
+        dealer_seat_index: 0,
+        small_blind_seat_index: 0,
+        big_blind_seat_index: 1,
+        board_cards: vec![],
+        hole_cards_by_player_id,
+        participation_by_player_id: BTreeMap::new(),
+        betting_round: BettingRoundState {
+            street: StreetPhase::Preflop,
+            current_bet: 0,
+            min_raise_to: None,
+            max_raise_to: None,
+            pot_size: 0,
+            contributions_by_player_id: BTreeMap::new(),
+        },
+        action_window: None,
+    };
+
+    let cards = super::action::validated_acting_hole_cards(&hand, player_id).unwrap();
+    assert_eq!(cards.len(), 2);
 }
 
 // P0.4 — NpcActionOutcome enum reports acted() correctly for each variant.

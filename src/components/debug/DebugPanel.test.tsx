@@ -4,6 +4,7 @@ import {
   getDebugState,
   launchAdditionalClientInstance,
   type DebugInspectorState,
+  type HostRuntimeHealth,
 } from "../../api/desktop";
 import { createBootstrap, renderWithProviders } from "../../test/fixtures";
 import { DebugPanel } from "./DebugPanel";
@@ -26,6 +27,26 @@ const mockedLaunchAdditionalClientInstance = vi.mocked(
   launchAdditionalClientInstance,
 );
 const clipboardWriteText = vi.fn();
+
+function baseHostHealth(
+  overrides: Partial<HostRuntimeHealth> = {},
+): HostRuntimeHealth {
+  return {
+    acceptErrorCount: 0,
+    streamTimeoutErrorCount: 0,
+    tickAdvanceErrorCount: 0,
+    publishErrorCount: 0,
+    stateLockErrorCount: 0,
+    streamCloneErrorCount: 0,
+    clientRegistryErrorCount: 0,
+    reconnectMarkErrorCount: 0,
+    snapshotSyncErrorCount: 0,
+    lastError: null,
+    lastSuccessfulTickMs: null,
+    lastSuccessfulPublishMs: null,
+    ...overrides,
+  };
+}
 
 function baseDebugState(
   overrides: Partial<DebugInspectorState> = {},
@@ -227,6 +248,44 @@ describe("DebugPanel", () => {
 
     await screen.findByText("Rust backend module map");
     expect(screen.queryByTestId("npc-action-error-section")).toBeNull();
+  });
+
+  it("renders new host runtime health counters when non-zero", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({
+        hostRuntimeHealth: baseHostHealth({
+          streamCloneErrorCount: 2,
+          clientRegistryErrorCount: 1,
+          reconnectMarkErrorCount: 3,
+          snapshotSyncErrorCount: 4,
+        }),
+      }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByTestId("host-runtime-health-section");
+    expect(screen.getByText(/Stream clone errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Client registry errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Reconnect mark errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Snapshot sync errors:/i)).toBeTruthy();
+  });
+
+  it("hides host runtime health section when all counters are zero and no last error", async () => {
+    mockedGetDebugState.mockResolvedValue(
+      baseDebugState({ hostRuntimeHealth: baseHostHealth() }),
+    );
+    const bootstrap = createBootstrap();
+    renderWithProviders(<DebugPanel asScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    await screen.findByText("Rust backend module map");
+    expect(
+      screen.queryByTestId("host-runtime-health-section"),
+    ).toBeNull();
   });
 
   it("shows submitted=yes for rejected NPC action error", async () => {

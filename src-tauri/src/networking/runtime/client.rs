@@ -76,7 +76,11 @@ impl ClientRuntime {
         let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
         let command_connection_for_thread = Arc::clone(&command_connection);
 
-        thread::spawn(move || {
+        // The client runtime thread is intentionally detached; shutdown is coordinated
+        // by the stop flag and stream lifecycle.
+        thread::Builder::new()
+            .name(format!("desktop-poker-client-runtime-{player_id}"))
+            .spawn(move || {
             let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
                 std::collections::BTreeMap::new();
             loop {
@@ -434,7 +438,12 @@ impl ClientRuntime {
             }
 
             let _ = sender.send(ClientRuntimeEvent::Disconnected { player_id });
-        });
+        })
+        .map_err(|error| {
+            NetworkingError::new(format!(
+                "failed to spawn client runtime thread: {error}"
+            ))
+        })?;
 
         Ok(Self {
             incoming: receiver,

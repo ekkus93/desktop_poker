@@ -327,6 +327,10 @@ export type HostRuntimeHealth = {
   tickAdvanceErrorCount: number;
   publishErrorCount: number;
   stateLockErrorCount: number;
+  streamCloneErrorCount: number;
+  clientRegistryErrorCount: number;
+  reconnectMarkErrorCount: number;
+  snapshotSyncErrorCount: number;
   lastError: string | null;
   lastSuccessfulTickMs: number | null;
   lastSuccessfulPublishMs: number | null;

@@ -182,9 +182,9 @@ If your distro uses different package names, install the WebKitGTK 4.1 and GTK 3
 
 ```bash
 npm install
-cargo fmt --manifest-path src-tauri/Cargo.toml
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features
 npm run lint
 npm run test
 npm run tauri dev
@@ -318,10 +318,21 @@ default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src
 
 Before shipping any change, all of the following must pass with zero warnings and zero failures:
 
+This repository is a Cargo workspace. Run Rust validation from the repository root:
+
 ```bash
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
-cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features
+cargo test -p poker-core
+cargo tree -p poker-core
+```
+
+`src-tauri` is the desktop adapter crate. `crates/poker-core` is the shared rules/state/projection crate for desktop and future Android bindings.
+
+Frontend validation:
+
+```bash
 npm run lint
 npm run format
 npm run test
@@ -331,7 +342,7 @@ npm run build
 LLM integration tests are `#[ignore]`d by default (they require a local Ollama server). Run them explicitly with:
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml -- --ignored
+cargo test --workspace -- --ignored
 ```
 
 ## Architecture notes

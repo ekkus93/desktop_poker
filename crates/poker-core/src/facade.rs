@@ -102,6 +102,19 @@ impl PokerEngine {
 }
 
 #[cfg(test)]
+impl PokerEngine {
+    pub fn set_next_deck_for_test(
+        &mut self,
+        cards: Vec<crate::domain::Card>,
+    ) -> Result<(), PokerCoreError> {
+        let deck = crate::engine::Deck::from_cards(cards)
+            .map_err(|error| PokerCoreError::Engine(error.to_string()))?;
+        self.controller.set_next_deck(deck);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::domain::{BlindLevel, BlindSchedule, PlayerIdentity};

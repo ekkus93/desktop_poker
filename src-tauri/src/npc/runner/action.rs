@@ -68,6 +68,22 @@ pub(super) fn record_npc_internal_error(
     NpcActionOutcome::RuntimeUnavailable
 }
 
+pub(crate) fn validated_acting_hole_cards<'a>(
+    fresh_hand: &'a crate::domain::HandState,
+    player_id: &str,
+) -> Result<&'a [crate::domain::Card], String> {
+    match fresh_hand.hole_cards_by_player_id.get(player_id) {
+        Some(cards) if cards.len() == 2 => Ok(cards.as_slice()),
+        Some(cards) => Err(format!(
+            "NPC {player_id} has invalid hole-card count {}; expected 2; no action submitted",
+            cards.len()
+        )),
+        None => Err(format!(
+            "NPC {player_id} is missing hole cards; no action submitted"
+        )),
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn try_npc_action(
     host_server: &HostServer,
@@ -233,36 +249,15 @@ pub(crate) fn try_npc_action(
         }
     }
 
-    let hole_cards = match fresh_hand
-        .hole_cards_by_player_id
-        .get(&fresh_window.player_id)
-    {
-        Some(cards) if cards.len() == 2 => cards.as_slice(),
-        Some(cards) => {
-            let msg = format!(
-                "[npc-runner] NPC {} has invalid hole-card count {}; expected 2; no action submitted",
-                fresh_window.player_id,
-                cards.len()
-            );
+    let hole_cards = match validated_acting_hole_cards(fresh_hand, &fresh_window.player_id) {
+        Ok(cards) => cards,
+        Err(msg) => {
             return record_npc_internal_error(
                 runner_state,
                 fresh_window.player_id.clone(),
                 Some(fresh_hand.hand_number),
                 NpcActionErrorReason::InternalError,
-                msg,
-            );
-        }
-        None => {
-            let msg = format!(
-                "[npc-runner] NPC {} is missing hole cards; no action submitted",
-                fresh_window.player_id
-            );
-            return record_npc_internal_error(
-                runner_state,
-                fresh_window.player_id.clone(),
-                Some(fresh_hand.hand_number),
-                NpcActionErrorReason::InternalError,
-                msg,
+                format!("[npc-runner] {msg}"),
             );
         }
     };
