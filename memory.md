@@ -1128,3 +1128,11 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **P0.3 + P1.1 audits:** No `server_sequence.unwrap_or_default()`, no stale public-event `last_seen_server_sequence = envelope.server_sequence` (only snapshot branch retains it, which is correct), no raw `thread::spawn` in client.rs, no empty-AAD fallback, no empty NPC hole-card fallback, poker-core tree clean.
 - **Architecture unchanged:** ProtocolError confirmed intentionally unsequenced per answered responses. No Android app, Tauri Mobile, FFI crate, or networking-in-core added.
 - **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace --all-targets --all-features` ✅ (378 desktop + 67 poker-core = 445 tests), `cargo test -p poker-core` ✅, `cargo tree -p poker-core` ✅, `npm run format:check` ✅, `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (254 tests).
+
+## 2026-07-01T11:08:33Z - Claude Sonnet 4.6 - UNIT_TEST4_TODO: all 10 groups implemented and committed
+
+- Resumed a prior session that had implemented all 10 test groups from `docs/UNIT_TEST4_TODO.md`.
+- Fixed a `cargo fmt` failure (formatting across 3 files: `projector.rs`, `config.rs`, `units.rs`).
+- Fixed a `clippy::items_after_test_module` error in `projector.rs`: moved `project_public_state` fn to before the `#[cfg(test)]` block and removed the stale duplicate at EOF.
+- All checks pass: `cargo fmt --check` ✅, `cargo clippy` ✅, `cargo test --workspace` ✅ (125 poker-core tests), frontend lint/build/test ✅ (273 Vitest tests, including 19 new in `mainTableRaise.test.ts`).
+- Committed as `5dccd86`: 15 files changed, 3655 insertions. New files: `tests/core.rs`, `tests/hand.rs`, `tests/query.rs`, `tests/config.rs`, `tests/projection.rs`, `snapshot_utils.rs`, `mainTableRaise.test.ts`, `docs/UNIT_TEST4_TODO.md`.
