@@ -301,9 +301,19 @@ impl HostServer {
                                 }
                             };
                             merge_networking_state(&previous_state, &mut state);
-                            let _ = authoritative_state.lock().map(|mut authoritative| {
-                                *authoritative = state.clone();
-                            });
+                            match authoritative_state.lock() {
+                                Ok(mut authoritative) => *authoritative = state.clone(),
+                                Err(_) => {
+                                    update_health(&runtime_health, |h| {
+                                        h.state_lock_error_count += 1;
+                                        h.record_error(
+                                            "authoritative state lock poisoned during tick \
+                                             writeback",
+                                        );
+                                    });
+                                    continue;
+                                }
+                            };
                             match publish_runtime_transition(
                                 &join_payload,
                                 &authoritative_state,
