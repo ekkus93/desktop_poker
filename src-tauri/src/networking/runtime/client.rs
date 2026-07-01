@@ -136,19 +136,42 @@ impl ClientRuntime {
                                     break;
                                 };
 
-                                // Snapshot accepted — install the command stream now.
-                                if let Ok(cloned_stream) = stream.try_clone() {
-                                    if let Ok(mut connection) =
-                                        command_connection_for_thread.lock()
-                                    {
+                                // Snapshot validation has succeeded. Command stream
+                                // installation is required before exposing the reconnect
+                                // snapshot to the UI; otherwise the client can appear
+                                // reconnected while action submission remains disconnected.
+                                let cloned_stream = match stream.try_clone() {
+                                    Ok(cloned_stream) => cloned_stream,
+                                    Err(error) => {
+                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                            player_id: player_id.clone(),
+                                            message: format!(
+                                                "failed to clone reconnect command stream: {error}"
+                                            ),
+                                        });
+                                        break;
+                                    }
+                                };
+
+                                match command_connection_for_thread.lock() {
+                                    Ok(mut connection) => {
                                         connection.stream =
                                             Some(Arc::new(Mutex::new(cloned_stream)));
                                     }
+                                    Err(_) => {
+                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                            player_id: player_id.clone(),
+                                            message: "client command connection lock poisoned after reconnect".to_string(),
+                                        });
+                                        break;
+                                    }
                                 }
+
                                 reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
                                 last_seen_server_sequence = Some(snapshot_sequence);
                                 host_encryption_public_key = next_host_encryption_public_key;
 
+                                // Best-effort event delivery: receiver may be gone during shutdown.
                                 let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
                                     snapshot_envelope.payload,
                                 )));
