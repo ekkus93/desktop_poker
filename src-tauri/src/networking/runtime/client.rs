@@ -92,7 +92,7 @@ impl ClientRuntime {
                         if let Ok(mut connection) = command_connection_for_thread.lock() {
                             connection.stream = None;
                         }
-                        let _ = sender.send(ClientRuntimeEvent::Reconnecting {
+                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Reconnecting {
                             player_id: player_id.clone(),
                         });
 
@@ -118,7 +118,7 @@ impl ClientRuntime {
                                     &player_id,
                                     snapshot_envelope.server_sequence,
                                 ) else {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                         player_id: player_id.clone(),
                                         message: "reconnect snapshot missing server sequence"
                                             .to_string(),
@@ -129,7 +129,7 @@ impl ClientRuntime {
                                 let Some(next_host_encryption_public_key) =
                                     snapshot_envelope.payload.host_encryption_public_key.clone()
                                 else {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                         player_id: player_id.clone(),
                                         message:
                                             "reconnect snapshot missing hostEncryptionPublicKey"
@@ -145,7 +145,7 @@ impl ClientRuntime {
                                 let cloned_stream = match stream.try_clone() {
                                     Ok(cloned_stream) => cloned_stream,
                                     Err(error) => {
-                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                             player_id: player_id.clone(),
                                             message: format!(
                                                 "failed to clone reconnect command stream: {error}"
@@ -161,7 +161,7 @@ impl ClientRuntime {
                                             Some(Arc::new(Mutex::new(cloned_stream)));
                                     }
                                     Err(_) => {
-                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                             player_id: player_id.clone(),
                                             message: "client command connection lock poisoned after reconnect".to_string(),
                                         });
@@ -174,7 +174,7 @@ impl ClientRuntime {
                                 host_encryption_public_key = next_host_encryption_public_key;
 
                                 // Best-effort event delivery: receiver may be gone during shutdown.
-                                let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
+                                send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Snapshot(Box::new(
                                     snapshot_envelope.payload,
                                 )));
                                 continue;
@@ -186,7 +186,7 @@ impl ClientRuntime {
                                 if let Ok(mut connection) = command_connection_for_thread.lock() {
                                     connection.stream = None;
                                 }
-                                let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                     player_id: player_id.clone(),
                                     message: error.to_string(),
                                 });
@@ -256,7 +256,7 @@ impl ClientRuntime {
                                             snapshot_envelope.server_sequence,
                                         )
                                     else {
-                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                             player_id: player_id.clone(),
                                             message:
                                                 "resync snapshot missing server sequence; cannot continue"
@@ -273,12 +273,12 @@ impl ClientRuntime {
                                         host_encryption_public_key =
                                             next_host_encryption_public_key;
                                     }
-                                    let _ = sender.send(ClientRuntimeEvent::Snapshot(Box::new(
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Snapshot(Box::new(
                                         snapshot_envelope.payload,
                                     )));
                                 }
                                 Err(error) => {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                         player_id: player_id.clone(),
                                         message: error.to_string(),
                                     });
@@ -296,14 +296,14 @@ impl ClientRuntime {
                         };
 
                         let Ok(identity) = reconnect_identity_for_thread.lock() else {
-                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                 player_id: player_id.clone(),
                                 message: "client reconnect identity lock poisoned".to_string(),
                             });
                             break;
                         };
                         let Some(encryption_keys) = identity.encryption_keys.as_ref() else {
-                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                 player_id: player_id.clone(),
                                 message: missing_reconnect_identity_message(),
                             });
@@ -350,7 +350,7 @@ impl ClientRuntime {
                             continue;
                         };
 
-                        let _ = sender.send(ClientRuntimeEvent::PrivateHoleCards(private_payload));
+                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::PrivateHoleCards(private_payload));
                     }
                     "SNAPSHOT_EVENT" => {
                         let Ok(envelope) =
@@ -447,13 +447,13 @@ impl ClientRuntime {
 
                             match protocol_error {
                                 Ok(message) => {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                         player_id: player_id.clone(),
                                         message: message.message,
                                     });
                                 }
                                 Err(message) => {
-                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                    send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                         player_id: player_id.clone(),
                                         message,
                                     });
@@ -488,7 +488,7 @@ impl ClientRuntime {
                                 last_seen_server_sequence,
                                 Some(server_sequence),
                             ) {
-                                let _ = sender.send(ClientRuntimeEvent::ResyncRequested {
+                                send_runtime_event_best_effort(&sender, ClientRuntimeEvent::ResyncRequested {
                                     player_id: player_id.clone(),
                                     last_seen_server_sequence: last_seen_server_sequence
                                         .unwrap_or(0),
@@ -512,7 +512,7 @@ impl ClientRuntime {
                                                 snapshot_envelope.server_sequence,
                                             )
                                         else {
-                                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                                 player_id: player_id.clone(),
                                                 message:
                                                     "resync snapshot missing server sequence; cannot continue"
@@ -532,12 +532,12 @@ impl ClientRuntime {
                                             host_encryption_public_key =
                                                 next_host_encryption_public_key;
                                         }
-                                        let _ = sender.send(ClientRuntimeEvent::Snapshot(
+                                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Snapshot(
                                             Box::new(snapshot_envelope.payload),
                                         ));
                                     }
                                     Err(error) => {
-                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                             player_id: player_id.clone(),
                                             message: error.to_string(),
                                         });
@@ -548,7 +548,7 @@ impl ClientRuntime {
                             }
 
                             last_seen_server_sequence = Some(server_sequence);
-                            let _ = sender.send(ClientRuntimeEvent::PublicEvent {
+                            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::PublicEvent {
                                 message_type: envelope.message_type,
                                 server_sequence,
                                 payload: envelope.payload,
@@ -558,7 +558,7 @@ impl ClientRuntime {
                 }
             }
 
-            let _ = sender.send(ClientRuntimeEvent::Disconnected { player_id });
+            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Disconnected { player_id });
         })
         .map_err(|error| {
             NetworkingError::new(format!(
@@ -694,6 +694,16 @@ impl ClientRuntime {
     }
 }
 
+fn send_runtime_event_best_effort(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    event: ClientRuntimeEvent,
+) {
+    // Best-effort event delivery: the receiver may be gone during shutdown,
+    // fatal error handling, disconnect, or test teardown. There is no reliable
+    // secondary channel to report failure to deliver this event.
+    let _ = sender.send(event);
+}
+
 fn emit_protocol_warning(
     sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
     counts: &mut std::collections::BTreeMap<String, u64>,
@@ -704,11 +714,14 @@ fn emit_protocol_warning(
     let count = counts.entry(reason.clone()).or_insert(0);
     *count += 1;
     if *count == 1 || count.is_power_of_two() {
-        let _ = sender.send(ClientRuntimeEvent::ProtocolWarning {
-            player_id: player_id.to_string(),
-            reason,
-            count: *count,
-        });
+        send_runtime_event_best_effort(
+            sender,
+            ClientRuntimeEvent::ProtocolWarning {
+                player_id: player_id.to_string(),
+                reason,
+                count: *count,
+            },
+        );
     }
 }
 
