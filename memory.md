@@ -1086,6 +1086,22 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **Architecture unchanged:** No Android app, Tauri Mobile, Android FFI crate, or networking-in-core was added.
 - **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace --all-targets --all-features` ✅ (376 desktop + 67 poker-core = 443 tests), `cargo test -p poker-core` ✅ (67 tests), `cargo tree -p poker-core` ✅ (platform-neutral), `npm run format:check` ✅, `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (254 tests).
 
+## 2026-07-01T09:18:10Z - Claude Sonnet 4.6 - Fix 11: finish snapshot/public sequence validation
+
+- **Scope:** Four sites in `src-tauri/src/networking/runtime/client.rs` had direct `last_seen_server_sequence = snapshot_envelope.server_sequence` (or `envelope.server_sequence`) assignments from `Option<u64>` fields. A malformed snapshot with `server_sequence: None` could silently clear `last_seen_server_sequence`.
+- **Added `required_server_sequence_or_warn`** — generic helper that takes a `reason: &'static str` param. Emits `ProtocolWarning` and returns `None` when sequence is absent.
+- **Refactored `public_event_server_sequence_or_warn`** to be a thin wrapper around the generic helper (no behavioral change).
+- **Added `snapshot_server_sequence_or_warn`** — thin wrapper for snapshot paths with fixed reason string `"snapshot envelope missing server sequence"`.
+- **Fixed line 116** (reconnect-after-disconnect path): validate snapshot sequence before mutating `last_seen_server_sequence`; emit `SafeError` + `break` if missing.
+- **Fixed line 204** (PRIVATE_HOLE_CARDS stale-check resync path): same — `SafeError` + `break` on missing snapshot sequence.
+- **Fixed lines 421-422** (`_` arm public-event stale-check resync path — multi-line assignment, escaped single-line grep): same — `SafeError` + `break`.
+- **Fixed line 316** (`SNAPSHOT_EVENT` read-loop branch): validate before mutating state; emit `ProtocolWarning` (via helper) + `continue` on missing sequence; reconnect token and host key not updated from malformed snapshot.
+- **All four sites now assign `last_seen_server_sequence = Some(snapshot_sequence)` where `snapshot_sequence: u64` is a validated value.**
+- **Added two tests:** `missing_snapshot_sequence_warns_and_preserves_last_seen_sequence` and `present_snapshot_sequence_updates_last_seen_sequence_after_validation`, both exercising `snapshot_server_sequence_or_warn` directly (production-used helper).
+- **Audit:** `rg -n "last_seen_server_sequence = .*server_sequence"` → 0 hits for direct Option assignments; `rg -n "server_sequence.*unwrap_or_default|unwrap_or_default\(\).*server_sequence"` → 0 hits; `rg -n "thread::spawn"` in client.rs → 0 hits.
+- **Architecture unchanged:** No Android app, Tauri Mobile, Android FFI crate, or networking-in-core was added.
+- **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace --all-targets --all-features` ✅ (380 desktop + 67 poker-core = 447 tests), `cargo tree -p poker-core` ✅ (platform-neutral), `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (254 tests).
+
 ## 2026-07-01T08:00:25Z - Claude Sonnet 4.6 - Fix 10: harden public-event sequence ordering
 
 - **P0.1 (ordering fix):** Restructured the `_` catch-all arm in `src-tauri/src/networking/runtime/client.rs`. Removed the outer stale-check block and unconditional `last_seen_server_sequence = envelope.server_sequence` assignment (line 395 in Fix 9 code). ProtocolError handling moved to just after signature verification — it is intentionally unsequenced and must not update `last_seen_server_sequence` or trigger resync. The `if matches!(envelope.message_type, ...)` block for live public events now: (1) validates sequence first via `public_event_server_sequence_or_warn`, (2) stale-checks the validated sequence, (3) updates `last_seen_server_sequence = Some(server_sequence)` only after validation and stale check pass, (4) emits `PublicEvent`. A missing `server_sequence` now `continue`s before touching `last_seen_server_sequence`.

@@ -112,8 +112,21 @@ impl ClientRuntime {
                                     }
                                 }
                                 stream = reconnected_stream;
+                                let Some(snapshot_sequence) = snapshot_server_sequence_or_warn(
+                                    &sender,
+                                    &mut protocol_warning_counts,
+                                    &player_id,
+                                    snapshot_envelope.server_sequence,
+                                ) else {
+                                    let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                        player_id: player_id.clone(),
+                                        message: "reconnect snapshot missing server sequence"
+                                            .to_string(),
+                                    });
+                                    break;
+                                };
                                 reconnect_token = snapshot_envelope.payload.reconnect_token.clone();
-                                last_seen_server_sequence = snapshot_envelope.server_sequence;
+                                last_seen_server_sequence = Some(snapshot_sequence);
 
                                 let Some(next_host_encryption_public_key) =
                                     snapshot_envelope.payload.host_encryption_public_key.clone()
@@ -199,9 +212,25 @@ impl ClientRuntime {
                                 &mut next_counter,
                             ) {
                                 Ok(snapshot_envelope) => {
+                                    let Some(snapshot_sequence) =
+                                        snapshot_server_sequence_or_warn(
+                                            &sender,
+                                            &mut protocol_warning_counts,
+                                            &player_id,
+                                            snapshot_envelope.server_sequence,
+                                        )
+                                    else {
+                                        let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                            player_id: player_id.clone(),
+                                            message:
+                                                "resync snapshot missing server sequence; cannot continue"
+                                                    .to_string(),
+                                        });
+                                        break;
+                                    };
                                     reconnect_token =
                                         snapshot_envelope.payload.reconnect_token.clone();
-                                    last_seen_server_sequence = snapshot_envelope.server_sequence;
+                                    last_seen_server_sequence = Some(snapshot_sequence);
                                     if let Some(next_host_encryption_public_key) =
                                         snapshot_envelope.payload.host_encryption_public_key.clone()
                                     {
@@ -313,8 +342,16 @@ impl ClientRuntime {
                             continue;
                         }
 
-                        last_seen_server_sequence = envelope.server_sequence;
+                        let Some(snapshot_sequence) = snapshot_server_sequence_or_warn(
+                            &sender,
+                            &mut protocol_warning_counts,
+                            &player_id,
+                            envelope.server_sequence,
+                        ) else {
+                            continue;
+                        };
                         reconnect_token = envelope.payload.reconnect_token.clone();
+                        last_seen_server_sequence = Some(snapshot_sequence);
                         if let Some(next_host_encryption_public_key) =
                             envelope.payload.host_encryption_public_key.clone()
                         {
@@ -416,10 +453,25 @@ impl ClientRuntime {
                                     &mut next_counter,
                                 ) {
                                     Ok(snapshot_envelope) => {
+                                        let Some(snapshot_sequence) =
+                                            snapshot_server_sequence_or_warn(
+                                                &sender,
+                                                &mut protocol_warning_counts,
+                                                &player_id,
+                                                snapshot_envelope.server_sequence,
+                                            )
+                                        else {
+                                            let _ = sender.send(ClientRuntimeEvent::SafeError {
+                                                player_id: player_id.clone(),
+                                                message:
+                                                    "resync snapshot missing server sequence; cannot continue"
+                                                        .to_string(),
+                                            });
+                                            break;
+                                        };
                                         reconnect_token =
                                             snapshot_envelope.payload.reconnect_token.clone();
-                                        last_seen_server_sequence =
-                                            snapshot_envelope.server_sequence;
+                                        last_seen_server_sequence = Some(snapshot_sequence);
                                         if let Some(next_host_encryption_public_key) =
                                             snapshot_envelope
                                                 .payload
@@ -609,24 +661,50 @@ fn emit_protocol_warning(
     }
 }
 
+fn required_server_sequence_or_warn(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    counts: &mut std::collections::BTreeMap<String, u64>,
+    player_id: &str,
+    server_sequence: Option<u64>,
+    reason: &'static str,
+) -> Option<u64> {
+    match server_sequence {
+        Some(sequence) => Some(sequence),
+        None => {
+            emit_protocol_warning(sender, counts, player_id, reason);
+            None
+        }
+    }
+}
+
 fn public_event_server_sequence_or_warn(
     sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
     counts: &mut std::collections::BTreeMap<String, u64>,
     player_id: &str,
     server_sequence: Option<u64>,
 ) -> Option<u64> {
-    match server_sequence {
-        Some(sequence) => Some(sequence),
-        None => {
-            emit_protocol_warning(
-                sender,
-                counts,
-                player_id,
-                "public event envelope missing server sequence",
-            );
-            None
-        }
-    }
+    required_server_sequence_or_warn(
+        sender,
+        counts,
+        player_id,
+        server_sequence,
+        "public event envelope missing server sequence",
+    )
+}
+
+fn snapshot_server_sequence_or_warn(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    counts: &mut std::collections::BTreeMap<String, u64>,
+    player_id: &str,
+    server_sequence: Option<u64>,
+) -> Option<u64> {
+    required_server_sequence_or_warn(
+        sender,
+        counts,
+        player_id,
+        server_sequence,
+        "snapshot envelope missing server sequence",
+    )
 }
 
 // Test-only helper that mirrors the production sequencing order without the
@@ -746,6 +824,63 @@ mod tests {
 
         assert_eq!(result, Some(11));
         assert_eq!(last_seen_server_sequence, Some(11));
+        assert!(
+            receiver.try_recv().is_err(),
+            "valid sequence should not warn"
+        );
+    }
+
+    #[test]
+    fn missing_snapshot_sequence_warns_and_preserves_last_seen_sequence() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+        let mut last_seen_server_sequence = Some(42u64);
+
+        let sequence =
+            snapshot_server_sequence_or_warn(&sender, &mut warning_counts, "player-1", None);
+
+        // Guard mirrors production: only update last_seen if Some.
+        if let Some(s) = sequence {
+            last_seen_server_sequence = Some(s);
+        }
+
+        assert_eq!(sequence, None);
+        assert_eq!(
+            last_seen_server_sequence,
+            Some(42),
+            "last_seen_server_sequence must not be cleared by a malformed snapshot"
+        );
+
+        let warning = receiver.try_recv().expect("expected protocol warning");
+        assert!(
+            matches!(
+                warning,
+                ClientRuntimeEvent::ProtocolWarning { ref reason, .. }
+                    if reason.contains("snapshot envelope missing server sequence")
+            ),
+            "unexpected event: {warning:?}"
+        );
+        assert!(
+            receiver.try_recv().is_err(),
+            "malformed snapshot should not emit additional events"
+        );
+    }
+
+    #[test]
+    fn present_snapshot_sequence_updates_last_seen_sequence_after_validation() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+        let mut last_seen_server_sequence = Some(42u64);
+
+        let sequence =
+            snapshot_server_sequence_or_warn(&sender, &mut warning_counts, "player-1", Some(43));
+
+        if let Some(s) = sequence {
+            last_seen_server_sequence = Some(s);
+        }
+
+        assert_eq!(sequence, Some(43));
+        assert_eq!(last_seen_server_sequence, Some(43));
         assert!(
             receiver.try_recv().is_err(),
             "valid sequence should not warn"
