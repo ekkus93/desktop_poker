@@ -646,9 +646,7 @@ describe("AppShell integration (table and debug)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fold" }));
 
     // Timeout error must be visible as an inline banner.
-    expect(
-      await screen.findByText(/table action timed out/i),
-    ).toBeTruthy();
+    expect(await screen.findByText(/table action timed out/i)).toBeTruthy();
 
     // Action tray must still be present so the player can retry.
     expect(screen.getByRole("button", { name: "Check" })).toBeTruthy();

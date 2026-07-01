@@ -6,12 +6,13 @@ Build a **real desktop poker client/host** with **Tauri + Rust** for **single-ta
 
 ## Build, test, and run
 
-Rust backend lives in `src-tauri/` (single crate, not a workspace) — Cargo commands need `--manifest-path src-tauri/Cargo.toml`. Frontend is React 19 + TypeScript + Vite, driven via npm.
+This repository is a Cargo workspace. `crates/poker-core` is the shared platform-neutral poker rules/state/projection crate. `src-tauri` is the Tauri desktop adapter crate. Run Rust validation from the repository root — do **not** use `--manifest-path src-tauri/Cargo.toml` for validation. Frontend is React 19 + TypeScript + Vite, driven via npm.
 
-- Rust: `cargo fmt --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings`, `cargo test --manifest-path src-tauri/Cargo.toml`.
-- Frontend: `npm run lint` (ESLint, `--max-warnings 0`), `npm run format` (Prettier), `npm run test` (Vitest), `npm run build` (`tsc && vite build`).
+- Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace --all-targets --all-features`, `cargo test -p poker-core`, `cargo tree -p poker-core`.
+- Frontend: `npm run format:check` (Prettier check), `npm run lint` (ESLint, `--max-warnings 0`), `npm run format` (Prettier fix), `npm run test` (Vitest), `npm run build` (`tsc && vite build`).
 - Run the app: `npm run tauri dev` (debug) / `npm run tauri build` (release bundle).
-- LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --manifest-path src-tauri/Cargo.toml -- --ignored`.
+- Run a second local instance: `cargo run --manifest-path src-tauri/Cargo.toml --no-default-features` (launch command only — not a validation command).
+- LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --workspace -- --ignored`.
 
 ## Core architecture rules
 
@@ -155,21 +156,6 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 ## What to avoid
 
 - Do not build a fake same-process-only happy path and present it as LAN support.
-
-## Memory file
-- You have access to a persistent memory file, memory.md, that stores context about the project, previous interactions, and user preferences.
-- Use this memory to inform your decisions, remember user preferences, and maintain continuity across sessions. 
-- Before sending back a response, update memory.md with any new relevant information learned during the interaction. Make sure to timestamp and format entries clearly.
-- Include the GitHub Copilot model used in the entry in the heading line so memory history records both time and model (for example: `## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses`).
-- **NEVER fabricate or guess timestamps.** Always obtain the current time by running `date -u +"%Y-%m-%dT%H:%M:%SZ"` in the terminal immediately before writing the entry. If the entry describes a specific commit, use `git log -1 --format="%aI" <hash>` for that commit's actual timestamp.
-- For each entry, add an ISO 8601 timestamp and a brief description of the information added. For example:
-```
-
-## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses
-- User has expressed a preference for concise, to-the-point answers without unnecessary elaboration.
-```
-
-
 - Do not default debug builds to simulator mode.
 - Do not expose unfinished room-code discovery as if it is production-ready.
 - Do not leak private hole-card data into public or observer projections.
@@ -177,15 +163,11 @@ When implementing compatibility-sensitive behavior, mirror the current Android d
 - Do not present mock-only tests as evidence that product behavior is correct.
 
 ## Memory file
-- You have access to a persistent memory file, memory.md, that stores context about the project, previous interactions, and user preferences.
-- Use this memory to inform your decisions, remember user preferences, and maintain continuity across sessions. 
-- Before sending back a response, update memory.md with any new relevant information learned during the interaction. Make sure to timestamp and format entries clearly.
-- Include the GitHub Copilot model used for the entry in the heading line so memory history records both time and model (for example: `## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses`).
-- **NEVER fabricate or guess timestamps.** Always obtain the current time by running `date -u +"%Y-%m-%dT%H:%M:%SZ"` in the terminal immediately before writing the entry. If the entry describes a specific commit, use `git log -1 --format="%aI" <hash>` for that commit's actual timestamp.
-- For each entry, add an ISO 8601 timestamp and a brief description of the information added. For example:
-```markdown
 
-## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses
-- User has expressed a preference for concise, to-the-point answers without unnecessary elaboration.
-```
+- You have access to a persistent memory file, `memory.md`, that stores context about the project, previous interactions, and user preferences.
+- Use this memory to inform your decisions, remember user preferences, and maintain continuity across sessions.
+- Before sending back a response, update `memory.md` with any new relevant information learned during the interaction. Make sure to timestamp and format entries clearly.
+- Include the model used in the heading line so memory history records both time and model (for example: `## 2024-06-01T12:00:00Z - GPT-5.4 - User prefers concise responses`).
+- **NEVER fabricate or guess timestamps.** Always obtain the current time by running `date -u +"%Y-%m-%dT%H:%M:%SZ"` in the terminal immediately before writing the entry. If the entry describes a specific commit, use `git log -1 --format="%aI" <hash>` for that commit's actual timestamp.
+- For each entry, add an ISO 8601 timestamp and a brief description of the information added.
 

@@ -1,5 +1,12 @@
 import { Link } from "react-router-dom";
-import { CircleHelp, Flag, History, LogIn, Settings, WifiOff } from "lucide-react";
+import {
+  CircleHelp,
+  Flag,
+  History,
+  LogIn,
+  Settings,
+  WifiOff,
+} from "lucide-react";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -144,7 +151,9 @@ export function HomeScreen({ bootstrap }: ScreenProps) {
                   <div className="button-row">
                     <Link
                       className="secondary-button"
-                      to={lastEndedSession.role === "client" ? "/join" : "/host"}
+                      to={
+                        lastEndedSession.role === "client" ? "/join" : "/host"
+                      }
                     >
                       <span className="button-content">
                         <WifiOff className="button-icon" strokeWidth={1.9} />

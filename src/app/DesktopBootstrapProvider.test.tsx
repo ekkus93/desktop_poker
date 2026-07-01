@@ -34,7 +34,8 @@ function BootstrapProbe() {
       <p>Instance: {bootstrap?.instanceId ?? "none"}</p>
       <p>Label: {bootstrap?.instanceLabel ?? "none"}</p>
       <p>
-        Provider: {bootstrap?.llmApiKeyConfigured ? "configured" : "not configured"}
+        Provider:{" "}
+        {bootstrap?.llmApiKeyConfigured ? "configured" : "not configured"}
       </p>
     </div>
   );
@@ -88,7 +89,10 @@ describe("DesktopBootstrapProvider", () => {
 
   it("provider save event refreshes llmApiKeyConfigured via bootstrap subscription", async () => {
     const initial = createAppBootstrap({ llmApiKeyConfigured: false });
-    const afterSave = createAppBootstrap({ llmApiKeyConfigured: true, llmProviderType: "anthropic" });
+    const afterSave = createAppBootstrap({
+      llmApiKeyConfigured: true,
+      llmProviderType: "anthropic",
+    });
     const unsubscribe = vi.fn();
     let subscriptionHandler:
       | ((bootstrap: ReturnType<typeof createAppBootstrap>) => void)

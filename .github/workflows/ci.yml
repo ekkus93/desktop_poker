@@ -63,16 +63,16 @@ jobs:
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: . -> target
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Check formatting
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - name: Check Rust formatting
+        run: cargo fmt --check
 
       - name: Lint Rust
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test Rust
         # The real-TCP integration tests each spawn several background threads
@@ -82,7 +82,13 @@ jobs:
         # flaky (a client snapshot can miss its wait window). Bound the test
         # threads so the networking/tick threads get scheduled promptly. This
         # matches runner capacity; it does not change product behaviour.
-        run: cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=2
+        run: cargo test --workspace --all-targets --all-features -- --test-threads=2
+
+      - name: Audit poker-core dependency tree
+        run: cargo tree -p poker-core
+
+      - name: Check frontend formatting
+        run: npm run format:check
 
       - name: Lint frontend
         run: npm run lint
@@ -161,7 +167,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: . -> target
 
       - name: Install npm dependencies
         run: npm ci

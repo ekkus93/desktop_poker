@@ -595,9 +595,13 @@ describe("HostTournamentSetupScreen", () => {
 
     expect(await screen.findByTestId("npc-error-with-session")).toBeTruthy();
     expect(screen.getByText(/bots could not be added/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /retry adding bots/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /retry adding bots/i }),
+    ).toBeTruthy();
     // Lobby is still accessible (session is live)
-    expect(await screen.findByRole("link", { name: /continue to lobby/i })).toBeTruthy();
+    expect(
+      await screen.findByRole("link", { name: /continue to lobby/i }),
+    ).toBeTruthy();
   });
 
   it("retry adding bots succeeds and clears the error banner (P0.2)", async () => {
@@ -643,12 +647,16 @@ describe("HostTournamentSetupScreen", () => {
     );
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /copy invite/i }).hasAttribute("disabled"),
+        screen
+          .getByRole("button", { name: /copy invite/i })
+          .hasAttribute("disabled"),
       ).toBe(false);
     });
     fireEvent.click(screen.getByRole("button", { name: /copy invite/i }));
 
-    expect(await screen.findByDisplayValue("pkr1_generated_invite")).toBeTruthy();
+    expect(
+      await screen.findByDisplayValue("pkr1_generated_invite"),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: /done/i })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /done/i }));

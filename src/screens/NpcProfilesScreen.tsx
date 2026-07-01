@@ -157,7 +157,10 @@ export function NpcProfilesScreen() {
               className="inline-banner error"
               data-testid="profile-list-errors"
             >
-              <strong>Warning: {profileErrors.length} profile file(s) could not be loaded:</strong>
+              <strong>
+                Warning: {profileErrors.length} profile file(s) could not be
+                loaded:
+              </strong>
               <ul style={{ margin: "0.25rem 0 0", padding: "0 0 0 1rem" }}>
                 {profileErrors.map((e) => (
                   <li key={e.filename}>

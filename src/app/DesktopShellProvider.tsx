@@ -154,9 +154,8 @@ export function DesktopShellProvider({
   ]);
 
   const [displayName, setDisplayName] = useState(() => storedDisplayName.value);
-  const [lastEndedSession, setLastEndedSessionState] = useState<LastEndedSession | null>(
-    () => storedLastEndedSession.value,
-  );
+  const [lastEndedSession, setLastEndedSessionState] =
+    useState<LastEndedSession | null>(() => storedLastEndedSession.value);
   const [wasHost, setWasHost] = useState(false);
   const [tableSidePanelOpen, setTableSidePanelOpen] = useState(false);
   const [hostDraft, setHostDraft] = useState(() =>
@@ -204,7 +203,6 @@ export function DesktopShellProvider({
       JSON.stringify(recentJoinPayloads),
     );
   }, [bootstrap.storageNamespace, recentJoinPayloads]);
-
 
   const value = useMemo<DesktopShellContextValue>(
     () => ({

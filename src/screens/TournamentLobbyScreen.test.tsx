@@ -466,7 +466,10 @@ describe("TournamentLobbyScreen", () => {
     vi.useFakeTimers();
     mockedGetHostSessionStatus.mockResolvedValue(null);
     mockedGetClientSessionStatus.mockResolvedValue(
-      createClientSession({ terminated: true, lastError: "Disconnected from host" }),
+      createClientSession({
+        terminated: true,
+        lastError: "Disconnected from host",
+      }),
     );
 
     const bootstrap = createBootstrap({ debugToolsEnabled: false });
@@ -481,7 +484,8 @@ describe("TournamentLobbyScreen", () => {
     expect(screen.queryByText(/reconnecting/i)).toBeNull();
 
     // Polling stops — no additional calls after the terminal state is detected.
-    const callCountAfterTerminal = mockedGetClientSessionStatus.mock.calls.length;
+    const callCountAfterTerminal =
+      mockedGetClientSessionStatus.mock.calls.length;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15000);
     });
@@ -495,7 +499,10 @@ describe("TournamentLobbyScreen", () => {
   it("leaves a terminated client session and navigates home when the leave button is clicked", async () => {
     mockedGetHostSessionStatus.mockResolvedValue(null);
     mockedGetClientSessionStatus.mockResolvedValue(
-      createClientSession({ terminated: true, lastError: "Disconnected from host" }),
+      createClientSession({
+        terminated: true,
+        lastError: "Disconnected from host",
+      }),
     );
     mockedLeaveClientSession.mockResolvedValue(undefined);
 

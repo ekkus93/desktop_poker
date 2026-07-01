@@ -5,9 +5,11 @@ import workflow from "../../.github/workflows/ci.yml?raw";
 describe("CI workflow smoke coverage", () => {
   it("keeps the GitHub Actions workflow file and the required verify steps", () => {
     expect(workflow).toContain("name: CI");
-    expect(workflow).toContain("- name: Check formatting");
+    expect(workflow).toContain("- name: Check Rust formatting");
     expect(workflow).toContain("- name: Lint Rust");
     expect(workflow).toContain("- name: Test Rust");
+    expect(workflow).toContain("- name: Audit poker-core dependency tree");
+    expect(workflow).toContain("- name: Check frontend formatting");
     expect(workflow).toContain("- name: Lint frontend");
     expect(workflow).toContain("- name: Test frontend");
     expect(workflow).toContain("- name: Test browser geometry");

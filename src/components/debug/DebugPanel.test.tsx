@@ -250,14 +250,19 @@ describe("DebugPanel", () => {
     expect(screen.queryByTestId("npc-action-error-section")).toBeNull();
   });
 
-  it("renders new host runtime health counters when non-zero", async () => {
+  it("renders all non-zero host runtime health counters", async () => {
     mockedGetDebugState.mockResolvedValue(
       baseDebugState({
         hostRuntimeHealth: baseHostHealth({
-          streamCloneErrorCount: 2,
-          clientRegistryErrorCount: 1,
-          reconnectMarkErrorCount: 3,
-          snapshotSyncErrorCount: 4,
+          acceptErrorCount: 1,
+          tickAdvanceErrorCount: 2,
+          publishErrorCount: 3,
+          stateLockErrorCount: 4,
+          streamTimeoutErrorCount: 5,
+          streamCloneErrorCount: 6,
+          clientRegistryErrorCount: 7,
+          reconnectMarkErrorCount: 8,
+          snapshotSyncErrorCount: 9,
         }),
       }),
     );
@@ -267,6 +272,11 @@ describe("DebugPanel", () => {
     });
 
     await screen.findByTestId("host-runtime-health-section");
+    expect(screen.getByText(/Accept errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Tick errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Publish errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Lock errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Stream timeout errors:/i)).toBeTruthy();
     expect(screen.getByText(/Stream clone errors:/i)).toBeTruthy();
     expect(screen.getByText(/Client registry errors:/i)).toBeTruthy();
     expect(screen.getByText(/Reconnect mark errors:/i)).toBeTruthy();
@@ -283,9 +293,7 @@ describe("DebugPanel", () => {
     });
 
     await screen.findByText("Rust backend module map");
-    expect(
-      screen.queryByTestId("host-runtime-health-section"),
-    ).toBeNull();
+    expect(screen.queryByTestId("host-runtime-health-section")).toBeNull();
   });
 
   it("shows submitted=yes for rejected NPC action error", async () => {
@@ -312,8 +320,8 @@ describe("DebugPanel", () => {
     expect(screen.getByTestId("npc-action-error-reason").textContent).toBe(
       "rejected",
     );
-    expect(
-      screen.getByTestId("npc-action-error-submitted").textContent,
-    ).toBe("yes");
+    expect(screen.getByTestId("npc-action-error-submitted").textContent).toBe(
+      "yes",
+    );
   });
 });

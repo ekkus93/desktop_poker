@@ -148,8 +148,13 @@ describe("AppShell integration (host and lobby)", () => {
     );
 
     h.renderAppShell("/");
-    fireEvent.click(await screen.findByRole("link", { name: "Host Tournament" }));
-    await screen.findByRole("heading", { level: 2, name: "Host Tournament Setup" });
+    fireEvent.click(
+      await screen.findByRole("link", { name: "Host Tournament" }),
+    );
+    await screen.findByRole("heading", {
+      level: 2,
+      name: "Host Tournament Setup",
+    });
 
     // Request 1 NPC so addNpcPlayers is called.
     fireEvent.change(await screen.findByLabelText(/npc players/i), {
@@ -158,9 +163,7 @@ describe("AppShell integration (host and lobby)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
 
     // Error message must be visible.
-    expect(
-      await screen.findByText(/could not load NPC profile/i),
-    ).toBeTruthy();
+    expect(await screen.findByText(/could not load NPC profile/i)).toBeTruthy();
 
     // The host setup heading must still be present — we must NOT have navigated
     // to the lobby or any other route.

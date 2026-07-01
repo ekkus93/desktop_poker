@@ -147,7 +147,9 @@ describe("DeviceSettingsScreen", () => {
       target: { value: "ollama" },
     });
 
-    expect(screen.queryByText(/release builds store api keys in the os keychain/i)).toBeNull();
+    expect(
+      screen.queryByText(/release builds store api keys in the os keychain/i),
+    ).toBeNull();
   });
 
   it("preserves existing key when editing same-provider non-secret fields", async () => {
@@ -245,7 +247,10 @@ describe("DeviceSettingsScreen", () => {
 
     await waitFor(() => {
       expect(mockedSetLlmProviderConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: "openAi", apiKey: "sk-openai-new" }),
+        expect.objectContaining({
+          provider: "openAi",
+          apiKey: "sk-openai-new",
+        }),
       );
       expect(mockedSaveNonSecretProviderSettings).not.toHaveBeenCalled();
     });

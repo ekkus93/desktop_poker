@@ -66,9 +66,15 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const [hostError, setHostError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [availableProfiles, setAvailableProfiles] = useState<NpcProfile[]>([]);
-  const [profileListErrors, setProfileListErrors] = useState<NpcProfileError[]>([]);
-  const [profileListLoadError, setProfileListLoadError] = useState<string | null>(null);
-  const [sessionStatusError, setSessionStatusError] = useState<string | null>(null);
+  const [profileListErrors, setProfileListErrors] = useState<NpcProfileError[]>(
+    [],
+  );
+  const [profileListLoadError, setProfileListLoadError] = useState<
+    string | null
+  >(null);
+  const [sessionStatusError, setSessionStatusError] = useState<string | null>(
+    null,
+  );
   const [copyState, setCopyState] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [fallbackInvite, setFallbackInvite] = useState<string | null>(null);

@@ -112,7 +112,11 @@ export function DeviceSettingsScreen() {
     setProviderStatus(null);
     const trimmedKey = apiKey.trim();
     // Require a key if the provider needs one and there is no key for this provider.
-    if (requiresApiKey(selectedProvider) && !trimmedKey && !hasExistingKeyForProvider) {
+    if (
+      requiresApiKey(selectedProvider) &&
+      !trimmedKey &&
+      !hasExistingKeyForProvider
+    ) {
       setProviderError("An API key is required for this provider.");
       return;
     }

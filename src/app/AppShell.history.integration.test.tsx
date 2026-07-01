@@ -106,9 +106,7 @@ describe("AppShell integration (hand history screen)", () => {
     expect(
       await screen.findByText(/cached winner won 150 chip\(s\)\./i),
     ).toBeTruthy();
-    expect(
-      screen.getByText(/saved on this device/i),
-    ).toBeTruthy();
+    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
   });
 
   it("hand history shows no-hands placeholder when session is gone and cache is empty", async () => {
@@ -127,8 +125,6 @@ describe("AppShell integration (hand history screen)", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Hand History" }),
     ).toBeTruthy();
-    expect(
-      await screen.findByText(/no settled hands yet/i),
-    ).toBeTruthy();
+    expect(await screen.findByText(/no settled hands yet/i)).toBeTruthy();
   });
 });

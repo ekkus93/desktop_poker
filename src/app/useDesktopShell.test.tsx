@@ -302,9 +302,7 @@ describe("useDesktopShell", () => {
     expect(screen.getByText("Last session: none")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Set last ended" }));
-    expect(
-      screen.getByText("Last session: client:Night Turbo"),
-    ).toBeTruthy();
+    expect(screen.getByText("Last session: client:Night Turbo")).toBeTruthy();
     expect(
       localStorage.getItem("desktop-poker:persist-les:last-ended-session"),
     ).toContain("Night Turbo");
@@ -312,9 +310,7 @@ describe("useDesktopShell", () => {
     unmount();
 
     renderShellHook(bootstrap);
-    expect(
-      screen.getByText("Last session: client:Night Turbo"),
-    ).toBeTruthy();
+    expect(screen.getByText("Last session: client:Night Turbo")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Clear last ended" }));
     expect(screen.getByText("Last session: none")).toBeTruthy();

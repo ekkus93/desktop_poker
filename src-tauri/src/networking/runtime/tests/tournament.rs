@@ -1053,6 +1053,142 @@ fn npc_action_error_set_for_no_config_outcome() {
     assert!(!err.submitted, "NoConfig error must have submitted=false");
 }
 
+// P0.5 — missing acting NPC hole cards: no action submitted, InternalError recorded.
+//
+// Uses replace_authoritative_state to inject corrupt authoritative state (NPC's
+// hole-card entry removed) after the action window opens.  try_npc_action fetches
+// fresh state from the host internally, so the corruption is visible to the
+// validated_acting_hole_cards check inside the production code path.
+#[test]
+fn acting_npc_missing_hole_cards_submits_no_action() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-npc-missing-holes", 93));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Rule NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Rule NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: None,
+        allow_rule_based_llm_fallback: false,
+    }];
+
+    // Advance until the NPC has the action window so hole cards are dealt.
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
+                .cloned();
+            if let Some(ref w) = window {
+                if w.player_id == npc_id {
+                    break state;
+                }
+                if last_human_window.as_deref() != Some(w.action_window_id.as_str()) {
+                    let action = w.legal_actions.first().copied().unwrap_or(ActionType::Call);
+                    let _ =
+                        host.submit_action(&w.player_id, w.action_window_id.clone(), action, None);
+                    last_human_window = Some(w.action_window_id.clone());
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "NPC action window never opened; cannot test missing-hole-cards path"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    };
+
+    // Confirm hole cards are present before corruption so the test is meaningful.
+    let hand_before = state.current_hand.as_ref().expect("active hand");
+    assert!(
+        hand_before.hole_cards_by_player_id.contains_key(&npc_id),
+        "NPC must have hole cards before corruption"
+    );
+
+    // Corrupt authoritative state: remove the NPC's hole-card entry.
+    // try_npc_action fetches fresh state from the host after a sleep, so the
+    // corruption must be in the host's authoritative state, not just the local clone.
+    let mut corrupt_state = state.clone();
+    corrupt_state
+        .current_hand
+        .as_mut()
+        .expect("active hand")
+        .hole_cards_by_player_id
+        .remove(&npc_id);
+    host.replace_authoritative_state(corrupt_state)
+        .expect("replace state for corruption");
+
+    let stop = Arc::new(AtomicBool::new(false));
+    let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
+        Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &npc_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+        Arc::clone(&action_error),
+    );
+
+    let outcome = try_npc_action(
+        &host,
+        &state,
+        &npc_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+
+    assert_eq!(
+        outcome,
+        crate::npc::runner::NpcActionOutcome::RuntimeUnavailable,
+        "missing hole cards must produce RuntimeUnavailable; got {outcome:?}"
+    );
+
+    let recorded = action_error.lock().expect("action_error lock").clone();
+    let err = recorded
+        .as_ref()
+        .expect("shared_action_error must be set after missing-hole-cards outcome");
+    assert_eq!(
+        err.reason,
+        crate::app_state::NpcActionErrorReason::InternalError,
+        "error reason must be InternalError; got {:?}",
+        err.reason
+    );
+    assert!(
+        !err.submitted,
+        "no action must have been submitted when hole cards are missing"
+    );
+    assert!(
+        err.message.contains("missing hole cards"),
+        "error message must mention missing hole cards; got: {}",
+        err.message
+    );
+}
+
 // P1.1 — add_npc_participants_atomic: all-or-nothing NPC registration.
 
 #[test]

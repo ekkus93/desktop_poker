@@ -289,8 +289,14 @@ export function DebugPanel({
       ) : null}
 
       {debugState?.lastLlmFallback ? (
-        <SectionCard title="Last LLM fallback" data-testid="llm-fallback-section">
-          <p data-testid="llm-fallback-reason" className="inline-banner warning">
+        <SectionCard
+          title="Last LLM fallback"
+          data-testid="llm-fallback-section"
+        >
+          <p
+            data-testid="llm-fallback-reason"
+            className="inline-banner warning"
+          >
             {debugState.lastLlmFallback}
           </p>
         </SectionCard>
@@ -301,7 +307,10 @@ export function DebugPanel({
           title="Last NPC action error"
           data-testid="npc-action-error-section"
         >
-          <p data-testid="npc-action-error-message" className="inline-banner error">
+          <p
+            data-testid="npc-action-error-message"
+            className="inline-banner error"
+          >
             {debugState.lastNpcActionError.message}
           </p>
           <ul data-testid="npc-action-error-fields">
@@ -319,7 +328,8 @@ export function DebugPanel({
             </li>
             {debugState.lastNpcActionError.playerId != null && (
               <li>
-                <strong>Player:</strong> {debugState.lastNpcActionError.playerId}
+                <strong>Player:</strong>{" "}
+                {debugState.lastNpcActionError.playerId}
               </li>
             )}
             {debugState.lastNpcActionError.action != null && (
@@ -329,7 +339,8 @@ export function DebugPanel({
             )}
             {debugState.lastNpcActionError.handNumber != null && (
               <li>
-                <strong>Hand:</strong> {debugState.lastNpcActionError.handNumber}
+                <strong>Hand:</strong>{" "}
+                {debugState.lastNpcActionError.handNumber}
               </li>
             )}
           </ul>
@@ -374,6 +385,12 @@ export function DebugPanel({
               <li>
                 <strong>Lock errors:</strong>{" "}
                 {debugState.hostRuntimeHealth.stateLockErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.streamTimeoutErrorCount > 0 && (
+              <li>
+                <strong>Stream timeout errors:</strong>{" "}
+                {debugState.hostRuntimeHealth.streamTimeoutErrorCount}
               </li>
             )}
             {debugState.hostRuntimeHealth.streamCloneErrorCount > 0 && (

@@ -170,9 +170,7 @@ describe("NpcProfilesScreen", () => {
     const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
     renderWithProviders(<NpcProfilesScreen />, { bootstrap });
 
-    expect(
-      await screen.findByTestId("profile-list-errors"),
-    ).toBeTruthy();
+    expect(await screen.findByTestId("profile-list-errors")).toBeTruthy();
     expect(screen.getByText(/bad\.md/)).toBeTruthy();
   });
 });
