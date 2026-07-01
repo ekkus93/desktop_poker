@@ -117,6 +117,10 @@ pub struct HostRuntimeHealth {
     pub client_registry_error_count: u64,
     /// Incremented when marking a disconnected participant reconnect-eligible fails.
     pub reconnect_mark_error_count: u64,
+    /// Incremented when a lobby mutation succeeded but broadcasting the updated
+    /// snapshot to connected clients failed.  The authoritative state is valid;
+    /// affected clients may need a manual resync.
+    pub snapshot_sync_error_count: u64,
     pub last_error: Option<String>,
     pub last_successful_tick_ms: Option<u64>,
     pub last_successful_publish_ms: Option<u64>,
@@ -145,6 +149,13 @@ impl HostRuntimeHealth {
         self.reconnect_mark_error_count += 1;
         self.record_error(format!(
             "failed to mark {player_id} reconnect-eligible: {error}"
+        ));
+    }
+
+    pub(super) fn record_snapshot_sync_error(&mut self, error: impl std::fmt::Display) {
+        self.snapshot_sync_error_count += 1;
+        self.record_error(format!(
+            "lobby mutation succeeded but snapshot sync to clients failed: {error}"
         ));
     }
 }

@@ -23,8 +23,12 @@ pub(crate) fn connect_to_host(join_payload: &JoinPayload) -> Result<TcpStream, N
     let stream =
         TcpStream::connect((join_payload.host_address.as_str(), join_payload.host_port))
             .map_err(|error| NetworkingError::new(format!("failed to connect to host: {error}")))?;
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-    let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .map_err(|error| NetworkingError::new(format!("failed to set read timeout: {error}")))?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(5)))
+        .map_err(|error| NetworkingError::new(format!("failed to set write timeout: {error}")))?;
     Ok(stream)
 }
 

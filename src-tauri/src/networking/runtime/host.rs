@@ -191,6 +191,7 @@ impl HostServer {
                                             host_signing_keys,
                                             host_encryption_keys,
                                             public_events,
+                                            Arc::clone(&runtime_health_conn2),
                                         );
                                     }
                                 }
@@ -272,10 +273,22 @@ impl HostServer {
                         };
 
                         if let Some(mut state) = next_state {
-                            let previous_state = authoritative_state
+                            let previous_state = match authoritative_state
                                 .lock()
                                 .map(|authoritative| authoritative.clone())
-                                .unwrap_or_else(|_| state.clone());
+                            {
+                                Ok(prev) => prev,
+                                Err(_) => {
+                                    update_health(&runtime_health, |h| {
+                                        h.state_lock_error_count += 1;
+                                        h.record_error(
+                                            "authoritative state lock poisoned reading previous \
+                                             state for tick publish",
+                                        );
+                                    });
+                                    continue;
+                                }
+                            };
                             merge_networking_state(&previous_state, &mut state);
                             let _ = authoritative_state.lock().map(|mut authoritative| {
                                 *authoritative = state.clone();
@@ -550,7 +563,7 @@ impl HostServer {
             Ok(())
         })?;
 
-        self.sync_snapshots_to_clients()?;
+        self.sync_snapshots_after_lobby_mutation();
         Ok(player_ids)
     }
 
@@ -698,6 +711,20 @@ impl HostServer {
             &self.host_encryption_keys,
             &self.public_events,
         )
+    }
+
+    /// Attempt to broadcast updated snapshots after a successful lobby mutation.
+    ///
+    /// The caller already mutated authoritative state successfully.  If the
+    /// broadcast fails here, the state is still correct — only the clients'
+    /// cached view is stale.  Record the failure as a health diagnostic instead
+    /// of propagating it as a mutation error.
+    fn sync_snapshots_after_lobby_mutation(&self) {
+        if let Err(error) = self.sync_snapshots_to_clients() {
+            update_health(&self.runtime_health, |h| {
+                h.record_snapshot_sync_error(&error);
+            });
+        }
     }
 
     pub fn sync_snapshots_to_clients(&self) -> Result<(), NetworkingError> {

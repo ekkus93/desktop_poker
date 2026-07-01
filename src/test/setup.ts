@@ -7,6 +7,10 @@ import { afterEach, beforeEach, vi } from "vitest";
 
 afterEach(() => {
   cleanup();
+  // Prevent fake Tauri runtime globals set by one test from leaking into the next.
+  delete (window as typeof window & { __TAURI_INTERNALS__?: unknown })
+    .__TAURI_INTERNALS__;
+  delete (window as typeof window & { __TAURI__?: unknown }).__TAURI__;
 });
 
 beforeEach(() => {
