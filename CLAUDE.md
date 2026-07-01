@@ -8,8 +8,8 @@ Build a **real desktop poker client/host** with **Tauri + Rust** for **single-ta
 
 Rust lives in a Cargo workspace at the repo root (`Cargo.toml`). `src-tauri/` is the Tauri crate; `crates/poker-core/` is the shared pure poker engine. Frontend is React 19 + TypeScript + Vite, driven via npm. Run all Cargo commands from the repo root.
 
-- Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace`.
-- Frontend: `npm run lint` (ESLint, `--max-warnings 0`), `npm run format` (Prettier), `npm run test` (Vitest), `npm run build` (`tsc && vite build`).
+- Rust: `cargo fmt --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace --all-targets --all-features`, `cargo test -p poker-core`, `cargo tree -p poker-core`.
+- Frontend: `npm run format:check` (Prettier check), `npm run lint` (ESLint, `--max-warnings 0`), `npm run test` (Vitest), `npm run build` (`tsc && vite build`). Use `npm run format` to apply fixes when `format:check` fails.
 - Run the app: `npm run tauri dev` (debug) / `npm run tauri build` (release bundle).
 - LLM integration tests in `src-tauri/src/npc/` are `#[ignore]`d and need a local Ollama; run with `cargo test --workspace -- --ignored`.
 

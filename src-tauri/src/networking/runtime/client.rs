@@ -427,9 +427,17 @@ impl ClientRuntime {
                                 | ProtocolMessageType::HandResultCommittedEvent
                                 | ProtocolMessageType::TournamentStartedEvent
                         ) {
+                            let Some(server_sequence) = public_event_server_sequence_or_warn(
+                                &sender,
+                                &mut protocol_warning_counts,
+                                &player_id,
+                                envelope.server_sequence,
+                            ) else {
+                                continue;
+                            };
                             let _ = sender.send(ClientRuntimeEvent::PublicEvent {
                                 message_type: envelope.message_type,
-                                server_sequence: envelope.server_sequence.unwrap_or_default(),
+                                server_sequence,
                                 payload: envelope.payload,
                             });
                         }
@@ -588,5 +596,72 @@ fn emit_protocol_warning(
             reason,
             count: *count,
         });
+    }
+}
+
+fn public_event_server_sequence_or_warn(
+    sender: &std::sync::mpsc::Sender<ClientRuntimeEvent>,
+    counts: &mut std::collections::BTreeMap<String, u64>,
+    player_id: &str,
+    server_sequence: Option<u64>,
+) -> Option<u64> {
+    match server_sequence {
+        Some(sequence) => Some(sequence),
+        None => {
+            emit_protocol_warning(
+                sender,
+                counts,
+                player_id,
+                "public event envelope missing server sequence",
+            );
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_public_event_server_sequence_emits_warning_and_returns_none() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+
+        let result =
+            public_event_server_sequence_or_warn(&sender, &mut warning_counts, "player-1", None);
+
+        assert_eq!(result, None);
+
+        let warning = receiver.try_recv().expect("expected protocol warning");
+        assert!(
+            matches!(
+                warning,
+                ClientRuntimeEvent::ProtocolWarning {
+                    ref player_id,
+                    ref reason,
+                    count
+                } if player_id == "player-1"
+                    && reason.contains("missing server sequence")
+                    && count == 1
+            ),
+            "unexpected warning event: {warning:?}"
+        );
+    }
+
+    #[test]
+    fn present_public_event_server_sequence_returns_sequence_without_warning() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut warning_counts = std::collections::BTreeMap::new();
+
+        let result = public_event_server_sequence_or_warn(
+            &sender,
+            &mut warning_counts,
+            "player-1",
+            Some(42),
+        );
+
+        assert_eq!(result, Some(42));
+        assert!(receiver.try_recv().is_err(), "no warning should be emitted");
     }
 }

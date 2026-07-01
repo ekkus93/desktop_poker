@@ -180,14 +180,25 @@ If your distro uses different package names, install the WebKitGTK 4.1 and GTK 3
 
 ## Getting started
 
+### Start the app
+
 ```bash
-npm install
+npm ci
+npm run tauri dev
+```
+
+### Validate before committing
+
+```bash
+npm run format:check
+npm run lint
+npm run test
+npm run build
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
-npm run lint
-npm run test
-npm run tauri dev
+cargo test -p poker-core
+cargo tree -p poker-core
 ```
 
 ## Build the app
@@ -333,17 +344,22 @@ cargo tree -p poker-core
 Frontend validation:
 
 ```bash
+npm ci
+npm run format:check
 npm run lint
-npm run format
 npm run test
 npm run build
 ```
+
+Use `npm run format` to apply Prettier fixes when `npm run format:check` fails.
 
 LLM integration tests are `#[ignore]`d by default (they require a local Ollama server). Run them explicitly with:
 
 ```bash
 cargo test --workspace -- --ignored
 ```
+
+> Note: older archived review/spec/TODO files may contain pre-workspace Cargo commands such as `--manifest-path src-tauri/Cargo.toml`. Those files are historical. Current validation should use the root workspace commands above.
 
 ## Architecture notes
 

@@ -13,12 +13,15 @@ Run the full lint and test suite for this project. Execute all steps from the re
 ```bash
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace
+cargo test --workspace --all-targets --all-features
+cargo test -p poker-core
+cargo tree -p poker-core
 ```
 
 ### 2. Frontend
 
 ```bash
+npm run format:check
 npm run lint
 npm run build
 npm test
