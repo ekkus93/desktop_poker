@@ -20,8 +20,8 @@ env:
   NEEDRESTART_MODE: a
 
 jobs:
-  dependency-cleanup:
-    name: Complete secure dependency cleanup
+  react-lint-fix:
+    name: Apply React lint correctness fixes
     if: >-
       github.event_name == 'pull_request' &&
       github.head_ref == 'agent/release-readiness-baseline'
@@ -42,100 +42,308 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Repair manifest, lockfile, and formatting
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply focused React fixes
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE'
-          import { readFileSync, writeFileSync } from "node:fs";
+          python3 <<'PY'
+          from pathlib import Path
+          import re
 
-          const manifest = JSON.parse(readFileSync("package.json", "utf8"));
-          manifest.devDependencies["@eslint/js"] = "10.0.1";
-          manifest.overrides = {
-            ...manifest.overrides,
-            postcss: "8.5.23",
-          };
-          writeFileSync("package.json", `${JSON.stringify(manifest, null, 2)}\n`);
-          NODE
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              if old not in text:
+                  raise SystemExit(f"expected source block not found in {path}")
+              target.write_text(text.replace(old, new, 1))
 
-          rm -rf node_modules
-          npm install
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '''  // When the user explicitly changes the provider dropdown, reset endpoint/model
+            // placeholders only if it differs from the loaded settings' provider.
+            useEffect(() => {
+              if (loadedSettings && selectedProvider === loadedSettings.provider) {
+                return;
+              }
+              setEndpointUrl("");
+              setModel("");
+            }, [selectedProvider, loadedSettings]);
+          ''',
+              '''  function handleProviderChange(nextProvider: LlmProviderType) {
+              setSelectedProvider(nextProvider);
+              setProviderError(null);
+              setProviderStatus(null);
+
+              if (loadedSettings?.provider === nextProvider) {
+                setEndpointUrl(loadedSettings.endpointUrl ?? "");
+                setModel(loadedSettings.model ?? "");
+                return;
+              }
+
+              setEndpointUrl("");
+              setModel("");
+            }
+          ''',
+          )
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '''                onChange={(e) =>
+                              setSelectedProvider(e.target.value as LlmProviderType)
+                            }
+          ''',
+              '''                onChange={(e) =>
+                              handleProviderChange(e.target.value as LlmProviderType)
+                            }
+          ''',
+          )
+
+          replace_once(
+              "src/screens/NpcProfilesScreen.tsx",
+              '''  useEffect(() => {
+              void reload();
+            }, []);
+          ''',
+              '''  useEffect(() => {
+              let cancelled = false;
+
+              void listNpcProfiles()
+                .then((result) => {
+                  if (cancelled) {
+                    return;
+                  }
+                  setProfiles(result.profiles);
+                  setProfileErrors(result.errors);
+                  setListError(null);
+                })
+                .catch((error: unknown) => {
+                  if (cancelled) {
+                    return;
+                  }
+                  setListError(
+                    error instanceof Error
+                      ? error.message
+                      : "Failed to load profiles.",
+                  );
+                })
+                .finally(() => {
+                  if (!cancelled) {
+                    setLoading(false);
+                  }
+                });
+
+              return () => {
+                cancelled = true;
+              };
+            }, []);
+          ''',
+          )
+
+          replace_once(
+              "src/screens/JoinTournamentScreen.tsx",
+              '''  const [validationState, setValidationState] = useState<ValidationState>({
+              status: "idle",
+            });
+            const [inviteBanner, setInviteBanner] = useState<string | null>(null);
+            const [joinError, setJoinError] = useState<string | null>(null);
+            const [joining, setJoining] = useState(false);
+            const [pillMeta, setPillMeta] = useState<
+              Map<string, { label: string; invalid?: boolean }>
+            >(new Map());
+            const launchJoinAttemptedForPayload = useRef<string | null>(null);
+            const deepLinkImportedRef = useRef<string | null>(null);
+          ''',
+              '''  const [validationState, setValidationState] = useState<ValidationState>(() => {
+              if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
+                return { status: "idle" };
+              }
+              if (bootstrap.parsedLaunchJoinPayload) {
+                return {
+                  status: "valid",
+                  payload: bootstrap.parsedLaunchJoinPayload,
+                };
+              }
+              if (bootstrap.launchJoinPayloadError) {
+                return {
+                  status: "invalid",
+                  message: bootstrap.launchJoinPayloadError,
+                };
+              }
+              return { status: "idle" };
+            });
+            const [inviteBanner, setInviteBanner] = useState<string | null>(() =>
+              joinPayloadDraft === bootstrap.launchJoinPayload &&
+              bootstrap.parsedLaunchJoinPayload
+                ? "Invite already attached to this launch."
+                : null,
+            );
+            const [joinError, setJoinError] = useState<string | null>(null);
+            const [joining, setJoining] = useState(false);
+            const [pillMeta, setPillMeta] = useState<
+              Map<string, { label: string; invalid?: boolean }>
+            >(new Map());
+            const [launchJoinAttemptedForPayload, setLaunchJoinAttemptedForPayload] =
+              useState<string | null>(null);
+            const deepLinkImportedRef = useRef<string | null>(null);
+          ''',
+          )
+          replace_once(
+              "src/screens/JoinTournamentScreen.tsx",
+              '''  useEffect(() => {
+              if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
+                return;
+              }
+
+              if (bootstrap.parsedLaunchJoinPayload) {
+                setValidationState({
+                  status: "valid",
+                  payload: bootstrap.parsedLaunchJoinPayload,
+                });
+                setInviteBanner("Invite already attached to this launch.");
+                return;
+              }
+
+              if (bootstrap.launchJoinPayloadError) {
+                setValidationState({
+                  status: "invalid",
+                  message: bootstrap.launchJoinPayloadError,
+                });
+                setInviteBanner(null);
+              }
+            }, [
+              bootstrap.launchJoinPayload,
+              bootstrap.launchJoinPayloadError,
+              bootstrap.parsedLaunchJoinPayload,
+              joinPayloadDraft,
+            ]);
+
+          ''',
+              "",
+          )
+          join_path = Path("src/screens/JoinTournamentScreen.tsx")
+          join_text = join_path.read_text()
+          join_text = join_text.replace(
+              "launchJoinAttemptedForPayload.current === launchJoinPayload",
+              "launchJoinAttemptedForPayload === launchJoinPayload",
+          )
+          join_text = join_text.replace(
+              "launchJoinAttemptedForPayload.current = launchJoinPayload;",
+              "setLaunchJoinAttemptedForPayload(launchJoinPayload);",
+          )
+          join_text = join_text.replace(
+              "    joinPayloadDraft,\n    navigate,",
+              "    joinPayloadDraft,\n    launchJoinAttemptedForPayload,\n    navigate,",
+              1,
+          )
+          join_text = join_text.replace(
+              "{launchJoinAttemptedForPayload.current ? (",
+              "{launchJoinAttemptedForPayload ? (",
+          )
+          join_text = join_text.replace(
+              '''                          setInviteBanner(null);
+                                      navigate(location.pathname, { replace: true });
+          ''',
+              '''                          setInviteBanner(null);
+                                      setLaunchJoinAttemptedForPayload(null);
+                                      navigate(location.pathname, { replace: true });
+          ''',
+              1,
+          )
+          if ".current" in "\n".join(
+              line
+              for line in join_text.splitlines()
+              if "launchJoinAttemptedForPayload" in line
+          ):
+              raise SystemExit("launch attempt ref access remains")
+          join_path.write_text(join_text)
+
+          main_path = Path("src/screens/MainTableScreen.tsx")
+          main_text = main_path.read_text()
+          effect_block = '''  useEffect(() => {
+              const actionTray = tableView?.actionTray;
+              if (!actionTray) {
+                setRaiseAmount(null);
+                return;
+              }
+
+              setRaiseAmount((currentAmount) => {
+                if (
+                  currentAmount !== null &&
+                  isWithinRaiseBounds(currentAmount, actionTray)
+                ) {
+                  return currentAmount;
+                }
+
+                return defaultRaiseAmount(actionTray);
+              });
+            }, [tableView]);
+
+          '''
+          if effect_block not in main_text:
+              raise SystemExit("raise synchronization effect not found")
+          main_text = main_text.replace(effect_block, "", 1)
+          quick_sizes = '''  const quickSizes = useMemo(
+              () => buildQuickSizes(tableView?.actionTray),
+              [tableView],
+            );
+          '''
+          effective = quick_sizes + '''  const effectiveRaiseAmount = useMemo(() => {
+              const actionTray = tableView?.actionTray;
+              if (!actionTray) {
+                return null;
+              }
+              if (
+                raiseAmount !== null &&
+                isWithinRaiseBounds(raiseAmount, actionTray)
+              ) {
+                return raiseAmount;
+              }
+              return defaultRaiseAmount(actionTray);
+            }, [raiseAmount, tableView]);
+          '''
+          if quick_sizes not in main_text:
+              raise SystemExit("quick-size block not found")
+          main_text = main_text.replace(quick_sizes, effective, 1)
+          main_text = main_text.replace(
+              "confirmation.actionKind === \"betOrRaise\"\n        ? (raiseAmount ?? undefined)",
+              "confirmation.actionKind === \"betOrRaise\"\n        ? (effectiveRaiseAmount ?? undefined)",
+              1,
+          )
+          main_text = re.sub(
+              r"raiseAmount\s*\?\?\s*defaultRaiseAmount\(tableView\.actionTray\)",
+              "effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)",
+              main_text,
+          )
+          main_path.write_text(main_text)
+          PY
+
           npm run format
 
-      - name: Capture dependency audits
-        id: cleanup_audit
-        shell: bash
+      - name: Validate focused fixes
         run: |
-          set +e
-          npm audit --omit=dev --json > cleanup-audit-production.json
-          production_status=$?
-          npm audit --json > cleanup-audit-all.json
-          full_status=$?
-          cat cleanup-audit-production.json
-          cat cleanup-audit-all.json
-          echo "production_status=$production_status" >> "$GITHUB_OUTPUT"
-          echo "full_status=$full_status" >> "$GITHUB_OUTPUT"
-          exit 0
+          npm run format:check
+          npm run lint
+          npm run test
+          npm run build
+          npm audit --omit=dev
+          npm audit
 
-      - name: Capture frontend validation
-        id: cleanup_validation
-        shell: bash
-        run: |
-          set +e
-          : > cleanup-frontend-validation.log
-
-          npm run format:check >> cleanup-frontend-validation.log 2>&1
-          format_status=$?
-          npm run lint >> cleanup-frontend-validation.log 2>&1
-          lint_status=$?
-          npm run test >> cleanup-frontend-validation.log 2>&1
-          test_status=$?
-          npm run build >> cleanup-frontend-validation.log 2>&1
-          build_status=$?
-
-          cat cleanup-frontend-validation.log
-          echo "format_status=$format_status" >> "$GITHUB_OUTPUT"
-          echo "lint_status=$lint_status" >> "$GITHUB_OUTPUT"
-          echo "test_status=$test_status" >> "$GITHUB_OUTPUT"
-          echo "build_status=$build_status" >> "$GITHUB_OUTPUT"
-          exit 0
-
-      - name: Upload cleanup evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-cleanup-evidence
-          path: |
-            cleanup-audit-production.json
-            cleanup-audit-all.json
-            cleanup-frontend-validation.log
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Commit cleanup
+      - name: Commit focused fixes
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "No dependency cleanup changes were required."
+            echo "No React lint fixes were required."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json src
-          git commit -m "fix(deps): complete secure frontend cleanup [dependency-cleanup-complete]"
+          git add src
+          git commit -m "fix(ui): satisfy React correctness lint rules [react-lint-fix-complete]"
           git push origin HEAD:${{ github.head_ref }}
-
-      - name: Enforce cleanup results
-        shell: bash
-        run: |
-          [[ "${{ steps.cleanup_audit.outputs.production_status }}" == "0" ]]
-          [[ "${{ steps.cleanup_audit.outputs.full_status }}" == "0" ]]
-          [[ "${{ steps.cleanup_validation.outputs.format_status }}" == "0" ]]
-          [[ "${{ steps.cleanup_validation.outputs.lint_status }}" == "0" ]]
-          [[ "${{ steps.cleanup_validation.outputs.test_status }}" == "0" ]]
-          [[ "${{ steps.cleanup_validation.outputs.build_status }}" == "0" ]]
 
   verify:
     name: Verify
