@@ -1,5 +1,9 @@
 name: CI
 
+# This workflow proves automated correctness and Linux artifact construction.
+# Graphical application launch, live LAN play, keychain behavior, and live LLM
+# providers remain separate manual release-readiness gates.
+
 on:
   push:
     branches:
