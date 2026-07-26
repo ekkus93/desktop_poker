@@ -28,8 +28,7 @@ jobs:
     name: Migrate secure frontend dependencies
     if: >-
       github.event_name == 'pull_request' &&
-      github.head_ref == 'agent/release-readiness-baseline' &&
-      !contains(github.event.pull_request.head.sha, 'dependency-migration-complete')
+      github.head_ref == 'agent/release-readiness-baseline'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -59,11 +58,11 @@ jobs:
           npm install --save react@19.2.8 react-dom@19.2.8 react-router@8.3.0
 
           while IFS= read -r -d '' file; do
-            sed -i 's/from "react-router-dom"/from "react-router"/g' "$file"
+            sed -i 's/react-router-dom/react-router/g' "$file"
           done < <(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -print0)
 
           if grep -RIn --include='*.ts' --include='*.tsx' 'react-router-dom' src; then
-            echo "react-router-dom imports remain after migration" >&2
+            echo "react-router-dom references remain after migration" >&2
             exit 1
           fi
 
@@ -277,6 +276,12 @@ jobs:
             libwebkit2gtk-4.1-dev
 
       - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust dependencies
