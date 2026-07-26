@@ -24,6 +24,79 @@ env:
   NEEDRESTART_MODE: a
 
 jobs:
+  dependency-migration:
+    name: Migrate secure frontend dependencies
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/release-readiness-baseline' &&
+      !contains(github.event.pull_request.head.sha, 'dependency-migration-complete')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Migrate React Router and React baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npm uninstall react-router-dom
+          npm install --save react@19.2.8 react-dom@19.2.8 react-router@8.3.0
+
+          while IFS= read -r -d '' file; do
+            sed -i 's/from "react-router-dom"/from "react-router"/g' "$file"
+          done < <(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -print0)
+
+          if grep -RIn --include='*.ts' --include='*.tsx' 'react-router-dom' src; then
+            echo "react-router-dom imports remain after migration" >&2
+            exit 1
+          fi
+
+      - name: Apply non-breaking dependency security fixes
+        run: npm audit fix
+
+      - name: Validate dependency audits
+        run: |
+          npm audit --omit=dev
+          npm audit
+
+      - name: Validate frontend
+        run: |
+          npm run format:check
+          npm run lint
+          npm run test
+          npm run build
+
+      - name: Commit migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No dependency migration changes were required."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src
+          git commit -m "fix(deps): migrate to secure React Router 8 [dependency-migration-complete]"
+          git push origin HEAD:${{ github.head_ref }}
+
   verify:
     name: Verify
     runs-on: ubuntu-24.04
@@ -204,12 +277,6 @@ jobs:
             libwebkit2gtk-4.1-dev
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust dependencies
