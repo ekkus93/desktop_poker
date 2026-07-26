@@ -23,11 +23,13 @@ This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE
 - Base branch: `master`
 - Baseline base SHA: `f4fde4d70fb8fe205bf74be7469912efd682045c`
 - Execution branch: `agent/release-readiness-baseline`
-- Tested branch source SHA: `fd8369ba7267fe76a827cdf48384c9f826159719`
-- GitHub pull-request merge SHA used by CI: `c79c9f2473f92310c3d65afe8b834f97b2875c5d`
-- GitHub Actions run: `30224757296`
+- Tested product-source SHA: `fd8369ba7267fe76a827cdf48384c9f826159719`
+- GitHub pull-request merge SHA used by the evidence-generating CI run: `c79c9f2473f92310c3d65afe8b834f97b2875c5d`
+- Evidence-generating GitHub Actions run: `30224757296`
+- Final branch validation commit: `283607db670d0bd28a342ac5a417806bc3507d78`
+- Final read-only GitHub Actions run: `30225613175`
 
-The evidence-generating workflow checked out the pull-request merge revision. The branch source SHA and merge SHA are both recorded so no result is attributed to an unrecorded revision.
+The evidence-generating workflow checked out the pull-request merge revision. Later commits changed only release-readiness documentation and CI comments; the final read-only run repeated verification, geometry, and Linux artifact construction successfully on the final branch.
 
 ### GitHub Actions environment
 
