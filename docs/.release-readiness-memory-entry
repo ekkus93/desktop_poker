@@ -1,9 +1,0 @@
-
-## 2026-07-26T16:25:00-07:00 - GPT-5.6 Thinking - Execute release-readiness baseline
-
-- Established `docs/DESKTOP_POKER_CURRENT_BACKLOG.md` and `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md` as the authoritative backlog/evidence pair.
-- Automated baseline passed on product-source `fd8369ba7267fe76a827cdf48384c9f826159719` / evidence-generating PR merge `c79c9f2473f92310c3d65afe8b834f97b2875c5d` in Actions run `30224757296`: 588 Rust tests passed with 3 explicit ignores, 273 frontend tests passed, formatting/lint/build/geometry passed, and both npm audits reported zero vulnerabilities.
-- Final read-only validation passed at commit `283607db670d0bd28a342ac5a417806bc3507d78` in Actions run `30225613175`, including repeat Linux release-candidate binary and Debian package construction.
-- Fixed a production React Router advisory, development ESLint/PostCSS advisories, and five stricter React correctness findings without weakening lint rules.
-- Built and inspected `target/release/desktop-poker` (21,908,136 bytes, SHA-256 `9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211`) and `Desktop Poker_0.1.0_amd64.deb` (6,738,672 bytes, SHA-256 `fc534010dfd8c0468511d9e2a24ad6a34e0375de7a55c030d113d43d06286ac7`).
-- Remaining blockers are manual: graphical launch/install, two-instance and two-machine LAN tournaments, reconnect/failure injection, release keychain behavior, and live rule-based/LLM NPC scenarios. Android/UniFFI should not begin until those gates are resolved or explicitly reclassified.
