@@ -1,0 +1,41 @@
+name: Append release-readiness ledger entry
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  append-ledger-entry:
+    if: github.head_ref == 'agent/release-readiness-baseline'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Append release-readiness entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat docs/.release-readiness-memory-entry >> memory.md
+          test "$(grep -c '^## ' memory.md)" -gt 20
+          test "$(grep -c 'GPT-5.6 Thinking - Execute release-readiness baseline' memory.md)" -eq 1
+
+      - name: Remove one-shot helper files
+        run: git rm .github/workflows/append-memory-ledger.yml docs/.release-readiness-memory-entry
+
+      - name: Commit ledger entry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add memory.md
+          git commit -m 'docs: append release-readiness ledger entry'
+          git push origin HEAD:${{ github.head_ref }}
