@@ -164,25 +164,6 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
   }, [navigate, viewerMode]);
 
   useEffect(() => {
-    const actionTray = tableView?.actionTray;
-    if (!actionTray) {
-      setRaiseAmount(null);
-      return;
-    }
-
-    setRaiseAmount((currentAmount) => {
-      if (
-        currentAmount !== null &&
-        isWithinRaiseBounds(currentAmount, actionTray)
-      ) {
-        return currentAmount;
-      }
-
-      return defaultRaiseAmount(actionTray);
-    });
-  }, [tableView]);
-
-  useEffect(() => {
     if (!tableView?.handHistory.length) {
       return;
     }
@@ -202,6 +183,16 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     () => buildQuickSizes(tableView?.actionTray),
     [tableView],
   );
+  const effectiveRaiseAmount = useMemo(() => {
+    const actionTray = tableView?.actionTray;
+    if (!actionTray) {
+      return null;
+    }
+    if (raiseAmount !== null && isWithinRaiseBounds(raiseAmount, actionTray)) {
+      return raiseAmount;
+    }
+    return defaultRaiseAmount(actionTray);
+  }, [raiseAmount, tableView]);
   const handStarted = tableView?.currentHandNumber !== null;
   const denseSeatMap = (tableView?.seats.length ?? 0) > 6;
 
@@ -241,7 +232,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
     const nextRaiseAmount =
       confirmation.actionKind === "betOrRaise"
-        ? (raiseAmount ?? undefined)
+        ? (effectiveRaiseAmount ?? undefined)
         : undefined;
     await submitAction(confirmation.actionKind, nextRaiseAmount);
   };
@@ -254,7 +245,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
       await submitAction(
         actionKind,
-        raiseAmount ?? defaultRaiseAmount(tableView.actionTray),
+        effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray),
       );
       return;
     }
@@ -534,7 +525,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                             tableView.actionTray.maxRaiseTo
                           }
                           aria-valuenow={
-                            raiseAmount ??
+                            effectiveRaiseAmount ??
                             defaultRaiseAmount(tableView.actionTray)
                           }
                           id="raise-slider"
@@ -549,7 +540,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                           step={1}
                           type="range"
                           value={
-                            raiseAmount ??
+                            effectiveRaiseAmount ??
                             defaultRaiseAmount(tableView.actionTray)
                           }
                         />
@@ -557,7 +548,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       <p className="field-hint">
                         To{" "}
                         <strong>
-                          {raiseAmount ??
+                          {effectiveRaiseAmount ??
                             defaultRaiseAmount(tableView.actionTray)}
                         </strong>{" "}
                         · Call {tableView.actionTray.callAmount} · Pot{" "}
@@ -582,7 +573,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                       <strong>{confirmation.label}</strong>
                       <p className="field-hint">
                         {confirmation.actionKind === "betOrRaise"
-                          ? `Send a raise to ${raiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
+                          ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
                           : "Commit the remaining stack as an all-in action?"}
                       </p>
                       <div className="button-row">

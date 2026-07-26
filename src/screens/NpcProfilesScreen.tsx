@@ -65,7 +65,34 @@ export function NpcProfilesScreen() {
   }
 
   useEffect(() => {
-    void reload();
+    let cancelled = false;
+
+    void listNpcProfiles()
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setProfiles(result.profiles);
+        setProfileErrors(result.errors);
+        setListError(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setListError(
+          error instanceof Error ? error.message : "Failed to load profiles.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleOpenProfile(profile: NpcProfile) {

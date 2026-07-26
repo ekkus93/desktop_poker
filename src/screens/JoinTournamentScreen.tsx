@@ -50,10 +50,32 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   } = useDesktopShell();
   const location = useLocation();
   const navigate = useNavigate();
-  const [validationState, setValidationState] = useState<ValidationState>({
-    status: "idle",
-  });
-  const [inviteBanner, setInviteBanner] = useState<string | null>(null);
+  const [validationState, setValidationState] = useState<ValidationState>(
+    () => {
+      if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
+        return { status: "idle" };
+      }
+      if (bootstrap.parsedLaunchJoinPayload) {
+        return {
+          status: "valid",
+          payload: bootstrap.parsedLaunchJoinPayload,
+        };
+      }
+      if (bootstrap.launchJoinPayloadError) {
+        return {
+          status: "invalid",
+          message: bootstrap.launchJoinPayloadError,
+        };
+      }
+      return { status: "idle" };
+    },
+  );
+  const [inviteBanner, setInviteBanner] = useState<string | null>(() =>
+    joinPayloadDraft === bootstrap.launchJoinPayload &&
+    bootstrap.parsedLaunchJoinPayload
+      ? "Invite already attached to this launch."
+      : null,
+  );
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [pillMeta, setPillMeta] = useState<
@@ -122,34 +144,6 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
         setInviteBanner(null);
       });
   }, [deepLinkPayload, joinPayloadDraft, setJoinPayloadDraft]);
-
-  useEffect(() => {
-    if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
-      return;
-    }
-
-    if (bootstrap.parsedLaunchJoinPayload) {
-      setValidationState({
-        status: "valid",
-        payload: bootstrap.parsedLaunchJoinPayload,
-      });
-      setInviteBanner("Invite already attached to this launch.");
-      return;
-    }
-
-    if (bootstrap.launchJoinPayloadError) {
-      setValidationState({
-        status: "invalid",
-        message: bootstrap.launchJoinPayloadError,
-      });
-      setInviteBanner(null);
-    }
-  }, [
-    bootstrap.launchJoinPayload,
-    bootstrap.launchJoinPayloadError,
-    bootstrap.parsedLaunchJoinPayload,
-    joinPayloadDraft,
-  ]);
 
   useEffect(() => {
     const launchJoinPayload = bootstrap.launchJoinPayload;
@@ -419,7 +413,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     <TriangleAlert className="button-icon" strokeWidth={1.9} />
                     {joinError}
                   </p>
-                  {launchJoinAttemptedForPayload.current ? (
+                  {bootstrap.launchJoinPayload ? (
                     <div className="button-row">
                       <button
                         className="secondary-button"

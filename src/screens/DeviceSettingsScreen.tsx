@@ -90,15 +90,20 @@ export function DeviceSettingsScreen() {
       });
   }, []);
 
-  // When the user explicitly changes the provider dropdown, reset endpoint/model
-  // placeholders only if it differs from the loaded settings' provider.
-  useEffect(() => {
-    if (loadedSettings && selectedProvider === loadedSettings.provider) {
+  function handleProviderChange(nextProvider: LlmProviderType) {
+    setSelectedProvider(nextProvider);
+    setProviderError(null);
+    setProviderStatus(null);
+
+    if (loadedSettings?.provider === nextProvider) {
+      setEndpointUrl(loadedSettings.endpointUrl ?? "");
+      setModel(loadedSettings.model ?? "");
       return;
     }
+
     setEndpointUrl("");
     setModel("");
-  }, [selectedProvider, loadedSettings]);
+  }
 
   // P0.3: A stored key is only reusable when saving to the same provider type.
   // An Anthropic key must not be preserved when switching to OpenAI, and vice versa.
@@ -221,7 +226,7 @@ export function DeviceSettingsScreen() {
               <select
                 value={selectedProvider}
                 onChange={(e) =>
-                  setSelectedProvider(e.target.value as LlmProviderType)
+                  handleProviderChange(e.target.value as LlmProviderType)
                 }
                 aria-label="LLM provider"
               >
