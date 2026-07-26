@@ -45,13 +45,23 @@ jobs:
       - name: Install current dependencies
         run: npm ci
 
-      - name: Migrate React Router and React baseline
+      - name: Migrate secure frontend dependency baselines
         shell: bash
         run: |
           set -euo pipefail
 
           npm uninstall react-router-dom
           npm install --save react@19.2.8 react-dom@19.2.8 react-router@8.3.0
+          npm install --save-dev \
+            eslint@10.8.0 \
+            @eslint/js@10.8.0 \
+            typescript-eslint@8.65.0 \
+            @types/react@latest \
+            @types/react-dom@latest \
+            eslint-config-prettier@latest \
+            eslint-plugin-react-hooks@latest \
+            eslint-plugin-react-refresh@latest \
+            globals@latest
 
           while IFS= read -r -d '' file; do
             sed -i 's/react-router-dom/react-router/g' "$file"
@@ -62,8 +72,7 @@ jobs:
             exit 1
           fi
 
-      - name: Apply non-breaking dependency security fixes
-        run: npm audit fix || true
+          npm audit fix || true
 
       - name: Capture migration dependency audits
         id: migration_audit
@@ -80,23 +89,40 @@ jobs:
           echo "full_status=$full_status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Upload migration audit reports
+      - name: Capture frontend validation
+        id: frontend_validation
+        shell: bash
+        run: |
+          set +e
+          : > migration-frontend-validation.log
+
+          npm run format:check >> migration-frontend-validation.log 2>&1
+          format_status=$?
+          npm run lint >> migration-frontend-validation.log 2>&1
+          lint_status=$?
+          npm run test >> migration-frontend-validation.log 2>&1
+          test_status=$?
+          npm run build >> migration-frontend-validation.log 2>&1
+          build_status=$?
+
+          cat migration-frontend-validation.log
+          echo "format_status=$format_status" >> "$GITHUB_OUTPUT"
+          echo "lint_status=$lint_status" >> "$GITHUB_OUTPUT"
+          echo "test_status=$test_status" >> "$GITHUB_OUTPUT"
+          echo "build_status=$build_status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload migration evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: migration-audit-reports
+          name: migration-evidence
           path: |
             migration-audit-production.json
             migration-audit-all.json
+            migration-frontend-validation.log
           if-no-files-found: error
           retention-days: 14
-
-      - name: Validate frontend
-        run: |
-          npm run format:check
-          npm run lint
-          npm run test
-          npm run build
 
       - name: Commit migration
         shell: bash
@@ -110,20 +136,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json src
-          git commit -m "fix(deps): migrate to secure React Router 8 [dependency-migration-complete]"
+          git commit -m "fix(deps): migrate secure frontend toolchain [dependency-migration-complete]"
           git push origin HEAD:${{ github.head_ref }}
 
-      - name: Enforce migration dependency audits
+      - name: Enforce migration results
         shell: bash
         run: |
-          if [[ "${{ steps.migration_audit.outputs.production_status }}" != "0" ]]; then
-            echo "Migrated production dependency audit failed." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.migration_audit.outputs.full_status }}" != "0" ]]; then
-            echo "Migrated full dependency audit failed." >&2
-            exit 1
-          fi
+          [[ "${{ steps.migration_audit.outputs.production_status }}" == "0" ]]
+          [[ "${{ steps.migration_audit.outputs.full_status }}" == "0" ]]
+          [[ "${{ steps.frontend_validation.outputs.format_status }}" == "0" ]]
+          [[ "${{ steps.frontend_validation.outputs.lint_status }}" == "0" ]]
+          [[ "${{ steps.frontend_validation.outputs.test_status }}" == "0" ]]
+          [[ "${{ steps.frontend_validation.outputs.build_status }}" == "0" ]]
 
   verify:
     name: Verify
@@ -230,14 +254,8 @@ jobs:
       - name: Enforce npm dependency audit results
         shell: bash
         run: |
-          if [[ "${{ steps.production_audit.outputs.status }}" != "0" ]]; then
-            echo "Production dependency audit failed. Download npm-audit-reports for details." >&2
-            exit 1
-          fi
-          if [[ "${{ steps.full_audit.outputs.status }}" != "0" ]]; then
-            echo "Full dependency audit failed. Download npm-audit-reports for details." >&2
-            exit 1
-          fi
+          [[ "${{ steps.production_audit.outputs.status }}" == "0" ]]
+          [[ "${{ steps.full_audit.outputs.status }}" == "0" ]]
 
   geometry:
     name: Browser geometry
