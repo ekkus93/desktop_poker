@@ -2,11 +2,9 @@
 
 ## Executive result
 
-**Outcome: Additional desktop stabilization / validation required.**
+**Outcome: Additional desktop runtime validation is required before a Linux release tag or Android/UniFFI milestone.**
 
-The automated baseline is being executed on the `agent/release-readiness-baseline` branch through GitHub Actions. Real desktop launch, two-instance gameplay, two-machine LAN gameplay, reconnect interruption, packaged-application launch, OS-keychain behavior, and live local-LLM behavior cannot be executed in the current ChatGPT tool environment because it has no graphical desktop, no repository checkout network access, no second LAN machine, and no local Ollama/llama-server process.
-
-Those scenarios are recorded as `BLOCKED`; they are not treated as passed from unit or integration coverage.
+The current automated baseline and Linux release-candidate build are green. A direct release binary and Debian package were built and inspected. The remaining release blockers require a graphical desktop, multiple live application instances, two physical LAN machines, a Linux Secret Service/keychain session, and configured live LLM providers. Those scenarios are recorded as `BLOCKED`; they are not inferred from unit, integration, browser, or packaging tests.
 
 This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE_READINESS_BASELINE_TODO.md`.
 
@@ -17,166 +15,202 @@ This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE
 - `BLOCKED` — execution requires a concrete unavailable dependency or environment.
 - `NOT RUN` — execution was not attempted for a stated reason.
 
-## Tested commit and environment
+## Tested revision and environment
 
-### Repository
+### Repository revision
 
 - Repository: `ekkus93/desktop_poker`
 - Base branch: `master`
 - Baseline base SHA: `f4fde4d70fb8fe205bf74be7469912efd682045c`
 - Execution branch: `agent/release-readiness-baseline`
-- Final tested branch SHA: **pending final documentation commit and CI run**
+- Tested branch source SHA: `fd8369ba7267fe76a827cdf48384c9f826159719`
+- GitHub pull-request merge SHA used by CI: `c79c9f2473f92310c3d65afe8b834f97b2875c5d`
+- GitHub Actions run: `30224757296`
 
-### Execution environments
+The evidence-generating workflow checked out the pull-request merge revision. The branch source SHA and merge SHA are both recorded so no result is attributed to an unrecorded revision.
 
-#### GitHub Actions
+### GitHub Actions environment
 
-- Environment type: GitHub-hosted CI runner
-- Workflow: `.github/workflows/ci.yml`
-- Runner declared by repository: Ubuntu 24.04
-- Node version declared by workflow: Node.js 24
-- Rust toolchain declared by workflow: stable with Clippy and rustfmt
-- Graphical packaged-application launch: unavailable in the current workflow
-
-#### ChatGPT connected-repository environment
-
-- Repository reads/writes: connected GitHub application
-- Local GitHub CLI: unavailable
-- Direct `git clone`: blocked because the container cannot resolve `github.com`
-- Graphical desktop session: unavailable
+- Runner: Ubuntu 24.04.4 LTS, x86-64, GitHub-hosted Azure VM
+- Kernel: Linux 6.17.0-1020-azure
+- Node.js: `v24.18.0`
+- npm: `11.16.0`
+- Rust: `rustc 1.97.1 (8bab26f4f 2026-07-14)`
+- Cargo: `cargo 1.97.1 (c980f4866 2026-06-30)`
+- Active toolchain: `stable-x86_64-unknown-linux-gnu`
+- Graphical desktop/WebView session: unavailable
 - Two physical LAN machines: unavailable
-- Local Ollama/llama-server: unavailable
+- Local Ollama/llama-server endpoint: unavailable
+- Linux Secret Service/keychain session: unavailable
 
 ## Automated validation
 
-The branch pull request is used to trigger the repository's real CI workflow. Results and exact job evidence will be inserted after the workflow completes.
-
-| Validation | Result | Evidence |
+| Validation | Result | Current evidence |
 |---|---|---|
-| `npm ci` | NOT RUN | Pending GitHub Actions run. |
-| `npm run format:check` | NOT RUN | Pending GitHub Actions run. |
-| `npm run lint` | NOT RUN | Pending GitHub Actions run. |
-| `npm run test` | NOT RUN | Pending GitHub Actions run. |
-| `npm run build` | NOT RUN | Pending GitHub Actions run. |
-| `npm run test:geometry` | NOT RUN | Pending GitHub Actions run. |
-| `cargo fmt --check` | NOT RUN | Pending GitHub Actions run. |
-| `cargo clippy --workspace --all-targets --all-features -- -D warnings` | NOT RUN | Pending GitHub Actions run. |
-| `cargo test --workspace --all-targets --all-features -- --test-threads=2` | NOT RUN | Pending GitHub Actions run. |
-| `cargo tree -p poker-core` | NOT RUN | Pending GitHub Actions run. |
-| Focused `cargo test -p poker-core --all-targets --all-features` | NOT RUN | Not currently a separate CI step; requires a capable checkout environment or workflow expansion. |
-| `npm audit --omit=dev` | NOT RUN | Not currently a CI step; requires a capable checkout environment or workflow expansion. |
-| `npm audit` | NOT RUN | Not currently a CI step; requires a capable checkout environment or workflow expansion. |
-| Ignored provider tests | BLOCKED | No local Ollama/llama-server endpoint is available. |
+| `npm ci` | PASS | Committed lockfile installed in Verify, geometry, and release-candidate jobs. |
+| `npm audit --omit=dev` | PASS | 0 info, low, moderate, high, critical; total 0. |
+| `npm audit` | PASS | 0 info, low, moderate, high, critical; total 0. |
+| `npm run format:check` | PASS | Prettier check completed successfully. |
+| `npm run lint` | PASS | ESLint completed with zero warnings and zero errors. |
+| `npm run test` | PASS | 30 files, 273 tests passed, 0 failed, 0 skipped/todo. |
+| `npm run build` | PASS | TypeScript and Vite production build passed; 1,835 modules transformed. |
+| `npm run test:geometry` | PASS | Playwright geometry job passed in the pinned Playwright 1.59.1 container. |
+| `cargo fmt --check` | PASS | Workspace formatting passed. |
+| `cargo clippy --workspace --all-targets --all-features -- -D warnings` | PASS | Clippy passed with warnings denied. |
+| `cargo test --workspace --all-targets --all-features -- --test-threads=2` | PASS | Desktop adapter: 463 passed, 3 ignored; `poker-core`: 125 passed; total 588 passed, 0 failed, 3 ignored. |
+| `cargo test -p poker-core --all-targets --all-features` | PASS | 125 passed, 0 failed, 0 ignored. |
+| `cargo tree -p poker-core` | PASS | Only `rand_core`, `serde`, `serde_json`, `thiserror`, and their platform-neutral transitive dependencies. |
 
-## Test totals and ignored tests
+### Ignored Rust tests
 
-Current totals will be copied from the GitHub Actions job logs. Historical counts in `memory.md` are not accepted as current evidence.
+The current workspace run contains exactly three ignored tests:
 
-## Release artifact inventory
+1. `npc::llm_strategy::ollama_live_tests::ollama_llama32_postflop_returns_legal_poker_action` — requires a live local Ollama model.
+2. `npc::llm_strategy::ollama_live_tests::ollama_llama32_preflop_returns_legal_poker_action` — requires a live local Ollama model.
+3. `protocol::models::tests::canonical_bytes_for_join_request_match_known_android_fixture` — requires the captured Android CanonicalJson fixture referenced by `INT_TEST3_TODO.md` §11.1.
 
-| Artifact | Result | Evidence |
-|---|---|---|
-| Release binary | BLOCKED | A release binary may compile in CI, but the current workflow does not build or upload it on ordinary pull requests and this environment cannot launch a GUI. |
-| Debian package | BLOCKED | Requires a package build plus installation/launch in a Linux graphical environment. |
-| AppImage | BLOCKED | Requires `linuxdeploy`/`appimagetool` and graphical launch verification. |
-| RPM | NOT RUN | Not required by the baseline TODO's primary package gate. |
+None is claimed as passed.
 
-No artifact is claimed working until its exact hash, size, source SHA, and launch result are recorded.
+### Frontend output quality
+
+- Test output contained no unhandled promise rejection, React warning, window-persistence initialization failure, or recurring stderr error.
+- Production output: `index.html` 0.46 kB, CSS 28.22 kB, main JS 337.47 kB, successful build in 2.29 seconds on the recorded runner.
+
+## `poker-core` platform-neutrality audit
+
+**Result: PASS for the current source revision.**
+
+- The dependency tree contains no Tauri, Android, keyring, HTTP client, LAN transport, filesystem path-discovery, async runtime, or LLM dependencies.
+- Repository source search found no `tauri`, `keyring`, `reqwest`, `local_ip`, `std::net`, TCP/UDP socket, process-spawning `Command`, or thread-spawn references under the shared core.
+- `crates/poker-core/Cargo.toml` remains limited to deterministic serialization/error/randomness primitives.
+- `EngineCommand` domain terminology is not process-spawning `std::process::Command` usage.
+
+## Linux release artifact inventory
+
+### Direct release binary
+
+- Result: **PASS — build and static inspection**
+- Path: `target/release/desktop-poker`
+- Type: ELF 64-bit LSB PIE executable, x86-64, dynamically linked
+- Exact size: 21,908,136 bytes (reported as 21 MB)
+- SHA-256: `9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211`
+- Build ID: `e1fd586bd6391d84b9c089a1506bdbc13aa7d11e`
+- Graphical launch: **BLOCKED** — no desktop/WebView session is available in the execution environment.
+
+### Debian package
+
+- Result: **PASS — package build and metadata inspection**
+- Filename: `Desktop Poker_0.1.0_amd64.deb`
+- Path: `target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
+- Exact size: 6,738,672 bytes (reported as 6.5 MB)
+- SHA-256: `fc534010dfd8c0468511d9e2a24ad6a34e0375de7a55c030d113d43d06286ac7`
+- Package: `desktop-poker`
+- Version: `0.1.0`
+- Architecture: `amd64`
+- Installed size: 21,458 KiB
+- Maintainer: `ekkus93`
+- Dependencies: `libwebkit2gtk-4.1-0`, `libgtk-3-0`
+- Installed binary path: `/usr/bin/desktop-poker`
+- Desktop entry and 32/128/256@2 icon assets are present.
+- Installation and graphical launch: **BLOCKED** — no disposable graphical Linux session is available.
+
+### AppImage
+
+- Result: **BLOCKED**
+- This pass intentionally built the deterministic direct binary and `.deb` bundle. AppImage tooling and graphical launch were not available/proven, so AppImage is not claimed working.
+
+The GitHub Actions release-candidate artifact retains the binary, `.deb`, complete release build log, and artifact inventory for 30 days.
 
 ## Production reachability and security audit
 
-### Static evidence already present in current source
+### Static findings
 
 - `src/main.tsx` imports the layout probe only inside `import.meta.env.DEV`.
 - Browser mocks in `src/api/desktop.ts` are guarded by development/test environment checks.
 - `src-tauri/tauri.conf.json` uses a restrictive CSP and limits frontend connections to Tauri IPC.
-- Release provider secrets are documented and implemented through the OS keychain; debug builds use an explicitly development-only local file.
+- Release provider secrets select OS keychain storage; debug builds use the explicitly development-only local file.
+- `llm-provider.json` contains non-secret settings only; storage/redaction tests pass.
 
-These are source-inspection findings, not substitutes for release-binary reachability or OS-keychain manual tests.
-
-| Scenario | Result | Reason |
-|---|---|---|
-| Production bundle string/reachability audit | NOT RUN | Pending CI logs and a capable artifact-inspection environment. |
-| Release `/debug` route reachability | BLOCKED | Requires launching a release build with a graphical WebView. |
-| Browser-mock substitution in release | BLOCKED | Requires release runtime exercise; static guards exist. |
-| Release keychain write/read/clear | BLOCKED | Requires a desktop Secret Service/keychain and low-privilege test credential. |
-| Plaintext-key search in app data/logs | BLOCKED | Requires release application data from a real run. |
-
-## Two-local-instance QA
-
-**Result: BLOCKED.**
-
-Concrete blocker: the current execution environment has no graphical desktop session and cannot launch two Tauri release instances. None of the host/join, seating, readiness, gameplay, private-card isolation, elimination, completion, persistence, or port-conflict scenarios are marked passed.
-
-The authoritative executable checklist remains `docs/MANUAL_QA_CHECKLIST.md`.
-
-## Two-machine LAN QA
-
-**Result: BLOCKED.**
-
-Concrete blocker: two physical machines on the same LAN are not available to this execution environment. Android/Desktop or desktop/desktop live TCP behavior is not inferred from automated tests.
-
-## Reconnect and failure matrix
+### Runtime findings
 
 | Scenario | Result | Reason |
 |---|---|---|
-| Lobby reconnect | BLOCKED | Requires controllable live network interruption between running GUI instances. |
-| Active-hand reconnect | BLOCKED | Requires controllable live network interruption during gameplay. |
-| Reconnect expiry | BLOCKED | Requires live runtime and configured wait window. |
-| Eliminated-observer reconnect | BLOCKED | Requires full live tournament and network interruption. |
-| Host loss | BLOCKED | Requires live host/client processes. |
-| Port conflict | BLOCKED | Requires two live release instances. |
-| Invalid invite | BLOCKED | Automated coverage exists historically; release UI scenario was not executed in this pass. |
-| Unreachable host | BLOCKED | Requires release UI and a controlled unavailable endpoint. |
-
-## Rule-based NPC QA
-
-**Result: BLOCKED.**
-
-Automated NPC coverage exists, but a live release tournament with NPCs cannot be run without a graphical desktop application environment. No live rule-based tournament is claimed complete.
-
-## LLM NPC QA
-
-**Result: BLOCKED.**
-
-Concrete blockers:
-
-- no local Ollama or llama-server endpoint;
-- no graphical release application session;
-- no low-privilege remote-provider credential was supplied or used.
-
-Ignored provider tests and live LLM action/fallback scenarios remain outstanding.
-
-## Safety and silent-failure status
-
-Historical hardening work addresses sequence validation, reconnect command-stream installation, explicit best-effort event delivery, crypto associated data, host runtime health, and NPC private-state validation. This pass will use current CI and source reconciliation to ensure those claims remain represented accurately, but runtime failure injection is blocked without a checkout and live processes.
+| Release `/debug` route reachability | BLOCKED | Requires a running release WebView. |
+| Browser-mock substitution in release | BLOCKED | Static guards pass; live release exercise is unavailable. |
+| Release keychain write/read/clear | BLOCKED | Requires Linux Secret Service and a low-privilege test credential. |
+| Plaintext-key search in app data/logs | BLOCKED | Requires application data produced by a real release run. |
 
 ## Defects discovered and fixes applied
 
-No new product defect has yet been reproduced in this pass. Environment limitations are tracked separately and are not product defects.
+### DP-RR-FIX-001 — Vulnerable production React Router dependency
+
+- `npm audit --omit=dev` exposed a high-severity advisory through `react-router` 7.18.0 that the previous CI did not run.
+- Fixed by migrating from `react-router-dom` 7 to `react-router` 8.3.0 and React/React DOM 19.2.8.
+- All imports, tests, production build, and browser geometry pass after migration.
+
+### DP-RR-FIX-002 — Vulnerable development dependency graph
+
+- The full audit exposed the ESLint 9 `minimatch`/`brace-expansion` chain and a vulnerable PostCSS version.
+- Fixed by upgrading the ESLint toolchain, pinning `@eslint/js` 10.0.1, and overriding PostCSS to 8.5.23.
+- Both production and full audits now report zero vulnerabilities.
+
+### DP-RR-FIX-003 — React correctness findings exposed by ESLint 10
+
+- The stricter lint rules found four state-synchronization patterns and one render-time ref read.
+- Fixed provider changes in the user event, asynchronous NPC profile loading, bootstrap-derived join state, render-safe launch-attempt presentation, and derived raise sizing.
+- No lint rule was disabled or weakened. Formatting, lint, 273 frontend tests, build, audits, and geometry all pass.
+
+### DP-RR-DOC-001 — Stale workspace release paths
+
+- README release paths incorrectly named `src-tauri/target/release` after the repository became a root Cargo workspace.
+- Corrected to `target/release` and documented the current audit/release-candidate workflow.
+
+## Manual runtime evidence
+
+### Two-local-instance full tournament
+
+**Result: BLOCKED.** No graphical desktop session is available to launch two Tauri release instances. Host/join, seat claims, readiness, gameplay, private-card isolation, elimination, completion, persistence, and per-instance isolation are not marked passed.
+
+### Two-machine LAN tournament
+
+**Result: BLOCKED.** Two physical machines on the same LAN are unavailable. Loopback integration tests do not substitute for real LAN evidence.
+
+### Reconnect and failure matrix
+
+Lobby reconnect, active-hand reconnect, reconnect expiry, eliminated-observer reconnect, host loss, port conflict, invalid invite UI, and unreachable-host UI are **BLOCKED** pending controllable live processes and network interruption.
+
+### Rule-based NPC tournament
+
+**Result: BLOCKED.** Automated decision/runner coverage passes, but no live release tournament was run.
+
+### Live LLM NPC scenarios
+
+**Result: BLOCKED.** No Ollama/llama-server endpoint or low-privilege remote provider credential was available. The two ignored Ollama tests remain ignored and are not claimed passed.
+
+### Release keychain scenario
+
+**Result: BLOCKED.** Static implementation and automated storage/redaction tests pass, but OS-keychain behavior requires a real Secret Service session.
+
+The executable manual procedure is `docs/MANUAL_QA_CHECKLIST.md`.
 
 ## Remaining release blockers
 
-The authoritative list is `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`. At minimum, desktop release readiness remains blocked by:
+The authoritative list is `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`. The fresh automated baseline is complete, and direct binary/`.deb` creation and inspection are proven. Desktop release readiness remains blocked by:
 
-- `DP-RR-P0-001`: fresh automated baseline not yet complete;
-- `DP-RR-P0-002`: release binary/package build and launch not proven;
-- `DP-RR-P0-003`: two-local-instance full tournament not proven;
-- `DP-RR-P0-004`: two-machine LAN full tournament not proven;
-- `DP-RR-P0-005`: live reconnect and host-loss matrix not proven;
-- `DP-RR-P0-006`: release secret-storage behavior not proven;
-- `DP-RR-P1-001`: live rule-based NPC tournament not proven.
-
-## Non-blocking current backlog
-
-See `docs/DESKTOP_POKER_CURRENT_BACKLOG.md` for reconciled UI/UX, documentation, Android interoperability, and deferred feature items.
+- graphical launch of the direct binary and installed package;
+- two-local-instance full-tournament and storage-isolation QA;
+- two-machine LAN full-tournament QA;
+- live reconnect, expiry, observer, host-loss, and error-state QA;
+- release OS-keychain write/read/clear and failure behavior;
+- live rule-based NPC tournament;
+- live LLM provider scenarios and the captured Android canonical fixture.
 
 ## Android/Desktop interoperability status
 
-Status remains **audited but not fully proven**. Known payload-shape differences for action-window-opened and action-rejected events remain backlog items. Live mixed-runtime sessions are not part of this desktop release-readiness run and were not executed.
+Status remains **audited but not fully proven**. Known payload-shape differences for action-window-opened and action-rejected events remain backlog items. The ignored Android canonical fixture test is explicit evidence that mixed-runtime canonical bytes are not yet fully proven.
 
 ## Final milestone recommendation
 
-**Additional desktop stabilization / validation.**
+**Continue desktop runtime validation. Do not begin the Android/UniFFI milestone yet.**
 
-Do not start the Android/UniFFI milestone yet. First complete the manual release-binary, local multiplayer, LAN multiplayer, reconnect, package, keychain, and NPC gates against one exact source revision. Any reproduced failures should receive stable backlog IDs, focused regression tests where practical, and the smallest correct fix.
+The repository now has a trustworthy automated and packaging baseline. The next work should execute the manual release-binary, package-install, local multiplayer, LAN multiplayer, reconnect, keychain, and NPC gates against the recorded source revision. Any reproduced failure should receive a stable backlog ID, a focused regression test where practical, and the smallest correct fix.

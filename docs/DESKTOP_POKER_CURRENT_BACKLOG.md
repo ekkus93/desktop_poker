@@ -31,7 +31,7 @@ The project is an advanced MVP, but it is not yet a release-proven Linux desktop
 
 Open desktop release blockers:
 
-- `DP-RR-P0-001` through `DP-RR-P0-006`
+- `DP-RR-P0-002` through `DP-RR-P0-006`
 - `DP-RR-P1-001`
 
 A desktop release candidate should not be tagged until those items satisfy their acceptance criteria or are explicitly reclassified by a documented product decision.
@@ -44,7 +44,7 @@ A desktop release candidate should not be tagged until those items satisfy their
 
 - **Priority:** P0
 - **Category:** Validation / CI
-- **Current behavior:** The repository contains strong historical test evidence, but current results must be produced against the release-readiness branch/final SHA.
+- **Current behavior:** Current CI evidence is complete against branch source SHA `fd8369ba7267fe76a827cdf48384c9f826159719` and pull-request merge SHA `c79c9f2473f92310c3d65afe8b834f97b2875c5d`.
 - **Evidence:** `.github/workflows/ci.yml`; historical `memory.md`; `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`.
 - **Affected files:** `.github/workflows/ci.yml`, source/tests if failures are found, release-readiness report.
 - **Required behavior:** Formatting, lint, frontend tests, production build, browser geometry, Rust format, Clippy with warnings denied, workspace tests, and `poker-core` dependency audit pass against one recorded SHA.
@@ -52,13 +52,13 @@ A desktop release candidate should not be tagged until those items satisfy their
 - **Automated test requirement:** Existing CI plus focused `cargo test -p poker-core --all-targets --all-features` when a capable checkout is available.
 - **Manual test requirement:** None.
 - **Desktop release blocker:** Yes.
-- **Status:** In progress.
+- **Status:** Completed — GitHub Actions run `30224757296` passed all automated gates and retained evidence artifacts.
 
 ### DP-RR-P0-002 — Release artifacts build, inspect, and launch
 
 - **Priority:** P0
 - **Category:** Packaging / release runtime
-- **Current behavior:** Tauri build configuration and release paths are documented, but current binary/package hashes and launch evidence are absent.
+- **Current behavior:** The direct release binary and Debian package build successfully and have recorded hashes/metadata. Graphical launch and installed-package execution remain unproven.
 - **Evidence:** `README.md`; `src-tauri/tauri.conf.json`; release-readiness report.
 - **Affected files:** packaging configuration, README only if defects/inaccuracies are found.
 - **Required behavior:** Build release binary and `.deb`; record SHA-256 and size; inspect package metadata; launch the direct binary and installed package; record AppImage as PASS/FAIL/BLOCKED.
@@ -66,7 +66,7 @@ A desktop release candidate should not be tagged until those items satisfy their
 - **Automated test requirement:** Production frontend build and Tauri compilation.
 - **Manual test requirement:** Launch direct binary and installed package in a Linux graphical session.
 - **Desktop release blocker:** Yes.
-- **Status:** Blocked by current execution environment.
+- **Status:** Partially complete — build and inspection PASS; graphical launch/install verification BLOCKED by the current execution environment.
 
 ### DP-RR-P0-003 — Two-local-instance full tournament and isolation
 
@@ -137,6 +137,29 @@ A desktop release candidate should not be tagged until those items satisfy their
 - **Manual test requirement:** Release NPC tournament.
 - **Desktop release blocker:** Yes.
 - **Status:** Blocked by current execution environment.
+
+
+---
+
+## Resolved during the release-readiness baseline
+
+### DP-RR-P0-001 — Fresh automated baseline
+
+- **Resolved:** GitHub Actions run `30224757296` passed formatting, lint, Rust workspace tests, focused `poker-core` tests, frontend tests/build, geometry, and both npm audits.
+- **Totals:** 588 Rust tests passed, 3 explicitly ignored; 273 frontend tests passed; zero npm vulnerabilities.
+- **Evidence:** `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md` and retained `validation-evidence` artifact.
+
+### DP-RR-FIX-001 — Production dependency vulnerability
+
+- **Resolved:** Migrated vulnerable React Router 7 production dependency to React Router 8.3.0 with React/React DOM 19.2.8.
+
+### DP-RR-FIX-002 — Development dependency vulnerabilities
+
+- **Resolved:** Upgraded the ESLint toolchain and PostCSS dependency graph; production and full audits now report zero vulnerabilities.
+
+### DP-RR-FIX-003 — React correctness lint findings
+
+- **Resolved:** Reworked state synchronization and render-time ref usage without suppressing lint rules; all frontend checks pass.
 
 ---
 

@@ -1174,3 +1174,11 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - **poker-core purity:** `rg` → 6 hits, all `EngineCommand` in `facade.rs` (expected false positive; no real forbidden dependency).
 - **Architecture unchanged:** No Android app, Tauri Mobile, FFI crate, or networking-in-core added.
 - **Validation run:** `cargo fmt --check` ✅, `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✅, `cargo test --workspace --all-targets --all-features` ✅ (125 tests), `cargo test -p poker-core --all-targets --all-features` ✅ (125 tests), `cargo tree -p poker-core` ✅ (platform-neutral), `npm run format:check` ✅, `npm run lint` ✅, `npm run build` ✅, `npm test` ✅ (273 tests across 30 files).
+
+## 2026-07-26T16:25:00-07:00 - GPT-5.6 Thinking - Execute release-readiness baseline
+
+- Established `docs/DESKTOP_POKER_CURRENT_BACKLOG.md` and `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md` as the authoritative backlog/evidence pair.
+- Automated baseline passed on branch source `fd8369ba7267fe76a827cdf48384c9f826159719` / PR merge `c79c9f2473f92310c3d65afe8b834f97b2875c5d` in Actions run `30224757296`: 588 Rust tests passed with 3 explicit ignores, 273 frontend tests passed, formatting/lint/build/geometry passed, and both npm audits reported zero vulnerabilities.
+- Fixed a production React Router advisory, development ESLint/PostCSS advisories, and five stricter React correctness findings without weakening lint rules.
+- Built and inspected `target/release/desktop-poker` (21,908,136 bytes, SHA-256 `9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211`) and `Desktop Poker_0.1.0_amd64.deb` (6,738,672 bytes, SHA-256 `fc534010dfd8c0468511d9e2a24ad6a34e0375de7a55c030d113d43d06286ac7`).
+- Remaining blockers are manual: graphical launch/install, two-instance and two-machine LAN tournaments, reconnect/failure injection, release keychain behavior, and live rule-based/LLM NPC scenarios. Android/UniFFI should not begin until those gates are resolved or explicitly reclassified.

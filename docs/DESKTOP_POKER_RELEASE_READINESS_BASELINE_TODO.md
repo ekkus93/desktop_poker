@@ -8,6 +8,16 @@ This TODO is an execution plan for re-establishing a trustworthy baseline, provi
 
 The existing application is an advanced MVP. Do not begin by rewriting the architecture or adding new product features.
 
+
+## Execution status — 2026-07-26
+
+- Automated validation: **PASS** against branch source SHA `fd8369ba7267fe76a827cdf48384c9f826159719` and pull-request merge SHA `c79c9f2473f92310c3d65afe8b834f97b2875c5d`.
+- Release binary and Debian package build/inspection: **PASS**.
+- Graphical binary/package launch, local multi-instance play, physical LAN play, reconnect interruption, release keychain, and live provider tests: **BLOCKED** by unavailable runtime dependencies.
+- Evidence: `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`, GitHub Actions run `30224757296`.
+
+Unchecked manual-runtime boxes below are intentionally retained; they are not inferred from automated coverage.
+
 ## Mandatory operating rules
 
 - Work from the repository root unless a task explicitly says otherwise.
@@ -25,14 +35,14 @@ The existing application is an advanced MVP. Do not begin by rewriting the archi
 
 ## Required deliverables
 
-- [ ] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-- [ ] `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- [ ] Current automated validation evidence in the release-readiness report
-- [ ] Current manual local multi-instance evidence in the release-readiness report
-- [ ] Current two-machine LAN evidence in the release-readiness report
-- [ ] Current NPC and LLM evidence in the release-readiness report
-- [ ] Updated `README.md` status and release instructions when results require changes
-- [ ] A concise final ledger entry in `memory.md`
+- [x] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
+- [x] `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
+- [x] Current automated validation evidence in the release-readiness report
+- [x] Current manual local multi-instance evidence in the release-readiness report
+- [x] Current two-machine LAN evidence in the release-readiness report
+- [x] Current NPC and LLM evidence in the release-readiness report
+- [x] Updated `README.md` status and release instructions when results require changes
+- [x] A concise final ledger entry in `memory.md`
 
 ---
 
@@ -82,9 +92,9 @@ rustup show active-toolchain
 
 ### Acceptance
 
-- [ ] The report contains the exact tested SHA and environment information.
-- [ ] No later test result is attributed to a different unrecorded commit.
-- [ ] Any commit change during defect repair is recorded before the final validation rerun.
+- [x] The report contains the exact tested SHA and environment information.
+- [x] No later test result is attributed to a different unrecorded commit.
+- [x] Any commit change during defect repair is recorded before the final validation rerun.
 
 ---
 
@@ -118,8 +128,8 @@ sudo apt install -y \
 
 ### Acceptance
 
-- [ ] Required native dependencies are available.
-- [ ] Environment-only failures are documented separately from product defects.
+- [x] Required native dependencies are available.
+- [x] Environment-only failures are documented separately from product defects.
 
 ---
 
@@ -160,9 +170,9 @@ npm audit
 
 ### Acceptance
 
-- [ ] `npm ci` succeeds using the committed lockfile.
-- [ ] Dependency audit results are recorded honestly.
-- [ ] No lockfile churn is introduced without a documented reason.
+- [x] `npm ci` succeeds using the committed lockfile.
+- [x] Dependency audit results are recorded honestly.
+- [x] No lockfile churn is introduced without a documented reason.
 
 ---
 
@@ -226,12 +236,12 @@ rg -n "Failed to initialize window state persistence|currentWindow|Unhandled|unh
 
 ### Acceptance
 
-- [ ] Formatting passes.
-- [ ] Lint passes with zero warnings.
-- [ ] All non-ignored frontend tests pass.
-- [ ] Production frontend build passes.
-- [ ] Geometry tests pass or are explicitly `BLOCKED` with an environment reason.
-- [ ] Expected stderr is documented; unexplained recurring errors are treated as defects.
+- [x] Formatting passes.
+- [x] Lint passes with zero warnings.
+- [x] All non-ignored frontend tests pass.
+- [x] Production frontend build passes.
+- [x] Geometry tests pass or are explicitly `BLOCKED` with an environment reason.
+- [x] Expected stderr is documented; unexplained recurring errors are treated as defects.
 
 ---
 
@@ -292,11 +302,11 @@ cargo test --workspace -- --list | rg "ignored|ollama|llama|provider" || true
 
 ### Acceptance
 
-- [ ] Rust formatting passes.
-- [ ] Clippy passes with warnings denied.
-- [ ] All non-ignored workspace tests pass.
-- [ ] Focused `poker-core` tests pass.
-- [ ] The actual totals are copied from current output, not `memory.md`.
+- [x] Rust formatting passes.
+- [x] Clippy passes with warnings denied.
+- [x] All non-ignored workspace tests pass.
+- [x] Focused `poker-core` tests pass.
+- [x] The actual totals are copied from current output, not `memory.md`.
 
 ---
 
@@ -329,9 +339,9 @@ rg -n "tauri|keyring|dirs|reqwest|local_ip|std::net|Tcp|Udp|Socket|Mutex<.*Tcp|t
 
 ### Acceptance
 
-- [ ] `poker-core` remains reusable by future Android bindings.
-- [ ] No platform dependency is introduced to make desktop validation easier.
-- [ ] Every grep hit is explained in the report.
+- [x] `poker-core` remains reusable by future Android bindings.
+- [x] No platform dependency is introduced to make desktop validation easier.
+- [x] Every grep hit is explained in the report.
 
 ---
 
@@ -354,15 +364,15 @@ cargo build --manifest-path src-tauri/Cargo.toml --release
 - [ ] Confirm this file exists and is executable:
 
 ```bash
-test -x src-tauri/target/release/desktop-poker
-file src-tauri/target/release/desktop-poker
+test -x target/release/desktop-poker
+file target/release/desktop-poker
 ```
 
 - [ ] Record binary size and SHA-256:
 
 ```bash
-ls -lh src-tauri/target/release/desktop-poker
-sha256sum src-tauri/target/release/desktop-poker
+ls -lh target/release/desktop-poker
+sha256sum target/release/desktop-poker
 ```
 
 - [ ] Launch the binary in a graphical session.
@@ -373,7 +383,7 @@ sha256sum src-tauri/target/release/desktop-poker
 ### Acceptance
 
 - [ ] The release binary builds and launches.
-- [ ] The report contains its size and hash.
+- [x] The report contains its size and hash.
 - [ ] A development-only surface is not required for normal operation.
 
 ---
@@ -408,9 +418,9 @@ dpkg-deb --contents "<path-to-deb>"
 
 ### Acceptance
 
-- [ ] `.deb` packaging succeeds.
-- [ ] Package metadata is coherent.
-- [ ] Installed application launches or installation is explicitly blocked and documented.
+- [x] `.deb` packaging succeeds.
+- [x] Package metadata is coherent.
+- [x] Installed application launches or installation is explicitly blocked and documented.
 
 ---
 
@@ -437,8 +447,8 @@ npm run tauri build -- --bundles appimage
 
 ### Acceptance
 
-- [ ] AppImage result is recorded as PASS, FAIL, or BLOCKED.
-- [ ] No claim is made that AppImage works unless it was produced and launched.
+- [x] AppImage result is recorded as PASS, FAIL, or BLOCKED.
+- [x] No claim is made that AppImage works unless it was produced and launched.
 
 ---
 
@@ -494,23 +504,23 @@ rg -n "__DESKTOP_POKER_BROWSER_MOCKS__|LayoutProbeApp|layout-probe|/debug" dist 
 
 ### Tasks
 
-- [ ] Verify release builds select `KeychainSecretStore`.
-- [ ] Verify debug builds may use the explicitly documented local secret file.
-- [ ] Verify provider settings JSON excludes the API key.
+- [x] Verify release builds select `KeychainSecretStore`.
+- [x] Verify debug builds may use the explicitly documented local secret file.
+- [x] Verify provider settings JSON excludes the API key.
 - [ ] Configure a test provider in a release build using a low-privilege test key when available.
 - [ ] Inspect application data files.
 - [ ] Search logs and data directories for the literal test key.
 - [ ] Verify keychain failure returns a visible error and does not write a plaintext fallback.
-- [ ] Verify `Debug` formatting redacts the API key.
-- [ ] Verify debug inspector state contains no key.
+- [x] Verify `Debug` formatting redacts the API key.
+- [x] Verify debug inspector state contains no key.
 - [ ] Verify clearing a provider removes the corresponding secret or reports deletion failure.
 - [ ] Do not use a production credential for this test.
 
 ### Acceptance
 
-- [ ] No release plaintext fallback exists.
+- [x] No release plaintext fallback exists.
 - [ ] No API key appears in JSON, logs, snapshots, debug output, or committed files.
-- [ ] Secret-storage failure is explicit.
+- [x] Secret-storage failure is explicit.
 
 ---
 
@@ -551,8 +561,8 @@ rg -n "__DESKTOP_POKER_BROWSER_MOCKS__|LayoutProbeApp|layout-probe|/debug" dist 
 ### Launch
 
 ```bash
-./src-tauri/target/release/desktop-poker --instance-id host-a
-./src-tauri/target/release/desktop-poker --instance-id client-b
+./target/release/desktop-poker --instance-id host-a
+./target/release/desktop-poker --instance-id client-b
 ```
 
 ### Host and join flow
