@@ -68,11 +68,38 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Audit production npm dependencies
-        run: npm audit --omit=dev
+      - name: Capture production npm dependency audit
+        id: production_audit
+        shell: bash
+        run: |
+          set +e
+          npm audit --omit=dev --json > npm-audit-production.json
+          status=$?
+          cat npm-audit-production.json
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
 
-      - name: Audit all npm dependencies
-        run: npm audit
+      - name: Capture full npm dependency audit
+        id: full_audit
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > npm-audit-all.json
+          status=$?
+          cat npm-audit-all.json
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload npm audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            npm-audit-production.json
+            npm-audit-all.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Check Rust formatting
         run: cargo fmt --check
@@ -107,6 +134,18 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Enforce npm dependency audit results
+        shell: bash
+        run: |
+          if [[ "${{ steps.production_audit.outputs.status }}" != "0" ]]; then
+            echo "Production dependency audit failed. Download npm-audit-reports for details." >&2
+            exit 1
+          fi
+          if [[ "${{ steps.full_audit.outputs.status }}" != "0" ]]; then
+            echo "Full dependency audit failed. Download npm-audit-reports for details." >&2
+            exit 1
+          fi
 
   # Browser-geometry tests run in Microsoft's prebuilt Playwright image, which
   # ships the matching browser binaries (pinned to our @playwright/test version).
