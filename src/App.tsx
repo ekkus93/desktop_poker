@@ -1,4 +1,4 @@
-import { HashRouter } from "react-router-dom";
+import { HashRouter } from "react-router";
 import "./App.css";
 import { AppShell } from "./app/AppShell";
 import { DesktopBootstrapProvider } from "./app/DesktopBootstrapProvider";

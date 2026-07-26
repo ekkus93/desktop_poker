@@ -8,7 +8,7 @@ import {
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
   joinHostSession,

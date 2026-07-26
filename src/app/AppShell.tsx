@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router";
 import { DebugPanel } from "../components/debug/DebugPanel";
 import { AppFrame } from "../components/layout/AppFrame";
 import {
