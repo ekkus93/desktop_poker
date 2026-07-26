@@ -7,6 +7,7 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,11 +24,21 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Record baseline environment
+        shell: bash
+        run: |
+          {
+            echo "git_sha=$(git rev-parse HEAD)"
+            echo "git_ref=${GITHUB_REF}"
+            uname -a
+            cat /etc/os-release
+          } | tee validation-environment.log
 
       - name: Install Linux build dependencies
         run: |
@@ -53,6 +64,17 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
+
+      - name: Record toolchain versions
+        shell: bash
+        run: |
+          {
+            node --version
+            npm --version
+            rustc --version
+            cargo --version
+            rustup show active-toolchain
+          } | tee validation-toolchains.log
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
@@ -84,31 +106,23 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Upload npm audit reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-audit-reports
-          path: |
-            npm-audit-production.json
-            npm-audit-all.json
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Check Rust formatting
         run: cargo fmt --check
 
       - name: Lint Rust
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      - name: Test Rust
-        run: cargo test --workspace --all-targets --all-features -- --test-threads=2
+      - name: Test Rust workspace
+        run: cargo test --workspace --all-targets --all-features -- --test-threads=2 2>&1 | tee rust-workspace-tests.log
 
       - name: Test poker-core directly
-        run: cargo test -p poker-core --all-targets --all-features
+        run: cargo test -p poker-core --all-targets --all-features 2>&1 | tee poker-core-tests.log
+
+      - name: List Rust tests and ignored coverage
+        run: cargo test --workspace --all-targets --all-features -- --list 2>&1 | tee rust-test-list.log
 
       - name: Audit poker-core dependency tree
-        run: cargo tree -p poker-core
+        run: cargo tree -p poker-core 2>&1 | tee poker-core-dependency-tree.log
 
       - name: Check frontend formatting
         run: npm run format:check
@@ -117,16 +131,35 @@ jobs:
         run: npm run lint
 
       - name: Test frontend
-        run: npm run test
+        run: npm run test 2>&1 | tee frontend-tests.log
 
       - name: Build frontend
-        run: npm run build
+        run: npm run build 2>&1 | tee frontend-build.log
 
       - name: Enforce npm dependency audit results
         shell: bash
         run: |
           [[ "${{ steps.production_audit.outputs.status }}" == "0" ]]
           [[ "${{ steps.full_audit.outputs.status }}" == "0" ]]
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-evidence
+          path: |
+            validation-environment.log
+            validation-toolchains.log
+            npm-audit-production.json
+            npm-audit-all.json
+            rust-workspace-tests.log
+            poker-core-tests.log
+            rust-test-list.log
+            poker-core-dependency-tree.log
+            frontend-tests.log
+            frontend-build.log
+          if-no-files-found: warn
+          retention-days: 30
 
   geometry:
     name: Browser geometry
@@ -148,7 +181,97 @@ jobs:
         run: npm ci
 
       - name: Test browser geometry
-        run: npm run test:geometry
+        run: npm run test:geometry 2>&1 | tee browser-geometry-tests.log
+
+      - name: Upload geometry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-geometry-evidence
+          path: browser-geometry-tests.log
+          if-no-files-found: error
+          retention-days: 30
+
+  release-candidate:
+    name: Release candidate artifacts
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build release binary and Debian package
+        run: npm run tauri build -- --bundles deb 2>&1 | tee release-build.log
+
+      - name: Inventory release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/release/desktop-poker"
+          deb="$(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -x "$binary"
+          test -n "$deb"
+          {
+            echo "source_sha=$(git rev-parse HEAD)"
+            echo "binary=$binary"
+            file "$binary"
+            ls -lh "$binary"
+            sha256sum "$binary"
+            echo "deb=$deb"
+            file "$deb"
+            ls -lh "$deb"
+            sha256sum "$deb"
+            dpkg-deb --info "$deb"
+            dpkg-deb --contents "$deb"
+          } | tee release-artifact-inventory.log
+          mkdir -p release-candidate-artifacts
+          cp "$binary" release-candidate-artifacts/
+          cp "$deb" release-candidate-artifacts/
+
+      - name: Upload release candidate artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-candidate
+          path: |
+            release-candidate-artifacts/
+            release-build.log
+            release-artifact-inventory.log
+          if-no-files-found: error
+          retention-days: 30
 
   release:
     name: Release bundle
