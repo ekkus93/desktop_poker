@@ -20,11 +20,31 @@ jobs:
           ref: ${{ github.head_ref }}
 
       - name: Generate final evidence documents
+        id: generate
         env:
           SOURCE_SHA: fd8369ba7267fe76a827cdf48384c9f826159719
           MERGE_SHA: c79c9f2473f92310c3d65afe8b834f97b2875c5d
           RUN_ID: "30224757296"
-        run: python3 scripts/run_release_readiness_finalizer.py
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/run_release_readiness_finalizer.py > finalizer.log 2>&1
+          status=$?
+          cat finalizer.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload finalizer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalizer-diagnostics
+          path: finalizer.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce finalizer success
+        run: test "${{ steps.generate.outputs.status }}" = "0"
 
       - name: Preserve manual-only secret check as unchecked
         run: |
