@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 scripts/run_release_readiness_finalizer.py > finalizer.log 2>&1
+          PYTHONPATH=. python3 scripts/run_release_readiness_finalizer.py > finalizer.log 2>&1
           status=$?
           cat finalizer.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
