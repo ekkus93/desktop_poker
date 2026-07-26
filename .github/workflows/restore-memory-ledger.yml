@@ -1,5 +1,8 @@
 name: Restore memory ledger
 
+# One-shot repair: restore the complete historical ledger from master, append the
+# release-readiness entry, and remove this workflow in the same commit.
+
 on:
   pull_request:
 
