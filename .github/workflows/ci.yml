@@ -11,14 +11,10 @@ on:
 permissions:
   contents: read
 
-# Cancel superseded runs so a burst of pushes can't stack up multiple long jobs.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Keep apt non-interactive so `playwright install --with-deps` (and any other
-# apt invocation) can never block on a debconf / needrestart prompt — that hang
-# previously let the job run to GitHub's 6-hour ceiling.
 env:
   DEBIAN_FRONTEND: noninteractive
   NEEDRESTART_MODE: a
@@ -67,7 +63,7 @@ jobs:
           fi
 
       - name: Apply non-breaking dependency security fixes
-        run: npm audit fix
+        run: npm audit fix || true
 
       - name: Validate dependency audits
         run: |
@@ -99,8 +95,6 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-24.04
-    # A healthy run finishes in ~10-15 min; this is a safety cap (with headroom
-    # for a cold Rust compile), not the expected runtime. Prevents runaway billing.
     timeout-minutes: 20
 
     steps:
@@ -180,13 +174,6 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test Rust
-        # The real-TCP integration tests each spawn several background threads
-        # (accept loop, per-connection, host tick, client receive). On the
-        # runner's limited cores, default test parallelism oversubscribes the
-        # CPU and starves those threads, making the live-session timing tests
-        # flaky (a client snapshot can miss its wait window). Bound the test
-        # threads so the networking/tick threads get scheduled promptly. This
-        # matches runner capacity; it does not change product behaviour.
         run: cargo test --workspace --all-targets --all-features -- --test-threads=2
 
       - name: Test poker-core directly
@@ -219,11 +206,6 @@ jobs:
             exit 1
           fi
 
-  # Browser-geometry tests run in Microsoft's prebuilt Playwright image, which
-  # ships the matching browser binaries (pinned to our @playwright/test version).
-  # This avoids the runtime `playwright install` download, which deterministically
-  # hung after fetching chromium on the hosted runner and ran jobs to the 6-hour
-  # ceiling. Keep the image tag in sync with the @playwright/test version.
   geometry:
     name: Browser geometry
     runs-on: ubuntu-24.04
@@ -251,8 +233,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: verify
     runs-on: ubuntu-24.04
-    # Release builds a full Tauri bundle (heavier than verify), but still capped
-    # well below the 6-hour default.
     timeout-minutes: 30
     permissions:
       contents: write
