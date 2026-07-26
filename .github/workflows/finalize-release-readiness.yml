@@ -24,7 +24,7 @@ jobs:
           SOURCE_SHA: fd8369ba7267fe76a827cdf48384c9f826159719
           MERGE_SHA: c79c9f2473f92310c3d65afe8b834f97b2875c5d
           RUN_ID: "30224757296"
-        run: python3 scripts/finalize_release_readiness_baseline.py
+        run: python3 scripts/run_release_readiness_finalizer.py
 
       - name: Preserve manual-only secret check as unchecked
         run: |
@@ -60,7 +60,8 @@ jobs:
         run: |
           git rm \
             .github/workflows/finalize-release-readiness.yml \
-            scripts/finalize_release_readiness_baseline.py
+            scripts/finalize_release_readiness_baseline.py \
+            scripts/run_release_readiness_finalizer.py
 
       - name: Commit evidence reconciliation
         shell: bash
