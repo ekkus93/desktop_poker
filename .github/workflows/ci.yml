@@ -21,10 +21,8 @@ env:
 
 jobs:
   react-lint-fix:
-    name: Apply React lint correctness fixes
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.head_ref == 'agent/release-readiness-baseline'
+    name: Apply React correctness fixes
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/release-readiness-baseline'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -45,215 +43,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Apply focused React fixes
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 <<'PY'
-          from pathlib import Path
-          import re
+      - name: Apply focused source fixes
+        run: python3 scripts/apply_release_readiness_react_fixes.py
 
-          def sub_once(path: str, pattern: str, replacement: str, flags: int = 0) -> None:
-              target = Path(path)
-              text = target.read_text()
-              updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
-              if count != 1:
-                  raise SystemExit(f"expected one replacement in {path}, got {count}: {pattern}")
-              target.write_text(updated)
+      - name: Format source
+        run: npm run format
 
-          device = "src/screens/DeviceSettingsScreen.tsx"
-          sub_once(
-              device,
-              r'''  // When the user explicitly changes the provider dropdown, reset endpoint/model\n  // placeholders only if it differs from the loaded settings' provider\.\n  useEffect\(\(\) => \{.*?\n  \}, \[selectedProvider, loadedSettings\]\);\n''',
-              '''  function handleProviderChange(nextProvider: LlmProviderType) {
-            setSelectedProvider(nextProvider);
-            setProviderError(null);
-            setProviderStatus(null);
-
-            if (loadedSettings?.provider === nextProvider) {
-              setEndpointUrl(loadedSettings.endpointUrl ?? "");
-              setModel(loadedSettings.model ?? "");
-              return;
-            }
-
-            setEndpointUrl("");
-            setModel("");
-          }
-''',
-              re.DOTALL,
-          )
-          sub_once(
-              device,
-              r'''onChange=\{\(e\) =>\s*setSelectedProvider\(e\.target\.value as LlmProviderType\)\s*\}''',
-              '''onChange={(e) =>
-                    handleProviderChange(e.target.value as LlmProviderType)
-                  }''',
-          )
-
-          sub_once(
-              "src/screens/NpcProfilesScreen.tsx",
-              r'''  useEffect\(\(\) => \{\n    void reload\(\);\n  \}, \[\]\);''',
-              '''  useEffect(() => {
-            let cancelled = false;
-
-            void listNpcProfiles()
-              .then((result) => {
-                if (cancelled) {
-                  return;
-                }
-                setProfiles(result.profiles);
-                setProfileErrors(result.errors);
-                setListError(null);
-              })
-              .catch((error: unknown) => {
-                if (cancelled) {
-                  return;
-                }
-                setListError(
-                  error instanceof Error
-                    ? error.message
-                    : "Failed to load profiles.",
-                );
-              })
-              .finally(() => {
-                if (!cancelled) {
-                  setLoading(false);
-                }
-              });
-
-            return () => {
-              cancelled = true;
-            };
-          }, []);''',
-          )
-
-          join = "src/screens/JoinTournamentScreen.tsx"
-          sub_once(
-              join,
-              r'''  const \[validationState, setValidationState\] = useState<ValidationState>\(\{.*?  const deepLinkImportedRef = useRef<string \| null>\(null\);''',
-              '''  const [validationState, setValidationState] = useState<ValidationState>(() => {
-            if (joinPayloadDraft !== bootstrap.launchJoinPayload) {
-              return { status: "idle" };
-            }
-            if (bootstrap.parsedLaunchJoinPayload) {
-              return {
-                status: "valid",
-                payload: bootstrap.parsedLaunchJoinPayload,
-              };
-            }
-            if (bootstrap.launchJoinPayloadError) {
-              return {
-                status: "invalid",
-                message: bootstrap.launchJoinPayloadError,
-              };
-            }
-            return { status: "idle" };
-          });
-          const [inviteBanner, setInviteBanner] = useState<string | null>(() =>
-            joinPayloadDraft === bootstrap.launchJoinPayload &&
-            bootstrap.parsedLaunchJoinPayload
-              ? "Invite already attached to this launch."
-              : null,
-          );
-          const [joinError, setJoinError] = useState<string | null>(null);
-          const [joining, setJoining] = useState(false);
-          const [pillMeta, setPillMeta] = useState<
-            Map<string, { label: string; invalid?: boolean }>
-          >(new Map());
-          const [launchJoinAttemptedForPayload, setLaunchJoinAttemptedForPayload] =
-            useState<string | null>(null);
-          const deepLinkImportedRef = useRef<string | null>(null);''',
-              re.DOTALL,
-          )
-          sub_once(
-              join,
-              r'''  useEffect\(\(\) => \{\n    if \(joinPayloadDraft !== bootstrap\.launchJoinPayload\) \{.*?\n  \}, \[\n    bootstrap\.launchJoinPayload,\n    bootstrap\.launchJoinPayloadError,\n    bootstrap\.parsedLaunchJoinPayload,\n    joinPayloadDraft,\n  \]\);\n\n''',
-              "",
-              re.DOTALL,
-          )
-          join_path = Path(join)
-          join_text = join_path.read_text()
-          replacements = {
-              "launchJoinAttemptedForPayload.current === launchJoinPayload":
-                  "launchJoinAttemptedForPayload === launchJoinPayload",
-              "launchJoinAttemptedForPayload.current = launchJoinPayload;":
-                  "setLaunchJoinAttemptedForPayload(launchJoinPayload);",
-              "{launchJoinAttemptedForPayload.current ? (":
-                  "{launchJoinAttemptedForPayload ? (",
-          }
-          for old, new in replacements.items():
-              if join_text.count(old) != 1:
-                  raise SystemExit(f"expected one JoinTournamentScreen token: {old}")
-              join_text = join_text.replace(old, new, 1)
-          dependency_anchor = "    joinPayloadDraft,\n    navigate,"
-          if join_text.count(dependency_anchor) != 1:
-              raise SystemExit("launch join dependency anchor not found")
-          join_text = join_text.replace(
-              dependency_anchor,
-              "    joinPayloadDraft,\n    launchJoinAttemptedForPayload,\n    navigate,",
-              1,
-          )
-          clear_anchor = "                          setInviteBanner(null);\n                          navigate(location.pathname, { replace: true });"
-          if join_text.count(clear_anchor) != 1:
-              raise SystemExit("launch join clear anchor not found")
-          join_text = join_text.replace(
-              clear_anchor,
-              "                          setInviteBanner(null);\n                          setLaunchJoinAttemptedForPayload(null);\n                          navigate(location.pathname, { replace: true });",
-              1,
-          )
-          join_path.write_text(join_text)
-
-          main = "src/screens/MainTableScreen.tsx"
-          sub_once(
-              main,
-              r'''  useEffect\(\(\) => \{\n    const actionTray = tableView\?\.actionTray;.*?\n  \}, \[tableView\]\);\n\n''',
-              "",
-              re.DOTALL,
-          )
-          sub_once(
-              main,
-              r'''  const quickSizes = useMemo\(\n    \(\) => buildQuickSizes\(tableView\?\.actionTray\),\n    \[tableView\],\n  \);''',
-              '''  const quickSizes = useMemo(
-            () => buildQuickSizes(tableView?.actionTray),
-            [tableView],
-          );
-          const effectiveRaiseAmount = useMemo(() => {
-            const actionTray = tableView?.actionTray;
-            if (!actionTray) {
-              return null;
-            }
-            if (
-              raiseAmount !== null &&
-              isWithinRaiseBounds(raiseAmount, actionTray)
-            ) {
-              return raiseAmount;
-            }
-            return defaultRaiseAmount(actionTray);
-          }, [raiseAmount, tableView]);''',
-          )
-          main_path = Path(main)
-          main_text = main_path.read_text()
-          old_confirmation = '''confirmation.actionKind === "betOrRaise"
-                ? (raiseAmount ?? undefined)'''
-          if main_text.count(old_confirmation) != 1:
-              raise SystemExit("confirmation raise amount anchor not found")
-          main_text = main_text.replace(
-              old_confirmation,
-              '''confirmation.actionKind === "betOrRaise"
-                ? (effectiveRaiseAmount ?? undefined)''',
-              1,
-          )
-          main_text = re.sub(
-              r'''raiseAmount\s*\?\?\s*defaultRaiseAmount\(tableView\.actionTray\)''',
-              "effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)",
-              main_text,
-          )
-          main_path.write_text(main_text)
-          PY
-
-          npm run format
-
-      - name: Validate focused fixes
+      - name: Validate source fixes
         run: |
           npm run format:check
           npm run lint
@@ -262,15 +58,10 @@ jobs:
           npm audit --omit=dev
           npm audit
 
-      - name: Commit focused fixes
+      - name: Commit source fixes
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo "No React lint fixes were required."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src
