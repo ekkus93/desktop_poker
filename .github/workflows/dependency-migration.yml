@@ -1,78 +1,35 @@
-name: Dependency migration
+name: Release-readiness cleanup
 
 on:
-  push:
-    branches:
-      - agent/release-readiness-baseline
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
-  migrate:
-    name: Migrate secure frontend dependencies
-    if: ${{ !contains(github.event.head_commit.message, '[dependency-migration]') }}
+  cleanup:
+    if: github.head_ref == 'agent/release-readiness-baseline'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
     steps:
-      - name: Checkout branch
+      - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          ref: agent/release-readiness-baseline
+          ref: ${{ github.head_ref }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install current dependencies
-        run: npm ci
-
-      - name: Migrate React Router and React baseline
+      - name: Remove temporary release-readiness helpers
         shell: bash
         run: |
           set -euo pipefail
+          git rm \
+            .github/workflows/dependency-migration.yml \
+            scripts/apply_release_readiness_react_fixes.py \
+            docs/.release-readiness-run-trigger
 
-          npm uninstall react-router-dom
-          npm install --save react@19.2.8 react-dom@19.2.8 react-router@8.3.0
-
-          while IFS= read -r -d '' file; do
-            sed -i 's/from "react-router-dom"/from "react-router"/g' "$file"
-          done < <(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -print0)
-
-          if grep -RIn --include='*.ts' --include='*.tsx' 'react-router-dom' src; then
-            echo "react-router-dom imports remain after migration" >&2
-            exit 1
-          fi
-
-      - name: Apply non-breaking dependency security fixes
-        run: npm audit fix
-
-      - name: Validate dependency audits
-        run: |
-          npm audit --omit=dev
-          npm audit
-
-      - name: Validate frontend
-        run: |
-          npm run format:check
-          npm run lint
-          npm run test
-          npm run build
-
-      - name: Commit migration
+      - name: Commit cleanup
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo "No dependency migration changes were required."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json src
-          git commit -m "fix(deps): migrate to secure React Router 8 [dependency-migration]"
-          git push origin HEAD:agent/release-readiness-baseline
+          git commit -m "chore: remove release-readiness migration helpers"
+          git push origin HEAD:${{ github.head_ref }}
