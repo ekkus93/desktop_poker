@@ -20,8 +20,8 @@ env:
   NEEDRESTART_MODE: a
 
 jobs:
-  dependency-migration:
-    name: Migrate secure frontend dependencies
+  dependency-cleanup:
+    name: Complete secure dependency cleanup
     if: >-
       github.event_name == 'pull_request' &&
       github.head_ref == 'agent/release-readiness-baseline'
@@ -45,109 +45,89 @@ jobs:
       - name: Install current dependencies
         run: npm ci
 
-      - name: Migrate secure frontend dependency baselines
+      - name: Correct ESLint package and PostCSS override
         shell: bash
         run: |
           set -euo pipefail
+          npm install --save-dev @eslint/js@10.0.1
+          npm pkg set overrides.postcss=8.5.23
+          npm install
+          npm run format
 
-          npm uninstall react-router-dom
-          npm install --save react@19.2.8 react-dom@19.2.8 react-router@8.3.0
-          npm install --save-dev \
-            eslint@10.8.0 \
-            @eslint/js@10.8.0 \
-            typescript-eslint@8.65.0 \
-            @types/react@latest \
-            @types/react-dom@latest \
-            eslint-config-prettier@latest \
-            eslint-plugin-react-hooks@latest \
-            eslint-plugin-react-refresh@latest \
-            globals@latest
-
-          while IFS= read -r -d '' file; do
-            sed -i 's/react-router-dom/react-router/g' "$file"
-          done < <(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -print0)
-
-          if grep -RIn --include='*.ts' --include='*.tsx' 'react-router-dom' src; then
-            echo "react-router-dom references remain after migration" >&2
-            exit 1
-          fi
-
-          npm audit fix || true
-
-      - name: Capture migration dependency audits
-        id: migration_audit
+      - name: Capture dependency audits
+        id: cleanup_audit
         shell: bash
         run: |
           set +e
-          npm audit --omit=dev --json > migration-audit-production.json
+          npm audit --omit=dev --json > cleanup-audit-production.json
           production_status=$?
-          npm audit --json > migration-audit-all.json
+          npm audit --json > cleanup-audit-all.json
           full_status=$?
-          cat migration-audit-production.json
-          cat migration-audit-all.json
+          cat cleanup-audit-production.json
+          cat cleanup-audit-all.json
           echo "production_status=$production_status" >> "$GITHUB_OUTPUT"
           echo "full_status=$full_status" >> "$GITHUB_OUTPUT"
           exit 0
 
       - name: Capture frontend validation
-        id: frontend_validation
+        id: cleanup_validation
         shell: bash
         run: |
           set +e
-          : > migration-frontend-validation.log
+          : > cleanup-frontend-validation.log
 
-          npm run format:check >> migration-frontend-validation.log 2>&1
+          npm run format:check >> cleanup-frontend-validation.log 2>&1
           format_status=$?
-          npm run lint >> migration-frontend-validation.log 2>&1
+          npm run lint >> cleanup-frontend-validation.log 2>&1
           lint_status=$?
-          npm run test >> migration-frontend-validation.log 2>&1
+          npm run test >> cleanup-frontend-validation.log 2>&1
           test_status=$?
-          npm run build >> migration-frontend-validation.log 2>&1
+          npm run build >> cleanup-frontend-validation.log 2>&1
           build_status=$?
 
-          cat migration-frontend-validation.log
+          cat cleanup-frontend-validation.log
           echo "format_status=$format_status" >> "$GITHUB_OUTPUT"
           echo "lint_status=$lint_status" >> "$GITHUB_OUTPUT"
           echo "test_status=$test_status" >> "$GITHUB_OUTPUT"
           echo "build_status=$build_status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Upload migration evidence
+      - name: Upload cleanup evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: migration-evidence
+          name: dependency-cleanup-evidence
           path: |
-            migration-audit-production.json
-            migration-audit-all.json
-            migration-frontend-validation.log
+            cleanup-audit-production.json
+            cleanup-audit-all.json
+            cleanup-frontend-validation.log
           if-no-files-found: error
           retention-days: 14
 
-      - name: Commit migration
+      - name: Commit cleanup
         shell: bash
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "No dependency migration changes were required."
+            echo "No dependency cleanup changes were required."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json src
-          git commit -m "fix(deps): migrate secure frontend toolchain [dependency-migration-complete]"
+          git commit -m "fix(deps): complete secure frontend cleanup [dependency-cleanup-complete]"
           git push origin HEAD:${{ github.head_ref }}
 
-      - name: Enforce migration results
+      - name: Enforce cleanup results
         shell: bash
         run: |
-          [[ "${{ steps.migration_audit.outputs.production_status }}" == "0" ]]
-          [[ "${{ steps.migration_audit.outputs.full_status }}" == "0" ]]
-          [[ "${{ steps.frontend_validation.outputs.format_status }}" == "0" ]]
-          [[ "${{ steps.frontend_validation.outputs.lint_status }}" == "0" ]]
-          [[ "${{ steps.frontend_validation.outputs.test_status }}" == "0" ]]
-          [[ "${{ steps.frontend_validation.outputs.build_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_audit.outputs.production_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_audit.outputs.full_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_validation.outputs.format_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_validation.outputs.lint_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_validation.outputs.test_status }}" == "0" ]]
+          [[ "${{ steps.cleanup_validation.outputs.build_status }}" == "0" ]]
 
   verify:
     name: Verify
