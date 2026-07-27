@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex,
@@ -185,6 +185,30 @@ pub(crate) fn infer_committed_action(
     })
 }
 
+pub(crate) fn infer_new_elimination_events(
+    before: &TournamentState,
+    after: &TournamentState,
+) -> Vec<EliminationEvent> {
+    let previously_placed_player_ids = before
+        .placements
+        .iter()
+        .map(|placement| placement.player_id.as_str())
+        .collect::<HashSet<_>>();
+
+    after
+        .placements
+        .iter()
+        .filter(|placement| {
+            placement.place > 1
+                && !previously_placed_player_ids.contains(placement.player_id.as_str())
+        })
+        .map(|placement| EliminationEvent {
+            player_id: placement.player_id.clone(),
+            place: placement.place,
+        })
+        .collect()
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn publish_runtime_transition(
     join_payload: &JoinPayload,
@@ -293,22 +317,17 @@ pub(crate) fn publish_runtime_transition(
         }
     }
 
-    if after.placements.len() > before.placements.len() {
-        for placement in &after.placements[before.placements.len()..] {
-            broadcast_public_event_to_clients(
-                join_payload,
-                clients,
-                server_sequence,
-                host_signing_keys,
-                public_events,
-                ProtocolMessageType::EliminationEvent,
-                &EliminationEvent {
-                    player_id: placement.player_id.clone(),
-                    place: placement.place,
-                },
-                |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
-            )?;
-        }
+    for elimination in infer_new_elimination_events(before, after) {
+        broadcast_public_event_to_clients(
+            join_payload,
+            clients,
+            server_sequence,
+            host_signing_keys,
+            public_events,
+            ProtocolMessageType::EliminationEvent,
+            &elimination,
+            |player_id| mark_participant_reconnect_eligible(authoritative_state, player_id),
+        )?;
     }
 
     if after.phase == TournamentPhase::Complete && before.phase != TournamentPhase::Complete {

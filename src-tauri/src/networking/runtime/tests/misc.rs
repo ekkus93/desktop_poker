@@ -5,7 +5,7 @@ use std::{
 
 use serde_json::json;
 
-use super::super::validate_production_host_ip;
+use super::super::{infer_new_elimination_events, validate_production_host_ip};
 use crate::{
     crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
     domain::{
@@ -528,5 +528,36 @@ fn established_connections_clear_handshake_read_timeouts() {
         client_stream.read_timeout().expect("client read timeout"),
         None,
         "the client must clear the handshake read timeout for an established session"
+    );
+}
+
+#[test]
+fn completion_transition_never_emits_winner_as_eliminated() {
+    let mut before = sample_tournament_state("table-completion-events", 91);
+    before.placements.clear();
+    let mut after = before.clone();
+    after.placements = vec![
+        PlacementEntry {
+            player_id: "winner".to_string(),
+            place: 1,
+            busted_at_hand_number: None,
+        },
+        PlacementEntry {
+            player_id: "loser".to_string(),
+            place: 2,
+            busted_at_hand_number: Some(3),
+        },
+    ];
+
+    let events = infer_new_elimination_events(&before, &after);
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].player_id, "loser");
+    assert_eq!(events[0].place, 2);
+
+    before.placements = vec![after.placements[1].clone()];
+    let winner_only_added = infer_new_elimination_events(&before, &after);
+    assert!(
+        winner_only_added.is_empty(),
+        "adding the first-place placement must not emit an elimination"
     );
 }

@@ -617,3 +617,65 @@ fn apply_private_hole_cards_no_op_when_no_current_hand() {
     apply_private_hole_cards_to_snapshot(&mut state, &event);
     assert!(state.current_hand.is_none());
 }
+
+#[test]
+fn tournament_complete_clears_hand_and_reconciles_final_placements() {
+    let mut state = snapshot_test_state();
+    let mut final_result = state.hand_results[0].clone();
+    final_result.hand_number = 9;
+    final_result.final_stack_by_player_id =
+        [("showdown".to_string(), 1_500), ("folded".to_string(), 0)]
+            .into_iter()
+            .collect();
+    state.hand_results.push(final_result);
+
+    state.participants.get_mut("showdown").unwrap().state = ParticipantState::EliminatedObserver;
+    state.seats[1].tournament_state = TournamentSeatState::EliminatedObserver;
+    state.seats[1].chip_count = Some(0);
+
+    let placements = vec![
+        crate::domain::PlacementEntry {
+            player_id: "showdown".to_string(),
+            place: 1,
+            busted_at_hand_number: None,
+        },
+        crate::domain::PlacementEntry {
+            player_id: "folded".to_string(),
+            place: 2,
+            busted_at_hand_number: Some(9),
+        },
+    ];
+    let payload = serde_json::to_value(protocol::TournamentCompleteEvent {
+        winner_player_id: "showdown".to_string(),
+        placements: placements.clone(),
+    })
+    .expect("completion payload");
+
+    apply_public_event_to_snapshot(
+        &mut state,
+        "showdown",
+        protocol::ProtocolMessageType::TournamentCompleteEvent,
+        &payload,
+    );
+
+    assert_eq!(state.phase, TournamentPhase::Complete);
+    assert!(state.current_hand.is_none());
+    assert_eq!(state.placements, placements);
+    assert_eq!(
+        state.participants["showdown"].state,
+        ParticipantState::Active
+    );
+    assert_eq!(
+        state.participants["folded"].state,
+        ParticipantState::EliminatedObserver
+    );
+    assert_eq!(state.seats[1].tournament_state, TournamentSeatState::Active);
+    assert_eq!(state.seats[1].chip_count, Some(1_500));
+    assert_eq!(state.seats[1].marker, Some(SeatMarker::Dealer));
+    assert_eq!(
+        state.seats[2].tournament_state,
+        TournamentSeatState::EliminatedObserver
+    );
+    assert_eq!(state.seats[2].chip_count, Some(0));
+    assert_eq!(state.seats[2].marker, None);
+}

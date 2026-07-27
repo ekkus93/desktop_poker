@@ -470,11 +470,44 @@ pub(crate) fn apply_public_event_to_snapshot(
             else {
                 return;
             };
+            let winner_player_id = event.winner_player_id;
+            let placements = event.placements;
+            let final_stacks = state
+                .hand_results
+                .last()
+                .map(|result| result.final_stack_by_player_id.clone())
+                .unwrap_or_default();
+
             state.phase = domain::TournamentPhase::Complete;
-            state.placements = event.placements;
-            if let Some(hand) = state.current_hand.as_mut() {
-                hand.action_window = None;
-                hand.cycle_phase = domain::HandCyclePhase::Settlement;
+            state.current_hand = None;
+            state.placements = placements.clone();
+            for seat in &mut state.seats {
+                seat.marker = None;
+            }
+
+            for placement in placements {
+                let is_winner = placement.player_id == winner_player_id;
+                if let Some(participant) = state.participants.get_mut(&placement.player_id) {
+                    participant.state = if is_winner {
+                        domain::ParticipantState::Active
+                    } else {
+                        domain::ParticipantState::EliminatedObserver
+                    };
+                }
+                if let Some(seat) = state.seats.iter_mut().find(|seat| {
+                    seat.participant_id.as_deref() == Some(placement.player_id.as_str())
+                }) {
+                    if is_winner {
+                        seat.tournament_state = domain::TournamentSeatState::Active;
+                        if let Some(final_stack) = final_stacks.get(&placement.player_id) {
+                            seat.chip_count = Some(*final_stack);
+                        }
+                        seat.marker = Some(domain::SeatMarker::Dealer);
+                    } else {
+                        seat.tournament_state = domain::TournamentSeatState::EliminatedObserver;
+                        seat.chip_count = Some(0);
+                    }
+                }
             }
         }
         _ => {
