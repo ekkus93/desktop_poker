@@ -277,8 +277,7 @@ mod tests {
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join(HISTORY_FILE_NAME);
 
-        merge_history_file(&path, vec![entry(1, "old one"), entry(2, "two")])
-            .expect("first merge");
+        merge_history_file(&path, vec![entry(1, "old one"), entry(2, "two")]).expect("first merge");
         let merged = merge_history_file(&path, vec![entry(1, "new one"), entry(3, "three")])
             .expect("second merge");
 
@@ -308,6 +307,9 @@ mod tests {
         let error = merge_history_file(&path, vec![entry(1, "one")])
             .expect_err("corrupt history must block merge");
         assert!(error.contains("invalid JSON"));
-        assert_eq!(fs::read_to_string(path).expect("corrupt file remains"), "not json");
+        assert_eq!(
+            fs::read_to_string(path).expect("corrupt file remains"),
+            "not json"
+        );
     }
 }
