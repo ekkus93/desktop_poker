@@ -22,7 +22,7 @@ from runtime_multi_instance_smoke import (
     wait_for_command,
     wait_for_source,
 )
-from runtime_webdriver_smoke import wait_for, wait_for_route
+from runtime_webdriver_smoke import WebDriverError, wait_for, wait_for_route
 
 VIEW_PAYLOAD = {"viewerMode": "local"}
 
@@ -142,7 +142,7 @@ def invoke_expect_error(
 ) -> str:
     try:
         invoke(client, command, payload)
-    except AssertionError as error:
+    except (AssertionError, WebDriverError) as error:
         return str(error)
     raise AssertionError(f"{command} unexpectedly succeeded for invalid input")
 
