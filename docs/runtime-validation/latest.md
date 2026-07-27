@@ -1,48 +1,24 @@
 # Latest Linux Release Runtime Validation
 
-- Overall result: **PASS**
-- Validated commit: `2e4c3b567bfda85807027c633d1eb80e3ed22c2d`
-- GitHub Actions run: `30236162546`
-- Build outcome: `success`
-- Single-instance outcome: `success`
-- Multi-instance outcome: `success`
-- Recorded at: `2026-07-27T04:08:06.030448+00:00`
+- Overall result: **FAIL**
+- Validated commit: `8c698bd20a21610d6e870ea360565308e5658b04`
+- GitHub Actions run: `30236286545`
+- Build outcome: `skipped`
+- Single-instance outcome: `skipped`
+- Multi-instance outcome: `skipped`
+- Recorded at: `2026-07-27T04:09:18.912365+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
 
-Result: **PASS**
+Result: **FAIL**
 
-- **PASS** — tauri-driver became ready
-- **PASS** — release binary created a WebDriver session
-- **PASS** — Home rendered through the real Tauri backend
-- **PASS** — browser mocks are unavailable in release mode
-- **PASS** — Host route rendered
-- **PASS** — Join route rendered
-- **PASS** — invalid invite failed explicitly: The invite could not be checked.
-- **PASS** — /settings route rendered
-- **PASS** — /rules route rendered
-- **PASS** — session guard redirected /lobby without a live session
-- **PASS** — session guard redirected /table without a live session
-- **PASS** — release /debug route is not reachable
-- **PASS** — runtime screenshot and final page source captured
+Failure: single-instance runtime result file was not produced.
+
 
 ## Live multi-instance release smoke
 
-Result: **PASS**
+Result: **FAIL**
 
-- **PASS** — host release instance launched
-- **PASS** — client release instance launched
-- **PASS** — conflict host release instance launched
-- **PASS** — three instance IDs and profile directories are distinct
-- **PASS** — client host draft is independently namespaced before joining
-- **PASS** — host started a real TCP session and produced a pkr1_ invite
-- **PASS** — client joined the live host over real TCP with matching seat indexes
-- **PASS** — host began the lobby in its authoritative occupied seat
-- **PASS** — client claimed the remaining open seat through the release UI
-- **PASS** — host and client agree on distinct authoritative seat assignments
-- **PASS** — ready state propagated to both release instances
-- **PASS** — both instances entered Main Table after authoritative start
-- **PASS** — private cards are isolated and public table state is synchronized
-- **PASS** — same-port host failed explicitly: Unable to start hosting.
-- **PASS** — conflicting host recovered successfully on port 43819
+Failure: multi-instance runtime result file was not produced.
+
