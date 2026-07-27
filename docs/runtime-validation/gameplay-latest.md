@@ -1,16 +1,16 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **FAIL**
-- Validated commit: `0169849a6f55c55cafb28174ece21efa520be17b`
-- GitHub Actions run: `30236418491`
+- Validated commit: `494da40e9cdb61a7f17213ceec53e7c52b5d595c`
+- GitHub Actions run: `30236779452`
 - Build outcome: `success`
 - Gameplay outcome: `failure`
-- Recorded at: `2026-07-27T04:17:26.461829+00:00`
+- Recorded at: `2026-07-27T04:25:18.841731+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Failure
 
-WebDriverError: WebDriver POST /session/16cd0206-d750-4ad9-a9b6-1b2e24686d7b/execute/async error raise exceeds remaining stack: None
+WebDriverError: WebDriver POST /session/72ea85a2-8948-42d7-b691-495eb38d06d7/execute/async error raise exceeds remaining stack: None
 
 ## Executed checks
 
