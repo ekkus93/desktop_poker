@@ -32,19 +32,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          show-progress: false
 
       - name: Apply and publish source transformation
         shell: bash
         run: |
-          set -euo pipefail
-          cat scripts/.embedded_patch.part.* > /tmp/apply_embedded_llm_changes.py
-          python3 -m py_compile /tmp/apply_embedded_llm_changes.py
-          python3 /tmp/apply_embedded_llm_changes.py
+          set +e
+          mkdir -p docs/runtime-validation
+          {
+            set -x
+            cat scripts/.embedded_patch.part.* > /tmp/apply_embedded_llm_changes.py
+            python3 -m py_compile /tmp/apply_embedded_llm_changes.py
+            python3 /tmp/apply_embedded_llm_changes.py
+          } > docs/runtime-validation/embedded-apply.log 2>&1
+          status=$?
+          set -e
 
-          rm -f scripts/.embedded_patch.part.*
-          rm -f .github/workflows/apply-embedded-llm.yml
-          rm -f .github/workflows/diagnose-embedded-apply.yml
-          python3 - <<'PY'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [[ "$status" == "0" ]]; then
+            rm -f scripts/.embedded_patch.part.*
+            rm -f .github/workflows/apply-embedded-llm.yml
+            rm -f .github/workflows/diagnose-embedded-apply.yml
+            rm -f docs/runtime-validation/embedded-apply.log
+            python3 - <<'PY'
           from pathlib import Path
           path = Path('.github/workflows/ci.yml')
           text = path.read_text(encoding='utf-8')
@@ -56,15 +68,18 @@ jobs:
           text = text.replace('  cancel-in-progress: false\n', '  cancel-in-progress: true\n', 1)
           path.write_text(text, encoding='utf-8')
           PY
+            message="Add embedded GGUF NPC inference"
+          else
+            cat docs/runtime-validation/embedded-apply.log
+            message="docs: record embedded LLM transformation failure"
+          fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Add embedded GGUF NPC inference"
+          git commit -m "$message"
           for attempt in 1 2 3 4 5 6 7 8; do
             git pull --rebase origin master
             if git push origin HEAD:master; then
-              exit 0
+              exit "$status"
             fi
             sleep 3
           done
