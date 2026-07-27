@@ -2,21 +2,45 @@ import { useEffect, useState } from "react";
 import { History, Trophy } from "lucide-react";
 import { Link } from "react-router";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
-import { readPersistedHandHistory } from "../app/persistence";
+import {
+  readDurableHandHistory,
+  readPersistedHandHistory,
+  type PersistedHandHistory,
+} from "../app/persistence";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
 export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
+  const [persistedHistory, setPersistedHistory] =
+    useState<PersistedHandHistory | null>(() =>
+      readPersistedHandHistory(bootstrap.storageNamespace),
+    );
   const [error, setError] = useState<string | null>(null);
-  const persistedHistory = readPersistedHandHistory(bootstrap.storageNamespace);
   const historyEntries = tableView?.handHistory.length
     ? tableView.handHistory
     : (persistedHistory?.entries ?? []);
 
   useEffect(() => {
     let cancelled = false;
+
+    void readDurableHandHistory(bootstrap.storageNamespace)
+      .then((history) => {
+        if (!cancelled) {
+          setPersistedHistory(history);
+        }
+      })
+      .catch((caughtError: unknown) => {
+        if (!cancelled) {
+          setError(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Saved history could not be loaded.",
+          );
+        }
+      });
+
     void getTableView("local")
       .then((snapshot) => {
         if (!cancelled) {
@@ -24,7 +48,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
         }
       })
       .catch((caughtError: unknown) => {
-        if (!cancelled) {
+        if (!cancelled && !persistedHistory?.entries.length) {
           setError(
             caughtError instanceof Error
               ? caughtError.message
@@ -36,7 +60,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bootstrap.storageNamespace, persistedHistory?.entries.length]);
 
   return (
     <ScreenShell
@@ -51,8 +75,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           className="support-card history-primary-card"
         >
           {error ? <p>{error}</p> : null}
-          {!tableView?.handHistory.length &&
-          persistedHistory?.entries.length ? (
+          {!tableView?.handHistory.length && historyEntries.length ? (
             <p className="field-hint">Saved on this device.</p>
           ) : null}
           <div className="stacked-list scroll-list">

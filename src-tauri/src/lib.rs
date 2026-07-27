@@ -1,6 +1,7 @@
 pub mod app_state;
 pub mod commands;
 pub mod crypto;
+pub mod history_storage;
 pub mod interop;
 pub mod networking;
 pub mod npc;
@@ -22,6 +23,7 @@ use commands::{
     save_llm_provider_settings, save_npc_profile, set_llm_api_key, set_llm_provider_config,
     start_host_session, stop_host_session, submit_table_action, validate_join_payload_input,
 };
+use history_storage::{merge_persisted_hand_history, read_persisted_hand_history};
 use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -66,7 +68,9 @@ pub fn run() {
             list_npc_profiles,
             get_npc_profile,
             save_npc_profile,
-            delete_npc_profile
+            delete_npc_profile,
+            read_persisted_hand_history,
+            merge_persisted_hand_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");

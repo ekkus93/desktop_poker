@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
-import { mergePersistedHandHistory } from "../app/persistence";
+import { mergeDurableHandHistory } from "../app/persistence";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -24,13 +24,13 @@ function waitForNextHistoryAttempt() {
   });
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function TournamentCompleteScreen() {
-  const {
-    bootstrap,
-    hostDraft,
-    persistedHandHistoryCount,
-    wasHost,
-  } = useDesktopShell();
+  const { bootstrap, hostDraft, persistedHandHistoryCount, wasHost } =
+    useDesktopShell();
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [savedHandHistoryCount, setSavedHandHistoryCount] = useState(
     persistedHandHistoryCount,
@@ -45,7 +45,11 @@ export function TournamentCompleteScreen() {
       let latestSnapshot: TableViewSnapshot | null = null;
       let lastError: unknown = null;
 
-      for (let attempt = 0; attempt < FINAL_HISTORY_SYNC_ATTEMPTS; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < FINAL_HISTORY_SYNC_ATTEMPTS;
+        attempt += 1
+      ) {
         try {
           const snapshot = await getTableView("local");
           if (cancelled) {
@@ -57,12 +61,11 @@ export function TournamentCompleteScreen() {
           setTableView(snapshot);
           setError(null);
 
-          if (snapshot.handHistory.length > 0) {
-            const mergedHistory = mergePersistedHandHistory(
-              bootstrap.storageNamespace,
-              snapshot.handHistory,
-            );
-            setSavedHandHistoryCount(mergedHistory.entries.length);
+          if (
+            snapshot.tournamentPhase !== "complete" ||
+            containsCurrentHand(snapshot)
+          ) {
+            break;
           }
         } catch (caughtError: unknown) {
           lastError = caughtError;
@@ -96,8 +99,29 @@ export function TournamentCompleteScreen() {
         setError(
           "Final standings loaded, but the last hand has not arrived for saved history.",
         );
+        return;
       }
-      setHistorySyncComplete(true);
+
+      try {
+        if (latestSnapshot.handHistory.length > 0) {
+          const mergedHistory = await mergeDurableHandHistory(
+            bootstrap.storageNamespace,
+            latestSnapshot.handHistory,
+          );
+          if (cancelled) {
+            return;
+          }
+          setSavedHandHistoryCount(mergedHistory.entries.length);
+        }
+        setHistorySyncComplete(true);
+      } catch (saveError: unknown) {
+        if (!cancelled) {
+          setError(
+            `Final standings loaded, but hand history could not be saved durably: ${errorMessage(saveError)}`,
+          );
+          setHistorySyncComplete(false);
+        }
+      }
     };
 
     void loadFinalSnapshot();
