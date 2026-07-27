@@ -1,0 +1,190 @@
+            },
+            Card {
+                rank: Rank::King,
+                suit: Suit::Spades,
+            },
+        ],
+        pot_total: 150,
+        call_amount: 50,
+        min_raise_to: Some(150),
+        max_raise_to: Some(1_000),
+        stack: 1_000,
+        position: Position::Late,
+        active_player_count: 3,
+        legal_actions: legal_actions.clone(),
+        blind_level: BlindLevel {
+            level_index: 0,
+            label: "25/50".to_string(),
+            small_blind: 25,
+            big_blind: 50,
+            ante: 0,
+            duration_seconds: 600,
+        },
+        street_history: vec![],
+        session_context: None,
+        opponent_context: None,
+        tilt_description: None,
+    };
+
+    let (action, amount) =
+        choose_embedded_action(&client, &profile, &snapshot).expect("model must choose an action");
+    assert!(legal_actions.contains(&action), "model returned illegal {action:?}");
+    if action == ActionType::Raise {
+        let amount = amount.expect("raise must include an amount");
+        assert!((150..=1_000).contains(&amount));
+    } else {
+        assert!(amount.is_none());
+    }
+}
+''',
+)
+
+# Frontend provider types and settings UI.
+replace_once(
+    'src/api/desktop.ts',
+    'export type LlmProviderType = "anthropic" | "openAi" | "ollama" | "llamaServer";\n',
+    'export type LlmProviderType =\n  | "anthropic"\n  | "openAi"\n  | "ollama"\n  | "llamaServer"\n  | "embeddedLocal";\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '  { value: "llamaServer", label: "llama-server (local)" },\n',
+    '  { value: "llamaServer", label: "llama-server (local)" },\n  { value: "embeddedLocal", label: "Embedded GGUF (in app)" },\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '  llamaServer: "http://localhost:8080",\n',
+    '  llamaServer: "http://localhost:8080",\n  embeddedLocal: "embedded://local",\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '  llamaServer: "",\n',
+    '  llamaServer: "",\n  embeddedLocal: "/absolute/path/to/Qwen3-0.6B-Q4_0.gguf",\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '    setSaving(true);\n',
+    '    if (selectedProvider === "embeddedLocal" && !model.trim()) {\n      setProviderError("Select an absolute path to a local .gguf model file.");\n      return;\n    }\n    setSaving(true);\n',
+)
+old_endpoint = '''            <label className="field">
+              Endpoint URL{" "}
+              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+              <input
+                placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
+                value={endpointUrl}
+                onChange={(e) => setEndpointUrl(e.target.value)}
+                aria-label="Endpoint URL"
+              />
+            </label>
+'''
+new_endpoint = '''            {selectedProvider !== "embeddedLocal" ? (
+              <label className="field">
+                Endpoint URL{" "}
+                <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+                <input
+                  placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
+                  value={endpointUrl}
+                  onChange={(e) => setEndpointUrl(e.target.value)}
+                  aria-label="Endpoint URL"
+                />
+              </label>
+            ) : null}
+'''
+replace_once('src/screens/DeviceSettingsScreen.tsx', old_endpoint, new_endpoint)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '              Model{" "}\n              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>\n',
+    '              {selectedProvider === "embeddedLocal" ? "GGUF model path" : "Model"}{" "}\n              <span style={{ fontWeight: 400, opacity: 0.7 }}>\n                ({selectedProvider === "embeddedLocal" ? "required" : "optional"})\n              </span>\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '            </label>\n          </div>\n\n          <div className="button-row">\n',
+    '            </label>\n            {selectedProvider === "embeddedLocal" ? (\n              <p className="field-hint">\n                The app loads this GGUF directly with llama.cpp. No Ollama,\n                llama-server, API key, or network request is used. Qwen3 0.6B\n                Q4_0 is the recommended starting model.\n              </p>\n            ) : null}\n          </div>\n\n          <div className="button-row">\n',
+)
+replace_once(
+    'src/screens/DeviceSettingsScreen.tsx',
+    '                  !hasExistingKeyForProvider)\n',
+    '                  !hasExistingKeyForProvider) ||\n                (selectedProvider === "embeddedLocal" && !model.trim())\n',
+)
+replace_once(
+    'src/screens/HostTournamentSetupScreen.tsx',
+    '                    Add a Claude API key in settings to use AI profiles.\n',
+    '                    Configure an LLM provider in settings to use AI profiles.\n',
+)
+
+# Build dependencies and real-model CI job.
+for workflow in ['.github/workflows/ci.yml', '.github/workflows/runtime-full-game-validation.yml']:
+    content = read(workflow)
+    content = content.replace(
+        '            build-essential \\\n            curl \\\n',
+        '            build-essential \\\n            clang \\\n            libclang-dev \\\n            cmake \\\n            curl \\\n',
+    )
+    write(workflow, content)
+
+replace_once(
+    '.github/workflows/ci.yml',
+    '# Graphical application launch, live LAN play, keychain behavior, and live LLM\n# providers remain separate manual release-readiness gates.\n',
+    '# Graphical application launch, live LAN play, keychain behavior, and remote live LLM\n# providers remain separate release-readiness gates. Embedded GGUF inference is tested here.\n',
+)
+embedded_job = r'''
+
+  embedded-npc:
+    name: Embedded tiny-LLM NPC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install embedded inference build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang libclang-dev cmake curl
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          key: embedded-npc
+
+      - name: Cache tiny GGUF smoke-test model
+        uses: actions/cache@v4
+        with:
+          path: .cache/embedded-models
+          key: smollm2-135m-instruct-q3km-32db44d
+
+      - name: Download tiny GGUF smoke-test model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/embedded-models
+          model=.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf
+          if [[ ! -s "$model" ]]; then
+            curl --fail --location --retry 4 --retry-delay 3 \
+              -o "$model.tmp" \
+              https://huggingface.co/tensorblock/SmolLM2-135M-Instruct-GGUF/resolve/32db44d/SmolLM2-135M-Instruct-Q3_K_M.gguf
+            mv "$model.tmp" "$model"
+          fi
+          test -s "$model"
+          ls -lh "$model"
+          sha256sum "$model" | tee embedded-model.sha256
+
+      - name: Run real embedded-model NPC decision
+        env:
+          DESKTOP_POKER_REQUIRE_EMBEDDED_MODEL: "1"
+          DESKTOP_POKER_EMBEDDED_TEST_MODEL: .cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf
+        run: |
+          cargo test -p desktop-poker --test embedded_npc_smoke -- --nocapture \
+            2>&1 | tee embedded-npc-smoke.log
+
+      - name: Upload embedded NPC evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-tiny-llm-npc-evidence
+          path: |
+            embedded-model.sha256
+            embedded-npc-smoke.log
