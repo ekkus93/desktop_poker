@@ -1,0 +1,43 @@
+name: Apply embedded local LLM now
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/apply-embedded-llm-now.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-embedded-local-llm-now
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    name: Generate, format, and publish embedded LLM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply embedded local LLM implementation
+        run: bash scripts/apply_embedded_llm_now.sh
