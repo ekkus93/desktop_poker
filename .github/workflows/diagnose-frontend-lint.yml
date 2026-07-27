@@ -1,0 +1,92 @@
+name: Diagnose frontend lint
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/diagnose-frontend-lint.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: diagnose-frontend-lint
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Capture frontend lint diagnostics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Capture exact frontend lint result
+        id: lint
+        shell: bash
+        run: |
+          set +e
+          npm run lint > frontend-lint-diagnostic.log 2>&1
+          status=$?
+          cat frontend-lint-diagnostic.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish frontend lint diagnostic
+        env:
+          LINT_STATUS: ${{ steps.lint.outputs.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          cp frontend-lint-diagnostic.log docs/runtime-validation/frontend-lint-diagnostic-latest.log
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          status = int(os.environ["LINT_STATUS"])
+          payload = {
+              "result": "PASS" if status == 0 else "FAIL",
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "frontendLintExitStatus": status,
+          }
+          Path("docs/runtime-validation/frontend-lint-diagnostic-latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/frontend-lint-diagnostic-latest.log \
+            docs/runtime-validation/frontend-lint-diagnostic-latest.json
+          git commit -m "docs: record frontend lint diagnostic result"
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
