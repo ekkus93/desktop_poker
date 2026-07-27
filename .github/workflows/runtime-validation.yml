@@ -1,0 +1,116 @@
+name: Linux release runtime validation
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  release-runtime-smoke:
+    name: Release WebDriver smoke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux runtime and WebDriver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build release binary without bundling
+        run: npm run tauri build -- --no-bundle 2>&1 | tee runtime-validation-build.log
+
+      - name: Run release binary through WebDriver
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-validation-evidence
+          binary="$PWD/target/release/desktop-poker"
+          test -x "$binary"
+          sha256sum "$binary" | tee runtime-validation-evidence/release-binary.sha256
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+          export DESKTOP_POKER_INSTANCE_ID="runtime-smoke-${GITHUB_RUN_ID}"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -lc '
+              set -euo pipefail
+              export NO_AT_BRIDGE=1
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+              export GDK_BACKEND=x11
+              tauri-driver --port 4444 \
+                >runtime-validation-evidence/tauri-driver.log 2>&1 &
+              driver_pid=$!
+              trap '\''kill "$driver_pid" 2>/dev/null || true; wait "$driver_pid" 2>/dev/null || true'\'' EXIT
+              python3 scripts/runtime_webdriver_smoke.py \
+                --application "'"$binary"'" \
+                --driver-url http://127.0.0.1:4444 \
+                --evidence-dir runtime-validation-evidence
+            '
+
+      - name: Inventory runtime evidence
+        if: always()
+        run: |
+          find runtime-validation-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort \
+            | tee runtime-validation-evidence/inventory.txt
+          cat runtime-validation-evidence/release-runtime-result.json || true
+          cat runtime-validation-evidence/tauri-driver.log || true
+
+      - name: Upload runtime validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-runtime-evidence
+          path: |
+            runtime-validation-build.log
+            runtime-validation-evidence/
+          if-no-files-found: error
+          retention-days: 30
