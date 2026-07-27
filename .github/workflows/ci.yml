@@ -22,22 +22,20 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Append entry and restore permanent workflow
+      - name: Append release-readiness entry
         shell: bash
         run: |
           set -euo pipefail
           cat docs/.release-readiness-memory-entry >> memory.md
           test "$(grep -c '^## ' memory.md)" -gt 20
           test "$(grep -c 'GPT-5.6 Thinking - Execute release-readiness baseline' memory.md)" -eq 1
-          git show 10bff5d8b005b42bc100c91c4a1adba511b126ca:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git rm -f .github/workflows/append-memory-ledger.yml docs/.release-readiness-memory-entry
 
-      - name: Commit restored ledger
+      - name: Commit ledger entry
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add memory.md .github/workflows/ci.yml
+          git add memory.md
           git commit -m 'docs: append release-readiness ledger entry'
           git push origin HEAD:${{ github.head_ref }}
