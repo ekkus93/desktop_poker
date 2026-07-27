@@ -14,10 +14,12 @@ Current evidence is recorded in:
 - `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/runtime-validation/latest.json`
 - `docs/runtime-validation/gameplay-latest.json`
+- `docs/runtime-validation/embedded-model-latest.json`
+- `docs/runtime-validation/embedded-tournament-latest.json`
 
 ## Current release position
 
-The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart.
+The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. A complete release-mode tournament with two profile-backed in-process GGUF NPCs is also proven through two settled hands, ten committed model-selected actions, elimination, and final standings without an NPC-runner diagnostic.
 
 A release tag is still blocked by installed-package/AppImage, physical-LAN, reconnect, keychain, and live rule-based NPC evidence.
 
@@ -122,9 +124,12 @@ Open release blockers:
 
 - **Priority:** P1
 - **Category:** NPC provider runtime
-- **Required behavior:** At least one accepted legal live-model action plus unavailable/timeout/invalid-response paths with typed diagnostics and no credential leakage.
-- **Desktop release blocker:** No for a rule-based-only release, unless live LLM support is advertised as release-ready.
-- **Status:** Blocked by absent provider endpoint/test credential.
+- **Current behavior:** The embedded local GGUF provider has passed both a real single-decision smoke and a complete release-mode tournament. Workflow run `30310372741` loaded the checksum-pinned SmolLM2 135M GGUF in-process, seated `aggressive-alice` and `balanced-sam`, completed two hands, recorded ten committed NPC actions, and reached final standings with no `[npc-runner]` diagnostic.
+- **Evidence:** `.github/workflows/embedded-model-ci.yml`; `scripts/runtime_embedded_npc_tournament.py`; `docs/runtime-validation/embedded-model-latest.json`; `docs/runtime-validation/embedded-tournament-latest.json`; artifact `embedded-npc-tournament-evidence`.
+- **Remaining required behavior:** Exercise embedded model unavailable/load-failure/inference-failure paths with typed diagnostics; separately validate accepted-action and unavailable/timeout/invalid-response behavior for any remote provider advertised as release-ready.
+- **Acceptance criteria:** Every supported advertised provider has at least one accepted legal live-model action and explicit failure-path evidence, with no credential leakage or silent rule-based conversion.
+- **Desktop release blocker:** No for a rule-based-only release. Embedded local live play is proven; remote providers remain outside the proven release matrix.
+- **Status:** **Partially complete. Embedded local full-tournament scenario completed; negative embedded paths and remote-provider scenarios remain open.**
 
 ---
 
