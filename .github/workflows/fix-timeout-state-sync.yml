@@ -11,6 +11,10 @@ permissions:
   actions: write
   contents: write
 
+concurrency:
+  group: timeout-state-sync-repair
+  cancel-in-progress: true
+
 jobs:
   fix-timeout-sync:
     runs-on: ubuntu-24.04
@@ -20,172 +24,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply transaction fix
+      - name: Apply transactional repair
         id: patch
         continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          python3 - <<'PY' 2>&1 | tee timeout-sync-patch.log
-          from pathlib import Path
-          import re
+          python3 scripts/apply_timeout_transaction_fix.py \
+            2>&1 | tee timeout-transaction-patch.log
+          cargo fmt --all
 
-          host_path = Path("src-tauri/src/networking/runtime/host.rs")
-          host_text = host_path.read_text()
-          pattern = re.compile(
-              r"    pub fn submit_action\(\n"
-              r".*?"
-              r"\n    \}\n\n"
-              r"    /// Attempt to broadcast updated snapshots after a successful lobby mutation\.",
-              re.DOTALL,
-          )
-          replacement = '''    pub fn submit_action(
-        &self,
-        player_id: &str,
-        action_window_id: String,
-        action_type: crate::domain::ActionType,
-        raise_to_amount: Option<u32>,
-    ) -> Result<(), NetworkingError> {
-        let before_state = self.authoritative_state()?;
-        let (next_state, action_result) = {
-            let mut runtime = self
-                .tournament_runtime
-                .lock()
-                .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?;
-            let controller = runtime
-                .as_mut()
-                .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
-
-            let action_result = controller
-                .submit_action(
-                    ActionRequest {
-                        player_id: player_id.to_string(),
-                        action_window_id,
-                        action_type,
-                        raise_to_amount,
-                    },
-                    now_epoch_ms(),
-                )
-                .map_err(|error| NetworkingError::new(error.to_string()));
-            (controller.state().clone(), action_result)
-        };
-
-        let publish_result = if next_state != before_state {
-            self.authoritative_state
-                .lock()
-                .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
-                .map(|mut authoritative_state| {
-                    let mut merged = next_state;
-                    merge_networking_state(&authoritative_state, &mut merged);
-                    *authoritative_state = merged;
-                })?;
-            let after_state = self.authoritative_state()?;
-            publish_runtime_transition(
-                &self.join_payload,
-                &self.authoritative_state,
-                &before_state,
-                &after_state,
-                &self.clients,
-                &self.server_sequence,
-                &self.host_signing_keys,
-                &self.host_encryption_keys,
-                &self.public_events,
-            )
-        } else {
-            Ok(())
-        };
-
-        match (action_result, publish_result) {
-            (Ok(()), Ok(())) => Ok(()),
-            (Err(action_error), Ok(())) => Err(action_error),
-            (Ok(()), Err(publish_error)) => Err(publish_error),
-            (Err(action_error), Err(publish_error)) => Err(NetworkingError::new(format!(
-                "{action_error}; additionally failed to publish committed runtime state: {publish_error}"
-            ))),
-        }
-    }
-
-    /// Attempt to broadcast updated snapshots after a successful lobby mutation.'''
-          host_text, count = pattern.subn(replacement, host_text, count=1)
-          if count != 1:
-              raise SystemExit(f"expected one HostServer::submit_action block, replaced {count}")
-          host_path.write_text(host_text)
-
-          test_path = Path("src-tauri/src/networking/runtime/tests/tournament.rs")
-          test_text = test_path.read_text()
-          marker = "// P0.4 — NPC runner reports failure (returns false) when submit_action is rejected.\n"
-          test = '''#[test]
-fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
-    let provider = DefaultCryptoProvider;
-    let mut initial_state = sample_tournament_state("table-timeout-sync", 89);
-    initial_state.config.max_players = 2;
-    initial_state.config.turn_timer_seconds = 1;
-    let host = bind_test_host_with_state(
-        &provider,
-        "table-timeout-sync",
-        89,
-        initial_state,
-    );
-
-    for (player_id, display_name, seat_index) in
-        [("player-a", "Alice", 0_u8), ("player-b", "Bob", 1_u8)]
-    {
-        host.register_npc_participant(player_id, display_name)
-            .expect("participant registers");
-        host.claim_seat(player_id, seat_index)
-            .expect("participant claims seat");
-        host.set_ready_state(player_id, true)
-            .expect("participant becomes ready");
-    }
-
-    host.start_tournament().expect("tournament starts");
-    let original_window = host
-        .authoritative_state()
-        .expect("running state")
-        .current_hand
-        .as_ref()
-        .and_then(|hand| hand.action_window.clone())
-        .expect("initial action window");
-
-    host.stop_signal.store(true, Ordering::SeqCst);
-    thread::sleep(Duration::from_millis(1_100));
-
-    let error = host
-        .submit_action(
-            &original_window.player_id,
-            original_window.action_window_id.clone(),
-            ActionType::Fold,
-            None,
-        )
-        .expect_err("expired action is rejected after committing the timeout");
-    assert!(error.to_string().contains("stale action window rejected"));
-
-    let synchronized = host
-        .authoritative_state()
-        .expect("authoritative state after timeout rejection");
-    assert_eq!(
-        synchronized.hand_results.len(),
-        1,
-        "the timeout fold must settle the heads-up hand in authoritative state"
-    );
-    assert_ne!(
-        synchronized
-            .current_hand
-            .as_ref()
-            .and_then(|hand| hand.action_window.as_ref())
-            .map(|window| window.action_window_id.as_str()),
-        Some(original_window.action_window_id.as_str()),
-        "the expired action window must not remain visible after rejection"
-    );
-}
-
-'''
-          if test_text.count(marker) != 1:
-              raise SystemExit("unexpected tournament test insertion marker")
-          test_path.write_text(test_text.replace(marker, test + marker, 1))
-          PY
-
-      - name: Format and run focused regression
+      - name: Run focused regressions
         id: verify
         if: steps.patch.outcome == 'success'
         continue-on-error: true
@@ -194,12 +43,15 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
           set -o pipefail
           {
             cargo fmt --all --check
+            cargo test -p poker-core \
+              tournament::tests::core::submit_action_invalid_raise_rolls_back_controller_state \
+              -- --exact --nocapture
             cargo test -p desktop-poker \
               networking::runtime::tests::tournament::stale_submission_that_commits_timeout_synchronizes_authoritative_state \
               -- --exact --nocapture
-          } 2>&1 | tee timeout-sync-verify.log
+          } 2>&1 | tee timeout-transaction-verify.log
 
-      - name: Commit verified fix or durable diagnostics
+      - name: Commit verified repair or diagnostics
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -212,19 +64,28 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           if [ "$PATCH_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
-            rm .github/workflows/fix-timeout-state-sync.yml
+            rm \
+              .github/workflows/fix-timeout-state-sync.yml \
+              scripts/apply_timeout_transaction_fix.py
             git add \
+              crates/poker-core/src/tournament/mod.rs \
+              crates/poker-core/src/tournament/controller_core.rs \
+              crates/poker-core/src/tournament/tests/core.rs \
               src-tauri/src/networking/runtime/host.rs \
               src-tauri/src/networking/runtime/tests/tournament.rs \
-              .github/workflows/fix-timeout-state-sync.yml
-            git commit -m "fix: synchronize timeout mutations on rejected actions"
+              .github/workflows/fix-timeout-state-sync.yml \
+              scripts/apply_timeout_transaction_fix.py
+            git commit -m "fix: make rejected actions transactional"
           else
             git restore \
+              crates/poker-core/src/tournament/mod.rs \
+              crates/poker-core/src/tournament/controller_core.rs \
+              crates/poker-core/src/tournament/tests/core.rs \
               src-tauri/src/networking/runtime/host.rs \
               src-tauri/src/networking/runtime/tests/tournament.rs
             mkdir -p docs/runtime-validation
             {
-              echo "# Timeout State Synchronization Repair Diagnostic"
+              echo "# Transactional Action Repair Diagnostic"
               echo
               echo "- Staging commit: \`$GITHUB_SHA\`"
               echo "- Workflow run: \`$GITHUB_RUN_ID\`"
@@ -234,17 +95,17 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
               echo '## Patch log'
               echo
               echo '```text'
-              tail -n 200 timeout-sync-patch.log 2>/dev/null || true
+              tail -n 200 timeout-transaction-patch.log 2>/dev/null || true
               echo '```'
               echo
               echo '## Verification log'
               echo
               echo '```text'
-              tail -n 300 timeout-sync-verify.log 2>/dev/null || true
+              tail -n 400 timeout-transaction-verify.log 2>/dev/null || true
               echo '```'
             } > docs/runtime-validation/timeout-sync-repair-latest.md
             git add docs/runtime-validation/timeout-sync-repair-latest.md
-            git commit -m "docs: record timeout synchronization repair failure"
+            git commit -m "docs: record transactional action repair failure"
           fi
 
           for attempt in 1 2 3 4 5; do
@@ -258,7 +119,7 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
               exit 0
             fi
             if [ "$attempt" -eq 5 ]; then
-              echo "Unable to publish timeout synchronization repair result" >&2
+              echo "Unable to publish transactional action repair result" >&2
               exit 1
             fi
             sleep $((attempt * 2))
