@@ -69,6 +69,7 @@ struct ActiveHandRuntime {
     last_actor_id: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct TournamentController {
     state: TournamentState,
     roster_frozen: bool,

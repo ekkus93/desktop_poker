@@ -692,7 +692,7 @@ impl HostServer {
         raise_to_amount: Option<u32>,
     ) -> Result<(), NetworkingError> {
         let before_state = self.authoritative_state()?;
-        let next_state = {
+        let (next_state, action_result) = {
             let mut runtime = self
                 .tournament_runtime
                 .lock()
@@ -701,7 +701,7 @@ impl HostServer {
                 .as_mut()
                 .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
 
-            controller
+            let action_result = controller
                 .submit_action(
                     ActionRequest {
                         player_id: player_id.to_string(),
@@ -711,30 +711,43 @@ impl HostServer {
                     },
                     now_epoch_ms(),
                 )
-                .map_err(|error| NetworkingError::new(error.to_string()))?;
-            controller.state().clone()
+                .map_err(|error| NetworkingError::new(error.to_string()));
+            (controller.state().clone(), action_result)
         };
 
-        self.authoritative_state
-            .lock()
-            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
-            .map(|mut authoritative_state| {
-                let mut merged = next_state;
-                merge_networking_state(&authoritative_state, &mut merged);
-                *authoritative_state = merged;
-            })?;
-        let after_state = self.authoritative_state()?;
-        publish_runtime_transition(
-            &self.join_payload,
-            &self.authoritative_state,
-            &before_state,
-            &after_state,
-            &self.clients,
-            &self.server_sequence,
-            &self.host_signing_keys,
-            &self.host_encryption_keys,
-            &self.public_events,
-        )
+        let publish_result = if next_state != before_state {
+            self.authoritative_state
+                .lock()
+                .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
+                .map(|mut authoritative_state| {
+                    let mut merged = next_state;
+                    merge_networking_state(&authoritative_state, &mut merged);
+                    *authoritative_state = merged;
+                })?;
+            let after_state = self.authoritative_state()?;
+            publish_runtime_transition(
+                &self.join_payload,
+                &self.authoritative_state,
+                &before_state,
+                &after_state,
+                &self.clients,
+                &self.server_sequence,
+                &self.host_signing_keys,
+                &self.host_encryption_keys,
+                &self.public_events,
+            )
+        } else {
+            Ok(())
+        };
+
+        match (action_result, publish_result) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(action_error), Ok(())) => Err(action_error),
+            (Ok(()), Err(publish_error)) => Err(publish_error),
+            (Err(action_error), Err(publish_error)) => Err(NetworkingError::new(format!(
+                "{action_error}; additionally failed to publish committed runtime state: {publish_error}"
+            ))),
+        }
     }
 
     /// Attempt to broadcast updated snapshots after a successful lobby mutation.

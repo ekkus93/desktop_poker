@@ -460,6 +460,66 @@ fn client_action_submission_syncs_running_state_across_the_live_runtime() {
     }
 }
 
+#[test]
+fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
+    let provider = DefaultCryptoProvider;
+    let mut initial_state = sample_tournament_state("table-timeout-sync", 89);
+    initial_state.config.max_players = 2;
+    initial_state.config.turn_timer_seconds = 1;
+    let host = bind_test_host_with_state(&provider, "table-timeout-sync", 89, initial_state);
+
+    for (player_id, display_name, seat_index) in
+        [("player-a", "Alice", 0_u8), ("player-b", "Bob", 1_u8)]
+    {
+        host.register_npc_participant(player_id, display_name)
+            .expect("participant registers");
+        host.claim_seat(player_id, seat_index)
+            .expect("participant claims seat");
+        host.set_ready_state(player_id, true)
+            .expect("participant becomes ready");
+    }
+
+    host.start_tournament().expect("tournament starts");
+    let original_window = host
+        .authoritative_state()
+        .expect("running state")
+        .current_hand
+        .as_ref()
+        .and_then(|hand| hand.action_window.clone())
+        .expect("initial action window");
+
+    host.stop_signal.store(true, Ordering::SeqCst);
+    thread::sleep(Duration::from_millis(1_100));
+
+    let error = host
+        .submit_action(
+            &original_window.player_id,
+            original_window.action_window_id.clone(),
+            ActionType::Fold,
+            None,
+        )
+        .expect_err("expired action is rejected after committing the timeout");
+    assert!(error.to_string().contains("stale action window rejected"));
+
+    let synchronized = host
+        .authoritative_state()
+        .expect("authoritative state after timeout rejection");
+    assert_eq!(
+        synchronized.hand_results.len(),
+        1,
+        "the timeout fold must settle the heads-up hand in authoritative state"
+    );
+    assert_ne!(
+        synchronized
+            .current_hand
+            .as_ref()
+            .and_then(|hand| hand.action_window.as_ref())
+            .map(|window| window.action_window_id.as_str()),
+        Some(original_window.action_window_id.as_str()),
+        "the expired action window must not remain visible after rejection"
+    );
+}
+
 // P0.4 — NPC runner reports failure (returns false) when submit_action is rejected.
 
 #[test]

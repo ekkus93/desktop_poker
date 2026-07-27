@@ -179,6 +179,7 @@ impl TournamentController {
         request: ActionRequest,
         now_ms: u64,
     ) -> Result<(), TournamentError> {
+        let rollback_state = self.clone();
         let current_window = self
             .state
             .current_hand
@@ -188,7 +189,14 @@ impl TournamentController {
             .ok_or_else(|| TournamentError::new("stale action window rejected"))?;
 
         if now_ms >= current_window.deadline_epoch_ms {
-            self.commit_timeout(now_ms)?;
+            if let Err(error) = self.commit_timeout(now_ms) {
+                *self = rollback_state;
+                return Err(error);
+            }
+            if let Err(error) = self.validate_state() {
+                *self = rollback_state;
+                return Err(error);
+            }
             return Err(TournamentError::new("stale action window rejected"));
         }
 
@@ -202,13 +210,19 @@ impl TournamentController {
             return Err(TournamentError::new("stale action window rejected"));
         }
 
-        self.apply_action(
+        if let Err(error) = self.apply_action(
             request.player_id,
             request.action_type,
             request.raise_to_amount,
             now_ms,
-        )?;
-        self.validate_state()?;
+        ) {
+            *self = rollback_state;
+            return Err(error);
+        }
+        if let Err(error) = self.validate_state() {
+            *self = rollback_state;
+            return Err(error);
+        }
         Ok(())
     }
 

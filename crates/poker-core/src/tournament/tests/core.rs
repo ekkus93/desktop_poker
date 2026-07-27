@@ -70,6 +70,32 @@ fn submit_action_errors_when_now_is_past_action_deadline() {
     );
 }
 
+#[test]
+fn submit_action_invalid_raise_rolls_back_controller_state() {
+    let mut controller = started_two_player_controller();
+    let before = controller.state().clone();
+    let window = action_window(&controller);
+
+    let error = controller
+        .submit_action(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Raise,
+                raise_to_amount: Some(1_500),
+            },
+            0,
+        )
+        .expect_err("out-of-bounds raise must be rejected");
+
+    assert!(error.to_string().contains("exceeds remaining stack"));
+    assert_eq!(
+        controller.state(),
+        &before,
+        "a rejected action must leave the complete controller state unchanged"
+    );
+}
+
 // T3.3 — submit_action rejects stale window by ID after action was already consumed
 
 #[test]
