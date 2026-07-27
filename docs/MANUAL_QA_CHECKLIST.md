@@ -1,8 +1,11 @@
 # Manual QA Checklist — Real Multiplayer
 
-> **Current execution status:** This checklist contains manual scenarios, not historical pass evidence. A box may be checked only after the scenario is executed against a recorded commit and artifact. Record results in `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`. Current open work is consolidated in `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`.
+> **Current execution status:** Boxes may be checked only after the exact scenario is executed against a recorded commit and artifact. Virtual Linux graphical evidence is valid for release-binary and loopback runtime behavior; it does not substitute for installed-package, physical-LAN, physical-desktop, keychain, or live-provider testing.
 
-These checklists require a real desktop environment and cannot be replaced by unit, integration, browser-mock, or protocol-fixture tests. Complete them when validating a release candidate or after significant networking/protocol changes.
+Authoritative details are recorded in:
+
+- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
+- `docs/runtime-validation/latest.json`
 
 For every run, record:
 
@@ -11,85 +14,72 @@ For every run, record:
 - operating system and desktop environment;
 - binary/package filename and SHA-256;
 - instance IDs and host/client machine roles;
-- PASS, FAIL, BLOCKED, or NOT RUN for each scenario;
+- PASS, FAIL, PARTIAL, BLOCKED, or NOT RUN for each scenario;
 - defect identifier for every failure.
 
 ---
 
 ## Checklist A: Two local release instances on one machine
 
-**Setup:** From the repository root, build the desktop package with:
-
-```bash
-cargo build -p desktop-poker --release
-```
-
-The workspace release binary is expected at `target/release/desktop-poker`.
-
-Launch two instances with distinct IDs:
-
-```bash
-# Terminal 1 (host)
-./target/release/desktop-poker --instance-id host-a
-
-# Terminal 2 (client)
-./target/release/desktop-poker --instance-id client-b
-```
+**Latest partial execution:** GitHub Actions run `30234522553`, commit `d2f4fc82eeb43a9ecec4524e490dda4662e80123`, Ubuntu 24.04/Xvfb/WebKitWebDriver, release SHA-256 `a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe`.
 
 ### Evidence header
 
-- [ ] Date recorded
-- [ ] Tested commit SHA recorded
-- [ ] Binary SHA-256 recorded
-- [ ] OS and desktop environment recorded
-- [ ] Application data paths for `host-a` and `client-b` recorded
+- [x] Date recorded
+- [x] Tested commit SHA recorded
+- [x] Binary SHA-256 recorded
+- [x] OS and graphical environment recorded
+- [x] Application data paths for host and client recorded
 
-### Host/join and gameplay flow
+### Host/join and initial gameplay flow
 
-- [ ] Host: Home → Host Tournament → fill in name and player count → Start hosting
-- [ ] Host: Lobby shows host player in a seat, invite is visible and copyable
-- [ ] Host: Click "Copy invite" and confirm the clipboard contains a `pkr1_...` payload
-- [ ] Client: Home → Join Tournament → paste the invite → Check invite → Continue to lobby
-- [ ] Both: Lobby shows two participants with correct names
-- [ ] Both: Seat selection (host claims a seat; client claims a different seat)
-- [ ] Both: Ready toggle is reflected truthfully for both players
-- [ ] Host: Start remains disabled until all authoritative conditions are met
-- [ ] Host: Click "Start Tournament" when all players are ready
-- [ ] Both: Lobby transitions to Main Table
-- [ ] Both: Hand play exercises fold, check, call, bet, legal raise, quick-size, and all-in confirmation
-- [ ] Both: Illegal raise bounds cannot be submitted
-- [ ] Both: Only the acting player receives an action tray
-- [ ] Both: Private hole cards are visible only to their owner
-- [ ] Both: Board, pot, contributions, action owner, street, and stacks remain synchronized
-- [ ] Both: Hand history accumulates without duplicate records
-- [ ] Both: Elimination is reflected in observer state for the eliminated player
+- [x] Host: Home → Host Tournament → configure two players → Start hosting
+- [x] Host: live session exposes a compact `pkr1_...` invitation
+- [ ] Host: click **Copy invite** and confirm the system clipboard contains the exact payload
+- [x] Client: Home → Join Tournament → paste invite → Check invite → Continue to lobby
+- [x] Host and client raw statuses contain the same participant IDs and seat indexes
+- [x] Host begins in its authoritative occupied seat
+- [x] Client claims the distinct remaining open seat through the release UI
+- [x] Ready state propagates truthfully under normal loopback conditions
+- [ ] Host: verify Start remains disabled before every authoritative prerequisite is met
+- [x] Host: click **Start Tournament** after both players are seated and ready
+- [x] Both: Lobby transitions to Main Table
+- [x] Both: initial local player receives exactly two private hole cards
+- [x] Both: initial remote private hole cards are absent
+- [x] Both: initial table ID, hand number, street, pot, and board match
+- [ ] Both: exercise fold, check, call, bet, legal raise, quick-size, and all-in confirmation
+- [ ] Both: illegal raise bounds cannot be submitted
+- [ ] Both: only the acting player receives an action tray
+- [ ] Both: board, pot, contributions, action owner, street, and stacks remain synchronized through multiple actions
+- [ ] Both: hand history accumulates without duplicate records
+- [ ] Both: elimination is reflected in observer state for the eliminated player
 - [ ] Observer: receives no future private cards and cannot act
-- [ ] Both: Tournament completion screen shows the same correct standings
+- [ ] Both: tournament completion screen shows the same correct standings
 
 ### Exit and persistence
 
 - [ ] Client leaves normally
 - [ ] Host closes the table normally
-- [ ] Restart `host-a`: display name, host draft, window state, and history restore as designed
-- [ ] Restart `client-b`: host history and host draft do not appear
+- [ ] Restart host instance: display name, host draft, window state, and history restore as designed
+- [ ] Restart client instance: host history and host draft do not appear
 
 ### Error path coverage
 
-- [ ] Host port conflict: Start two host instances on the same port and confirm the second shows a clear error, not a silent hang
-- [ ] Change the second host to a different port, such as `43819`, and confirm hosting succeeds
-- [ ] Client join with invalid invite: paste garbage and confirm the parser error is shown inline
-- [ ] Client join with a decoded invite for an unavailable host: confirm explicit connection failure
+- [x] Host port conflict: second release instance on `43818` fails explicitly rather than hanging or claiming success
+- [x] Change the second host to `43819` and confirm hosting succeeds
+- [x] Client invalid invite: garbage input displays an inline error and stays on Join
+- [ ] Client decoded invite for unavailable host: explicit connection failure
 - [ ] Clear a failed deep-link invite and confirm it is not re-imported
-- [ ] Direct `/lobby` navigation with no session redirects or recovers safely
-- [ ] Direct `/table` navigation with no running session redirects or recovers safely
-- [ ] Kill the host during lobby and confirm the client reaches an explicit terminal state
-- [ ] Kill the host during a hand and confirm the client does not remain on a playable-looking table
+- [x] Direct `/lobby` with no session redirects safely
+- [x] Direct `/table` with no running session redirects safely
+- [ ] Kill host during lobby and confirm the client reaches an explicit terminal state
+- [ ] Kill host during a hand and confirm the client does not remain on a playable-looking table
 
 ---
 
 ## Checklist B: Two machines on the same LAN
 
-**Setup:** Build the same commit on both machines or copy the exact same release artifact. Record the binary SHA-256 on both machines. Confirm both are on the same LAN subnet and can reach TCP port `43818`.
+**Setup:** Build the same commit on both machines or copy the exact same release artifact. Record matching SHA-256 values, OS details, LAN addresses, and firewall prerequisites.
 
 ### Evidence header
 
@@ -102,62 +92,65 @@ Launch two instances with distinct IDs:
 
 ### Flow
 
-- [ ] Machine A (host): Start hosting and confirm the lobby shows the machine's real LAN IP
-- [ ] Machine B (client): Copy or manually type the `pkr1_...` invite payload from Machine A
-- [ ] Machine B: Join → Check invite → Confirm host details show Machine A's IP and port
-- [ ] Machine B: Continue to lobby → Lobby shows both participants
-- [ ] Both: Claim seats and ready
-- [ ] Host: Start tournament
-- [ ] Complete one full tournament hand-for-hand through completion
+- [ ] Machine A: host using its real LAN IP
+- [ ] Machine B: transfer the `pkr1_...` invite
+- [ ] Machine B: invite preview shows Machine A’s IP and port
+- [ ] Machine B: join; both participants appear
+- [ ] Both: claim seats and ready
+- [ ] Host: start tournament
+- [ ] Complete one full tournament through completion
 - [ ] Verify private cards remain isolated
-- [ ] Verify board, pot, stacks, action, history, elimination, and final standings match
+- [ ] Verify board, pot, stacks, actions, history, elimination, and standings match
 
 ### Disconnect/reconnect
 
-- [ ] During lobby: disconnect Machine B's network adapter briefly → reconnect → same player and seat recover
-- [ ] During live play: disconnect Machine B during or immediately before an action window → reconnect before expiry → state and command path recover
-- [ ] Verify stale pre-disconnect actions are rejected and no duplicate action is processed
-- [ ] Disconnect Machine B long enough to exceed the reconnect window → reconnect fails explicitly and no stale seat can act
-- [ ] Eliminate Machine B, disconnect, and reconnect within the window → return as observer without cards or action authority
-- [ ] Host shuts down mid-game → client receives an explicit terminal error and valid exit path
-- [ ] After tournament completion: reconnect attempt fails gracefully because the session is gone
+- [ ] Lobby network interruption and recovery preserve player and seat
+- [ ] Live-hand interruption before expiry restores state and command path
+- [ ] Stale pre-disconnect actions are rejected and no duplicate action applies
+- [ ] Reconnect after expiry fails explicitly
+- [ ] Eliminated player reconnects as observer without cards/action authority
+- [ ] Host shutdown produces an explicit terminal client state
+- [ ] Post-completion reconnect fails gracefully
 
 ---
 
 ## Checklist C: Release binary instance isolation
 
-Confirm that two release binary instances with different `--instance-id` values do not share state.
-
-- [ ] Instance `host-a`: set display name "Alice" and create tournament "Alice's Game"
-- [ ] Instance `client-b`: display name remains independent and host draft is not shared
-- [ ] Instance `host-a`: complete a tournament and verify history is visible
-- [ ] Instance `client-b`: History screen contains no `host-a` history
-- [ ] Restart `host-a`: display name, host draft, and history restore
-- [ ] Restart `client-b`: it remains unaffected by `host-a`'s restart
-- [ ] Record both application data directories and verify they are distinct
+- [x] Three release instances report distinct `instanceId` values
+- [x] Three release instances report distinct profile directories
+- [x] Client host draft is independently namespaced before joining
+- [ ] Host: set display name “Alice” and tournament “Alice’s Game”
+- [ ] Client: confirm display name and host draft remain independent
+- [ ] Host: complete tournament and verify history
+- [ ] Client: verify host history is absent
+- [ ] Restart host and verify display name, draft, window state, and history
+- [ ] Restart client and verify it remains unaffected
 
 ---
 
 ## Checklist D: Host port conflict behavior
 
-- [ ] Start `./target/release/desktop-poker --instance-id host-a` and begin hosting on port `43818`
-- [ ] Start `./target/release/desktop-poker --instance-id host-b` and attempt to host on the same port
-- [ ] Confirm host-b shows a clear bind error rather than crashing, hanging, or claiming success
-- [ ] Inspect available debug/runtime health information and confirm the error has useful context without secrets
-- [ ] Change host-b to a different port, such as `43819`, and confirm hosting succeeds
+- [x] Primary release host listens on `43818`
+- [x] Second release host attempts the same port
+- [x] Second host shows a clear failure and reports no false live session
+- [ ] Runtime/debug health information includes useful non-secret bind context
+- [x] Second host changes to `43819` and starts successfully
+
+**Current UX note:** the visible message is explicit but generic: `Unable to start hosting.` Backlog item `DP-UX-P2-003` tracks more actionable port-in-use wording.
 
 ---
 
 ## Checklist E: Release production reachability and secret storage
 
-- [ ] Launch a release build with attempted debug/probe query parameters
-- [ ] Confirm layout probes, browser mocks, fake sessions, and the hidden debug route are not player-reachable
-- [ ] Confirm ordinary Home, Host, Join, Settings, and Help routes work without development tooling
-- [ ] Configure a low-privilege test provider key through a release build
+- [x] Launch real release Tauri/WebKit binary in a graphical Linux session
+- [x] Home, Host, Join, Settings, and Help work without development tooling
+- [x] Layout probes, browser mocks, fake guarded sessions, and `/debug` are not player-reachable
+- [ ] Install `.deb` and repeat the release route smoke test
+- [ ] Configure a low-privilege provider key in a real release keychain session
 - [ ] Restart and confirm non-secret provider settings restore
-- [ ] Confirm the key is absent from settings JSON, logs, snapshots, debug output, and other app-data files
-- [ ] Clear the provider and confirm key deletion succeeds or reports a visible error
-- [ ] Force or simulate keychain unavailability and confirm no plaintext release fallback occurs
+- [ ] Confirm key is absent from JSON, logs, snapshots, debug output, and app-data files
+- [ ] Clear provider and confirm key deletion or visible failure
+- [ ] Force keychain unavailability and confirm no plaintext release fallback
 
 ---
 
@@ -166,12 +159,12 @@ Confirm that two release binary instances with different `--instance-id` values 
 - [ ] Complete a release tournament with at least one rule-based NPC
 - [ ] Use distinct NPC profiles/styles and verify identity/profile association
 - [ ] Confirm every seated NPC has a running decision loop
-- [ ] Confirm NPC actions are legal and tournament progress does not require manual injection
-- [ ] Confirm NPC hand history, elimination, and completion behavior
-- [ ] When a local provider is available, observe at least one accepted legal LLM action
-- [ ] Exercise provider unavailable/timeout/invalid-response fallback cases and confirm typed visible diagnostics
+- [ ] Confirm NPC actions are legal and progress requires no manual injection
+- [ ] Confirm NPC history, elimination, and completion behavior
+- [ ] Observe at least one accepted legal live-LLM action when a provider is available
+- [ ] Exercise unavailable/timeout/invalid-response fallbacks with typed diagnostics
 - [ ] Confirm no credential is logged and no disallowed fallback silently acts
 
 ---
 
-*Checklist revised for the Cargo workspace and release-readiness baseline on 2026-07-26. Execution boxes intentionally remain unchecked until a current manual run is recorded.*
+*Checklist updated from real release runtime evidence on 2026-07-26/27. Unchecked boxes remain unproven.*
