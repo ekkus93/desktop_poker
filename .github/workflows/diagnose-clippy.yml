@@ -1,0 +1,110 @@
+name: Diagnose Rust Clippy
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/diagnose-clippy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: diagnose-rust-clippy
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  diagnose:
+    name: Capture Clippy diagnostics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Capture exact Clippy result
+        id: clippy
+        shell: bash
+        run: |
+          set +e
+          cargo clippy --workspace --all-targets --all-features -- -D warnings \
+            > clippy-diagnostic.log 2>&1
+          status=$?
+          cat clippy-diagnostic.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish diagnostic log
+        env:
+          CLIPPY_STATUS: ${{ steps.clippy.outputs.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          cp clippy-diagnostic.log docs/runtime-validation/clippy-diagnostic-latest.log
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          payload = {
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "clippyExitStatus": int(os.environ["CLIPPY_STATUS"]),
+          }
+          Path("docs/runtime-validation/clippy-diagnostic-latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/clippy-diagnostic-latest.log \
+            docs/runtime-validation/clippy-diagnostic-latest.json
+          git commit -m "docs: record Clippy diagnostic result"
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
