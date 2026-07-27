@@ -4,11 +4,11 @@
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-27T22:30:33.398656+00:00",
+  "recordedAtUtc": "2026-07-27T22:55:47.267817+00:00",
   "result": "PASS",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "001174aec9aa3615eb50cfe7d87e15b5260a8ebf4410f3f47f3296792236ee71",
+    "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
     "completedHands": 2,
     "finalStandings": [
       {
@@ -43,7 +43,7 @@
       "hand 1: fold",
       "hand 2: allIn"
     ],
-    "instanceId": "embedded-npc-tournament-30310372741",
+    "instanceId": "embedded-npc-tournament-30312220821",
     "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
     "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
     "npcActionCount": 10,
@@ -123,7 +123,7 @@
         "sequence": 30
       }
     ],
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-30310372741",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-30312220821",
     "result": "PASS",
     "steps": [
       {
@@ -157,7 +157,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "2e2aa4b5a682c92ba5ee539b34f0f998e7eccfe7",
+  "validatedCommit": "3b5a042ef65da75f9c0eefec9e32e392f6371ab8",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30310372741"
+  "workflowRunId": "30312220821"
 }
