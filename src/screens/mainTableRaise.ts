@@ -62,7 +62,11 @@ export function isWithinRaiseBounds(
 }
 
 export function getErrorMessage(caughtError: unknown) {
-  return caughtError instanceof Error
-    ? caughtError.message
-    : "Unknown table error";
+  if (caughtError instanceof Error) {
+    return caughtError.message;
+  }
+  if (typeof caughtError === "string" && caughtError.trim().length > 0) {
+    return caughtError;
+  }
+  return "Unknown table error";
 }
