@@ -180,6 +180,7 @@ describe("TournamentCompleteScreen", () => {
       createTableViewSnapshot({
         tournamentPhase: "complete",
         phaseLabel: "Complete",
+        currentHandNumber: 3,
         handHistory,
         standings: [
           {
@@ -204,5 +205,85 @@ describe("TournamentCompleteScreen", () => {
       ).toEqual(handHistory);
     });
     expect(screen.getByText("1 hand summaries saved.")).toBeTruthy();
+  });
+
+  it("retries a stale completion snapshot until the current hand arrives", async () => {
+    const bootstrap = createBootstrap({
+      storageNamespace: "desktop-poker:completion-retry-test",
+    });
+    const firstThreeHands = [
+      {
+        handNumber: 3,
+        summary: "Hand three",
+        potTotal: 300,
+        winningPlayers: ["Maya"],
+        eliminatedPlayers: [],
+        boardCards: [],
+      },
+      {
+        handNumber: 2,
+        summary: "Hand two",
+        potTotal: 200,
+        winningPlayers: ["You"],
+        eliminatedPlayers: [],
+        boardCards: [],
+      },
+      {
+        handNumber: 1,
+        summary: "Hand one",
+        potTotal: 100,
+        winningPlayers: ["Maya"],
+        eliminatedPlayers: [],
+        boardCards: [],
+      },
+    ];
+    const finalHand = {
+      handNumber: 4,
+      summary: "Maya won the final hand.",
+      potTotal: 3000,
+      winningPlayers: ["Maya"],
+      eliminatedPlayers: ["You"],
+      boardCards: [],
+    };
+    const standings = [
+      {
+        rank: 1,
+        displayName: "Maya",
+        chipCount: 3000,
+        statusLabel: "Winner",
+        note: "Won the tournament",
+        isLocal: false,
+        isObserver: false,
+      },
+    ];
+
+    mockedGetTableView
+      .mockResolvedValueOnce(
+        createTableViewSnapshot({
+          tournamentPhase: "complete",
+          phaseLabel: "Complete",
+          currentHandNumber: 4,
+          handHistory: firstThreeHands,
+          standings,
+        }),
+      )
+      .mockResolvedValue(
+        createTableViewSnapshot({
+          tournamentPhase: "complete",
+          phaseLabel: "Complete",
+          currentHandNumber: 4,
+          handHistory: [finalHand, ...firstThreeHands],
+          standings,
+        }),
+      );
+
+    renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
+
+    expect(await screen.findByText(finalHand.summary)).toBeTruthy();
+    await waitFor(() => expect(mockedGetTableView).toHaveBeenCalledTimes(2));
+    expect(
+      readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
+    ).toEqual([finalHand, ...firstThreeHands]);
+    expect(screen.getByText("4 hand summaries saved.")).toBeTruthy();
   });
 });
