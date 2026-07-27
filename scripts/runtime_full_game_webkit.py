@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the full-game harness with reliable DOM-based text clicks for WebKit."""
+"""Run the release full-game harness with WebKit-safe DOM text clicks."""
 
 from __future__ import annotations
 
