@@ -1,0 +1,11 @@
+{
+  "clippyExitStatus": 0,
+  "formatExitStatus": 0,
+  "pokerCoreTestsExitStatus": 0,
+  "recordedAtUtc": "2026-07-27T23:00:07.881258+00:00",
+  "result": "PASS",
+  "validatedCommit": "e810947d5ded0335522a831922f5800df7ab72f3",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30312309190",
+  "workspaceTestsExitStatus": 0
+}
