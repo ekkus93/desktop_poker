@@ -1,0 +1,36 @@
+{
+  "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+  "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
+  "buildOutcome": "success",
+  "error": "AssertionError: Timed out waiting for route /host with text 'Host Tournament Setup'; last error: None",
+  "evidenceArtifact": "linux-release-runtime-evidence",
+  "instanceId": "runtime-smoke-30232202361",
+  "recordedAtUtc": "2026-07-27T02:32:56.478641+00:00",
+  "result": "FAIL",
+  "runtimeOutcome": "failure",
+  "steps": [
+    {
+      "name": "tauri-driver became ready",
+      "result": "PASS"
+    },
+    {
+      "name": "release binary created a WebDriver session",
+      "result": "PASS"
+    },
+    {
+      "name": "Home rendered through the real Tauri backend",
+      "result": "PASS"
+    },
+    {
+      "name": "browser mocks are unavailable in release mode",
+      "result": "PASS"
+    },
+    {
+      "name": "runtime smoke",
+      "result": "FAIL"
+    }
+  ],
+  "validatedCommit": "0b26a412341d42fdd44048ad05e2a9a90a7ca4bd",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30232202361"
+}
