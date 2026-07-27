@@ -1,6 +1,0 @@
-+ cat scripts/.embedded_patch.part.00 scripts/.embedded_patch.part.01 scripts/.embedded_patch.part.02 scripts/.embedded_patch.part.03 scripts/.embedded_patch.part.04
-+ python3 -m py_compile /tmp/apply_embedded_llm_changes.py
-Sorry: IndentationError: unexpected indent (apply_embedded_llm_changes.py, line 200)+ python3 /tmp/apply_embedded_llm_changes.py
-  File "/tmp/apply_embedded_llm_changes.py", line 200
-    let tokens = model
-IndentationError: unexpected indent
