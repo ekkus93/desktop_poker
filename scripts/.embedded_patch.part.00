@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path('.')
 
@@ -17,6 +18,13 @@ def replace_once(path: str, old: str, new: str) -> None:
     content = read(path)
     count = content.count(old)
     if count != 1:
+        # Leave the working tree safe and publishable when a strict source
+        # assertion fails. The workflow redirects this traceback to an
+        # untracked diagnostic log, which is intentionally preserved.
+        subprocess.run(["git", "checkout", "--", "."], check=False)
+        generated = ROOT / "src-tauri/src/npc/embedded_llm.rs"
+        if generated.exists():
+            generated.unlink()
         raise RuntimeError(f'{path}: expected exactly one match, found {count}: {old[:120]!r}')
     write(path, content.replace(old, new, 1))
 
@@ -187,4 +195,5 @@ fn generate_choice(
     let prompt = model
         .apply_chat_template(&template, &messages, true)
         .map_err(|e| LlmError::Embedded(format!("failed to apply model chat template: {e}")))?;
-
+''',
+)
