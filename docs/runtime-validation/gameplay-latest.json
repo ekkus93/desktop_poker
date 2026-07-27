@@ -3,7 +3,7 @@
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe",
+    "applicationSha256": "b445a4607197bbb31fe11d947592c4ad7f93511dec85aa04face55246c2bc0ef",
     "error": "AssertionError: Timed out waiting for first folded hand to settle on both instances; last error: None",
     "result": "FAIL",
     "steps": [
@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/ee029e85-8674-4c38-87a0-fc7cc4e84a89/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/297a48e2-8021-4067-a146-f069cd9827bc/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -34,9 +34,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T04:47:15.177932+00:00",
+  "recordedAtUtc": "2026-07-27T04:57:17.287510+00:00",
   "result": "FAIL",
-  "validatedCommit": "4319285b3f4b9a8efd53a2457814608a26710630",
+  "validatedCommit": "dfdf9fd7315936333b17a5bacba3baec87f136de",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30237756559"
+  "workflowRunId": "30238171697"
 }
