@@ -1,10 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
-import { persistHandHistory as persistHandHistoryToStorage } from "../app/persistence";
+import { mergePersistedHandHistory } from "../app/persistence";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
+
+const FINAL_HISTORY_SYNC_ATTEMPTS = 20;
+const FINAL_HISTORY_SYNC_DELAY_MS = import.meta.env.MODE === "test" ? 0 : 250;
+
+function containsCurrentHand(snapshot: TableViewSnapshot) {
+  return (
+    snapshot.currentHandNumber === null ||
+    snapshot.handHistory.some(
+      (entry) => entry.handNumber === snapshot.currentHandNumber,
+    )
+  );
+}
+
+function waitForNextHistoryAttempt() {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, FINAL_HISTORY_SYNC_DELAY_MS);
+  });
+}
 
 export function TournamentCompleteScreen() {
   const {
@@ -22,40 +40,67 @@ export function TournamentCompleteScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    void getTableView("local")
-      .then((snapshot) => {
-        if (cancelled) {
-          return;
-        }
+    const loadFinalSnapshot = async () => {
+      let loadedSnapshot = false;
 
-        setTableView(snapshot);
-        setError(null);
+      for (let attempt = 0; attempt < FINAL_HISTORY_SYNC_ATTEMPTS; attempt += 1) {
+        try {
+          const snapshot = await getTableView("local");
+          if (cancelled) {
+            return;
+          }
 
-        if (snapshot.handHistory.length > 0) {
-          try {
-            persistHandHistoryToStorage(
+          loadedSnapshot = true;
+          setTableView(snapshot);
+          setError(null);
+
+          if (snapshot.handHistory.length > 0) {
+            const mergedHistory = mergePersistedHandHistory(
               bootstrap.storageNamespace,
               snapshot.handHistory,
             );
-            setSavedHandHistoryCount(snapshot.handHistory.length);
-          } catch (caughtError: unknown) {
+            setSavedHandHistoryCount(mergedHistory.entries.length);
+          }
+
+          if (
+            snapshot.tournamentPhase !== "complete" ||
+            containsCurrentHand(snapshot)
+          ) {
+            return;
+          }
+        } catch (caughtError: unknown) {
+          if (cancelled) {
+            return;
+          }
+
+          if (attempt === FINAL_HISTORY_SYNC_ATTEMPTS - 1) {
             setError(
-              caughtError instanceof Error
-                ? `Final standings loaded, but hand history could not be saved: ${caughtError.message}`
-                : "Final standings loaded, but hand history could not be saved.",
+              loadedSnapshot
+                ? caughtError instanceof Error
+                  ? `Final standings loaded, but hand history could not be synchronized: ${caughtError.message}`
+                  : "Final standings loaded, but hand history could not be synchronized."
+                : caughtError instanceof Error
+                  ? caughtError.message
+                  : "Unable to load final standings.",
             );
+            return;
           }
         }
-      })
-      .catch((caughtError: unknown) => {
-        if (!cancelled) {
-          setError(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Unable to load final standings.",
-          );
+
+        await waitForNextHistoryAttempt();
+        if (cancelled) {
+          return;
         }
-      });
+      }
+
+      if (!cancelled) {
+        setError(
+          "Final standings loaded, but the last hand has not arrived for saved history.",
+        );
+      }
+    };
+
+    void loadFinalSnapshot();
 
     return () => {
       cancelled = true;
