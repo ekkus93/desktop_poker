@@ -4,9 +4,33 @@
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "error": "WebDriverError: tauri-driver did not become ready: timed out",
+    "error": "WebDriverError: WebDriver POST /session/4e86fa4f-8c69-4e9c-a746-74fd91b07693/element returned HTTP 404: {\"value\":{\"error\":\"no such element\",\"message\":\"\",\"stacktrace\":\"\"}}",
     "result": "FAIL",
     "steps": [
+      {
+        "name": "host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "client release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "conflict host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "three instance IDs and profile directories are distinct",
+        "result": "PASS"
+      },
+      {
+        "name": "client host draft is independently namespaced before joining",
+        "result": "PASS"
+      },
+      {
+        "name": "host started a real TCP session and produced a pkr1_ invite",
+        "result": "PASS"
+      },
       {
         "name": "multi-instance runtime smoke",
         "result": "FAIL"
@@ -14,12 +38,12 @@
     ]
   },
   "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T02:56:44.475647+00:00",
+  "recordedAtUtc": "2026-07-27T03:06:16.025610+00:00",
   "result": "FAIL",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "instanceId": "runtime-smoke-30233131900",
+    "instanceId": "runtime-smoke-30233518939",
     "result": "PASS",
     "steps": [
       {
@@ -77,7 +101,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "164bae0700d0e8926a836412d62d492f9046eaa8",
+  "validatedCommit": "c149d734275f65913f272c0c2e8a303f2a973a66",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30233131900"
+  "workflowRunId": "30233518939"
 }
