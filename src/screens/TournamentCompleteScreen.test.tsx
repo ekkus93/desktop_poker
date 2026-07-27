@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableView } from "../api/desktop";
+import { readPersistedHandHistory } from "../app/persistence";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 import { createTableViewSnapshot } from "../test/appIntegrationFixtures";
 import { TournamentCompleteScreen } from "./TournamentCompleteScreen";
@@ -20,6 +21,7 @@ const mockedGetTableView = vi.mocked(getTableView);
 describe("TournamentCompleteScreen", () => {
   beforeEach(() => {
     mockedGetTableView.mockReset();
+    localStorage.clear();
   });
 
   it("shows final standings when the table snapshot is available", async () => {
@@ -152,15 +154,55 @@ describe("TournamentCompleteScreen", () => {
 
     renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
 
-    // Riley's standings entry should show statusLabel, not a chip count
     expect(await screen.findByText("Eliminated observer")).toBeTruthy();
-    // Maya (non-observer, 3000 chips) should show chip count
     expect(screen.getByText("3000 chips")).toBeTruthy();
-    // Riley (observer) should NOT show "0 chips" — the field-hint for Riley's row
-    // should contain "Eliminated observer", not a chip number
     const rileyHeading = screen.getByText(/#2 Riley/);
     const rileyRow = rileyHeading.closest("article");
     expect(rileyRow?.textContent).toContain("Eliminated observer");
     expect(rileyRow?.textContent).not.toMatch(/\d+ chips/);
+  });
+
+  it("persists the authoritative final hand history for restart recovery", async () => {
+    const bootstrap = createBootstrap({
+      storageNamespace: "desktop-poker:completion-persistence-test",
+    });
+    const handHistory = [
+      {
+        handNumber: 3,
+        summary: "Maya won 3000 chip(s).",
+        potTotal: 3000,
+        winningPlayers: ["Maya"],
+        eliminatedPlayers: ["You"],
+        boardCards: [],
+      },
+    ];
+    mockedGetTableView.mockResolvedValue(
+      createTableViewSnapshot({
+        tournamentPhase: "complete",
+        phaseLabel: "Complete",
+        handHistory,
+        standings: [
+          {
+            rank: 1,
+            displayName: "Maya",
+            chipCount: 3000,
+            statusLabel: "Winner",
+            note: "Won the tournament",
+            isLocal: false,
+            isObserver: false,
+          },
+        ],
+      }),
+    );
+
+    renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
+
+    expect(await screen.findByText(handHistory[0].summary)).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
+      ).toEqual(handHistory);
+    });
+    expect(screen.getByText("1 hand summaries saved.")).toBeTruthy();
   });
 });
