@@ -1,7 +1,11 @@
 name: Fix completion projection
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-completion-projection.yml"
 
 permissions:
   actions: write
