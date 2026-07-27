@@ -7,6 +7,114 @@ replace_once(
     embedded_job + '\n  release-candidate:\n',
 )
 
+# The sampler's sample() method already accepts the sampled token. Accepting it
+# a second time corrupts grammar state and can make subsequent generation fail.
+replace_once(
+    'src-tauri/src/npc/embedded_llm.rs',
+    '        sampler.accept(token);\n',
+    '',
+)
+
+# Validate and canonicalize embedded model paths before persisting them. A
+# missing or invalid model is a visible settings error, not a deferred failure
+# that only appears after a tournament starts.
+replace_once(
+    'src-tauri/src/app_state/app_npc.rs',
+    '''    pub fn set_llm_provider_config(
+        &self,
+        config: crate::npc::LlmProviderConfig,
+    ) -> Result<(), String> {
+        crate::npc::provider_storage::save_provider_config(
+''',
+    '''    pub fn set_llm_provider_config(
+        &self,
+        mut config: crate::npc::LlmProviderConfig,
+    ) -> Result<(), String> {
+        if config.settings.provider == crate::npc::LlmProviderType::EmbeddedLocal {
+            let configured_path = config
+                .settings
+                .model
+                .as_deref()
+                .ok_or_else(|| "embedded local provider requires a GGUF model path".to_string())?;
+            let canonical = crate::npc::embedded_llm::validate_model_path(configured_path)
+                .map_err(|error| error.to_string())?;
+            config.settings.model = Some(canonical.to_string_lossy().into_owned());
+            config.settings.endpoint_url = None;
+            config.api_key = None;
+        }
+        crate::npc::provider_storage::save_provider_config(
+''',
+)
+replace_once(
+    'src-tauri/src/app_state/app_npc.rs',
+    '''    pub fn save_llm_provider_settings(
+        &self,
+        settings: crate::npc::LlmProviderSettings,
+    ) -> Result<(), String> {
+        crate::npc::provider_storage::save_provider_settings_only(
+''',
+    '''    pub fn save_llm_provider_settings(
+        &self,
+        mut settings: crate::npc::LlmProviderSettings,
+    ) -> Result<(), String> {
+        if settings.provider == crate::npc::LlmProviderType::EmbeddedLocal {
+            let configured_path = settings
+                .model
+                .as_deref()
+                .ok_or_else(|| "embedded local provider requires a GGUF model path".to_string())?;
+            let canonical = crate::npc::embedded_llm::validate_model_path(configured_path)
+                .map_err(|error| error.to_string())?;
+            settings.model = Some(canonical.to_string_lossy().into_owned());
+            settings.endpoint_url = None;
+        }
+        crate::npc::provider_storage::save_provider_settings_only(
+''',
+)
+
+# Use a pinned, checksum-verified 135M model for the real CI inference test.
+# The runtime path must be absolute because application settings enforce the
+# same invariant.
+replace_once(
+    '.github/workflows/ci.yml',
+    '          key: smollm2-135m-instruct-q3km-32db44d\n',
+    '          key: smollm2-135m-instruct-q3km-3e8e1ce1\n',
+)
+replace_once(
+    '.github/workflows/ci.yml',
+    '              https://huggingface.co/tensorblock/SmolLM2-135M-Instruct-GGUF/resolve/32db44d/SmolLM2-135M-Instruct-Q3_K_M.gguf\n',
+    '              https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/8637628/SmolLM2-135M-Instruct-Q3_K_M.gguf\n',
+)
+replace_once(
+    '.github/workflows/ci.yml',
+    '          sha256sum "$model" | tee embedded-model.sha256\n',
+    '''          expected="3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95"
+          actual="$(sha256sum "$model" | awk '{print $1}')"
+          printf 'expected=%s\\nactual=%s\\n' "$expected" "$actual" | tee embedded-model.sha256
+          [[ "$actual" == "$expected" ]]
+''',
+)
+replace_once(
+    '.github/workflows/ci.yml',
+    '          DESKTOP_POKER_EMBEDDED_TEST_MODEL: .cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf\n',
+    '          DESKTOP_POKER_EMBEDDED_TEST_MODEL: ${{ github.workspace }}/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf\n',
+)
+
+# Every workflow that compiles the native llama.cpp dependency needs the same
+# native build toolchain.
+installed_workflow = '.github/workflows/runtime-installed-deb-validation.yml'
+installed_content = read(installed_workflow)
+installed_content = installed_content.replace(
+    '            build-essential \\\n            curl \\\n',
+    '            build-essential \\\n            clang \\\n            libclang-dev \\\n            cmake \\\n            curl \\\n',
+)
+write(installed_workflow, installed_content)
+
+# The diagnostic workflow was only needed to bootstrap this source
+# transformation. Do not leave hidden write-capable automation in the repo.
+diagnostic_workflow = ROOT / '.github/workflows/diagnose-embedded-apply.yml'
+if diagnostic_workflow.exists():
+    diagnostic_workflow.unlink()
+
 # Documentation for the experimental provider.
 readme = read('README.md')
 section = r'''
@@ -17,7 +125,7 @@ Desktop Poker can run a GGUF language model directly inside the application for 
 
 The recommended starting point is Qwen3 0.6B Q4_0. The embedded backend keeps one model resident and shares it across all NPCs. Rust constructs a bounded list of legal actions and raise amounts; the model is grammar-constrained to select one numeric option, so it cannot invent an illegal action or invalid bet size.
 
-GitHub Actions also downloads a cached SmolLM2 135M GGUF and performs a real in-process NPC decision smoke test. The application installer does not bundle either model.
+GitHub Actions also downloads a cached, checksum-verified SmolLM2 135M GGUF and performs a real in-process NPC decision smoke test. The application installer does not bundle either model.
 '''
 if '## Embedded local NPC model' not in readme:
     write('README.md', readme.rstrip() + section + '\n')
