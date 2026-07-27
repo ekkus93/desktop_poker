@@ -436,3 +436,12 @@ To produce only the `.deb` or `.rpm` bundles without AppImage, use:
 npm run tauri build -- --bundles deb
 npm run tauri build -- --bundles rpm
 ```
+
+## Embedded local NPC model
+
+Desktop Poker can run a GGUF language model directly inside the application for profile-backed NPC players. Choose **Embedded GGUF (in app)** under **Settings → AI Players**, then enter an absolute path to a local `.gguf` model. No Ollama, llama-server, API key, or HTTP service is required.
+
+The recommended starting point is Qwen3 0.6B Q4_0. The embedded backend keeps one model resident and shares it across all NPCs. Rust constructs a bounded list of legal actions and raise amounts; the model is grammar-constrained to select one numeric option, so it cannot invent an illegal action or invalid bet size.
+
+GitHub Actions also downloads a cached, checksum-verified SmolLM2 135M GGUF and performs a real in-process NPC decision smoke test. The application installer does not bundle either model.
+

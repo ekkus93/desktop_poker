@@ -11,9 +11,9 @@ use crate::networking::HostServer;
 use crate::npc::{
     hand_log::{HandActionRecord, HandLog},
     llm_client::LlmClient,
-    llm_strategy::{choose_llm_action, resolve_fallback_style},
+    llm_strategy::{choose_embedded_action, choose_llm_action, resolve_fallback_style},
     prompt::GameStateSnapshot,
-    provider::LlmProviderConfig,
+    provider::{LlmProviderConfig, LlmProviderType},
     tilt::TiltState,
     NpcConfig,
 };
@@ -467,6 +467,7 @@ pub(crate) fn try_npc_action(
                 };
 
                 let provider_label = format!("{:?}", cfg.settings.provider);
+                let is_embedded = cfg.settings.provider == LlmProviderType::EmbeddedLocal;
                 // LLM client construction failure is an internal error (bad stored config).
                 let client = match LlmClient::new(cfg) {
                     Ok(c) => c,
@@ -488,7 +489,13 @@ pub(crate) fn try_npc_action(
                     }
                 };
 
-                match choose_llm_action(&client, profile, &snapshot) {
+                let decision = if is_embedded {
+                    choose_embedded_action(&client, profile, &snapshot)
+                } else {
+                    choose_llm_action(&client, profile, &snapshot)
+                };
+
+                match decision {
                     Ok((at, amt)) => (at, amt),
                     Err(reason) => {
                         let failure_msg = format!(

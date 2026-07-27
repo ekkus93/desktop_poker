@@ -29,6 +29,8 @@ pub enum LlmError {
     Parse(String),
     #[error("API key missing or empty for provider {0}")]
     ApiKeyMissing(String),
+    #[error("embedded model error: {0}")]
+    Embedded(String),
 }
 
 // ── Anthropic wire types ──────────────────────────────────────────────────────
@@ -159,7 +161,30 @@ impl LlmClient {
             LlmProviderType::OpenAi | LlmProviderType::Ollama | LlmProviderType::LlamaServer => {
                 self.complete_openai_compatible(system, user)
             }
+            LlmProviderType::EmbeddedLocal => Err(LlmError::Embedded(
+                "embedded local provider requires constrained choice inference".to_string(),
+            )),
         }
+    }
+
+    pub fn choose_embedded_index(
+        &self,
+        system: &str,
+        user: &str,
+        choice_count: usize,
+    ) -> Result<usize, LlmError> {
+        if self.config.settings.provider != LlmProviderType::EmbeddedLocal {
+            return Err(LlmError::Embedded(
+                "constrained embedded inference called for a non-embedded provider".to_string(),
+            ));
+        }
+        let model_path = self
+            .config
+            .settings
+            .model
+            .as_deref()
+            .ok_or_else(|| LlmError::Embedded("embedded model path is not configured".to_string()))?;
+        super::embedded_llm::choose_index(model_path, system, user, choice_count)
     }
 
     fn complete_anthropic(&self, system: &str, user: &str) -> Result<String, LlmError> {

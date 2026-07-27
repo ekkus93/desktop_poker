@@ -4,7 +4,9 @@ use crate::npc::NpcStyle;
 use super::llm_action::{parse_llm_response, validate_llm_action};
 use super::llm_client::{LlmClient, LlmError};
 use super::profile::NpcProfile;
-use super::prompt::{build_system_prompt, build_user_message, GameStateSnapshot};
+use super::prompt::{
+    build_system_prompt, build_user_message, render_game_state, GameStateSnapshot,
+};
 #[cfg(test)]
 use super::runner::first_check_or_call;
 
@@ -109,6 +111,124 @@ pub fn choose_llm_action(
             Err(reason)
         }
     }
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedActionCandidate {
+    pub action_type: ActionType,
+    pub amount: Option<u32>,
+    pub label: String,
+}
+
+pub fn build_embedded_action_candidates(
+    snapshot: &GameStateSnapshot,
+) -> Vec<EmbeddedActionCandidate> {
+    let mut candidates = Vec::new();
+
+    for action in &snapshot.legal_actions {
+        match action {
+            ActionType::Fold => candidates.push(EmbeddedActionCandidate {
+                action_type: ActionType::Fold,
+                amount: None,
+                label: "Fold".to_string(),
+            }),
+            ActionType::Check => candidates.push(EmbeddedActionCandidate {
+                action_type: ActionType::Check,
+                amount: None,
+                label: "Check".to_string(),
+            }),
+            ActionType::Call => candidates.push(EmbeddedActionCandidate {
+                action_type: ActionType::Call,
+                amount: None,
+                label: format!("Call {}", snapshot.call_amount),
+            }),
+            ActionType::Bet | ActionType::Raise => {
+                if let (Some(minimum), Some(maximum)) =
+                    (snapshot.min_raise_to, snapshot.max_raise_to)
+                {
+                    let mut amounts = vec![minimum];
+                    if maximum > minimum {
+                        let midpoint = minimum + (maximum - minimum) / 2;
+                        if midpoint > minimum && midpoint < maximum {
+                            amounts.push(midpoint);
+                        }
+                        if maximum != snapshot.stack {
+                            amounts.push(maximum);
+                        }
+                    }
+                    amounts.sort_unstable();
+                    amounts.dedup();
+                    for amount in amounts {
+                        candidates.push(EmbeddedActionCandidate {
+                            action_type: *action,
+                            amount: Some(amount),
+                            label: format!(
+                                "{} to {amount}",
+                                if *action == ActionType::Bet {
+                                    "Bet"
+                                } else {
+                                    "Raise"
+                                }
+                            ),
+                        });
+                    }
+                }
+            }
+            ActionType::AllIn => candidates.push(EmbeddedActionCandidate {
+                action_type: ActionType::AllIn,
+                amount: None,
+                label: format!("All-in for {}", snapshot.stack),
+            }),
+        }
+    }
+
+    candidates
+}
+
+pub fn choose_embedded_action(
+    client: &LlmClient,
+    profile: &NpcProfile,
+    snapshot: &GameStateSnapshot,
+) -> Result<(ActionType, Option<u32>), LlmFallbackReason> {
+    let candidates = build_embedded_action_candidates(snapshot);
+    if candidates.is_empty() || candidates.len() > 10 {
+        return Err(LlmFallbackReason::InvalidAction);
+    }
+
+    let options = candidates
+        .iter()
+        .enumerate()
+        .map(|(index, candidate)| format!("{index}: {}", candidate.label))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let profile_description = profile.description.chars().take(600).collect::<String>();
+    let system = "You are a tiny local poker NPC decision selector. Rust has already calculated every legal action and raise amount. Choose exactly one listed option that best matches the NPC profile and game state. Return one digit only. Do not explain your answer.";
+    let user = format!(
+        "NPC: {}\nStyle: {}\nSkill: {}\nProfile: {}\n\n{}\nCandidate actions:\n{}\n\nReturn exactly one digit from 0 through {}. /no_think",
+        profile.name,
+        profile.style,
+        profile.skill,
+        profile_description,
+        render_game_state(snapshot),
+        options,
+        candidates.len() - 1
+    );
+
+    let index = client
+        .choose_embedded_index(system, &user, candidates.len())
+        .map_err(|error| match error {
+            LlmError::Timeout => LlmFallbackReason::Timeout,
+            LlmError::ApiKeyMissing(_) => LlmFallbackReason::ApiKeyMissing,
+            LlmError::Parse(_) => LlmFallbackReason::ResponseParseFailed,
+            LlmError::Api(_, _) | LlmError::Network(_) | LlmError::Embedded(_) => {
+                LlmFallbackReason::RequestFailed
+            }
+        })?;
+    let candidate = candidates
+        .get(index)
+        .ok_or(LlmFallbackReason::InvalidAction)?;
+    Ok((candidate.action_type, candidate.amount))
 }
 
 /// Style-aware rule-based fallback respecting the profile's configured style.

@@ -17,6 +17,7 @@ pub enum LlmProviderType {
     OpenAi,
     Ollama,
     LlamaServer,
+    EmbeddedLocal,
 }
 
 impl LlmProviderType {
@@ -28,6 +29,7 @@ impl LlmProviderType {
             LlmProviderType::OpenAi => "openAi",
             LlmProviderType::Ollama => "ollama",
             LlmProviderType::LlamaServer => "llamaServer",
+            LlmProviderType::EmbeddedLocal => "embeddedLocal",
         }
     }
 }
@@ -55,6 +57,7 @@ impl LlmProviderSettings {
             LlmProviderType::OpenAi => OPENAI_DEFAULT_MODEL,
             LlmProviderType::Ollama => OLLAMA_DEFAULT_MODEL,
             LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_MODEL,
+            LlmProviderType::EmbeddedLocal => "",
         }
     }
 
@@ -68,6 +71,7 @@ impl LlmProviderSettings {
             LlmProviderType::OpenAi => OPENAI_DEFAULT_ENDPOINT,
             LlmProviderType::Ollama => OLLAMA_DEFAULT_ENDPOINT,
             LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_ENDPOINT,
+            LlmProviderType::EmbeddedLocal => "embedded://local",
         }
     }
 
@@ -78,6 +82,7 @@ impl LlmProviderSettings {
             LlmProviderType::OpenAi => "OpenAI",
             LlmProviderType::Ollama => "Ollama",
             LlmProviderType::LlamaServer => "llama-server",
+            LlmProviderType::EmbeddedLocal => "Embedded local GGUF",
         }
     }
 }
@@ -124,6 +129,11 @@ impl LlmProviderConfig {
                 self.api_key.as_deref().is_some_and(|k| !k.is_empty())
             }
             LlmProviderType::Ollama | LlmProviderType::LlamaServer => true,
+            LlmProviderType::EmbeddedLocal => self
+                .settings
+                .model
+                .as_deref()
+                .is_some_and(|path| !path.trim().is_empty()),
         }
     }
 
@@ -201,6 +211,19 @@ mod tests {
     #[test]
     fn ollama_is_usable_without_key() {
         assert!(ollama().is_usable());
+    }
+
+    #[test]
+    fn embedded_local_is_usable_with_model_path() {
+        let cfg = LlmProviderConfig {
+            settings: LlmProviderSettings {
+                provider: LlmProviderType::EmbeddedLocal,
+                endpoint_url: None,
+                model: Some("/tmp/tiny-model.gguf".to_string()),
+            },
+            api_key: None,
+        };
+        assert!(cfg.is_usable());
     }
 
     #[test]

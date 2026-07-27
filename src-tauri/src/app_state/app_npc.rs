@@ -46,8 +46,20 @@ impl DesktopAppState {
     /// Save a provider config to disk and update the in-memory holder.
     pub fn set_llm_provider_config(
         &self,
-        config: crate::npc::LlmProviderConfig,
+        mut config: crate::npc::LlmProviderConfig,
     ) -> Result<(), String> {
+        if config.settings.provider == crate::npc::LlmProviderType::EmbeddedLocal {
+            let configured_path = config
+                .settings
+                .model
+                .as_deref()
+                .ok_or_else(|| "embedded local provider requires a GGUF model path".to_string())?;
+            let canonical = crate::npc::embedded_llm::validate_model_path(configured_path)
+                .map_err(|error| error.to_string())?;
+            config.settings.model = Some(canonical.to_string_lossy().into_owned());
+            config.settings.endpoint_url = None;
+            config.api_key = None;
+        }
         crate::npc::provider_storage::save_provider_config(
             &self.app_data_dir,
             Some(&config),
@@ -68,8 +80,18 @@ impl DesktopAppState {
     /// Save only non-secret provider settings, preserving the existing API key.
     pub fn save_llm_provider_settings(
         &self,
-        settings: crate::npc::LlmProviderSettings,
+        mut settings: crate::npc::LlmProviderSettings,
     ) -> Result<(), String> {
+        if settings.provider == crate::npc::LlmProviderType::EmbeddedLocal {
+            let configured_path = settings
+                .model
+                .as_deref()
+                .ok_or_else(|| "embedded local provider requires a GGUF model path".to_string())?;
+            let canonical = crate::npc::embedded_llm::validate_model_path(configured_path)
+                .map_err(|error| error.to_string())?;
+            settings.model = Some(canonical.to_string_lossy().into_owned());
+            settings.endpoint_url = None;
+        }
         crate::npc::provider_storage::save_provider_settings_only(
             &self.app_data_dir,
             &settings,

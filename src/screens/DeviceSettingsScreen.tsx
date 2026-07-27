@@ -18,6 +18,7 @@ const PROVIDER_OPTIONS: { value: LlmProviderType; label: string }[] = [
   { value: "openAi", label: "OpenAI" },
   { value: "ollama", label: "Ollama (local)" },
   { value: "llamaServer", label: "llama-server (local)" },
+  { value: "embeddedLocal", label: "Embedded GGUF (in app)" },
 ];
 
 const DEFAULT_ENDPOINTS: Record<LlmProviderType, string> = {
@@ -25,6 +26,7 @@ const DEFAULT_ENDPOINTS: Record<LlmProviderType, string> = {
   openAi: "https://api.openai.com",
   ollama: "http://localhost:11434",
   llamaServer: "http://localhost:8080",
+  embeddedLocal: "embedded://local",
 };
 
 const DEFAULT_MODELS: Record<LlmProviderType, string> = {
@@ -32,6 +34,7 @@ const DEFAULT_MODELS: Record<LlmProviderType, string> = {
   openAi: "gpt-4o-mini",
   ollama: "llama3.2",
   llamaServer: "",
+  embeddedLocal: "/absolute/path/to/Qwen3-0.6B-Q4_0.gguf",
 };
 
 function requiresApiKey(provider: LlmProviderType) {
@@ -123,6 +126,10 @@ export function DeviceSettingsScreen() {
       !hasExistingKeyForProvider
     ) {
       setProviderError("An API key is required for this provider.");
+      return;
+    }
+    if (selectedProvider === "embeddedLocal" && !model.trim()) {
+      setProviderError("Select an absolute path to a local .gguf model file.");
       return;
     }
     setSaving(true);
@@ -264,20 +271,24 @@ export function DeviceSettingsScreen() {
               </>
             ) : null}
 
-            <label className="field">
-              Endpoint URL{" "}
-              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
-              <input
-                placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
-                value={endpointUrl}
-                onChange={(e) => setEndpointUrl(e.target.value)}
-                aria-label="Endpoint URL"
-              />
-            </label>
+            {selectedProvider !== "embeddedLocal" ? (
+              <label className="field">
+                Endpoint URL{" "}
+                <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+                <input
+                  placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
+                  value={endpointUrl}
+                  onChange={(e) => setEndpointUrl(e.target.value)}
+                  aria-label="Endpoint URL"
+                />
+              </label>
+            ) : null}
 
             <label className="field">
-              Model{" "}
-              <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+              {selectedProvider === "embeddedLocal" ? "GGUF model path" : "Model"}{" "}
+              <span style={{ fontWeight: 400, opacity: 0.7 }}>
+                ({selectedProvider === "embeddedLocal" ? "required" : "optional"})
+              </span>
               <input
                 placeholder={DEFAULT_MODELS[selectedProvider] || "loaded model"}
                 value={model}
@@ -285,6 +296,13 @@ export function DeviceSettingsScreen() {
                 aria-label="Model"
               />
             </label>
+            {selectedProvider === "embeddedLocal" ? (
+              <p className="field-hint">
+                The app loads this GGUF directly with llama.cpp. No Ollama,
+                llama-server, API key, or network request is used. Qwen3 0.6B
+                Q4_0 is the recommended starting model.
+              </p>
+            ) : null}
           </div>
 
           <div className="button-row">
@@ -295,7 +313,8 @@ export function DeviceSettingsScreen() {
                 saving ||
                 (requiresApiKey(selectedProvider) &&
                   !apiKey.trim() &&
-                  !hasExistingKeyForProvider)
+                  !hasExistingKeyForProvider) ||
+                (selectedProvider === "embeddedLocal" && !model.trim())
               }
               type="button"
             >

@@ -521,7 +521,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
                 ) : null}
                 {hostDraft.npcCount > 0 && !bootstrap.llmApiKeyConfigured ? (
                   <p className="field-hint">
-                    Add a Claude API key in settings to use AI profiles.
+                    Configure an LLM provider in settings to use AI profiles.
                   </p>
                 ) : null}
                 {profileListErrors.length > 0 ? (

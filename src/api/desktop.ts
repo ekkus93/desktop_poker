@@ -453,7 +453,12 @@ export function clearLlmApiKey(): Promise<void> {
   return invoke<void>("clear_llm_api_key");
 }
 
-export type LlmProviderType = "anthropic" | "openAi" | "ollama" | "llamaServer";
+export type LlmProviderType =
+  | "anthropic"
+  | "openAi"
+  | "ollama"
+  | "llamaServer"
+  | "embeddedLocal";
 
 /** Non-secret provider settings returned by getLlmProviderConfig. No API key. */
 export type LlmProviderSettings = {
