@@ -35,13 +35,15 @@ export function TournamentCompleteScreen() {
   const [savedHandHistoryCount, setSavedHandHistoryCount] = useState(
     persistedHandHistoryCount,
   );
+  const [historySyncComplete, setHistorySyncComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadFinalSnapshot = async () => {
-      let loadedSnapshot = false;
+      let latestSnapshot: TableViewSnapshot | null = null;
+      let lastError: unknown = null;
 
       for (let attempt = 0; attempt < FINAL_HISTORY_SYNC_ATTEMPTS; attempt += 1) {
         try {
@@ -50,7 +52,8 @@ export function TournamentCompleteScreen() {
             return;
           }
 
-          loadedSnapshot = true;
+          latestSnapshot = snapshot;
+          lastError = null;
           setTableView(snapshot);
           setError(null);
 
@@ -61,43 +64,40 @@ export function TournamentCompleteScreen() {
             );
             setSavedHandHistoryCount(mergedHistory.entries.length);
           }
-
-          if (
-            snapshot.tournamentPhase !== "complete" ||
-            containsCurrentHand(snapshot)
-          ) {
-            return;
-          }
         } catch (caughtError: unknown) {
+          lastError = caughtError;
+        }
+
+        if (attempt < FINAL_HISTORY_SYNC_ATTEMPTS - 1) {
+          await waitForNextHistoryAttempt();
           if (cancelled) {
             return;
           }
-
-          if (attempt === FINAL_HISTORY_SYNC_ATTEMPTS - 1) {
-            setError(
-              loadedSnapshot
-                ? caughtError instanceof Error
-                  ? `Final standings loaded, but hand history could not be synchronized: ${caughtError.message}`
-                  : "Final standings loaded, but hand history could not be synchronized."
-                : caughtError instanceof Error
-                  ? caughtError.message
-                  : "Unable to load final standings.",
-            );
-            return;
-          }
-        }
-
-        await waitForNextHistoryAttempt();
-        if (cancelled) {
-          return;
         }
       }
 
-      if (!cancelled) {
+      if (cancelled) {
+        return;
+      }
+
+      if (latestSnapshot === null) {
+        setError(
+          lastError instanceof Error
+            ? lastError.message
+            : "Unable to load final standings.",
+        );
+        return;
+      }
+
+      if (
+        latestSnapshot.tournamentPhase === "complete" &&
+        !containsCurrentHand(latestSnapshot)
+      ) {
         setError(
           "Final standings loaded, but the last hand has not arrived for saved history.",
         );
       }
+      setHistorySyncComplete(true);
     };
 
     void loadFinalSnapshot();
@@ -164,23 +164,30 @@ export function TournamentCompleteScreen() {
         <div className="history-side-stack">
           <SectionCard title="Next" className="support-card">
             <p>{savedHandHistoryCount} hand summaries saved.</p>
-            <div className="button-row">
-              {wasHost ? (
-                <Link className="primary-button" to="/host">
-                  Host another table
+            <p className="field-hint" role="status">
+              {historySyncComplete
+                ? "Final history saved."
+                : "Saving final history…"}
+            </p>
+            {historySyncComplete ? (
+              <div className="button-row">
+                {wasHost ? (
+                  <Link className="primary-button" to="/host">
+                    Host another table
+                  </Link>
+                ) : (
+                  <Link className="primary-button" to="/join">
+                    Join another table
+                  </Link>
+                )}
+                <Link className="secondary-button" to="/history">
+                  Review history
                 </Link>
-              ) : (
-                <Link className="primary-button" to="/join">
-                  Join another table
+                <Link className="secondary-button" to="/">
+                  Return home
                 </Link>
-              )}
-              <Link className="secondary-button" to="/history">
-                Review history
-              </Link>
-              <Link className="secondary-button" to="/">
-                Return home
-              </Link>
-            </div>
+              </div>
+            ) : null}
           </SectionCard>
 
           <SectionCard title="Final hands" className="support-card">
