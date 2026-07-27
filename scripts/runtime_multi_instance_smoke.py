@@ -60,11 +60,7 @@ def wait_for_command(
         value = invoke(client, command, payload)
         return value if predicate(value) else None
 
-    return wait_for(
-        f"Tauri command {command}",
-        probe,
-        timeout=timeout,
-    )
+    return wait_for(f"Tauri command {command}", probe, timeout=timeout)
 
 
 def set_labeled_control(client: WebDriverClient, label_text: str, value: str) -> None:
@@ -95,6 +91,21 @@ return { ok: true, value: control.value };
         raise AssertionError(f"Could not set {label_text!r}: {result!r}")
 
 
+def control_value(client: WebDriverClient, label_text: str) -> str | None:
+    value = client.execute(
+        """
+const labelText = arguments[0];
+const label = Array.from(document.querySelectorAll('label')).find((candidate) =>
+  (candidate.textContent || '').trim().startsWith(labelText)
+);
+const control = label?.querySelector('input, select, textarea');
+return control ? String(control.value) : null;
+""",
+        [label_text],
+    )
+    return None if value is None else str(value)
+
+
 def click_text(client: WebDriverClient, text: str) -> None:
     client.click(client.find_xpath(xpath_clickable_text(text)))
 
@@ -103,7 +114,7 @@ def click_first_enabled_text(client: WebDriverClient, text: str) -> None:
     quoted = json.dumps(text)
     xpath = (
         f"(//*[normalize-space(.)={quoted}]"
-        "/ancestor-or-self::button[not(@disabled)][1])[1]"
+        "/ancestor-or-self::*[(self::button and not(@disabled)) or self::a][1])[1]"
     )
     client.click(client.find_xpath(xpath))
 
@@ -212,6 +223,7 @@ def run(
         if not invite.startswith("pkr1_"):
             raise AssertionError("Host did not publish a compact pkr1_ invite")
         wait_for_source(host, "Live on")
+        wait_for_source(host, "Continue to lobby")
         record("host started a real TCP session and produced a pkr1_ invite")
 
         click_first_enabled_text(host, "Continue to lobby")
@@ -252,7 +264,10 @@ def run(
             and (participant := local_participant(value, "local-player")) is not None
             and participant.get("seatIndex") is not None,
         )
-        host_seat = local_participant(host_status, "local-player")["seatIndex"]
+        host_participant = local_participant(host_status, "local-player")
+        if host_participant is None:
+            raise AssertionError("Host participant disappeared after seat claim")
+        host_seat = host_participant["seatIndex"]
 
         host_display_name = f"Player {host_bootstrap['instanceLabel']}"
         wait_for(
@@ -334,7 +349,10 @@ def run(
         record(f"same-port host failed explicitly: {bind_error}")
 
         set_labeled_control(conflict, "Host port", "43819")
-        wait_for_source(conflict, 'value="43819"')
+        wait_for(
+            "conflict host port control to update",
+            lambda: control_value(conflict, "Host port") == "43819",
+        )
         click_text(conflict, "Start hosting")
         conflict_status = wait_for_command(
             conflict,
@@ -387,8 +405,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--application", required=True, type=Path)
     parser.add_argument("--host-driver-url", default="http://127.0.0.1:4444")
-    parser.add_argument("--client-driver-url", default="http://127.0.0.1:4445")
-    parser.add_argument("--conflict-driver-url", default="http://127.0.0.1:4446")
+    parser.add_argument("--client-driver-url", default="http://127.0.0.1:4454")
+    parser.add_argument("--conflict-driver-url", default="http://127.0.0.1:4464")
     parser.add_argument(
         "--evidence-dir", type=Path, default=Path("runtime-validation-evidence")
     )
