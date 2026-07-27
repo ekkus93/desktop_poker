@@ -1,15 +1,34 @@
 {
-  "buildOutcome": "skipped",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
-    "error": "Full-game result file was not produced.",
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe",
+    "error": "WebDriverError: WebDriver POST /session/16cd0206-d750-4ad9-a9b6-1b2e24686d7b/execute/async error raise exceeds remaining stack: None",
     "result": "FAIL",
-    "steps": []
+    "steps": [
+      {
+        "name": "two isolated release instances completed host/join/seat/ready/start",
+        "result": "PASS"
+      },
+      {
+        "name": "initial running-hand public state is synchronized",
+        "result": "PASS"
+      },
+      {
+        "name": "exactly one action tray is visible; initial actor is host",
+        "result": "PASS"
+      },
+      {
+        "name": "full-game runtime smoke",
+        "result": "FAIL"
+      }
+    ]
   },
-  "gameplayOutcome": "skipped",
-  "recordedAtUtc": "2026-07-27T04:09:48.391656+00:00",
+  "gameplayOutcome": "failure",
+  "recordedAtUtc": "2026-07-27T04:17:26.461829+00:00",
   "result": "FAIL",
-  "validatedCommit": "04ab0209a9f1835990d0a169dbaf50a37f1deb10",
+  "validatedCommit": "0169849a6f55c55cafb28174ece21efa520be17b",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30236301718"
+  "workflowRunId": "30236418491"
 }
