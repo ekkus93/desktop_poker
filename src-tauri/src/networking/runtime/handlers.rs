@@ -400,12 +400,7 @@ pub(crate) fn handle_action_submission_request(
         controller.state().clone()
     };
 
-    authoritative_state
-        .lock()
-        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
-        .map(|mut state| {
-            *state = next_state;
-        })?;
+    commit_runtime_state(authoritative_state, next_state)?;
 
     Ok(())
 }

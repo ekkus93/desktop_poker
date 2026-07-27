@@ -69,6 +69,7 @@ pub(crate) fn spawn_host_client_session(
     mut stream: TcpStream,
     authoritative_state: Arc<Mutex<TournamentState>>,
     tournament_runtime: Arc<Mutex<Option<TournamentController>>>,
+    transition_lock: Arc<Mutex<()>>,
     clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     join_payload: JoinPayload,
     server_sequence: Arc<AtomicU64>,
@@ -193,6 +194,16 @@ pub(crate) fn spawn_host_client_session(
                         }
                     }
                     ProtocolMessageType::ActionSubmissionRequest => {
+                        let _transition_guard = match transition_lock.lock() {
+                            Ok(guard) => guard,
+                            Err(_) => {
+                                record_state_lock_error(
+                                    &runtime_health,
+                                    "host transition lock poisoned during remote action",
+                                );
+                                break;
+                            }
+                        };
                         let rejected_message_id = request_envelope.message_id.clone();
                         let previous_state = authoritative_state
                             .lock()

@@ -1,6 +1,6 @@
 use std::{
     collections::BTreeMap,
-    sync::{atomic::Ordering, Arc, Mutex},
+    sync::{atomic::Ordering, mpsc, Arc, Mutex},
     thread,
     time::{Duration, Instant},
 };
@@ -1497,4 +1497,105 @@ fn add_npc_participants_atomic_returns_ok_when_snapshot_sync_fails() {
         state.participants.contains_key(&npc_id),
         "NPC must be registered in authoritative state after Ok return"
     );
+}
+
+#[test]
+fn runtime_state_writeback_rejects_settled_history_regression() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-history-regression", 190);
+    host.stop_signal.store(true, Ordering::SeqCst);
+
+    for (player_id, display_name, seat_index) in
+        [("player-a", "Alice", 0_u8), ("player-b", "Bob", 1_u8)]
+    {
+        host.register_npc_participant(player_id, display_name)
+            .expect("participant registers");
+        host.claim_seat(player_id, seat_index)
+            .expect("participant claims seat");
+        host.set_ready_state(player_id, true)
+            .expect("participant becomes ready");
+    }
+    host.start_tournament().expect("tournament starts");
+    let window = host
+        .authoritative_state()
+        .expect("running state")
+        .current_hand
+        .as_ref()
+        .and_then(|hand| hand.action_window.clone())
+        .expect("action window");
+    host.submit_action(
+        &window.player_id,
+        window.action_window_id,
+        ActionType::Fold,
+        None,
+    )
+    .expect("fold settles the hand");
+
+    let committed = host.authoritative_state().expect("committed state");
+    assert_eq!(committed.hand_results.len(), 1);
+    let mut stale_candidate = committed.clone();
+    stale_candidate.hand_results.clear();
+
+    let error = super::super::commit_runtime_state(&host.authoritative_state, stale_candidate)
+        .expect_err("settled history regression must be rejected");
+    assert!(error.to_string().contains("settled hand history"));
+    assert_eq!(
+        host.authoritative_state()
+            .expect("authoritative state remains intact")
+            .hand_results,
+        committed.hand_results
+    );
+}
+
+#[test]
+fn host_action_waits_for_transition_serialization_lock() {
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(&provider, "table-transition-lock", 191));
+    host.stop_signal.store(true, Ordering::SeqCst);
+
+    for (player_id, display_name, seat_index) in
+        [("player-a", "Alice", 0_u8), ("player-b", "Bob", 1_u8)]
+    {
+        host.register_npc_participant(player_id, display_name)
+            .expect("participant registers");
+        host.claim_seat(player_id, seat_index)
+            .expect("participant claims seat");
+        host.set_ready_state(player_id, true)
+            .expect("participant becomes ready");
+    }
+    host.start_tournament().expect("tournament starts");
+    let window = host
+        .authoritative_state()
+        .expect("running state")
+        .current_hand
+        .as_ref()
+        .and_then(|hand| hand.action_window.clone())
+        .expect("action window");
+
+    let transition_guard = host
+        .transition_lock
+        .lock()
+        .expect("transition lock is available");
+    let host_for_action = Arc::clone(&host);
+    let (sender, receiver) = mpsc::channel();
+    let action_thread = thread::spawn(move || {
+        let result = host_for_action.submit_action(
+            &window.player_id,
+            window.action_window_id,
+            ActionType::Fold,
+            None,
+        );
+        sender.send(result).expect("result receiver remains live");
+    });
+
+    assert!(matches!(
+        receiver.recv_timeout(Duration::from_millis(150)),
+        Err(mpsc::RecvTimeoutError::Timeout)
+    ));
+    drop(transition_guard);
+    receiver
+        .recv_timeout(Duration::from_secs(2))
+        .expect("action completes after transition lock release")
+        .expect("fold succeeds");
+    action_thread.join().expect("action thread joins");
 }

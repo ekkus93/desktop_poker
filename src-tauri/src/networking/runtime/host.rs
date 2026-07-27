@@ -58,6 +58,7 @@ impl HostServer {
 
         let authoritative_state = Arc::new(Mutex::new(config.snapshot_state.clone()));
         let tournament_runtime = Arc::new(Mutex::new(None));
+        let transition_lock = Arc::new(Mutex::new(()));
         let clients = Arc::new(Mutex::new(HashMap::new()));
         let stop_signal = Arc::new(AtomicBool::new(false));
         let server_sequence = Arc::new(AtomicU64::new(0));
@@ -67,6 +68,7 @@ impl HostServer {
         let accept_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
             let tournament_runtime = Arc::clone(&tournament_runtime);
+            let transition_lock = Arc::clone(&transition_lock);
             let clients = Arc::clone(&clients);
             let stop_signal = Arc::clone(&stop_signal);
             let server_sequence = Arc::clone(&server_sequence);
@@ -100,6 +102,7 @@ impl HostServer {
                         let clients = Arc::clone(&clients);
                         let authoritative_state = Arc::clone(&authoritative_state);
                         let tournament_runtime = Arc::clone(&tournament_runtime);
+                        let transition_lock = Arc::clone(&transition_lock);
                         let server_sequence = Arc::clone(&server_sequence);
                         let host_signing_keys = Arc::clone(&host_signing_keys);
                         let host_encryption_keys = Arc::clone(&host_encryption_keys);
@@ -198,6 +201,7 @@ impl HostServer {
                                                 stream,
                                                 authoritative_state,
                                                 tournament_runtime,
+                                                transition_lock,
                                                 clients,
                                                 join_payload,
                                                 server_sequence,
@@ -243,6 +247,7 @@ impl HostServer {
         let tick_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
             let tournament_runtime = Arc::clone(&tournament_runtime);
+            let transition_lock = Arc::clone(&transition_lock);
             let clients = Arc::clone(&clients);
             let stop_signal = Arc::clone(&stop_signal);
             let server_sequence = Arc::clone(&server_sequence);
@@ -257,10 +262,21 @@ impl HostServer {
                 .spawn(move || {
                     while !stop_signal.load(Ordering::SeqCst) {
                         let now = now_epoch_ms();
-                        // Acquire the lock only for the duration of advance_time,
-                        // NOT for the sleep, so that start_tournament() can install
-                        // the controller without being starved by this idle loop.
-                        let next_state = match tournament_runtime.lock() {
+                        // Serialize controller mutation, authoritative writeback, and
+                        // event publication. Without this lock, a delayed tick candidate can
+                        // overwrite a newer player action after the controller lock is released.
+                        let transition_guard = match transition_lock.lock() {
+                            Ok(guard) => guard,
+                            Err(_) => {
+                                update_health(&runtime_health, |h| {
+                                    h.state_lock_error_count += 1;
+                                    h.record_error("host transition lock poisoned");
+                                });
+                                break;
+                            }
+                        };
+
+                        let transition = match tournament_runtime.lock() {
                             Err(_) => {
                                 update_health(&runtime_health, |h| {
                                     h.state_lock_error_count += 1;
@@ -278,52 +294,41 @@ impl HostServer {
                                                 h.last_successful_tick_ms = Some(now);
                                             });
                                             let after = controller.state().clone();
-                                            (after != before).then_some(after)
+                                            if after == before {
+                                                None
+                                            } else {
+                                                match commit_runtime_state(
+                                                    &authoritative_state,
+                                                    after,
+                                                ) {
+                                                    Ok(states) => Some(states),
+                                                    Err(error) => {
+                                                        update_health(&runtime_health, |h| {
+                                                            h.state_lock_error_count += 1;
+                                                            h.record_error(format!(
+                                                                "runtime tick writeback rejected: {error}"
+                                                            ));
+                                                        });
+                                                        None
+                                                    }
+                                                }
+                                            }
                                         }
-                                        Err(e) => {
+                                        Err(error) => {
                                             update_health(&runtime_health, |h| {
                                                 h.tick_advance_error_count += 1;
-                                                h.record_error(format!("advance_time failed: {e}"));
+                                                h.record_error(format!(
+                                                    "advance_time failed: {error}"
+                                                ));
                                             });
                                             None
                                         }
                                     }
                                 }
                             },
-                            // MutexGuard `runtime` dropped here — lock released
                         };
 
-                        if let Some(mut state) = next_state {
-                            let previous_state = match authoritative_state
-                                .lock()
-                                .map(|authoritative| authoritative.clone())
-                            {
-                                Ok(prev) => prev,
-                                Err(_) => {
-                                    update_health(&runtime_health, |h| {
-                                        h.state_lock_error_count += 1;
-                                        h.record_error(
-                                            "authoritative state lock poisoned reading previous \
-                                             state for tick publish",
-                                        );
-                                    });
-                                    continue;
-                                }
-                            };
-                            merge_networking_state(&previous_state, &mut state);
-                            match authoritative_state.lock() {
-                                Ok(mut authoritative) => *authoritative = state.clone(),
-                                Err(_) => {
-                                    update_health(&runtime_health, |h| {
-                                        h.state_lock_error_count += 1;
-                                        h.record_error(
-                                            "authoritative state lock poisoned during tick \
-                                             writeback",
-                                        );
-                                    });
-                                    continue;
-                                }
-                            };
+                        if let Some((previous_state, state)) = transition {
                             match publish_runtime_transition(
                                 &join_payload,
                                 &authoritative_state,
@@ -338,14 +343,16 @@ impl HostServer {
                                 Ok(()) => update_health(&runtime_health, |h| {
                                     h.last_successful_publish_ms = Some(now_epoch_ms());
                                 }),
-                                Err(e) => update_health(&runtime_health, |h| {
+                                Err(error) => update_health(&runtime_health, |h| {
                                     h.publish_error_count += 1;
                                     h.record_error(format!(
-                                        "runtime transition publish failed: {e}"
+                                        "runtime transition publish failed: {error}"
                                     ));
                                 }),
                             }
                         }
+
+                        drop(transition_guard);
 
                         thread::sleep(Duration::from_millis(50));
                     }
@@ -361,6 +368,7 @@ impl HostServer {
             encoded_join_payload,
             authoritative_state,
             tournament_runtime,
+            transition_lock,
             clients,
             server_sequence,
             stop_signal,
@@ -423,6 +431,10 @@ impl HostServer {
         &self,
         next_state: TournamentState,
     ) -> Result<(), NetworkingError> {
+        let _transition_guard = self
+            .transition_lock
+            .lock()
+            .map_err(|_| NetworkingError::new("host transition lock poisoned"))?;
         if next_state.table_id != self.join_payload.table_id
             || next_state.session_epoch != self.join_payload.session_epoch
         {
@@ -670,6 +682,10 @@ impl HostServer {
     }
 
     pub fn start_tournament(&self) -> Result<(), NetworkingError> {
+        let _transition_guard = self
+            .transition_lock
+            .lock()
+            .map_err(|_| NetworkingError::new("host transition lock poisoned"))?;
         let before_state = self.authoritative_state()?;
         let controller = self
             .authoritative_state
@@ -701,6 +717,10 @@ impl HostServer {
         action_type: crate::domain::ActionType,
         raise_to_amount: Option<u32>,
     ) -> Result<(), NetworkingError> {
+        let _transition_guard = self
+            .transition_lock
+            .lock()
+            .map_err(|_| NetworkingError::new("host transition lock poisoned"))?;
         let before_state = self.authoritative_state()?;
         let (next_state, action_result) = {
             let mut runtime = self
@@ -726,19 +746,12 @@ impl HostServer {
         };
 
         let publish_result = if next_state != before_state {
-            self.authoritative_state
-                .lock()
-                .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
-                .map(|mut authoritative_state| {
-                    let mut merged = next_state;
-                    merge_networking_state(&authoritative_state, &mut merged);
-                    *authoritative_state = merged;
-                })?;
-            let after_state = self.authoritative_state()?;
+            let (previous_state, after_state) =
+                commit_runtime_state(&self.authoritative_state, next_state)?;
             publish_runtime_transition(
                 &self.join_payload,
                 &self.authoritative_state,
-                &before_state,
+                &previous_state,
                 &after_state,
                 &self.clients,
                 &self.server_sequence,

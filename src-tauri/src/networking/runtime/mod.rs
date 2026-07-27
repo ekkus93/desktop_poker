@@ -185,6 +185,7 @@ pub struct HostServer {
     encoded_join_payload: String,
     authoritative_state: Arc<Mutex<TournamentState>>,
     tournament_runtime: Arc<Mutex<Option<TournamentController>>>,
+    transition_lock: Arc<Mutex<()>>,
     clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     server_sequence: Arc<AtomicU64>,
     stop_signal: Arc<AtomicBool>,
@@ -260,6 +261,43 @@ pub enum ClientRuntimeEvent {
     Disconnected {
         player_id: String,
     },
+}
+
+pub(crate) fn commit_runtime_state(
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    mut next_state: TournamentState,
+) -> Result<(TournamentState, TournamentState), NetworkingError> {
+    let mut authoritative = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+    let previous_state = authoritative.clone();
+
+    if next_state.table_id != previous_state.table_id
+        || next_state.session_epoch != previous_state.session_epoch
+    {
+        return Err(NetworkingError::new(
+            "runtime state writeback must match the active table/session",
+        ));
+    }
+    if !next_state
+        .hand_results
+        .starts_with(&previous_state.hand_results)
+    {
+        return Err(NetworkingError::new(
+            "refusing runtime state writeback that rewrites or removes settled hand history",
+        ));
+    }
+    if previous_state.phase == crate::domain::TournamentPhase::Complete
+        && next_state.phase != crate::domain::TournamentPhase::Complete
+    {
+        return Err(NetworkingError::new(
+            "refusing runtime state writeback that reopens a completed tournament",
+        ));
+    }
+
+    merge_networking_state(&previous_state, &mut next_state);
+    *authoritative = next_state.clone();
+    Ok((previous_state, next_state))
 }
 
 pub fn resolve_connectable_host_ip() -> Result<IpAddr, NetworkingError> {
