@@ -12,7 +12,7 @@ export type LobbySeatView = {
   seatIndex: number;
   label: string;
   detail: string;
-  kind: "host" | "pending" | "open";
+  kind: "host" | "player" | "open";
   isLocal: boolean;
   ready: boolean;
   isNpc: boolean;
@@ -38,8 +38,11 @@ export function buildLiveSeats(
     "localPlayerId" in liveSession ? liveSession.localPlayerId : "local-player";
 
   for (const participant of liveSession.participants) {
-    const preferredIndex =
-      participant.seatIndex ?? seats.findIndex((seat) => seat.kind === "open");
+    if (participant.seatIndex === null) {
+      continue;
+    }
+
+    const preferredIndex = participant.seatIndex;
     if (preferredIndex < 0 || preferredIndex >= seats.length) {
       continue;
     }
@@ -53,12 +56,10 @@ export function buildLiveSeats(
           : participant.displayName,
       detail: isNpc
         ? "(AI) · Always ready"
-        : participant.seatIndex === null
-          ? `${participant.participantState} · ${participant.connectionState} · awaiting seat`
-          : participant.isHost
-            ? `Host · ${participant.connectionState}`
-            : participant.connectionState,
-      kind: participant.seatIndex === null ? "pending" : "host",
+        : participant.isHost
+          ? `Host · ${participant.connectionState}`
+          : participant.connectionState,
+      kind: participant.isHost ? "host" : "player",
       isLocal: participant.playerId === localPlayerId,
       ready: isNpc ? true : participant.isReady,
       isNpc,
