@@ -2,9 +2,20 @@
 
 ## Executive result
 
-**Outcome: Additional desktop runtime validation is required before a Linux release tag or Android/UniFFI milestone.**
+**Outcome: The direct Linux release binary and initial local multiplayer runtime are now proven, but additional desktop runtime validation is still required before a release tag or Android/UniFFI milestone.**
 
-The current automated baseline and Linux release-candidate build are green. A direct release binary and Debian package were built and inspected. The remaining release blockers require a graphical desktop, multiple live application instances, two physical LAN machines, a Linux Secret Service/keychain session, and configured live LLM providers. Those scenarios are recorded as `BLOCKED`; they are not inferred from unit, integration, browser, or packaging tests.
+A real Tauri/WebKit release binary now launches under a Linux graphical session and passes production-route, browser-mock isolation, session-guard, invalid-invite, three-instance isolation, real TCP host/join, lobby seating, ready-state, tournament-start, initial private-card isolation, synchronized public-state, port-conflict, and alternate-port recovery checks.
+
+The remaining release blockers are narrower but still material:
+
+- installed `.deb` graphical launch;
+- legal action play through multiple hands, elimination, history, completion, and matching standings;
+- restart and per-instance persistence isolation;
+- two physical machines on one LAN;
+- reconnect, expiry, observer recovery, host loss, and unreachable-host behavior;
+- release OS-keychain behavior;
+- live rule-based and LLM NPC operation;
+- the remaining Android canonical fixture and mixed-runtime interoperability proof.
 
 This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE_READINESS_BASELINE_TODO.md`.
 
@@ -12,207 +23,219 @@ This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE
 
 - `PASS` — the named command or scenario was executed successfully against the recorded revision.
 - `FAIL` — the named command or scenario was executed and produced a product or validation failure.
+- `PARTIAL` — a meaningful subset passed, but the complete release gate remains open.
 - `BLOCKED` — execution requires a concrete unavailable dependency or environment.
 - `NOT RUN` — execution was not attempted for a stated reason.
 
-## Tested revision and environment
+## Tested revisions and environments
 
-### Repository revision
+### Automated and packaging baseline
 
 - Repository: `ekkus93/desktop_poker`
-- Base branch: `master`
-- Baseline base SHA: `f4fde4d70fb8fe205bf74be7469912efd682045c`
-- Execution branch: `agent/release-readiness-baseline`
-- Tested product-source SHA: `fd8369ba7267fe76a827cdf48384c9f826159719`
-- GitHub pull-request merge SHA used by the evidence-generating CI run: `c79c9f2473f92310c3d65afe8b834f97b2875c5d`
-- Evidence-generating GitHub Actions run: `30224757296`
-- Final branch validation commit: `283607db670d0bd28a342ac5a417806bc3507d78`
-- Final read-only GitHub Actions run: `30225613175`
+- Branch: `master`
+- Release-readiness work merged to `master`: `2e4d1f3835cf24ec57f6530fa85e9dbe7d2c1b6f`
+- Final clean-head baseline validation commit before runtime work: `4c63a4efa5b9a9a1f8683f85c8698629024a21f4`
+- Baseline GitHub Actions run: `30226608930`
+- Baseline runner: Ubuntu 24.04.4 LTS, x86-64, GitHub-hosted Azure VM
+- Baseline Node.js: `v24.18.0`
+- Baseline npm: `11.16.0`
+- Baseline Rust: `rustc 1.97.1 (8bab26f4f 2026-07-14)`
+- Baseline Cargo: `cargo 1.97.1 (c980f4866 2026-06-30)`
 
-The evidence-generating workflow checked out the pull-request merge revision. Later commits changed only release-readiness documentation and CI comments; the final read-only run repeated verification, geometry, and Linux artifact construction successfully on the final branch.
+### Linux release runtime validation
 
-### GitHub Actions environment
+- Validated source commit: `d2f4fc82eeb43a9ecec4524e490dda4662e80123`
+- GitHub Actions run: `30234522553`
+- Recorded result: `docs/runtime-validation/latest.json`
+- Environment: Ubuntu 24.04 GitHub-hosted runner
+- Graphical session: Xvfb, 1440×960×24
+- Desktop runtime: Tauri 2 / WebKitGTK through `tauri-driver` and WebKitWebDriver
+- Session bus: isolated `dbus-run-session`
+- Release binary: `target/release/desktop-poker`
+- Release binary SHA-256: `a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe`
+- Evidence artifact: `linux-release-runtime-evidence`
 
-- Runner: Ubuntu 24.04.4 LTS, x86-64, GitHub-hosted Azure VM
-- Kernel: Linux 6.17.0-1020-azure
-- Node.js: `v24.18.0`
-- npm: `11.16.0`
-- Rust: `rustc 1.97.1 (8bab26f4f 2026-07-14)`
-- Cargo: `cargo 1.97.1 (c980f4866 2026-06-30)`
-- Active toolchain: `stable-x86_64-unknown-linux-gnu`
-- Graphical desktop/WebView session: unavailable
-- Two physical LAN machines: unavailable
-- Local Ollama/llama-server endpoint: unavailable
-- Linux Secret Service/keychain session: unavailable
+The virtual graphical session is valid evidence for application launch and loopback multi-instance behavior. It does not substitute for installed-package testing, a physical desktop session, two physical LAN machines, a real user keychain, or configured live model providers.
 
-## Automated validation
+## Automated validation baseline
 
-| Validation | Result | Current evidence |
+| Validation | Result | Evidence |
 |---|---|---|
-| `npm ci` | PASS | Committed lockfile installed in Verify, geometry, and release-candidate jobs. |
-| `npm audit --omit=dev` | PASS | 0 info, low, moderate, high, critical; total 0. |
-| `npm audit` | PASS | 0 info, low, moderate, high, critical; total 0. |
-| `npm run format:check` | PASS | Prettier check completed successfully. |
-| `npm run lint` | PASS | ESLint completed with zero warnings and zero errors. |
-| `npm run test` | PASS | 30 files, 273 tests passed, 0 failed, 0 skipped/todo. |
-| `npm run build` | PASS | TypeScript and Vite production build passed; 1,835 modules transformed. |
-| `npm run test:geometry` | PASS | Playwright geometry job passed in the pinned Playwright 1.59.1 container. |
+| `npm ci` | PASS | Committed lockfile installed in baseline jobs. |
+| `npm audit --omit=dev` | PASS | Zero vulnerabilities. |
+| `npm audit` | PASS | Zero vulnerabilities. |
+| `npm run format:check` | PASS | Prettier passed. |
+| `npm run lint` | PASS | ESLint passed with zero warnings/errors. |
+| `npm run test` | PASS | Baseline: 273 frontend tests passed. |
+| `npm run build` | PASS | TypeScript/Vite production build passed. |
+| `npm run test:geometry` | PASS | Browser geometry passed. |
 | `cargo fmt --check` | PASS | Workspace formatting passed. |
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | PASS | Clippy passed with warnings denied. |
-| `cargo test --workspace --all-targets --all-features -- --test-threads=2` | PASS | Desktop adapter: 463 passed, 3 ignored; `poker-core`: 125 passed; total 588 passed, 0 failed, 3 ignored. |
-| `cargo test -p poker-core --all-targets --all-features` | PASS | 125 passed, 0 failed, 0 ignored. |
-| `cargo tree -p poker-core` | PASS | Only `rand_core`, `serde`, `serde_json`, `thiserror`, and their platform-neutral transitive dependencies. |
+| Rust workspace tests | PASS | 588 passed, 0 failed, 3 explicitly ignored. |
+| Focused `poker-core` tests | PASS | 125 passed. |
+| `cargo tree -p poker-core` | PASS | Shared core remains platform-neutral. |
+
+Three focused frontend regression tests were added in `src/screens/useLobbySession.test.ts` for the runtime-discovered lobby projection defect. The retained runtime run proves the corrected production behavior. The baseline test total above remains the last explicitly retained full frontend-suite count in this report.
 
 ### Ignored Rust tests
 
-The current workspace run contains exactly three ignored tests:
+The baseline contains exactly three ignored tests:
 
-1. `npc::llm_strategy::ollama_live_tests::ollama_llama32_postflop_returns_legal_poker_action` — requires a live local Ollama model.
-2. `npc::llm_strategy::ollama_live_tests::ollama_llama32_preflop_returns_legal_poker_action` — requires a live local Ollama model.
-3. `protocol::models::tests::canonical_bytes_for_join_request_match_known_android_fixture` — requires the captured Android CanonicalJson fixture referenced by `INT_TEST3_TODO.md` §11.1.
+1. Two live Ollama tests requiring a configured local model.
+2. The Android canonical JSON fixture test requiring the captured Android fixture.
 
 None is claimed as passed.
 
-### Frontend output quality
-
-- Test output contained no unhandled promise rejection, React warning, window-persistence initialization failure, or recurring stderr error.
-- Production output: `index.html` 0.46 kB, CSS 28.22 kB, main JS 337.47 kB, successful build in 2.29 seconds on the recorded runner.
-
-## `poker-core` platform-neutrality audit
-
-**Result: PASS for the current source revision.**
-
-- The dependency tree contains no Tauri, Android, keyring, HTTP client, LAN transport, filesystem path-discovery, async runtime, or LLM dependencies.
-- Repository source search found no `tauri`, `keyring`, `reqwest`, `local_ip`, `std::net`, TCP/UDP socket, process-spawning `Command`, or thread-spawn references under the shared core.
-- `crates/poker-core/Cargo.toml` remains limited to deterministic serialization/error/randomness primitives.
-- `EngineCommand` domain terminology is not process-spawning `std::process::Command` usage.
-
-## Linux release artifact inventory
+## Linux release artifact and launch status
 
 ### Direct release binary
 
-- Result: **PASS — build and static inspection**
-- Path: `target/release/desktop-poker`
-- Type: ELF 64-bit LSB PIE executable, x86-64, dynamically linked
-- Exact size: 21,908,136 bytes (reported as 21 MB)
-- SHA-256: `9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211`
-- Build ID: `e1fd586bd6391d84b9c089a1506bdbc13aa7d11e`
-- Graphical launch: **BLOCKED** — no desktop/WebView session is available in the execution environment.
+- Build: **PASS**
+- Static inspection: **PASS**
+- Graphical launch: **PASS**
+- Production Home, Host, Join, Settings, and Help routes: **PASS**
+- Browser mocks absent: **PASS**
+- Hidden `/debug` route unreachable: **PASS**
+- Direct `/lobby` and `/table` without sessions redirect safely: **PASS**
+- Invalid invite displays an inline error and remains on Join: **PASS**
+
+The current runtime hash differs from the earlier baseline artifact because the lobby projection fix and runtime validation harness were added after the first release-candidate build.
 
 ### Debian package
 
-- Result: **PASS — package build and metadata inspection**
-- Filename: `Desktop Poker_0.1.0_amd64.deb`
-- Path: `target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
-- Exact size: 6,738,672 bytes (reported as 6.5 MB)
-- SHA-256: `fc534010dfd8c0468511d9e2a24ad6a34e0375de7a55c030d113d43d06286ac7`
-- Package: `desktop-poker`
-- Version: `0.1.0`
-- Architecture: `amd64`
-- Installed size: 21,458 KiB
-- Maintainer: `ekkus93`
-- Dependencies: `libwebkit2gtk-4.1-0`, `libgtk-3-0`
-- Installed binary path: `/usr/bin/desktop-poker`
-- Desktop entry and 32/128/256@2 icon assets are present.
-- Installation and graphical launch: **BLOCKED** — no disposable graphical Linux session is available.
+- Package construction and metadata inspection: **PASS**
+- Installed binary path and desktop assets: **PASS — static inspection**
+- Installation in a disposable environment: **NOT RUN**
+- Installed graphical launch: **NOT RUN**
 
 ### AppImage
 
-- Result: **BLOCKED**
-- This pass intentionally built the deterministic direct binary and `.deb` bundle. AppImage tooling and graphical launch were not available/proven, so AppImage is not claimed working.
+- Result: **BLOCKED / NOT RUN**
+- No AppImage launch is claimed.
 
-The GitHub Actions release-candidate artifact retains the binary, `.deb`, complete release build log, and artifact inventory for 30 days.
+## Production reachability and secret-safety status
 
-## Production reachability and security audit
-
-### Static findings
-
-- `src/main.tsx` imports the layout probe only inside `import.meta.env.DEV`.
-- Browser mocks in `src/api/desktop.ts` are guarded by development/test environment checks.
-- `src-tauri/tauri.conf.json` uses a restrictive CSP and limits frontend connections to Tauri IPC.
-- Release provider secrets select OS keychain storage; debug builds use the explicitly development-only local file.
-- `llm-provider.json` contains non-secret settings only; storage/redaction tests pass.
-
-### Runtime findings
-
-| Scenario | Result | Reason |
+| Scenario | Result | Evidence |
 |---|---|---|
-| Release `/debug` route reachability | BLOCKED | Requires a running release WebView. |
-| Browser-mock substitution in release | BLOCKED | Static guards pass; live release exercise is unavailable. |
-| Release keychain write/read/clear | BLOCKED | Requires Linux Secret Service and a low-privilege test credential. |
-| Plaintext-key search in app data/logs | BLOCKED | Requires application data produced by a real release run. |
+| Release Home/Host/Join/Settings/Help | PASS | Run `30234522553`. |
+| Release `/debug` reachability | PASS | Redirected to Home. |
+| Browser-mock substitution in release | PASS | `window.__DESKTOP_POKER_BROWSER_MOCKS__` was absent. |
+| Fake session through direct guarded routes | PASS | `/lobby` and `/table` redirected safely without a session. |
+| Release keychain write/read/clear | BLOCKED | Requires a real Secret Service/keychain session and test credential. |
+| Plaintext-key search in release app data/logs | BLOCKED | Requires the keychain scenario. |
 
-## Defects discovered and fixes applied
+## Live local multiplayer runtime evidence
 
-### DP-RR-FIX-001 — Vulnerable production React Router dependency
+### Three release instances and storage isolation
 
-- `npm audit --omit=dev` exposed a high-severity advisory through `react-router` 7.18.0 that the previous CI did not run.
-- Fixed by migrating from `react-router-dom` 7 to `react-router` 8.3.0 and React/React DOM 19.2.8.
-- All imports, tests, production build, and browser geometry pass after migration.
+**Result: PASS for launch-time isolation.**
 
-### DP-RR-FIX-002 — Vulnerable development dependency graph
+The run launched three independent release instances:
 
-- The full audit exposed the ESLint 9 `minimatch`/`brace-expansion` chain and a vulnerable PostCSS version.
-- Fixed by upgrading the ESLint toolchain, pinning `@eslint/js` 10.0.1, and overriding PostCSS to 8.5.23.
-- Both production and full audits now report zero vulnerabilities.
+- `runtime-host-30234522553`
+- `runtime-client-30234522553`
+- `runtime-conflict-30234522553`
 
-### DP-RR-FIX-003 — React correctness findings exposed by ESLint 10
+Each reported a distinct application profile directory under `~/.local/share/desktop-poker/profiles/`. The client’s host draft was independently namespaced before it joined the host.
 
-- The stricter lint rules found four state-synchronization patterns and one render-time ref read.
-- Fixed provider changes in the user event, asynchronous NPC profile loading, bootstrap-derived join state, render-safe launch-attempt presentation, and derived raise sizing.
-- No lint rule was disabled or weakened. Formatting, lint, 273 frontend tests, build, audits, and geometry all pass.
+Restart persistence, history separation, window-state restoration, and post-tournament data isolation remain untested.
 
-### DP-RR-DOC-001 — Stale workspace release paths
+### Real TCP host/join and lobby flow
 
-- README release paths incorrectly named `src-tauri/target/release` after the repository became a root Cargo workspace.
-- Corrected to `target/release` and documented the current audit/release-candidate workflow.
+**Result: PASS.**
 
-## Manual runtime evidence
+- Host started a real TCP listener on `43818`.
+- Host produced a compact `pkr1_…` invitation.
+- Client validated the invitation and joined the live host.
+- Host and client raw status payloads agreed on participant seat indexes.
+- Host began in its authoritative occupied seat.
+- Client claimed the remaining open seat through the release UI.
+- Both instances agreed on distinct seat assignments.
+- Ready state propagated to both instances.
+- Host started the tournament.
+- Both instances transitioned to Main Table.
+
+### Initial table integrity
+
+**Result: PASS for the first running-hand snapshot.**
+
+- Each instance saw exactly one local seat.
+- Each local player received exactly two private hole cards.
+- No remote private hole cards were exposed.
+- Table ID, current hand number, street, pot, and board matched between host and client.
+
+Legal action play, raise boundaries, action-owner visibility, complete hand history, elimination, observer behavior, and tournament completion remain untested in a release runtime.
+
+### Port conflict and recovery
+
+**Result: PASS.**
+
+- A third release instance attempted to host on occupied port `43818`.
+- The UI failed explicitly with `Unable to start hosting.`
+- The conflicting instance did not report a false live host session.
+- Changing the port to `43819` allowed hosting to start successfully.
+
+The current message is explicit but generic; improving it to include useful bind context remains a UX-quality consideration.
+
+## Runtime defect discovered and fixed
+
+### DP-RR-FIX-004 — Unseated participant consumed the only open lobby seat
+
+**Observed in run `30233994857`.**
+
+After the client joined, the backend correctly reported the host as seated, the client as admitted but unseated, and one open seat. `buildLiveSeats()` nevertheless inserted the unseated participant into the first open seat as a `pending` card. That consumed the only open slot and rendered no **Take seat** button, blocking the client from proceeding.
+
+The same function also classified every seated non-host as `kind: "host"`, which could produce incorrect host-only leave semantics for clients.
+
+**Fix:**
+
+- unseated participants no longer consume authoritative seat slots;
+- open seats remain actionable;
+- seated participants are classified as `host` or `player` according to `isHost`;
+- three focused regression tests cover pending-client, open-seat, and seated-client projection behavior;
+- run `30234522553` proves the client can claim the remaining seat and continue through tournament start.
+
+## Remaining runtime gates
 
 ### Two-local-instance full tournament
 
-**Result: BLOCKED.** No graphical desktop session is available to launch two Tauri release instances. Host/join, seat claims, readiness, gameplay, private-card isolation, elimination, completion, persistence, and per-instance isolation are not marked passed.
+**Result: PARTIAL.** Host/join, seat assignment, ready-state, tournament start, initial privacy, and initial public synchronization pass. The following remain:
+
+- fold, check, call, bet, raise, quick-size, and all-in confirmation;
+- illegal-raise rejection;
+- acting-player action-tray exclusivity;
+- multiple hands and duplicate-free history;
+- elimination and observer transition;
+- completion and matching standings;
+- normal client leave and host close;
+- restart and persistence isolation.
 
 ### Two-machine LAN tournament
 
-**Result: BLOCKED.** Two physical machines on the same LAN are unavailable. Loopback integration tests do not substitute for real LAN evidence.
+**Result: BLOCKED.** Loopback Xvfb evidence does not replace two physical machines and a real LAN/firewall path.
 
 ### Reconnect and failure matrix
 
-Lobby reconnect, active-hand reconnect, reconnect expiry, eliminated-observer reconnect, host loss, port conflict, invalid invite UI, and unreachable-host UI are **BLOCKED** pending controllable live processes and network interruption.
+**Result: PARTIAL.** Invalid invite, guarded-route recovery, and host-port conflict pass. Lobby reconnect, active-hand reconnect, expiry, stale-action rejection, eliminated-observer reconnect, host loss, and unavailable-host join remain.
 
 ### Rule-based NPC tournament
 
-**Result: BLOCKED.** Automated decision/runner coverage passes, but no live release tournament was run.
+**Result: BLOCKED / NOT RUN.** Automated NPC coverage exists, but no live release tournament was executed.
 
 ### Live LLM NPC scenarios
 
-**Result: BLOCKED.** No Ollama/llama-server endpoint or low-privilege remote provider credential was available. The two ignored Ollama tests remain ignored and are not claimed passed.
+**Result: BLOCKED.** No live provider endpoint or test credential was configured.
 
 ### Release keychain scenario
 
-**Result: BLOCKED.** Static implementation and automated storage/redaction tests pass, but OS-keychain behavior requires a real Secret Service session.
-
-The executable manual procedure is `docs/MANUAL_QA_CHECKLIST.md`.
-
-## Remaining release blockers
-
-The authoritative list is `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`. The fresh automated baseline is complete, and direct binary/`.deb` creation and inspection are proven. Desktop release readiness remains blocked by:
-
-- graphical launch of the direct binary and installed package;
-- two-local-instance full-tournament and storage-isolation QA;
-- two-machine LAN full-tournament QA;
-- live reconnect, expiry, observer, host-loss, and error-state QA;
-- release OS-keychain write/read/clear and failure behavior;
-- live rule-based NPC tournament;
-- live LLM provider scenarios and the captured Android canonical fixture.
+**Result: BLOCKED.** Static storage/redaction tests pass, but a real release keychain session has not been exercised.
 
 ## Android/Desktop interoperability status
 
-Status remains **audited but not fully proven**. Known payload-shape differences for action-window-opened and action-rejected events remain backlog items. The ignored Android canonical fixture test is explicit evidence that mixed-runtime canonical bytes are not yet fully proven.
+Status remains **audited but not fully proven**. The ignored Android canonical fixture and known event-shape differences remain open. Runtime work should stay focused on completing the desktop release gates before starting the Android/UniFFI milestone.
 
 ## Final milestone recommendation
 
-**Continue desktop runtime validation. Do not begin the Android/UniFFI milestone yet.**
+**Continue desktop runtime validation on `master`. Do not begin the Android/UniFFI milestone yet.**
 
-The repository now has a trustworthy automated and packaging baseline. The next work should execute the manual release-binary, package-install, local multiplayer, LAN multiplayer, reconnect, keychain, and NPC gates against the recorded source revision. Any reproduced failure should receive a stable backlog ID, a focused regression test where practical, and the smallest correct fix.
+The next highest-value runtime increment is legal action play through at least one complete hand, followed by deterministic progression to elimination/completion and restart-based persistence isolation. Physical LAN, reconnect interruption, keychain, and live NPC/provider checks remain separate gates.
