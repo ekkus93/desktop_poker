@@ -16,7 +16,7 @@ import {
 } from "./shell";
 import {
   initializeWindowStatePersistence,
-  persistHandHistory,
+  mergePersistedHandHistory,
   readPersistedHandHistoryWithStatus,
 } from "./persistence";
 
@@ -249,8 +249,11 @@ export function DesktopShellProvider({
       },
       clearRecentJoinPayloads: () => setRecentJoinPayloads([]),
       persistHandHistory: (entries) => {
-        persistHandHistory(bootstrap.storageNamespace, entries);
-        setPersistedHandHistoryCount(entries.length);
+        const mergedHistory = mergePersistedHandHistory(
+          bootstrap.storageNamespace,
+          entries,
+        );
+        setPersistedHandHistoryCount(mergedHistory.entries.length);
       },
     }),
     [
