@@ -1,0 +1,87 @@
+name: Fix runtime click helper
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-runtime-click-helper.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  fix-click-helper:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused click-helper correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/runtime_multi_instance_smoke.py")
+          text = path.read_text()
+          old = '''def click_first_enabled_text(client: WebDriverClient, text: str) -> None:
+    quoted = json.dumps(text)
+    xpath = (
+        f"(//*[normalize-space(.)={quoted}]"
+        "/ancestor-or-self::*[(self::button and not(@disabled)) or self::a][1])[1]"
+    )
+    client.click(client.find_xpath(xpath))
+'''
+          new = '''def click_first_enabled_text(client: WebDriverClient, text: str) -> None:
+    clicked = client.execute(
+        """
+const text = arguments[0];
+const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+const target = Array.from(document.querySelectorAll('button:not([disabled]), a')).find(
+  (candidate) => normalize(candidate.textContent) === text
+);
+if (!target) return false;
+target.scrollIntoView({ block: 'center', inline: 'center' });
+target.click();
+return true;
+""",
+        [text],
+    )
+    if clicked is not True:
+        raise AssertionError(f"No enabled button or link found with text {text!r}")
+'''
+          if text.count(old) != 1:
+              raise SystemExit("unexpected click_first_enabled_text implementation")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+          rm .github/workflows/fix-runtime-click-helper.yml
+
+      - name: Commit directly to master
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/runtime_multi_instance_smoke.py \
+            .github/workflows/fix-runtime-click-helper.yml
+          git commit -m "test: make runtime text clicks WebKit-safe"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              gh workflow run runtime-full-game-validation.yml --ref master
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Unable to publish click-helper correction" >&2
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
