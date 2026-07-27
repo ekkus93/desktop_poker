@@ -1,12 +1,12 @@
 # Latest Linux Release Runtime Validation
 
 - Overall result: **FAIL**
-- Validated commit: `c149d734275f65913f272c0c2e8a303f2a973a66`
-- GitHub Actions run: `30233518939`
+- Validated commit: `373aa53c1fa1290b8ded58f14ef2e424c43ea95e`
+- GitHub Actions run: `30233994857`
 - Build outcome: `success`
 - Single-instance outcome: `success`
 - Multi-instance outcome: `failure`
-- Recorded at: `2026-07-27T03:06:16.025610+00:00`
+- Recorded at: `2026-07-27T03:17:15.897914+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
@@ -31,7 +31,7 @@ Result: **PASS**
 
 Result: **FAIL**
 
-Failure: WebDriverError: WebDriver POST /session/4e86fa4f-8c69-4e9c-a746-74fd91b07693/element returned HTTP 404: {"value":{"error":"no such element","message":"","stacktrace":""}}
+Failure: WebDriverError: WebDriver POST /session/b16e0fb4-f2ef-49c6-994d-31a723a3a7e3/element returned HTTP 404: {"value":{"error":"no such element","message":"","stacktrace":""}}
 
 - **PASS** — host release instance launched
 - **PASS** — client release instance launched
@@ -39,4 +39,5 @@ Failure: WebDriverError: WebDriver POST /session/4e86fa4f-8c69-4e9c-a746-74fd91b
 - **PASS** — three instance IDs and profile directories are distinct
 - **PASS** — client host draft is independently namespaced before joining
 - **PASS** — host started a real TCP session and produced a pkr1_ invite
+- **PASS** — client joined the live host over real TCP
 - **FAIL** — multi-instance runtime smoke

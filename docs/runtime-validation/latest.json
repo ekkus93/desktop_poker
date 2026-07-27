@@ -4,7 +4,7 @@
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "error": "WebDriverError: WebDriver POST /session/4e86fa4f-8c69-4e9c-a746-74fd91b07693/element returned HTTP 404: {\"value\":{\"error\":\"no such element\",\"message\":\"\",\"stacktrace\":\"\"}}",
+    "error": "WebDriverError: WebDriver POST /session/b16e0fb4-f2ef-49c6-994d-31a723a3a7e3/element returned HTTP 404: {\"value\":{\"error\":\"no such element\",\"message\":\"\",\"stacktrace\":\"\"}}",
     "result": "FAIL",
     "steps": [
       {
@@ -32,18 +32,22 @@
         "result": "PASS"
       },
       {
+        "name": "client joined the live host over real TCP",
+        "result": "PASS"
+      },
+      {
         "name": "multi-instance runtime smoke",
         "result": "FAIL"
       }
     ]
   },
   "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T03:06:16.025610+00:00",
+  "recordedAtUtc": "2026-07-27T03:17:15.897914+00:00",
   "result": "FAIL",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "instanceId": "runtime-smoke-30233518939",
+    "instanceId": "runtime-smoke-30233994857",
     "result": "PASS",
     "steps": [
       {
@@ -101,7 +105,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "c149d734275f65913f272c0c2e8a303f2a973a66",
+  "validatedCommit": "373aa53c1fa1290b8ded58f14ef2e424c43ea95e",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30233518939"
+  "workflowRunId": "30233994857"
 }
