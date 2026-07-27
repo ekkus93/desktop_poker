@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Drive the Linux release binary through tauri-driver using only stdlib HTTP.
+"""Drive the Linux release binary through tauri-driver using stdlib HTTP.
 
-This intentionally tests the packaged Tauri/WebKit runtime rather than the Vite
-browser-mock surface. Evidence is written even when a validation step fails.
+The harness exercises the packaged Tauri/WebKit runtime, not the Vite browser
+mock surface. It always writes machine-readable failure evidence.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 W3C_ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf"
 
@@ -120,24 +120,25 @@ class WebDriverClient:
         )
 
     def source(self) -> str:
-        value = self.session_request("GET", "/source")
-        return str(value)
-
-    def pathname(self) -> str:
-        value = self.execute("return window.location.pathname;")
-        return str(value)
+        return str(self.session_request("GET", "/source"))
 
     def execute(self, script: str, args: list[Any] | None = None) -> Any:
         return self.session_request(
             "POST", "/execute/sync", {"script": script, "args": args or []}
         )
 
-    def navigate(self, pathname: str) -> None:
+    def route(self) -> str:
+        value = self.execute(
+            "const hash = window.location.hash || '';"
+            "if (hash.startsWith('#/')) return hash.slice(1);"
+            "return window.location.pathname || '/';"
+        )
+        return str(value)
+
+    def navigate(self, route: str) -> None:
         self.execute(
-            "window.history.pushState({}, '', arguments[0]);"
-            "window.dispatchEvent(new PopStateEvent('popstate'));"
-            "return window.location.pathname;",
-            [pathname],
+            "window.location.hash = arguments[0]; return window.location.hash;",
+            [route],
         )
 
     def find(self, using: str, value: str) -> str:
@@ -171,13 +172,12 @@ class WebDriverClient:
         return str(self.session_request("GET", f"/element/{element_id}/text"))
 
     def screenshot(self) -> bytes:
-        value = self.session_request("GET", "/screenshot")
-        return base64.b64decode(str(value))
+        return base64.b64decode(str(self.session_request("GET", "/screenshot")))
 
 
 def wait_for(
     description: str,
-    predicate: Any,
+    predicate: Callable[[], Any],
     *,
     timeout: float = 30.0,
     interval: float = 0.25,
@@ -189,7 +189,7 @@ def wait_for(
             value = predicate()
             if value:
                 return value
-        except Exception as error:  # noqa: BLE001 - retry transient render/driver state
+        except Exception as error:  # noqa: BLE001 - retry transient render state
             last_error = error
         time.sleep(interval)
     raise AssertionError(f"Timed out waiting for {description}; last error: {last_error}")
@@ -210,10 +210,10 @@ def assert_source_contains(client: WebDriverClient, *needles: str) -> None:
         raise AssertionError(f"Page source missing expected text: {missing}")
 
 
-def wait_for_route(client: WebDriverClient, pathname: str, text: str) -> None:
+def wait_for_route(client: WebDriverClient, route: str, text: str) -> None:
     wait_for(
-        f"route {pathname} with text {text!r}",
-        lambda: client.pathname() == pathname and text in client.source(),
+        f"route {route} with text {text!r}",
+        lambda: client.route() == route and text in client.source(),
     )
 
 
@@ -234,11 +234,7 @@ def run(application: Path, driver_url: str, evidence_dir: Path) -> dict[str, Any
 
         wait_for_route(client, "/", "Choose a table")
         assert_source_contains(
-            client,
-            "Host Tournament",
-            "Join Tournament",
-            "Help",
-            "Settings",
+            client, "Host Tournament", "Join Tournament", "Help", "Settings"
         )
         record("Home rendered through the real Tauri backend")
 
@@ -272,42 +268,42 @@ def run(application: Path, driver_url: str, evidence_dir: Path) -> dict[str, Any
         error_text = client.element_text(error_element).strip()
         if not error_text:
             raise AssertionError("Invalid invite produced an empty error banner")
-        if client.pathname() != "/join":
+        if client.route() != "/join":
             raise AssertionError("Invalid invite navigated away from the Join screen")
         record(f"invalid invite failed explicitly: {error_text}")
 
-        for pathname, expected in (("/settings", "Settings"), ("/rules", "Help")):
-            client.navigate(pathname)
-            wait_for_route(client, pathname, expected)
-            record(f"{pathname} route rendered")
+        for route, expected in (("/settings", "Settings"), ("/rules", "Help")):
+            client.navigate(route)
+            wait_for_route(client, route, expected)
+            record(f"{route} route rendered")
 
-        for guarded in ("/lobby", "/table"):
-            client.navigate(guarded)
+        for guarded_route in ("/lobby", "/table"):
+            client.navigate(guarded_route)
             wait_for_route(client, "/", "Choose a table")
-            record(f"session guard redirected {guarded} without a live session")
+            record(
+                f"session guard redirected {guarded_route} without a live session"
+            )
 
         client.navigate("/debug")
         wait_for_route(client, "/", "Choose a table")
         record("release /debug route is not reachable")
 
-        screenshot_path = evidence_dir / "release-runtime-home.png"
-        screenshot_path.write_bytes(client.screenshot())
+        (evidence_dir / "release-runtime-home.png").write_bytes(client.screenshot())
         (evidence_dir / "release-runtime-page-source.html").write_text(
             client.source(), encoding="utf-8"
         )
         record("runtime screenshot and final page source captured")
 
-        result = {
+        return {
             "result": "PASS",
             "application": str(application),
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
             "instanceId": os.environ.get("DESKTOP_POKER_INSTANCE_ID"),
             "steps": steps,
         }
-        return result
-    except Exception as error:  # noqa: BLE001 - evidence must include all failures
+    except Exception as error:  # noqa: BLE001 - preserve all failure evidence
         steps.append({"name": "runtime smoke", "result": "FAIL"})
-        failure = {
+        failure: dict[str, Any] = {
             "result": "FAIL",
             "application": str(application),
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
