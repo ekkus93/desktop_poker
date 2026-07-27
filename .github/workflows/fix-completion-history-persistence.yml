@@ -1,7 +1,11 @@
 name: Fix completion history persistence
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-completion-history-persistence.yml"
 
 permissions:
   actions: write
