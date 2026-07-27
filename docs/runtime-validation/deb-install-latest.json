@@ -1,0 +1,105 @@
+{
+  "buildOutcome": "success",
+  "evidenceArtifact": "linux-installed-deb-evidence",
+  "installedDeb": {
+    "buildOutcome": "success",
+    "package": {
+      "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
+      "debSha256": "5b9a61c1248dc4e44f325e6b8facc401592f7b7b8df9696efd4dc210a9ab2ed2",
+      "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
+      "desktopId": "Desktop Poker",
+      "iconCount": "10",
+      "installedBinary": "/usr/bin/desktop-poker",
+      "installedBinarySha256": "c09153168f2a51cf038d00acf42d5b5eba4ed6a970a2331202507117f570f9b8",
+      "packageArchitecture": "amd64",
+      "packageName": "desktop-poker",
+      "packageVersion": "0.1.0"
+    },
+    "result": "FAIL",
+    "runtime": {
+      "application": "/usr/bin/desktop-poker",
+      "applicationSha256": "c09153168f2a51cf038d00acf42d5b5eba4ed6a970a2331202507117f570f9b8",
+      "instanceId": "installed-deb-webdriver-30291090999",
+      "result": "PASS",
+      "steps": [
+        {
+          "name": "tauri-driver became ready",
+          "result": "PASS"
+        },
+        {
+          "name": "release binary created a WebDriver session",
+          "result": "PASS"
+        },
+        {
+          "name": "Home rendered through the real Tauri backend",
+          "result": "PASS"
+        },
+        {
+          "name": "browser mocks are unavailable in release mode",
+          "result": "PASS"
+        },
+        {
+          "name": "Host route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "Join route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "invalid invite failed explicitly: The invite could not be checked.",
+          "result": "PASS"
+        },
+        {
+          "name": "/settings route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "/rules route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /lobby without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /table without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "release /debug route is not reachable",
+          "result": "PASS"
+        },
+        {
+          "name": "runtime screenshot and final page source captured",
+          "result": "PASS"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "name": "Debian package was produced",
+        "result": "PASS"
+      },
+      {
+        "name": "Debian package installed through apt",
+        "result": "PASS"
+      },
+      {
+        "name": "Package owns executable, desktop entry, and icon files",
+        "result": "PASS"
+      },
+      {
+        "name": "validation command failed with status 1 near line 1",
+        "result": "FAIL"
+      }
+    ],
+    "validationOutcome": "failure"
+  },
+  "recordedAtUtc": "2026-07-27T17:56:04.327554+00:00",
+  "result": "FAIL",
+  "validatedCommit": "9afe88ffffa7e76852d9c51af55f832967593aa0",
+  "validationOutcome": "failure",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30291090999"
+}
