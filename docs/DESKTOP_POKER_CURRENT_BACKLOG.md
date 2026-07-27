@@ -13,17 +13,17 @@ Current evidence is recorded in:
 - `docs/DESKTOP_POKER_RELEASE_READINESS_BASELINE_TODO.md`
 - `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/runtime-validation/latest.json`
+- `docs/runtime-validation/gameplay-latest.json`
 
 ## Current release position
 
-The project is an advanced MVP with a strong automated baseline. The direct Linux release binary now launches successfully, production-only route behavior is proven, and an initial real-TCP two-player tournament flow is proven through Main Table with correct first-hand confidentiality and public-state synchronization.
+The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart.
 
-A release tag is still blocked by full-gameplay, persistence, installed-package, physical-LAN, reconnect, keychain, and live NPC/provider evidence.
+A release tag is still blocked by installed-package/AppImage, physical-LAN, reconnect, keychain, and live rule-based NPC evidence.
 
 Open release blockers:
 
 - `DP-RR-P0-002` — installed package/AppImage completion only;
-- `DP-RR-P0-003` — full tournament and persistence completion;
 - `DP-RR-P0-004` — physical two-machine LAN;
 - `DP-RR-P0-005` — remaining reconnect/failure matrix;
 - `DP-RR-P0-006` — release secret-storage proof;
@@ -45,8 +45,8 @@ Open release blockers:
 
 - **Priority:** P0
 - **Category:** Packaging / release runtime
-- **Current behavior:** Direct release binary build, static inspection, and graphical launch pass. Home, Host, Join, Settings, Help, guarded routes, debug isolation, and browser-mock isolation pass in a real Tauri/WebKit session. Debian package build and metadata inspection pass.
-- **Evidence:** Runtime run `30234522553`; `docs/runtime-validation/latest.json`; release-readiness report.
+- **Current behavior:** Direct release binary build, static inspection, and graphical launch pass. Home, Host, Join, Settings, Help, guarded routes, debug isolation, browser-mock isolation, complete gameplay, and restart history restoration pass in real Tauri/WebKit sessions. Debian package build and metadata inspection pass.
+- **Evidence:** Runtime run `30289835791`; full-game run `30289835913`; `docs/runtime-validation/latest.json`; `docs/runtime-validation/gameplay-latest.json`; release-readiness report.
 - **Remaining required behavior:**
   - install the `.deb` in a disposable or safe Linux environment;
   - launch the installed application;
@@ -54,33 +54,26 @@ Open release blockers:
   - build and launch AppImage, or explicitly decide it is not a release target.
 - **Acceptance criteria:** Every claimed distribution artifact launches and corresponds to the tested source revision.
 - **Desktop release blocker:** Yes.
-- **Status:** **Partially complete.** Direct binary runtime PASS; installed package and AppImage remain open.
+- **Status:** **Partially complete.** Direct binary runtime and full tournament PASS; installed package and AppImage remain open.
 
 ### DP-RR-P0-003 — Two-local-instance full tournament and isolation
 
 - **Priority:** P0
 - **Category:** Multiplayer / desktop runtime
-- **Current behavior:** Three distinct release instances launch with separate profile directories. Real TCP host/join, invitation validation, client seat claim, ready-state, tournament start, Main Table transition, first-hand private-card isolation, initial public-state synchronization, same-port failure, and alternate-port recovery pass.
-- **Evidence:** Runtime run `30234522553`; `docs/runtime-validation/latest.json`.
-- **Resolved runtime defect:** `DP-RR-FIX-004` restored the missing open seat and corrected non-host seat classification.
-- **Remaining required behavior:**
-  - exercise fold, check, call, bet, legal raise, quick-size, and all-in confirmation;
-  - prove illegal raise bounds are rejected;
-  - prove only the acting player receives the action tray;
-  - complete multiple hands without duplicate history;
-  - exercise elimination and observer transition;
-  - complete the tournament with matching standings;
-  - leave/close cleanly;
-  - restart both instance IDs and prove draft/history/settings isolation.
+- **Current behavior:** Two isolated release instances complete real TCP host/join, invitation validation, seat claim, ready-state, tournament start, private-card isolation, synchronized public state, rejected illegal raise, quick-size selection, fold, all-in showdowns, three settled hands, elimination, observer transition, matching final standings, and history restoration after both release processes restart. A fresh third profile contains no host/client history.
+- **Evidence:** Full-game run `30289835913`; `docs/runtime-validation/gameplay-latest.json`.
+- **Resolved runtime defects:**
+  - `DP-RR-FIX-004` restored the missing open seat and corrected non-host seat classification.
+  - `DP-RR-FIX-005` serialized host runtime transitions and prevented a delayed tick from deleting a newer settled hand.
 - **Acceptance criteria:** A full release tournament completes; final state matches; no private data leaks; restarts preserve only the correct instance data.
-- **Desktop release blocker:** Yes.
-- **Status:** **Partially complete.** Initial live multiplayer gate PASS; full tournament and persistence remain open.
+- **Desktop release blocker:** No longer open.
+- **Status:** **Completed.**
 
 ### DP-RR-P0-004 — Two-machine LAN full tournament
 
 - **Priority:** P0
 - **Category:** Networking / interoperability
-- **Current behavior:** Loopback real-TCP runtime is proven. Two physical machines are not.
+- **Current behavior:** Loopback real-TCP runtime and complete gameplay are proven. Two physical machines are not.
 - **Required behavior:** Matching release artifacts on two machines use a real LAN IP/firewall path, complete a tournament, preserve confidentiality, and produce matching final state.
 - **Acceptance criteria:** Full tournament completes without loopback, forwarding, browser mocks, or manual state edits.
 - **Desktop release blocker:** Yes.
@@ -90,8 +83,8 @@ Open release blockers:
 
 - **Priority:** P0
 - **Category:** Recovery / networking integrity
-- **Current behavior:** Invalid invite UI, direct guarded-route recovery, explicit host-port conflict, and recovery on a different port pass in a release runtime.
-- **Evidence:** Runtime run `30234522553`.
+- **Current behavior:** Invalid invite UI, direct guarded-route recovery, explicit host-port conflict, recovery on a different port, complete gameplay, and post-process history restoration pass in release runtimes.
+- **Evidence:** Runtime run `30289835791`; full-game run `30289835913`.
 - **Remaining required behavior:**
   - unreachable-host join failure;
   - lobby reconnect;
@@ -103,13 +96,13 @@ Open release blockers:
   - post-completion reconnect failure.
 - **Acceptance criteria:** Every scenario is explicit and truthful; stale authority never survives; terminal failures never leave a playable-looking UI.
 - **Desktop release blocker:** Yes.
-- **Status:** **Partially complete.** Basic release error paths PASS; interruption matrix remains open.
+- **Status:** **Partially complete.** Basic release error paths and restart persistence PASS; interruption matrix remains open.
 
 ### DP-RR-P0-006 — Release secret-storage proof
 
 - **Priority:** P0
 - **Category:** Security / credentials
-- **Current behavior:** Production route behavior and profile directories are now available for inspection, but no real keychain test credential has been exercised.
+- **Current behavior:** Production route behavior and isolated profile directories are available for inspection, but no real keychain test credential has been exercised.
 - **Required behavior:** Release API key is stored only in OS keychain; non-secret JSON excludes it; logs/snapshots/debug output redact it; clear removes it; keychain failure is visible and never falls back to plaintext.
 - **Acceptance criteria:** A low-privilege test key survives restart through the keychain, is absent from files/logs, is removed through UI, and forced keychain failure is explicit.
 - **Desktop release blocker:** Yes.
@@ -160,7 +153,19 @@ Open release blockers:
   - admitted unseated participants leave open seats actionable;
   - occupied seats are classified as `host` or `player` from `isHost`;
   - three focused frontend regression tests were added.
-- **Runtime proof:** Run `30234522553` shows the client claiming the remaining open seat and continuing through tournament start.
+- **Runtime proof:** Current release runs show the client claiming the remaining open seat and continuing through tournament completion.
+- **Status:** Resolved.
+
+### DP-RR-FIX-005 — Delayed host tick deleted a newer settled hand
+
+- **Observed:** Repeated full-game runs completed correctly in memory but lost the newest hand from host history after restart.
+- **Problem:** The tick thread released the tournament-controller lock before authoritative writeback. A final player action could commit a newer hand in that gap, after which the delayed tick replaced authoritative state with its older candidate.
+- **Fix:**
+  - one transition lock serializes tick, local action, remote action, tournament start, and direct replacement paths;
+  - `commit_runtime_state()` rejects table/session mismatch, settled-history regression, and reopening a completed tournament;
+  - frontend history persistence merges by hand number and completion navigation waits for a bounded final-history save gate;
+  - focused concurrency and settled-history regressions were added.
+- **Verification:** Focused tests, full networking tournament tests, formatting, Clippy, runtime run `30289835791`, and full-game run `30289835913` pass.
 - **Status:** Resolved.
 
 ### DP-RR-DOC-001 — Stale workspace release paths
