@@ -273,6 +273,15 @@ pub fn resolve_connectable_host_ip() -> Result<IpAddr, NetworkingError> {
         .ok_or_else(|| NetworkingError::new("no valid LAN IP address is available for hosting"))
 }
 
+pub(crate) fn clear_established_read_timeout(
+    stream: &TcpStream,
+    context: &str,
+) -> Result<(), NetworkingError> {
+    stream.set_read_timeout(None).map_err(|error| {
+        NetworkingError::new(format!("failed to clear {context} read timeout: {error}"))
+    })
+}
+
 fn validate_production_host_ip(ip_addr: IpAddr) -> Result<(), NetworkingError> {
     if ip_addr.is_unspecified() || ip_addr.is_loopback() {
         return Err(NetworkingError::new(

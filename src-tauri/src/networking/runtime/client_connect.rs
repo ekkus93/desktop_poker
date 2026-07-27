@@ -72,6 +72,7 @@ pub(crate) fn connect_and_join(
 
     write_json_frame(&mut stream, &join_envelope)?;
     let snapshot = read_snapshot_response(crypto_provider, &mut stream, join_payload)?;
+    clear_established_read_timeout(&stream, "established client session")?;
 
     Ok((stream, snapshot))
 }
@@ -124,7 +125,10 @@ pub(crate) fn reconnect_after_disconnect(
         write_json_frame(&mut stream, &reconnect_envelope)?;
 
         match read_snapshot_response(crypto_provider, &mut stream, join_payload) {
-            Ok(snapshot) => return Ok((stream, snapshot)),
+            Ok(snapshot) => {
+                clear_established_read_timeout(&stream, "reconnected client session")?;
+                return Ok((stream, snapshot));
+            }
             Err(error)
                 if error
                     .to_string()

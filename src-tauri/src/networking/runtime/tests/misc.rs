@@ -488,3 +488,45 @@ fn host_runtime_health_counters_accumulate_independently() {
     assert_eq!(health.client_registry_error_count, 1, "one registry error");
     assert_eq!(health.reconnect_mark_error_count, 1, "one reconnect error");
 }
+
+#[test]
+fn established_connections_clear_handshake_read_timeouts() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-established-timeouts", 87);
+    let client = connect_test_client(
+        &provider,
+        &host,
+        "player-established-timeouts",
+        "Timeout Test",
+    );
+    let _ = expect_snapshot_event(&client);
+
+    let connected_clients = host.clients.lock().expect("host client registry");
+    let connected_client = connected_clients
+        .get("player-established-timeouts")
+        .expect("registered host client");
+    let host_stream = connected_client.stream.lock().expect("host client stream");
+    assert_eq!(
+        host_stream.read_timeout().expect("host read timeout"),
+        None,
+        "the host must clear the handshake read timeout for an established session"
+    );
+    drop(host_stream);
+    drop(connected_clients);
+
+    let command_connection = client
+        .command_connection
+        .lock()
+        .expect("client command connection");
+    let client_stream = command_connection
+        .stream
+        .as_ref()
+        .expect("established client command stream")
+        .lock()
+        .expect("client command stream lock");
+    assert_eq!(
+        client_stream.read_timeout().expect("client read timeout"),
+        None,
+        "the client must clear the handshake read timeout for an established session"
+    );
+}

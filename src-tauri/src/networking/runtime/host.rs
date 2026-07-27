@@ -149,6 +149,16 @@ impl HostServer {
                                     }) => {
                                         if write_json_frame(&mut stream, &snapshot_envelope).is_ok()
                                         {
+                                            if let Err(error) = clear_established_read_timeout(
+                                                &stream,
+                                                "established host client",
+                                            ) {
+                                                update_health(&runtime_health_conn2, |health| {
+                                                    health.stream_timeout_error_count += 1;
+                                                    health.record_error(error.to_string());
+                                                });
+                                                return;
+                                            }
                                             let stream_handle =
                                                 match stream.try_clone().map(|cloned_stream| {
                                                     Arc::new(Mutex::new(cloned_stream))
