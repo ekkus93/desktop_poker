@@ -15,6 +15,10 @@ concurrency:
   group: timeout-state-sync-repair
   cancel-in-progress: true
 
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
 jobs:
   fix-timeout-sync:
     runs-on: ubuntu-24.04
@@ -23,6 +27,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
 
       - name: Apply transactional repair
         id: patch
@@ -67,12 +82,14 @@ jobs:
             rm \
               .github/workflows/fix-timeout-state-sync.yml \
               scripts/apply_timeout_transaction_fix.py
+            rm -f docs/runtime-validation/timeout-sync-repair-latest.md
             git add \
               crates/poker-core/src/tournament/mod.rs \
               crates/poker-core/src/tournament/controller_core.rs \
               crates/poker-core/src/tournament/tests/core.rs \
               src-tauri/src/networking/runtime/host.rs \
               src-tauri/src/networking/runtime/tests/tournament.rs \
+              docs/runtime-validation/timeout-sync-repair-latest.md \
               .github/workflows/fix-timeout-state-sync.yml \
               scripts/apply_timeout_transaction_fix.py
             git commit -m "fix: make rejected actions transactional"
