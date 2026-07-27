@@ -1,12 +1,12 @@
 # Latest Linux Release Runtime Validation
 
-- Overall result: **FAIL**
-- Validated commit: `373aa53c1fa1290b8ded58f14ef2e424c43ea95e`
-- GitHub Actions run: `30233994857`
+- Overall result: **PASS**
+- Validated commit: `d2f4fc82eeb43a9ecec4524e490dda4662e80123`
+- GitHub Actions run: `30234522553`
 - Build outcome: `success`
 - Single-instance outcome: `success`
-- Multi-instance outcome: `failure`
-- Recorded at: `2026-07-27T03:17:15.897914+00:00`
+- Multi-instance outcome: `success`
+- Recorded at: `2026-07-27T03:30:44.934532+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
@@ -29,9 +29,7 @@ Result: **PASS**
 
 ## Live multi-instance release smoke
 
-Result: **FAIL**
-
-Failure: WebDriverError: WebDriver POST /session/b16e0fb4-f2ef-49c6-994d-31a723a3a7e3/element returned HTTP 404: {"value":{"error":"no such element","message":"","stacktrace":""}}
+Result: **PASS**
 
 - **PASS** — host release instance launched
 - **PASS** — client release instance launched
@@ -39,5 +37,12 @@ Failure: WebDriverError: WebDriver POST /session/b16e0fb4-f2ef-49c6-994d-31a723a
 - **PASS** — three instance IDs and profile directories are distinct
 - **PASS** — client host draft is independently namespaced before joining
 - **PASS** — host started a real TCP session and produced a pkr1_ invite
-- **PASS** — client joined the live host over real TCP
-- **FAIL** — multi-instance runtime smoke
+- **PASS** — client joined the live host over real TCP with matching seat indexes
+- **PASS** — host began the lobby in its authoritative occupied seat
+- **PASS** — client claimed the remaining open seat through the release UI
+- **PASS** — host and client agree on distinct authoritative seat assignments
+- **PASS** — ready state propagated to both release instances
+- **PASS** — both instances entered Main Table after authoritative start
+- **PASS** — private cards are isolated and public table state is synchronized
+- **PASS** — same-port host failed explicitly: Unable to start hosting.
+- **PASS** — conflicting host recovered successfully on port 43819

@@ -3,9 +3,19 @@
   "evidenceArtifact": "linux-release-runtime-evidence",
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "error": "WebDriverError: WebDriver POST /session/b16e0fb4-f2ef-49c6-994d-31a723a3a7e3/element returned HTTP 404: {\"value\":{\"error\":\"no such element\",\"message\":\"\",\"stacktrace\":\"\"}}",
-    "result": "FAIL",
+    "applicationSha256": "a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe",
+    "clientInstanceId": "runtime-client-30234522553",
+    "clientTableId": "table-runtime-host-30234522553-1785123030893",
+    "conflictInstanceId": "runtime-conflict-30234522553",
+    "hostInstanceId": "runtime-host-30234522553",
+    "hostPort": 43818,
+    "profileDirectories": [
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30234522553",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30234522553",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30234522553"
+    ],
+    "recoveryPort": 43819,
+    "result": "PASS",
     "steps": [
       {
         "name": "host release instance launched",
@@ -32,22 +42,51 @@
         "result": "PASS"
       },
       {
-        "name": "client joined the live host over real TCP",
+        "name": "client joined the live host over real TCP with matching seat indexes",
         "result": "PASS"
       },
       {
-        "name": "multi-instance runtime smoke",
-        "result": "FAIL"
+        "name": "host began the lobby in its authoritative occupied seat",
+        "result": "PASS"
+      },
+      {
+        "name": "client claimed the remaining open seat through the release UI",
+        "result": "PASS"
+      },
+      {
+        "name": "host and client agree on distinct authoritative seat assignments",
+        "result": "PASS"
+      },
+      {
+        "name": "ready state propagated to both release instances",
+        "result": "PASS"
+      },
+      {
+        "name": "both instances entered Main Table after authoritative start",
+        "result": "PASS"
+      },
+      {
+        "name": "private cards are isolated and public table state is synchronized",
+        "result": "PASS"
+      },
+      {
+        "name": "same-port host failed explicitly: Unable to start hosting.",
+        "result": "PASS"
+      },
+      {
+        "name": "conflicting host recovered successfully on port 43819",
+        "result": "PASS"
       }
-    ]
+    ],
+    "tableId": "table-runtime-host-30234522553-1785123030893"
   },
-  "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T03:17:15.897914+00:00",
-  "result": "FAIL",
+  "multiInstanceOutcome": "success",
+  "recordedAtUtc": "2026-07-27T03:30:44.934532+00:00",
+  "result": "PASS",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
-    "instanceId": "runtime-smoke-30233994857",
+    "applicationSha256": "a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe",
+    "instanceId": "runtime-smoke-30234522553",
     "result": "PASS",
     "steps": [
       {
@@ -105,7 +144,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "373aa53c1fa1290b8ded58f14ef2e424c43ea95e",
+  "validatedCommit": "d2f4fc82eeb43a9ecec4524e490dda4662e80123",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30233994857"
+  "workflowRunId": "30234522553"
 }
