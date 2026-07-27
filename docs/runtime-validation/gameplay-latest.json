@@ -3,9 +3,96 @@
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "5a4de416d79e5a5e4e7c4126c635d67ab879b1b4befe1b5ee9a4eba0f8f9d4cd",
-    "error": "AssertionError: Timed out waiting for source text 'Player full-game-host-30286956475 won 120 chip(s).'; last error: None",
-    "result": "FAIL",
+    "applicationSha256": "2355970b00dd39675f2f8b538cf58501887cfe3cce7c2837197a7900403989e4",
+    "clientInstanceId": "full-game-client-30289835913",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30289835913",
+    "completedHands": 3,
+    "finalHistory": [
+      {
+        "boardCards": [
+          {
+            "compactLabel": "3\u2666",
+            "label": "Three of Diamonds",
+            "suitSymbol": "\u2666",
+            "tone": "red"
+          },
+          {
+            "compactLabel": "7\u2665",
+            "label": "Seven of Hearts",
+            "suitSymbol": "\u2665",
+            "tone": "red"
+          },
+          {
+            "compactLabel": "10\u2660",
+            "label": "Ten of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
+          },
+          {
+            "compactLabel": "10\u2666",
+            "label": "Ten of Diamonds",
+            "suitSymbol": "\u2666",
+            "tone": "red"
+          },
+          {
+            "compactLabel": "7\u2660",
+            "label": "Seven of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
+          }
+        ],
+        "eliminatedPlayers": [
+          "Player full-game-host-30289835913"
+        ],
+        "handNumber": 3,
+        "potTotal": 1940,
+        "summary": "Player full-game-client-30289835913 won 1940 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30289835913"
+        ]
+      },
+      {
+        "boardCards": [],
+        "eliminatedPlayers": [],
+        "handNumber": 2,
+        "potTotal": 1030,
+        "summary": "Player full-game-client-30289835913 won 1030 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30289835913"
+        ]
+      },
+      {
+        "boardCards": [],
+        "eliminatedPlayers": [],
+        "handNumber": 1,
+        "potTotal": 30,
+        "summary": "Player full-game-client-30289835913 won 30 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30289835913"
+        ]
+      }
+    ],
+    "finalStandings": [
+      {
+        "chipCount": 2000,
+        "displayName": "Player full-game-client-30289835913",
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Player full-game-host-30289835913",
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
+    "hostInstanceId": "full-game-host-30289835913",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30289835913",
+    "result": "PASS",
     "steps": [
       {
         "name": "two isolated release instances completed host/join/seat/ready/start",
@@ -20,7 +107,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/05bac1b0-6ff5-4a35-8622-8f0f0053d71b/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/096fe6e3-c644-42dd-9658-64bdcc45cb12/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -40,10 +127,6 @@
         "result": "PASS"
       },
       {
-        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
-        "result": "PASS"
-      },
-      {
         "name": "tournament completed with matching standings and one eliminated observer",
         "result": "PASS"
       },
@@ -56,15 +139,15 @@
         "result": "PASS"
       },
       {
-        "name": "full-game runtime smoke",
-        "result": "FAIL"
+        "name": "host and client history restore after release-process restart",
+        "result": "PASS"
       }
     ]
   },
-  "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T17:03:11.373333+00:00",
-  "result": "FAIL",
-  "validatedCommit": "c72ad3543b075937bb8da5aa15d1bd55ed54b3fe",
+  "gameplayOutcome": "success",
+  "recordedAtUtc": "2026-07-27T17:43:39.122649+00:00",
+  "result": "PASS",
+  "validatedCommit": "0b49e7e888aa832145d8ef815ad8bc62419a26e1",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30286956475"
+  "workflowRunId": "30289835913"
 }
