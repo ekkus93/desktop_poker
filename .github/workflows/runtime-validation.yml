@@ -21,10 +21,10 @@ env:
   NEEDRESTART_MODE: a
 
 jobs:
-  release-runtime-smoke:
-    name: Release WebDriver smoke
+  release-runtime:
+    name: Release runtime validation
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
@@ -73,19 +73,26 @@ jobs:
         continue-on-error: true
         run: npm run tauri build -- --no-bundle 2>&1 | tee runtime-validation-build.log
 
-      - name: Run release binary through WebDriver
-        id: runtime
+      - name: Inventory release binary
         if: steps.build.outcome == 'success'
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p runtime-validation-evidence
           binary="$PWD/target/release/desktop-poker"
           test -x "$binary"
+          file "$binary" | tee runtime-validation-evidence/release-binary.file.txt
           sha256sum "$binary" | tee runtime-validation-evidence/release-binary.sha256
+
+      - name: Run single-instance release smoke
+        id: runtime_smoke
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$PWD/target/release/desktop-poker"
           export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
-          export DESKTOP_POKER_INSTANCE_ID="runtime-smoke-${GITHUB_RUN_ID}"
 
           xvfb-run -a --server-args="-screen 0 1440x960x24" \
             dbus-run-session -- bash -lc '
@@ -93,13 +100,60 @@ jobs:
               export NO_AT_BRIDGE=1
               export WEBKIT_DISABLE_COMPOSITING_MODE=1
               export GDK_BACKEND=x11
+              export DESKTOP_POKER_INSTANCE_ID="runtime-smoke-${GITHUB_RUN_ID}"
               tauri-driver --port 4444 \
-                >runtime-validation-evidence/tauri-driver.log 2>&1 &
+                >runtime-validation-evidence/single-tauri-driver.log 2>&1 &
               driver_pid=$!
               trap '\''kill "$driver_pid" 2>/dev/null || true; wait "$driver_pid" 2>/dev/null || true'\'' EXIT
               python3 scripts/runtime_webdriver_smoke.py \
                 --application "'"$binary"'" \
                 --driver-url http://127.0.0.1:4444 \
+                --evidence-dir runtime-validation-evidence
+            '
+
+      - name: Run live multi-instance release smoke
+        id: runtime_multi
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$PWD/target/release/desktop-poker"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -lc '
+              set -euo pipefail
+              export NO_AT_BRIDGE=1
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+              export GDK_BACKEND=x11
+
+              DESKTOP_POKER_INSTANCE_ID="runtime-host-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4444 \
+                >runtime-validation-evidence/host-tauri-driver.log 2>&1 &
+              host_driver_pid=$!
+              DESKTOP_POKER_INSTANCE_ID="runtime-client-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4445 \
+                >runtime-validation-evidence/client-tauri-driver.log 2>&1 &
+              client_driver_pid=$!
+              DESKTOP_POKER_INSTANCE_ID="runtime-conflict-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4446 \
+                >runtime-validation-evidence/conflict-tauri-driver.log 2>&1 &
+              conflict_driver_pid=$!
+
+              cleanup() {
+                kill "$conflict_driver_pid" "$client_driver_pid" "$host_driver_pid" 2>/dev/null || true
+                wait "$conflict_driver_pid" 2>/dev/null || true
+                wait "$client_driver_pid" 2>/dev/null || true
+                wait "$host_driver_pid" 2>/dev/null || true
+              }
+              trap cleanup EXIT
+
+              python3 scripts/runtime_multi_instance_smoke.py \
+                --application "'"$binary"'" \
+                --host-driver-url http://127.0.0.1:4444 \
+                --client-driver-url http://127.0.0.1:4445 \
+                --conflict-driver-url http://127.0.0.1:4446 \
                 --evidence-dir runtime-validation-evidence
             '
 
@@ -110,8 +164,16 @@ jobs:
           find runtime-validation-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort \
             | tee runtime-validation-evidence/inventory.txt
-          cat runtime-validation-evidence/release-runtime-result.json || true
-          cat runtime-validation-evidence/tauri-driver.log || true
+          for result in \
+            runtime-validation-evidence/release-runtime-result.json \
+            runtime-validation-evidence/release-multi-instance-result.json; do
+            echo "--- $result ---"
+            cat "$result" || true
+          done
+          for log in runtime-validation-evidence/*tauri-driver.log; do
+            echo "--- $log ---"
+            cat "$log" || true
+          done
 
       - name: Upload runtime validation evidence
         if: always()
@@ -128,7 +190,8 @@ jobs:
         if: always() && github.ref == 'refs/heads/master'
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
-          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          SMOKE_OUTCOME: ${{ steps.runtime_smoke.outcome }}
+          MULTI_OUTCOME: ${{ steps.runtime_multi.outcome }}
         shell: bash
         run: |
           set -euo pipefail
@@ -140,35 +203,58 @@ jobs:
           import os
           from datetime import datetime, timezone
           from pathlib import Path
+          from typing import Any
 
-          source = Path("runtime-validation-evidence/release-runtime-result.json")
-          payload: dict[str, object]
-          if source.is_file():
-              try:
-                  payload = json.loads(source.read_text(encoding="utf-8"))
-              except (json.JSONDecodeError, OSError) as error:
-                  payload = {
+          def load_result(path: str, label: str) -> dict[str, Any]:
+              source = Path(path)
+              if not source.is_file():
+                  return {
                       "result": "FAIL",
-                      "error": f"Could not parse runtime result: {error}",
+                      "error": f"{label} result file was not produced.",
+                      "steps": [],
                   }
-          else:
-              payload = {
-                  "result": "FAIL",
-                  "error": "Runtime result file was not produced.",
-              }
+              try:
+                  value = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  return {
+                      "result": "FAIL",
+                      "error": f"Could not parse {label} result: {error}",
+                      "steps": [],
+                  }
+              if not isinstance(value, dict):
+                  return {
+                      "result": "FAIL",
+                      "error": f"{label} result was not a JSON object.",
+                      "steps": [],
+                  }
+              return value
 
-          payload.update(
-              {
-                  "validatedCommit": os.environ["GITHUB_SHA"],
-                  "workflowRunId": os.environ["GITHUB_RUN_ID"],
-                  "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-                  "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
-                  "runtimeOutcome": os.environ.get("RUNTIME_OUTCOME") or "not-run",
-                  "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
-                  "evidenceArtifact": "linux-release-runtime-evidence",
-              }
+          single = load_result(
+              "runtime-validation-evidence/release-runtime-result.json",
+              "single-instance runtime",
           )
-
+          multi = load_result(
+              "runtime-validation-evidence/release-multi-instance-result.json",
+              "multi-instance runtime",
+          )
+          overall = (
+              "PASS"
+              if single.get("result") == "PASS" and multi.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload: dict[str, Any] = {
+              "result": overall,
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
+              "singleInstanceOutcome": os.environ.get("SMOKE_OUTCOME") or "not-run",
+              "multiInstanceOutcome": os.environ.get("MULTI_OUTCOME") or "not-run",
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "evidenceArtifact": "linux-release-runtime-evidence",
+              "singleInstance": single,
+              "multiInstance": multi,
+          }
           Path("docs/runtime-validation/latest.json").write_text(
               json.dumps(payload, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
@@ -177,27 +263,31 @@ jobs:
           lines = [
               "# Latest Linux Release Runtime Validation",
               "",
-              f"- Result: **{payload.get('result', 'UNKNOWN')}**",
+              f"- Overall result: **{overall}**",
               f"- Validated commit: `{payload['validatedCommit']}`",
               f"- GitHub Actions run: `{payload['workflowRunId']}`",
               f"- Build outcome: `{payload['buildOutcome']}`",
-              f"- Runtime outcome: `{payload['runtimeOutcome']}`",
+              f"- Single-instance outcome: `{payload['singleInstanceOutcome']}`",
+              f"- Multi-instance outcome: `{payload['multiInstanceOutcome']}`",
               f"- Recorded at: `{payload['recordedAtUtc']}`",
               f"- Evidence artifact: `{payload['evidenceArtifact']}`",
               "",
           ]
-          error = payload.get("error")
-          if error:
-              lines.extend(["## Failure", "", str(error), ""])
-          steps = payload.get("steps")
-          if isinstance(steps, list):
-              lines.extend(["## Executed checks", ""])
-              for step in steps:
-                  if isinstance(step, dict):
-                      lines.append(
-                          f"- **{step.get('result', 'UNKNOWN')}** — {step.get('name', 'unnamed check')}"
-                      )
-              lines.append("")
+          for heading, result in (
+              ("Single-instance release smoke", single),
+              ("Live multi-instance release smoke", multi),
+          ):
+              lines.extend([f"## {heading}", "", f"Result: **{result.get('result', 'UNKNOWN')}**", ""])
+              if result.get("error"):
+                  lines.extend([f"Failure: {result['error']}", ""])
+              steps = result.get("steps")
+              if isinstance(steps, list):
+                  for step in steps:
+                      if isinstance(step, dict):
+                          lines.append(
+                              f"- **{step.get('result', 'UNKNOWN')}** — {step.get('name', 'unnamed check')}"
+                          )
+                  lines.append("")
           Path("docs/runtime-validation/latest.md").write_text(
               "\n".join(lines), encoding="utf-8"
           )
@@ -215,7 +305,9 @@ jobs:
         if: always()
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
-          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+          SMOKE_OUTCOME: ${{ steps.runtime_smoke.outcome }}
+          MULTI_OUTCOME: ${{ steps.runtime_multi.outcome }}
         run: |
           test "$BUILD_OUTCOME" = "success"
-          test "$RUNTIME_OUTCOME" = "success"
+          test "$SMOKE_OUTCOME" = "success"
+          test "$MULTI_OUTCOME" = "success"
