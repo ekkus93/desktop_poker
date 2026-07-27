@@ -3,8 +3,8 @@
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "6cac88a2f6947dcfcd2d208bbd75ab76c9912633e28bc06ad2216140dedaf577",
-    "error": "AssertionError: Public table state diverged: {'currentHandNumber': (None, 3), 'streetLabel': ('Waiting', 'Preflop'), 'potTotal': (0, 990), 'boardCards': ([], [{'suitSymbol': '\u2660', 'label': 'Five of Spades', 'tone': 'dark', 'compactLabel': '5\u2660'}, {'suitSymbol': '\u2663', 'label': 'Seven of Clubs', 'tone': 'dark', 'compactLabel': '7\u2663'}, {'suitSymbol': '\u2666', 'label': 'Ten of Diamonds', 'tone': 'red', 'compactLabel': '10\u2666'}, {'suitSymbol': '\u2663', 'label': 'Jack of Clubs', 'tone': 'dark', 'compactLabel': 'J\u2663'}, {'suitSymbol': '\u2660', 'label': 'Jack of Spades', 'tone': 'dark', 'compactLabel': 'J\u2660'}])}",
+    "applicationSha256": "af5f2487a1f5c30f57b8b124647c922c8e9a147f8af5a870a1af0f3768215ad8",
+    "error": "AssertionError: Timed out waiting for source text 'Player full-game-client-30247395087 won 1940 chip(s).'; last error: None",
     "result": "FAIL",
     "steps": [
       {
@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/7ff3b9ae-80be-42c5-917b-51055536a6f4/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/a8df5123-f7f2-49fd-9527-e07769aa99ed/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -36,15 +36,31 @@
         "result": "PASS"
       },
       {
+        "name": "all-in showdown attempt 2 settled with 3 synchronized hands",
+        "result": "PASS"
+      },
+      {
+        "name": "tournament completed with matching standings and one eliminated observer",
+        "result": "PASS"
+      },
+      {
+        "name": "both release instances render the same Tournament Complete winner",
+        "result": "PASS"
+      },
+      {
+        "name": "fresh third profile contains no host/client hand history",
+        "result": "PASS"
+      },
+      {
         "name": "full-game runtime smoke",
         "result": "FAIL"
       }
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T07:33:36.351965+00:00",
+  "recordedAtUtc": "2026-07-27T07:55:18.288350+00:00",
   "result": "FAIL",
-  "validatedCommit": "ecd7dfa2100ebce02d5efaf1b725a15a37451bee",
+  "validatedCommit": "36944cc799c5e475a474b46bdc53fea8eb700223",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30246145977"
+  "workflowRunId": "30247395087"
 }
