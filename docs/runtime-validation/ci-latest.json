@@ -1,0 +1,13 @@
+{
+  "evidenceArtifacts": [
+    "validation-evidence",
+    "browser-geometry-evidence"
+  ],
+  "geometryResult": "success",
+  "recordedAtUtc": "2026-07-27T23:14:38.205914+00:00",
+  "result": "FAIL",
+  "validatedCommit": "2b142f674890e157233a0f6a2ac34ea2f9be4549",
+  "verifyResult": "failure",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30312871492"
+}
