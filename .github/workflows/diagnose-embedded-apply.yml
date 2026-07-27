@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: diagnose-embedded-apply
+  cancel-in-progress: true
+
 jobs:
   apply:
     name: Apply source transformation
