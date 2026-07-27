@@ -1,0 +1,74 @@
+name: Update runtime evidence publishers
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/update-runtime-evidence-publishers.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-publishers:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply race-safe publisher updates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = [
+              Path(".github/workflows/runtime-validation.yml"),
+              Path(".github/workflows/runtime-full-game-validation.yml"),
+          ]
+          for path in files:
+              text = path.read_text()
+              checkout_old = """      - name: Checkout repository\n        uses: actions/checkout@v4\n"""
+              checkout_new = """      - name: Checkout repository\n        uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n"""
+              if text.count(checkout_old) != 1:
+                  raise SystemExit(f"unexpected checkout block in {path}")
+              text = text.replace(checkout_old, checkout_new, 1)
+
+              if path.name == "runtime-validation.yml":
+                  old = """          git config user.name \"github-actions[bot]\"\n          git config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n          git add docs/runtime-validation/latest.json docs/runtime-validation/latest.md\n          if ! git diff --cached --quiet; then\n            git commit -m \"docs: record Linux runtime validation result\"\n            git push origin HEAD:master\n          fi\n"""
+                  new = """          bash scripts/push_runtime_evidence.sh \\\n            \"docs: record Linux runtime validation result\" \\\n            docs/runtime-validation/latest.json \\\n            docs/runtime-validation/latest.md\n"""
+              else:
+                  old = """          git config user.name \"github-actions[bot]\"\n          git config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n          git add \\\n            docs/runtime-validation/gameplay-latest.json \\\n            docs/runtime-validation/gameplay-latest.md\n          if ! git diff --cached --quiet; then\n            git commit -m \"docs: record Linux full-game runtime result\"\n            git push origin HEAD:master\n          fi\n"""
+                  new = """          bash scripts/push_runtime_evidence.sh \\\n            \"docs: record Linux full-game runtime result\" \\\n            docs/runtime-validation/gameplay-latest.json \\\n            docs/runtime-validation/gameplay-latest.md\n"""
+              if text.count(old) != 1:
+                  raise SystemExit(f"unexpected publisher block in {path}")
+              path.write_text(text.replace(old, new, 1))
+          PY
+
+          rm .github/workflows/update-runtime-evidence-publishers.yml
+
+      - name: Commit directly to master
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/runtime-validation.yml \
+            .github/workflows/runtime-full-game-validation.yml \
+            .github/workflows/update-runtime-evidence-publishers.yml
+          git commit -m "ci: prevent runtime evidence push races"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Unable to publish workflow repair" >&2
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
