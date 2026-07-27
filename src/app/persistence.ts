@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { TableCardView, TableHistoryEntryView } from "../api/desktop";
 import {
   readStoredValue,
@@ -136,9 +137,10 @@ export function readPersistedHandHistoryWithStatus(storageNamespace: string) {
 function writePersistedHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
+  updatedAtMs = Date.now(),
 ): PersistedHandHistory {
   const history = {
-    updatedAtMs: Date.now(),
+    updatedAtMs,
     entries: normalizeHandHistoryEntries(entries),
   } satisfies PersistedHandHistory;
 
@@ -168,6 +170,56 @@ export function mergePersistedHandHistory(
     ...existingEntries,
     ...entries,
   ]);
+}
+
+export async function mergeDurableHandHistory(
+  storageNamespace: string,
+  entries: TableHistoryEntryView[],
+): Promise<PersistedHandHistory> {
+  const cachedHistory = mergePersistedHandHistory(storageNamespace, entries);
+  if (!hasUsableTauriWindowRuntime()) {
+    return cachedHistory;
+  }
+
+  const durableHistory = await invoke<PersistedHandHistory>(
+    "merge_persisted_hand_history",
+    { entries: cachedHistory.entries },
+  );
+  return writePersistedHandHistory(
+    storageNamespace,
+    durableHistory.entries,
+    durableHistory.updatedAtMs,
+  );
+}
+
+export async function readDurableHandHistory(
+  storageNamespace: string,
+): Promise<PersistedHandHistory | null> {
+  const cachedHistory = readPersistedHandHistory(storageNamespace);
+  if (!hasUsableTauriWindowRuntime()) {
+    return cachedHistory;
+  }
+
+  const durableHistory = await invoke<PersistedHandHistory | null>(
+    "read_persisted_hand_history",
+  );
+  const combinedEntries = [
+    ...(durableHistory?.entries ?? []),
+    ...(cachedHistory?.entries ?? []),
+  ];
+  if (combinedEntries.length === 0) {
+    return null;
+  }
+
+  const mergedHistory = await invoke<PersistedHandHistory>(
+    "merge_persisted_hand_history",
+    { entries: combinedEntries },
+  );
+  return writePersistedHandHistory(
+    storageNamespace,
+    mergedHistory.entries,
+    mergedHistory.updatedAtMs,
+  );
 }
 
 function hasUsableTauriWindowRuntime(): boolean {
