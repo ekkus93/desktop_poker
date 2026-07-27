@@ -1,0 +1,176 @@
+name: Linux release full-game validation
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "docs/**"
+      - "memory.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-full-game-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  release-full-game:
+    name: Release full-game validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux runtime and WebDriver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        run: npm run tauri build -- --no-bundle 2>&1 | tee runtime-full-game-build.log
+
+      - name: Run complete release tournament
+        id: gameplay
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-gameplay-evidence
+          binary="$PWD/target/release/desktop-poker"
+          test -x "$binary"
+          file "$binary" | tee runtime-gameplay-evidence/release-binary.file.txt
+          sha256sum "$binary" | tee runtime-gameplay-evidence/release-binary.sha256
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -lc '
+              set -euo pipefail
+              export NO_AT_BRIDGE=1
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+              export GDK_BACKEND=x11
+
+              DESKTOP_POKER_INSTANCE_ID="full-game-host-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4544 --native-port 4545 \
+                >runtime-gameplay-evidence/host-tauri-driver.log 2>&1 &
+              host_driver_pid=$!
+              DESKTOP_POKER_INSTANCE_ID="full-game-client-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4554 --native-port 4555 \
+                >runtime-gameplay-evidence/client-tauri-driver.log 2>&1 &
+              client_driver_pid=$!
+              DESKTOP_POKER_INSTANCE_ID="full-game-fresh-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4564 --native-port 4565 \
+                >runtime-gameplay-evidence/fresh-tauri-driver.log 2>&1 &
+              fresh_driver_pid=$!
+
+              cleanup() {
+                kill "$fresh_driver_pid" "$client_driver_pid" "$host_driver_pid" 2>/dev/null || true
+                wait "$fresh_driver_pid" 2>/dev/null || true
+                wait "$client_driver_pid" 2>/dev/null || true
+                wait "$host_driver_pid" 2>/dev/null || true
+              }
+              trap cleanup EXIT
+
+              python3 scripts/runtime_full_game_smoke.py \
+                --application "'"$binary"'" \
+                --host-driver-url http://127.0.0.1:4544 \
+                --client-driver-url http://127.0.0.1:4554 \
+                --fresh-driver-url http://127.0.0.1:4564 \
+                --evidence-dir runtime-gameplay-evidence
+            '
+
+      - name: Inventory full-game evidence
+        if: always()
+        run: |
+          mkdir -p runtime-gameplay-evidence
+          find runtime-gameplay-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort \
+            | tee runtime-gameplay-evidence/inventory.txt
+          cat runtime-gameplay-evidence/release-full-game-result.json || true
+          for log in runtime-gameplay-evidence/*tauri-driver.log; do
+            echo "--- $log ---"
+            cat "$log" || true
+          done
+
+      - name: Upload full-game evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-full-game-evidence
+          path: |
+            runtime-full-game-build.log
+            runtime-gameplay-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable full-game result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          GAMEPLAY_OUTCOME: ${{ steps.gameplay.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/publish_runtime_gameplay_validation.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/gameplay-latest.json \
+            docs/runtime-validation/gameplay-latest.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: record Linux full-game runtime result"
+            git push origin HEAD:master
+          fi
+
+      - name: Enforce full-game runtime result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          GAMEPLAY_OUTCOME: ${{ steps.gameplay.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$GAMEPLAY_OUTCOME" = "success"
