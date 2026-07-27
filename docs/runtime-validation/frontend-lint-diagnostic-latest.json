@@ -1,8 +1,9 @@
 {
-  "frontendLintExitStatus": 0,
-  "recordedAtUtc": "2026-07-27T23:16:42.720838+00:00",
-  "result": "PASS",
-  "validatedCommit": "a2c1bdd56f6ca0bbc981e144564d4fbb8eadfa31",
+  "frontendLintExitStatus": 1,
+  "ordering": "full Verify sequence through frontend lint",
+  "recordedAtUtc": "2026-07-27T23:35:34.891749+00:00",
+  "result": "FAIL",
+  "validatedCommit": "cf18c43421e7e45c162fc08f8008c9eab861283b",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30313606249"
+  "workflowRunId": "30314224720"
 }
