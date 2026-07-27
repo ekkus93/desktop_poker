@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Publish the latest full-game release runtime result into tracked docs."""
+
+from __future__ import annotations
+
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+SOURCE = Path("runtime-gameplay-evidence/release-full-game-result.json")
+OUTPUT_DIR = Path("docs/runtime-validation")
+
+
+def load_result() -> dict[str, Any]:
+    if not SOURCE.is_file():
+        return {
+            "result": "FAIL",
+            "error": "Full-game result file was not produced.",
+            "steps": [],
+        }
+    try:
+        value = json.loads(SOURCE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        return {
+            "result": "FAIL",
+            "error": f"Could not parse full-game result: {error}",
+            "steps": [],
+        }
+    if not isinstance(value, dict):
+        return {
+            "result": "FAIL",
+            "error": "Full-game result was not a JSON object.",
+            "steps": [],
+        }
+    return value
+
+
+def main() -> None:
+    result = load_result()
+    payload: dict[str, Any] = {
+        "result": result.get("result", "FAIL"),
+        "validatedCommit": os.environ["GITHUB_SHA"],
+        "workflowRunId": os.environ["GITHUB_RUN_ID"],
+        "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+        "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
+        "gameplayOutcome": os.environ.get("GAMEPLAY_OUTCOME") or "not-run",
+        "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+        "evidenceArtifact": "linux-release-full-game-evidence",
+        "fullGame": result,
+    }
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    (OUTPUT_DIR / "gameplay-latest.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    lines = [
+        "# Latest Linux Release Full-Game Validation",
+        "",
+        f"- Result: **{payload['result']}**",
+        f"- Validated commit: `{payload['validatedCommit']}`",
+        f"- GitHub Actions run: `{payload['workflowRunId']}`",
+        f"- Build outcome: `{payload['buildOutcome']}`",
+        f"- Gameplay outcome: `{payload['gameplayOutcome']}`",
+        f"- Recorded at: `{payload['recordedAtUtc']}`",
+        f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+        "",
+    ]
+    if result.get("error"):
+        lines.extend(["## Failure", "", str(result["error"]), ""])
+    if result.get("completedHands") is not None:
+        lines.extend(
+            [
+                "## Result summary",
+                "",
+                f"- Completed hands: `{result['completedHands']}`",
+                f"- Host instance: `{result.get('hostInstanceId')}`",
+                f"- Client instance: `{result.get('clientInstanceId')}`",
+                "",
+            ]
+        )
+    steps = result.get("steps")
+    if isinstance(steps, list):
+        lines.extend(["## Executed checks", ""])
+        for step in steps:
+            if isinstance(step, dict):
+                lines.append(
+                    f"- **{step.get('result', 'UNKNOWN')}** — "
+                    f"{step.get('name', 'unnamed check')}"
+                )
+        lines.append("")
+    (OUTPUT_DIR / "gameplay-latest.md").write_text(
+        "\n".join(lines), encoding="utf-8"
+    )
+
+
+if __name__ == "__main__":
+    main()
