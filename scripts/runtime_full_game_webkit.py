@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Run the release full-game harness with WebKit-safe UI compatibility."""
+"""Run the release full-game harness with WebKit-safe UI compatibility.
+
+The full tournament and restart path also validates serialized authoritative host
+transitions, including preservation of every settled hand across completion.
+"""
 
 from __future__ import annotations
 
