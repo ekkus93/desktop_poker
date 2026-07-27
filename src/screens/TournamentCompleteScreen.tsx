@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
+import { persistHandHistory as persistHandHistoryToStorage } from "../app/persistence";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
 export function TournamentCompleteScreen() {
-  const { hostDraft, persistedHandHistoryCount, wasHost } = useDesktopShell();
+  const {
+    bootstrap,
+    hostDraft,
+    persistedHandHistoryCount,
+    wasHost,
+  } = useDesktopShell();
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
+  const [savedHandHistoryCount, setSavedHandHistoryCount] = useState(
+    persistedHandHistoryCount,
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,9 +24,27 @@ export function TournamentCompleteScreen() {
 
     void getTableView("local")
       .then((snapshot) => {
-        if (!cancelled) {
-          setTableView(snapshot);
-          setError(null);
+        if (cancelled) {
+          return;
+        }
+
+        setTableView(snapshot);
+        setError(null);
+
+        if (snapshot.handHistory.length > 0) {
+          try {
+            persistHandHistoryToStorage(
+              bootstrap.storageNamespace,
+              snapshot.handHistory,
+            );
+            setSavedHandHistoryCount(snapshot.handHistory.length);
+          } catch (caughtError: unknown) {
+            setError(
+              caughtError instanceof Error
+                ? `Final standings loaded, but hand history could not be saved: ${caughtError.message}`
+                : "Final standings loaded, but hand history could not be saved.",
+            );
+          }
         }
       })
       .catch((caughtError: unknown) => {
@@ -33,7 +60,7 @@ export function TournamentCompleteScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [bootstrap.storageNamespace]);
 
   return (
     <ScreenShell
@@ -91,7 +118,7 @@ export function TournamentCompleteScreen() {
 
         <div className="history-side-stack">
           <SectionCard title="Next" className="support-card">
-            <p>{persistedHandHistoryCount} hand summaries saved.</p>
+            <p>{savedHandHistoryCount} hand summaries saved.</p>
             <div className="button-row">
               {wasHost ? (
                 <Link className="primary-button" to="/host">
