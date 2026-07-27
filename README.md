@@ -194,6 +194,8 @@ npm run format:check
 npm run lint
 npm run test
 npm run build
+npm audit --omit=dev
+npm audit
 cargo fmt --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-targets --all-features
@@ -206,11 +208,11 @@ cargo tree -p poker-core
 For a production desktop build:
 
 ```bash
-npm install
+npm ci
 npm run tauri build
 ```
 
-This compiles the frontend and Rust backend, then produces release bundles under `src-tauri/target/release/bundle/`.
+This compiles the frontend and Rust backend, then produces release bundles under `target/release/bundle/`. Pull-request CI also builds a direct Linux binary and Debian package, records hashes/package metadata, and retains them as a temporary `linux-release-candidate` artifact; graphical launch still requires a real desktop session.
 
 If you only want the release binary without the platform bundles:
 
@@ -229,13 +231,13 @@ npm run tauri dev
 For a compiled release binary:
 
 ```bash
-./src-tauri/target/release/desktop-poker
+./target/release/desktop-poker
 ```
 
 You can also run a packaged Linux build directly, for example:
 
 ```bash
-./src-tauri/target/release/bundle/appimage/Desktop\ Poker_0.1.0_amd64.AppImage
+./target/release/bundle/appimage/Desktop\ Poker_0.1.0_amd64.AppImage
 ```
 
 ## Running multiple instances locally
@@ -245,8 +247,8 @@ The desktop app is intentionally designed for multiple concurrent instances. Use
 For production or compiled binaries, you can launch as many instances as you want directly:
 
 ```bash
-./src-tauri/target/release/desktop-poker --instance-id host-a
-./src-tauri/target/release/desktop-poker --instance-id client-b
+./target/release/desktop-poker --instance-id host-a
+./target/release/desktop-poker --instance-id client-b
 ```
 
 For local development, do not run `npm run tauri dev` twice. The first `tauri dev` process starts the shared Vite dev server on port `1420`, and a second `tauri dev` will fail when it tries to start that same port again.
@@ -416,17 +418,17 @@ What is intentionally limited right now:
 
 ## Linux bundles
 
-`npm run tauri build` produces Linux release bundles under `src-tauri/target/release/bundle/`.
+`npm run tauri build` produces Linux release bundles under `target/release/bundle/`.
 
 Current bundle targets:
 
-- `src-tauri/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
-- `src-tauri/target/release/bundle/rpm/Desktop Poker-0.1.0-1.x86_64.rpm`
-- `src-tauri/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`
+- `target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb`
+- `target/release/bundle/rpm/Desktop Poker-0.1.0-1.x86_64.rpm`
+- `target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`
 
 These bundle names reflect the current package version and will change when the app version changes.
 
-**AppImage bundling prerequisite:** The AppImage target requires `linuxdeploy` and `appimagetool` on `PATH`. Install them from the [linuxdeploy releases](https://github.com/linuxdeploy/linuxdeploy/releases) or via `linuxdeploy-plugin-appimage`. Without these tools, `npm run tauri build` will fail at the bundle step with `failed to run linuxdeploy`; the Rust binary under `src-tauri/target/release/desktop-poker` is still produced and usable directly.
+**AppImage bundling prerequisite:** The AppImage target requires `linuxdeploy` and `appimagetool` on `PATH`. Install them from the [linuxdeploy releases](https://github.com/linuxdeploy/linuxdeploy/releases) or via `linuxdeploy-plugin-appimage`. Without these tools, `npm run tauri build` will fail at the bundle step with `failed to run linuxdeploy`; the Rust binary under `target/release/desktop-poker` is still produced and usable directly.
 
 To produce only the `.deb` or `.rpm` bundles without AppImage, use:
 

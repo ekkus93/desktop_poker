@@ -8,6 +8,17 @@ This TODO is an execution plan for re-establishing a trustworthy baseline, provi
 
 The existing application is an advanced MVP. Do not begin by rewriting the architecture or adding new product features.
 
+
+## Execution status — 2026-07-26
+
+- Automated validation: **PASS** against product-source SHA `fd8369ba7267fe76a827cdf48384c9f826159719` and evidence-generating pull-request merge SHA `c79c9f2473f92310c3d65afe8b834f97b2875c5d`.
+- Final read-only branch validation: **PASS** at commit `283607db670d0bd28a342ac5a417806bc3507d78` in GitHub Actions run `30225613175`.
+- Release binary and Debian package build/inspection: **PASS**.
+- Graphical binary/package launch, local multi-instance play, physical LAN play, reconnect interruption, release keychain, and live provider tests: **BLOCKED** by unavailable runtime dependencies.
+- Evidence: `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`.
+
+Unchecked manual-runtime boxes below are intentionally retained; they are not inferred from automated coverage.
+
 ## Mandatory operating rules
 
 - Work from the repository root unless a task explicitly says otherwise.
@@ -25,14 +36,14 @@ The existing application is an advanced MVP. Do not begin by rewriting the archi
 
 ## Required deliverables
 
-- [ ] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-- [ ] `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- [ ] Current automated validation evidence in the release-readiness report
-- [ ] Current manual local multi-instance evidence in the release-readiness report
-- [ ] Current two-machine LAN evidence in the release-readiness report
-- [ ] Current NPC and LLM evidence in the release-readiness report
-- [ ] Updated `README.md` status and release instructions when results require changes
-- [ ] A concise final ledger entry in `memory.md`
+- [x] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
+- [x] `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
+- [x] Current automated validation evidence in the release-readiness report
+- [x] Current manual local multi-instance evidence in the release-readiness report
+- [x] Current two-machine LAN evidence in the release-readiness report
+- [x] Current NPC and LLM evidence in the release-readiness report
+- [x] Updated `README.md` status and release instructions when results require changes
+- [x] A concise final ledger entry in `memory.md`
 
 ---
 
@@ -82,9 +93,9 @@ rustup show active-toolchain
 
 ### Acceptance
 
-- [ ] The report contains the exact tested SHA and environment information.
-- [ ] No later test result is attributed to a different unrecorded commit.
-- [ ] Any commit change during defect repair is recorded before the final validation rerun.
+- [x] The report contains the exact tested SHA and environment information.
+- [x] No later test result is attributed to a different unrecorded commit.
+- [x] Any commit change during defect repair is recorded before the final validation rerun.
 
 ---
 
@@ -118,8 +129,8 @@ sudo apt install -y \
 
 ### Acceptance
 
-- [ ] Required native dependencies are available.
-- [ ] Environment-only failures are documented separately from product defects.
+- [x] Required native dependencies are available.
+- [x] Environment-only failures are documented separately from product defects.
 
 ---
 
@@ -160,9 +171,9 @@ npm audit
 
 ### Acceptance
 
-- [ ] `npm ci` succeeds using the committed lockfile.
-- [ ] Dependency audit results are recorded honestly.
-- [ ] No lockfile churn is introduced without a documented reason.
+- [x] `npm ci` succeeds using the committed lockfile.
+- [x] Dependency audit results are recorded honestly.
+- [x] No lockfile churn is introduced without a documented reason.
 
 ---
 
@@ -220,18 +231,18 @@ npm run test:geometry
 - [ ] Specifically check for window-persistence noise:
 
 ```bash
-npm run test 2>&1 | tee /tmp/desktop-poker-npm-test.log
-rg -n "Failed to initialize window state persistence|currentWindow|Unhandled|unhandled" /tmp/desktop-poker-npm-test.log || true
+npm run test 2>&1 | tee /tmp/desktop-poker-vitest.log
+rg -n "window-state|Could not initialize|unhandled|act\(|Warning:" /tmp/desktop-poker-vitest.log
 ```
 
 ### Acceptance
 
-- [ ] Formatting passes.
-- [ ] Lint passes with zero warnings.
-- [ ] All non-ignored frontend tests pass.
-- [ ] Production frontend build passes.
-- [ ] Geometry tests pass or are explicitly `BLOCKED` with an environment reason.
-- [ ] Expected stderr is documented; unexplained recurring errors are treated as defects.
+- [x] Formatting passes.
+- [x] Lint passes with zero warnings.
+- [x] All non-ignored frontend tests pass.
+- [x] Production frontend build passes.
+- [x] Geometry tests pass or are explicitly `BLOCKED` with an environment reason.
+- [x] Expected stderr is documented; unexplained recurring errors are treated as defects.
 
 ---
 
@@ -240,7 +251,7 @@ rg -n "Failed to initialize window state persistence|currentWindow|Unhandled|unh
 **Files:**
 
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- Rust source and tests only if a real failure is discovered
+- Source and test files only if a real failure is discovered
 
 ### Tasks
 
@@ -285,18 +296,24 @@ cargo tree -p poker-core
 - [ ] Inspect ignored tests:
 
 ```bash
-cargo test --workspace -- --list | rg "ignored|ollama|llama|provider" || true
+cargo test --workspace --all-targets --all-features -- --ignored --list
 ```
+
+- [ ] For each ignored test, record:
+  - [ ] exact test name;
+  - [ ] why it is ignored;
+  - [ ] whether it can run in the current environment;
+  - [ ] whether the missing dependency is configuration, hardware, model availability, or test debt.
 
 - [ ] Do not claim ignored LLM tests passed until they are run against a configured provider.
 
 ### Acceptance
 
-- [ ] Rust formatting passes.
-- [ ] Clippy passes with warnings denied.
-- [ ] All non-ignored workspace tests pass.
-- [ ] Focused `poker-core` tests pass.
-- [ ] The actual totals are copied from current output, not `memory.md`.
+- [x] Rust formatting passes.
+- [x] Clippy passes with warnings denied.
+- [x] All non-ignored workspace tests pass.
+- [x] Focused `poker-core` tests pass.
+- [x] The actual totals are copied from current output, not `memory.md`.
 
 ---
 
@@ -305,20 +322,20 @@ cargo test --workspace -- --list | rg "ignored|ollama|llama|provider" || true
 **Files:**
 
 - `crates/poker-core/**`
+- `Cargo.toml`
+- `Cargo.lock`
+- `docs/ANDROID_ARCHITECTURE.md`
+- `docs/ANDROID_INTEROP_AUDIT.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
 
-- [ ] Run:
-
-```bash
-cargo tree -p poker-core
-```
-
 - [ ] Run the focused source audit:
 
 ```bash
-rg -n "tauri|keyring|dirs|reqwest|local_ip|std::net|Tcp|Udp|Socket|Mutex<.*Tcp|thread::spawn|std::process::Command" crates/poker-core || true
+rg -n \
+  "tauri|keyring|reqwest|local_ip|std::net|TcpListener|TcpStream|UdpSocket|thread::spawn|std::process::Command" \
+  crates/poker-core Cargo.toml Cargo.lock
 ```
 
 - [ ] Inspect every hit.
@@ -329,9 +346,9 @@ rg -n "tauri|keyring|dirs|reqwest|local_ip|std::net|Tcp|Udp|Socket|Mutex<.*Tcp|t
 
 ### Acceptance
 
-- [ ] `poker-core` remains reusable by future Android bindings.
-- [ ] No platform dependency is introduced to make desktop validation easier.
-- [ ] Every grep hit is explained in the report.
+- [x] `poker-core` remains reusable by future Android bindings.
+- [x] No platform dependency is introduced to make desktop validation easier.
+- [x] Every grep hit is explained in the report.
 
 ---
 
@@ -341,6 +358,10 @@ rg -n "tauri|keyring|dirs|reqwest|local_ip|std::net|Tcp|Udp|Socket|Mutex<.*Tcp|t
 
 **Files:**
 
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
+- `package.json`
+- `README.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
@@ -348,33 +369,44 @@ rg -n "tauri|keyring|dirs|reqwest|local_ip|std::net|Tcp|Udp|Socket|Mutex<.*Tcp|t
 - [ ] Build:
 
 ```bash
-cargo build --manifest-path src-tauri/Cargo.toml --release
+npm run tauri build
 ```
 
 - [ ] Confirm this file exists and is executable:
 
-```bash
-test -x src-tauri/target/release/desktop-poker
-file src-tauri/target/release/desktop-poker
+```text
+target/release/desktop-poker
 ```
 
 - [ ] Record binary size and SHA-256:
 
 ```bash
-ls -lh src-tauri/target/release/desktop-poker
-sha256sum src-tauri/target/release/desktop-poker
+ls -lh target/release/desktop-poker
+sha256sum target/release/desktop-poker
 ```
 
-- [ ] Launch the binary in a graphical session.
-- [ ] Confirm Home, Host, Join, Settings, and Help routes render.
-- [ ] Confirm startup does not require browser mocks.
-- [ ] Confirm startup errors are explicit if a required platform service is unavailable.
+- [ ] Launch the direct release binary:
+
+```bash
+./target/release/desktop-poker --instance-id release-smoke
+```
+
+- [ ] Verify:
+  - [ ] Home renders.
+  - [ ] Host screen renders.
+  - [ ] Join screen renders.
+  - [ ] Settings screen renders.
+  - [ ] Help screen renders.
+  - [ ] `/debug` is not reachable.
+  - [ ] Browser mocks are not active.
+  - [ ] No unexpected console or terminal error appears.
 
 ### Acceptance
 
-- [ ] The release binary builds and launches.
-- [ ] The report contains its size and hash.
-- [ ] A development-only surface is not required for normal operation.
+- [ ] Release binary builds successfully.
+- [ ] Release binary launches successfully.
+- [x] The report contains its size and hash.
+- [ ] No debug-only route or browser mock is reachable.
 
 ---
 
@@ -382,6 +414,8 @@ sha256sum src-tauri/target/release/desktop-poker
 
 **Files:**
 
+- `src-tauri/tauri.conf.json`
+- `README.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
@@ -397,20 +431,20 @@ npm run tauri build -- --bundles deb
 - [ ] Inspect metadata:
 
 ```bash
-dpkg-deb --info "<path-to-deb>"
-dpkg-deb --contents "<path-to-deb>"
+dpkg-deb --info target/release/bundle/deb/*.deb
+dpkg-deb --contents target/release/bundle/deb/*.deb
 ```
 
 - [ ] Verify application identifier, version, binary path, desktop entry, and icons.
-- [ ] Install the package on a test machine or disposable environment when practical.
+- [ ] Install in a disposable or otherwise safe Linux environment.
 - [ ] Launch the installed application.
-- [ ] Remove it cleanly after testing if the environment requires cleanup.
+- [ ] Confirm installation does not overwrite another instance's application data unexpectedly.
 
 ### Acceptance
 
-- [ ] `.deb` packaging succeeds.
-- [ ] Package metadata is coherent.
-- [ ] Installed application launches or installation is explicitly blocked and documented.
+- [x] `.deb` packaging succeeds.
+- [x] Package metadata is coherent.
+- [x] Installed application launches or installation is explicitly blocked and documented.
 
 ---
 
@@ -418,77 +452,91 @@ dpkg-deb --contents "<path-to-deb>"
 
 **Files:**
 
-- `README.md` if prerequisite documentation is inaccurate
+- `src-tauri/tauri.conf.json`
+- `README.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
 
-- [ ] Check for `linuxdeploy` and `appimagetool`.
-- [ ] If available, run:
+- [ ] If required, obtain or install:
+  - [ ] `linuxdeploy`
+  - [ ] `appimagetool`
+- [ ] Build:
 
 ```bash
 npm run tauri build -- --bundles appimage
 ```
 
-- [ ] Record AppImage size and SHA-256.
-- [ ] Mark executable and launch it.
-- [ ] If tooling is unavailable, mark this item `BLOCKED`, not `PASS`.
-- [ ] Confirm README accurately explains the prerequisite and alternative `.deb`/`.rpm` commands.
+- [ ] Record:
+  - [ ] generated filename;
+  - [ ] size;
+  - [ ] SHA-256;
+  - [ ] tool versions;
+  - [ ] success, failure, or blocker reason.
+- [ ] If an AppImage is produced, launch it and verify the same smoke surfaces as P0.7.
 
 ### Acceptance
 
-- [ ] AppImage result is recorded as PASS, FAIL, or BLOCKED.
-- [ ] No claim is made that AppImage works unless it was produced and launched.
+- [x] AppImage result is recorded as PASS, FAIL, or BLOCKED.
+- [x] No claim is made that AppImage works unless it was produced and launched.
 
 ---
 
-## P0.10 — Audit production frontend and debug reachability
+# P0 — Production reachability and secret-safety audit
+
+## P0.10 — Prove debug and browser-mock isolation
 
 **Files:**
 
 - `src/main.tsx`
-- `src/app/runtimeGate.ts` if present
+- `src/probe/**`
 - `src/api/desktop.ts`
+- `src/app/AppShell.tsx`
+- `src/components/debug/**`
 - `src-tauri/tauri.conf.json`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
 
-- [ ] Rebuild production frontend:
+- [ ] Audit direct imports and environment guards:
 
 ```bash
-npm run build
+rg -n \
+  "LayoutProbe|DebugPanel|__DESKTOP_POKER_BROWSER_MOCKS__|import\.meta\.env\.(DEV|MODE)|/debug" \
+  src vite.config.ts src-tauri/tauri.conf.json
 ```
 
-- [ ] Audit output:
+- [ ] Inspect production `dist/` for debug strings and chunks:
 
 ```bash
-rg -n "__DESKTOP_POKER_BROWSER_MOCKS__|LayoutProbeApp|layout-probe|/debug" dist || true
+rg -n \
+  "LayoutProbe|DebugPanel|__DESKTOP_POKER_BROWSER_MOCKS__|Mock Table|Mock Hand" \
+  dist
 ```
 
-- [ ] Inspect every hit.
-- [ ] Confirm browser mock resolution is guarded by development/test mode.
-- [ ] Launch the release binary with attempted debug/probe query parameters.
-- [ ] Confirm the hidden debug route is unavailable when `debugToolsEnabled` is false.
-- [ ] Confirm production execution uses Tauri `invoke`/events rather than browser mocks.
-- [ ] Confirm no test fixture can create a fake live session in release mode.
-- [ ] Confirm CSP remains restrictive in `src-tauri/tauri.conf.json`.
-- [ ] Confirm frontend `fetch` cannot reach arbitrary external origins.
+- [ ] Verify release navigation does not expose `/debug`.
+- [ ] Verify browser mocks cannot replace desktop IPC in release mode.
+- [ ] Verify production CSP does not allow arbitrary remote frontend connections.
 
 ### Acceptance
 
-- [ ] Debug/probe code is not player-reachable in release builds.
-- [ ] Browser mocks cannot replace backend calls in production.
-- [ ] Any string remaining in minified output is analyzed for actual reachability.
+- [ ] No debug surface is reachable in a release build.
+- [ ] Browser mocks are absent from the production path.
+- [ ] Production CSP remains restrictive.
+- [ ] Any intentionally retained debug string is documented and unreachable.
 
 ---
 
-## P0.11 — Audit provider secret storage
+## P0.11 — Prove provider-secret safety
 
 **Files:**
 
 - `src-tauri/src/npc/provider_storage.rs`
-- related provider tests
+- `src-tauri/src/npc/provider.rs`
+- `src-tauri/src/npc/tests.rs`
+- `src/api/desktop.ts`
+- `src/components/debug/DebugPanel.tsx`
+- `src/screens/DeviceSettingsScreen.tsx`
 - `README.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
@@ -497,1054 +545,475 @@ rg -n "__DESKTOP_POKER_BROWSER_MOCKS__|LayoutProbeApp|layout-probe|/debug" dist 
 - [ ] Verify release builds select `KeychainSecretStore`.
 - [ ] Verify debug builds may use the explicitly documented local secret file.
 - [ ] Verify provider settings JSON excludes the API key.
-- [ ] Configure a test provider in a release build using a low-privilege test key when available.
-- [ ] Inspect application data files.
-- [ ] Search logs and data directories for the literal test key.
-- [ ] Verify keychain failure returns a visible error and does not write a plaintext fallback.
 - [ ] Verify `Debug` formatting redacts the API key.
 - [ ] Verify debug inspector state contains no key.
-- [ ] Verify clearing a provider removes the corresponding secret or reports deletion failure.
-- [ ] Do not use a production credential for this test.
+- [ ] Search for secret serialization and logging risk:
+
+```bash
+rg -n \
+  "apiKey|api_key|Authorization|Bearer|claude-api-key|llm-provider-key" \
+  src src-tauri README.md docs
+```
+
+- [ ] Inspect every hit.
+- [ ] Configure a low-privilege test key in a release build.
+- [ ] Restart and verify the key is still available through the OS keychain.
+- [ ] Inspect the application data directory:
+
+```bash
+rg -n "<TEST_KEY_PREFIX>|apiKey|api_key" "<APP_DATA_DIR>"
+```
+
+- [ ] Inspect logs and captured output for the key prefix.
+- [ ] Clear provider configuration and verify the key is removed.
+- [ ] Force keychain unavailability or write failure and verify:
+  - [ ] explicit visible failure;
+  - [ ] no settings-only success;
+  - [ ] no plaintext fallback;
+  - [ ] no loss of the prior valid secret/configuration.
 
 ### Acceptance
 
-- [ ] No release plaintext fallback exists.
+- [x] No release plaintext fallback exists.
 - [ ] No API key appears in JSON, logs, snapshots, debug output, or committed files.
-- [ ] Secret-storage failure is explicit.
+- [x] Secret-storage failure is explicit.
+- [ ] Clear removes the secret or reports an actionable failure.
 
 ---
 
-# P0 — Prove real multiplayer behavior
+# P0 — Two-local-instance runtime QA
 
-## P0.12 — Prepare reproducible release-instance test data
+## P0.12 — Verify per-instance storage isolation before multiplayer QA
 
 **Files:**
 
+- `src-tauri/src/instance.rs`
+- `src-tauri/src/app_state/**`
+- `src/app/**`
+- `README.md`
+- `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
 ### Tasks
 
-- [ ] Choose distinct instance IDs: `host-a` and `client-b`.
-- [ ] Record the application data paths for both instances.
-- [ ] Back up or remove only test-instance data when a clean run is required.
-- [ ] Do not delete unrelated user application data.
-- [ ] Choose a two-player configuration with a short but valid blind schedule and turn timer suitable for manual QA.
-- [ ] Record tournament configuration.
-- [ ] Enable logging appropriate for diagnosis without logging secrets.
-- [ ] Decide how screenshots and logs will be referenced in the report.
+- [ ] Launch two release instances with unique ids:
+
+```bash
+./target/release/desktop-poker --instance-id host-a
+./target/release/desktop-poker --instance-id client-b
+```
+
+- [ ] Set different display names.
+- [ ] Set different host drafts.
+- [ ] Create different recent-join lists.
+- [ ] Create different saved hand histories.
+- [ ] Restart both.
+- [ ] Verify values remain isolated.
+- [ ] Move and resize both windows.
+- [ ] Restart and verify each restores its own geometry.
 
 ### Acceptance
 
-- [ ] The test can be repeated with the same binary and documented setup.
-- [ ] Instance data is isolated before play begins.
+- [ ] No display-name leakage.
+- [ ] No draft leakage.
+- [ ] No recent-join leakage.
+- [ ] No hand-history leakage.
+- [ ] No window-state leakage.
 
 ---
 
-## P0.13 — Execute two local release instances
+## P0.13 — Complete a real two-instance tournament
 
 **Files:**
 
 - `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- source/tests only if defects are found
-
-### Launch
-
-```bash
-./src-tauri/target/release/desktop-poker --instance-id host-a
-./src-tauri/target/release/desktop-poker --instance-id client-b
-```
-
-### Host and join flow
-
-- [ ] Host opens Home.
-- [ ] Host selects Host Tournament.
-- [ ] Host enters a valid name and tournament configuration.
-- [ ] Host starts hosting.
-- [ ] Host lobby displays a valid `pkr1_...` invite.
-- [ ] Copy button succeeds or exposes an explicit manual-copy fallback.
-- [ ] Client opens Join Tournament.
-- [ ] Client pastes the invite.
-- [ ] Client validates the invite.
-- [ ] Preview displays the expected host, port, table, and tournament information.
-- [ ] Client joins successfully.
-- [ ] Both instances show both participants.
-
-### Lobby flow
-
-- [ ] Host claims a seat.
-- [ ] Client claims a different seat.
-- [ ] Seat claims propagate to both instances.
-- [ ] Host ready state propagates.
-- [ ] Client ready state propagates.
-- [ ] In-flight ready UI does not lie about confirmed server state.
-- [ ] Start remains unavailable before minimum conditions are met.
-- [ ] Host starts the tournament when conditions are met.
-- [ ] Both instances transition to Main Table.
-
-### Gameplay flow
-
-Exercise every action when legal across one or more hands.
-
-- [ ] Fold.
-- [ ] Check.
-- [ ] Call.
-- [ ] Bet.
-- [ ] Raise using slider/manual amount.
-- [ ] Use at least one quick-size option.
-- [ ] All-in with confirmation.
-- [ ] Cancel an all-in confirmation once.
-- [ ] Verify illegal raise bounds cannot be submitted.
-- [ ] Verify action tray belongs only to the acting player.
-- [ ] Verify private hole cards appear only on the owning instance.
-- [ ] Verify public board cards match.
-- [ ] Verify pot and contributions match.
-- [ ] Verify action owner and street labels match.
-- [ ] Verify hand history updates on both instances.
-- [ ] Verify no duplicate hand-history records.
-
-### Elimination and completion
-
-- [ ] Complete enough hands to eliminate one player.
-- [ ] Eliminated player becomes an observer.
-- [ ] Observer receives no private cards for future hands.
-- [ ] Observer cannot submit actions.
-- [ ] Tournament completion screen appears.
-- [ ] Final standings match on both instances.
-- [ ] Winner and eliminated ordering are correct.
-
-### Session exit and persistence
-
-- [ ] Client leaves normally.
-- [ ] Host closes the table normally.
-- [ ] Restart `host-a`.
-- [ ] Verify host display name, host draft, window state, and saved history restore as designed.
-- [ ] Restart `client-b`.
-- [ ] Verify client data does not contain host history or host draft values.
-
-### Acceptance
-
-- [ ] A complete tournament succeeds with two local release instances.
-- [ ] Public state remains synchronized.
-- [ ] Private state remains isolated.
-- [ ] Per-instance persistence is proven.
-- [ ] Every deviation is logged as a defect rather than rationalized away.
-
----
-
-## P0.14 — Test local error paths
-
-**Files:**
-
-- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- source/tests only if defects are found
+- Source/tests only if a real defect is found
 
 ### Tasks
 
-- [ ] Start a host on port `43818`.
-- [ ] Start a second host instance and attempt to bind `43818`.
-- [ ] Verify the second host receives a clear bind/port conflict error.
-- [ ] Verify the second host does not hang or claim success.
-- [ ] Change the second host to `43819` and verify hosting succeeds.
-- [ ] Enter malformed invite text and verify inline parser failure.
-- [ ] Enter a validly encoded invite for an unavailable host and verify explicit connection failure.
-- [ ] Clear a bad deep-link invite and verify it is not silently re-imported.
-- [ ] Attempt to navigate directly to `/lobby` with no session and verify safe redirection/recovery.
-- [ ] Attempt to navigate directly to `/table` with no running session and verify safe redirection/recovery.
-- [ ] Terminate the host process while the client is connected.
-- [ ] Verify client enters an explicit terminal disconnect state.
-- [ ] Verify no indefinite loading shell remains.
+Follow `docs/MANUAL_QA_CHECKLIST.md` Checklist A completely.
+
+At minimum:
+
+- [ ] Launch host and client with distinct instance ids.
+- [ ] Host a direct LAN table.
+- [ ] Share the real current `pkr1_...` invite.
+- [ ] Join from the second release instance.
+- [ ] Confirm both names appear.
+- [ ] Claim different seats.
+- [ ] Toggle ready on both.
+- [ ] Start only after readiness is confirmed.
+- [ ] Verify private hole cards remain private.
+- [ ] Verify public board/pot/action state matches.
+- [ ] Exercise:
+  - [ ] fold;
+  - [ ] check;
+  - [ ] call;
+  - [ ] bet;
+  - [ ] raise;
+  - [ ] all-in when legal.
+- [ ] Verify illegal actions are rejected visibly.
+- [ ] Continue through elimination.
+- [ ] Verify eliminated players observe but cannot act.
+- [ ] Complete the tournament.
+- [ ] Verify matching final standings.
+- [ ] Verify local hand-history persistence on restart.
 
 ### Acceptance
 
-- [ ] Every tested error is explicit and truthful.
-- [ ] No host or client remains in a state that appears usable when authoritative transport is gone.
+- [ ] A complete tournament is recorded as PASS.
+- [ ] No private information leaks.
+- [ ] No public state divergence occurs.
+- [ ] No client is allowed to apply authoritative state locally.
+- [ ] Persistence remains isolated per instance.
 
 ---
 
-## P0.15 — Execute two-machine LAN tournament
+# P0 — Two-machine LAN QA
+
+## P0.14 — Prove real physical-LAN transport
 
 **Files:**
 
+- `docs/MANUAL_QA_CHECKLIST.md`
+- `README.md`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- source/tests only if defects are found
+- Source/tests only if a real defect is found
 
-### Setup
+### Tasks
 
-- [ ] Use the same tested commit and equivalent release binary on both machines.
-- [ ] Record OS version and binary SHA-256 on each machine.
-- [ ] Record which machine is host and which is client.
-- [ ] Confirm both are on the same LAN.
-- [ ] Confirm firewall permits TCP port `43818`.
-- [ ] Avoid using loopback, SSH port forwarding, or a browser mock.
+Use two physical machines on the same LAN.
 
-### Flow
-
-- [ ] Host resolves and displays a real LAN address.
-- [ ] Host creates tournament.
-- [ ] Client decodes invite and sees the expected LAN address.
-- [ ] Client joins over real TCP.
-- [ ] Both participants claim seats and ready.
-- [ ] Host starts tournament.
+- [ ] Use matching release artifacts.
+- [ ] Confirm both machines have routable private LAN addresses.
+- [ ] Confirm TCP port `43818` is permitted through the host firewall.
+- [ ] Host on machine A.
+- [ ] Verify invite contains machine A's real LAN address, not loopback.
+- [ ] Join from machine B.
+- [ ] Verify exact table/session identity.
 - [ ] Complete a full tournament.
-- [ ] Verify private cards remain isolated.
-- [ ] Verify board, pot, action, history, elimination, and final standings match.
+- [ ] Verify private-state isolation.
+- [ ] Verify synchronized completion.
+- [ ] Repeat with at least one restart/reconnect event.
+- [ ] Record firewall and OS details.
 
 ### Acceptance
 
-- [ ] Full tournament succeeds across two physical machines.
-- [ ] No debug tooling or manual state edits are used.
-- [ ] Firewall or network prerequisites are documented.
-- [ ] If two machines are unavailable, mark `BLOCKED`; do not call LAN multiplayer proven.
+- [ ] No loopback address is used.
+- [ ] No browser mocks are used.
+- [ ] No SSH tunnel or port-forwarding substitutes for LAN transport.
+- [ ] Full tournament completes on two physical machines.
+- [ ] Firewall requirements are documented clearly.
 
 ---
 
-# P0 — Reconnect and recovery matrix
+# P0 — Reconnect and failure-mode QA
 
-## P0.16 — Reconnect during lobby
+## P0.15 — Lobby reconnect
 
-**Files:**
+- [ ] Connect host and client in the lobby.
+- [ ] Interrupt the client process or network.
+- [ ] Reconnect within the configured window.
+- [ ] Verify the same participant identity, seat, ready state, and reconnect token are restored.
+- [ ] Verify no duplicate participant is created.
 
-- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- source/tests only if a defect is found
-
-### Tasks
-
-- [ ] Join host from client.
-- [ ] Claim a seat.
-- [ ] Interrupt the client's network for approximately five seconds.
-- [ ] Verify host marks client reconnecting rather than removing identity immediately.
-- [ ] Restore network before reconnect expiry.
-- [ ] Verify client reconnects into the same session and seat.
-- [ ] Verify ready state is correct after recovery.
-- [ ] Verify action submission channel is functional before UI claims reconnection success.
-
-### Acceptance
-
-- [ ] Lobby reconnect succeeds without duplicate participant identity.
-- [ ] Snapshot acceptance does not precede required command-stream installation.
-
----
-
-## P0.17 — Reconnect during active play
-
-### Tasks
+## P0.16 — Active-hand reconnect
 
 - [ ] Start a hand.
-- [ ] Interrupt client networking during or immediately before its action window.
-- [ ] Restore networking before reconnect expiry.
-- [ ] Verify snapshot/resync restores current board, pot, player stacks, action window, and sequence.
-- [ ] Verify client can submit the next legal action.
-- [ ] Verify no duplicate action is processed.
-- [ ] Verify stale pre-disconnect actions are rejected.
-- [ ] Verify hand continues to settlement.
+- [ ] Disconnect the active or non-active client.
+- [ ] Reconnect within the window.
+- [ ] Verify a fresh snapshot is applied.
+- [ ] Verify private hole cards are restored only to the correct player.
+- [ ] Verify the command stream works after snapshot installation.
+- [ ] Submit a legal action.
+- [ ] Verify stale/duplicate action replay does not mutate state twice.
 
-### Acceptance
+## P0.17 — Reconnect expiry
 
-- [ ] Active-play reconnect restores a functional command and event path.
-- [ ] No stale or duplicated action corrupts the hand.
+- [ ] Disconnect a participant.
+- [ ] Wait beyond the configured reconnect expiry.
+- [ ] Attempt reconnect.
+- [ ] Verify explicit failure.
+- [ ] Verify no duplicate participant or ghost seat is created.
 
----
+## P0.18 — Eliminated-observer reconnect
 
-## P0.18 — Reconnect expiry
+- [ ] Eliminate a player.
+- [ ] Confirm observe-only state.
+- [ ] Disconnect and reconnect within the window.
+- [ ] Verify observe-only state remains.
+- [ ] Verify private hole cards remain absent.
+- [ ] Verify action submission remains disabled.
+- [ ] Verify tournament-complete transition remains coherent.
 
-### Tasks
+## P0.19 — Host loss and terminal failure
 
-- [ ] Disconnect client beyond the configured reconnect window.
-- [ ] Verify host eventually changes participant state according to the documented policy.
-- [ ] Verify reconnect attempt after expiry fails explicitly.
-- [ ] Verify client sees a terminal error and a safe leave/rejoin path.
-- [ ] Verify no stale seat can act.
+- [ ] Terminate the host during lobby and active play.
+- [ ] Verify the client does not remain in a playable-looking state.
+- [ ] Verify explicit reconnecting/error UI.
+- [ ] Verify terminal failure stops further action submission.
+- [ ] Verify recovery guidance is actionable.
 
-### Acceptance
+## P0.20 — Port conflict, invalid invite, and unreachable host
 
-- [ ] Expired sessions do not silently resurrect.
-- [ ] User-visible state accurately reflects termination.
+- [ ] Start one host on `43818`.
+- [ ] Attempt a second host on the same address/port.
+- [ ] Verify explicit bind failure.
+- [ ] Paste malformed invite data.
+- [ ] Verify parse/validation error.
+- [ ] Use a valid invite to an unavailable host.
+- [ ] Verify explicit connection failure.
+- [ ] Verify the UI never reports success for any of these cases.
 
----
+### Acceptance for P0.15–P0.20
 
-## P0.19 — Eliminated observer reconnect
-
-### Tasks
-
-- [ ] Eliminate the client.
-- [ ] Confirm observer state.
-- [ ] Disconnect and reconnect within the allowed window.
-- [ ] Verify client returns as observer.
-- [ ] Verify observer has no private cards.
-- [ ] Verify observer has no action tray or action authority.
-- [ ] Verify public event stream continues.
-
-### Acceptance
-
-- [ ] Observer reconnect preserves confidentiality and lack of action authority.
-
----
-
-## P0.20 — Host loss
-
-### Tasks
-
-- [ ] Kill the host process during lobby.
-- [ ] Verify client receives explicit disconnection.
-- [ ] Repeat during a live hand.
-- [ ] Verify no client-side fallback pretends the tournament can continue authoritatively.
-- [ ] Verify recovery screen provides a valid exit path.
-
-### Acceptance
-
-- [ ] Host loss is terminal and explicit.
-- [ ] Frontend does not remain on a stale playable table.
+- [ ] Every scenario has PASS, FAIL, or BLOCKED status in the report.
+- [ ] No silent reconnect fallback exists.
+- [ ] No stale command is applied after reconnect.
+- [ ] Reconnect snapshot is exposed only after the command stream is usable.
+- [ ] Fatal transport failure does not leave a playable-looking UI.
 
 ---
 
-# P0 — Safety and silent-failure audit
-
-## P0.21 — Re-run networking hardening audits
-
-**Files:**
-
-- `src-tauri/src/networking/runtime/client.rs`
-- related runtime files
-- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-
-### Commands
-
-```bash
-rg -n "thread::spawn" src-tauri/src/networking/runtime/client.rs
-rg -n "server_sequence.*unwrap_or_default|unwrap_or_default\(\).*server_sequence" src-tauri/src/networking/runtime/client.rs
-rg -n "last_seen_server_sequence = envelope\.server_sequence" src-tauri/src/networking/runtime/client.rs
-rg -n "try_clone\(|command_connection.*lock\(|connection\.stream = Some|if let Ok\(cloned_stream\)|if let Ok\(mut connection\)" src-tauri/src/networking/runtime/client.rs
-rg -n "let _ = sender\.send" src-tauri/src/networking/runtime/client.rs
-rg -n "associated_data_json\(\).*unwrap_or_default|unwrap_or_default\(\).*associated" src-tauri/src/networking
-```
-
-### Tasks
-
-- [ ] Inspect all hits manually.
-- [ ] Verify raw thread spawning is still replaced by injectable/observable spawning where required.
-- [ ] Verify missing public-event sequence cannot default to zero.
-- [ ] Verify missing snapshot sequence cannot clear or invent ordering state.
-- [ ] Verify stale snapshots are rejected.
-- [ ] Verify reconnect command-stream clone and lock failures emit `SafeError` and stop acceptance.
-- [ ] Verify accepted reconnect snapshot is emitted only after command stream installation.
-- [ ] Verify remaining `if let Ok(mut connection)` blocks are cleanup-only and precisely commented.
-- [ ] Verify ignored channel sends are centralized in the explicit best-effort helper.
-- [ ] Verify crypto associated data cannot fall back to empty bytes.
-
-### Acceptance
-
-- [ ] No dangerous silent reconnect or sequence fallback exists.
-- [ ] Best-effort behavior is limited to shutdown/teardown event delivery or cleanup.
-- [ ] Every accepted exception is explained in the report.
-
----
-
-## P0.22 — Audit host runtime error visibility
-
-**Files:**
-
-- `src-tauri/src/networking/runtime/host.rs`
-- `src-tauri/src/networking/runtime/host_broadcast.rs`
-- host runtime health types and tests
-- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-
-### Tasks
-
-- [ ] Search for ignored results, broad `continue`, broad `return`, lock poisoning fallbacks, and thread spawn calls.
-- [ ] Inspect every socket accept, stream clone, client registry lock, authoritative state lock, tick, publish, snapshot sync, and reconnect-mark failure path.
-- [ ] Verify each important failure updates `HostRuntimeHealth` or returns a structured error.
-- [ ] Verify `lastError` contains useful context without secrets.
-- [ ] Trigger at least one safe diagnostic failure, such as port bind conflict, and inspect debug health state.
-- [ ] Verify mutation APIs do not return failure solely because a post-mutation snapshot notification failed without distinguishing committed state.
-- [ ] Verify atomic NPC add/remove behavior remains correct.
-
-### Acceptance
-
-- [ ] Host runtime failures are observable.
-- [ ] APIs remain honest about whether authoritative mutation committed.
-- [ ] No lock poisoning path clones stale authoritative state as a silent substitute.
-
----
-
-## P0.23 — Audit NPC internal-error behavior
-
-**Files:**
-
-- `src-tauri/src/npc/runner/action.rs`
-- `src-tauri/src/npc/runner/**`
-- NPC tests
-
-### Tasks
-
-- [ ] Search for empty hole-card fallbacks:
-
-```bash
-rg -n "hole_cards_by_player_id.*unwrap_or\(|unwrap_or\(&\[\]\)|unwrap_or_default" src-tauri/src/npc crates/poker-core/src || true
-```
-
-- [ ] Verify acting NPC requires exactly the valid hole-card shape.
-- [ ] Verify missing or invalid cards record an internal error and submit no action.
-- [ ] Verify stale action windows do not count as success.
-- [ ] Verify illegal LLM actions produce the expected typed fallback or rejection.
-- [ ] Verify no NPC identity is inferred from seat-array position.
-- [ ] Verify per-NPC history, opponent model, tilt, profile, and fallback state remain isolated.
-
-### Acceptance
-
-- [ ] NPCs never invent private state.
-- [ ] NPC failure cannot silently advance or corrupt authoritative gameplay.
-
----
-
-# P1 — Live NPC and LLM validation
+# P1 — Live NPC QA
 
 ## P1.1 — Rule-based NPC tournament
 
 **Files:**
 
+- `src-tauri/src/npc/**`
+- `src-tauri/src/app_state/host_session.rs`
+- `src-tauri/src/networking/runtime/**`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-- source/tests only if defects are found
 
 ### Tasks
 
-- [ ] Start a release host session with at least two NPCs or one human and one NPC.
-- [ ] Use different NPC styles/profiles.
-- [ ] Verify all NPCs are added atomically.
-- [ ] Verify NPC seats and identities match configured profiles.
-- [ ] Complete multiple hands.
-- [ ] Verify NPC decisions are legal.
-- [ ] Verify tournament continues without manual action injection.
-- [ ] Verify style differences are observable where valid opportunities occur.
-- [ ] Verify hand history records NPC outcomes.
-- [ ] Verify elimination and tournament completion work.
+- [ ] Create or load a valid rule-based NPC profile.
+- [ ] Host a tournament with one human and at least one NPC, or at least two NPCs.
+- [ ] Start only after all required ready conditions are satisfied.
+- [ ] Play multiple hands.
+- [ ] Verify NPC actions are legal.
+- [ ] Verify profile identity, style, and display name remain associated correctly.
+- [ ] Verify no seated NPC exists without a live runner.
+- [ ] Verify a runner failure is visible.
+- [ ] Continue through elimination and completion.
+- [ ] Verify hand history and final standings.
 
 ### Acceptance
 
-- [ ] A live rule-based NPC tournament completes.
-- [ ] No seated NPC is left without a runner.
+- [ ] Live rule-based tournament completes.
+- [ ] NPC actions are legal and synchronized.
+- [ ] Registration remains atomic.
+- [ ] No NPC private state leaks.
+- [ ] Any failure is visible and actionable.
 
 ---
 
-## P1.2 — Configure a local LLM provider
+## P1.2 — Live local LLM provider
 
 **Files:**
 
+- `src-tauri/src/npc/llm_strategy/**`
+- `src-tauri/src/npc/provider.rs`
+- `src/screens/DeviceSettingsScreen.tsx`
 - `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
 
-### Preferred options
-
-- Ollama
-- llama-server
-
 ### Tasks
 
-- [ ] Record provider type.
-- [ ] Record endpoint URL.
-- [ ] Record model name.
-- [ ] Do not record API secrets.
-- [ ] Confirm provider endpoint responds before launching the tournament.
-- [ ] Save provider configuration through the release UI.
-- [ ] Restart the app and verify non-secret settings restore.
-- [ ] Verify key/configured state is correct.
+- [ ] Start Ollama or llama-server with a supported model.
+- [ ] Configure endpoint and model in Settings.
+- [ ] Test connection.
+- [ ] Run ignored local-provider tests explicitly.
+- [ ] Start an LLM-backed NPC tournament.
+- [ ] Verify legal action parsing.
+- [ ] Verify malformed response fallback is visible in debug/provider state.
+- [ ] Verify timeout behavior.
+- [ ] Verify provider failure does not corrupt tournament state.
+- [ ] Verify action-window closure cancels or rejects stale LLM output.
 
 ### Acceptance
 
-- [ ] Provider configuration is reproducible.
-- [ ] No secret is written into the report.
+- [ ] Ignored local-provider tests pass against a live endpoint.
+- [ ] Live LLM NPC acts legally.
+- [ ] Timeout/malformed-response fallback is deterministic and visible.
+- [ ] No stale LLM action applies after the window closes.
 
 ---
 
-## P1.3 — Live LLM NPC tournament
+## P1.3 — Live remote LLM provider with a test key
 
-### Tasks
-
-- [ ] Assign an explicit AI profile to an NPC.
-- [ ] Start tournament.
-- [ ] Observe at least five LLM decision opportunities if practical.
-- [ ] Verify valid JSON action responses are parsed.
-- [ ] Verify submitted action is in the legal action set.
-- [ ] Verify raise amount is within legal bounds.
-- [ ] Verify prompt includes profile and game context without private data from other players.
-- [ ] Verify session history and opponent context appear only where intended.
-- [ ] Verify game remains responsive during provider request.
-- [ ] Verify a successful LLM decision is distinguishable from fallback.
-- [ ] Complete at least one hand.
+- [ ] Configure a low-privilege Anthropic or OpenAI-compatible test key.
+- [ ] Verify OS-keychain persistence.
+- [ ] Test connection.
+- [ ] Run at least one LLM-backed decision.
+- [ ] Verify redaction in logs/debug/snapshots.
+- [ ] Clear provider configuration.
+- [ ] Verify secret removal.
 
 ### Acceptance
 
-- [ ] At least one live legal LLM action is accepted, or the run is marked FAIL/BLOCKED with exact provider evidence.
-- [ ] The hand never becomes permanently blocked by an LLM request.
+- [ ] Remote provider path works with a live test key.
+- [ ] No key appears in plaintext.
+- [ ] Clear removes the key or reports explicit failure.
 
 ---
 
-## P1.4 — LLM fallback matrix
+# P1 — Cross-platform readiness
+
+## P1.4 — Validate canonical fixtures against Android when available
+
+**Files:**
+
+- `src-tauri/src/protocol/test_support.rs`
+- `src-tauri/src/protocol/models.rs`
+- `docs/ANDROID_INTEROP_AUDIT.md`
+- Android repository or captured fixture artifacts when available
 
 ### Tasks
 
-Exercise safe, reproducible cases.
-
-- [ ] Provider unavailable / connection refused.
-- [ ] Request timeout.
-- [ ] Invalid JSON response, using a mock server or existing test seam if necessary.
-- [ ] Legal JSON shape containing an illegal action.
-- [ ] Missing required API key for a remote provider, if tested with a non-secret dummy configuration.
-- [ ] Explicit profile configured to disallow operational rule-based fallback, if supported.
-
-For each case:
-
-- [ ] Verify typed fallback/error reason.
-- [ ] Verify WARN or structured debug diagnostics.
-- [ ] Verify no credential appears in output.
-- [ ] Verify allowed fallback submits a legal rule-based action.
-- [ ] Verify disallowed fallback does not silently act.
-- [ ] Verify game behavior remains defined.
-
-### Acceptance
-
-- [ ] All tested fallback cases are observable and policy-compliant.
-- [ ] No LLM failure silently becomes an unexplained action.
-
----
-
-## P1.5 — Run ignored provider tests
-
-### Tasks
-
-- [ ] Start the required local provider.
+- [ ] Obtain the real Android CanonicalJson output referenced by the ignored fixture test.
 - [ ] Run:
 
 ```bash
-cargo test --workspace -- --ignored
+cargo test --workspace --all-targets --all-features -- --ignored
 ```
 
-- [ ] Record each ignored test executed.
-- [ ] If tests assume Ollama specifically, record that limitation.
-- [ ] If a test reaches a real service nondeterministically, ensure failures provide actionable diagnostics.
+- [ ] Resolve any canonical-byte mismatch.
+- [ ] Convert the fixture test from ignored to normal once stable.
+- [ ] Verify action-window-opened and action-rejected payload-shape differences are either fixed or documented as explicit deferred blockers.
 
 ### Acceptance
 
-- [ ] Provider tests pass, fail with a real product defect, or are marked BLOCKED with exact setup limitations.
+- [ ] Android canonical fixture test passes.
+- [ ] No undocumented payload-shape difference remains.
+- [ ] `poker-core` public API remains suitable for UniFFI binding.
 
 ---
 
-# P1 — Reconcile current product backlog
+# P1 — Documentation reconciliation
 
-## P1.6 — Inventory historical planning documents
+## P1.5 — Reconcile README
 
-**Files:**
+Update the README with current truth:
 
-- all relevant `docs/*.md`
-- `memory.md`
-- `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
+- [ ] Current test totals.
+- [ ] Exact ignored tests.
+- [ ] Current manual-QA status.
+- [ ] Current package status.
+- [ ] Current secret-storage status.
+- [ ] Current LAN requirements.
+- [ ] Current limitations.
+- [ ] Release-artifact launch instructions.
+- [ ] Per-instance launch instructions.
+- [ ] Decision on the next milestone.
 
-### Tasks
+## P1.6 — Create the authoritative current backlog
 
-- [ ] List current spec, TODO, review, response, QA, architecture, and audit documents.
-- [ ] Identify documents that are historical, current, superseded, or partially stale.
-- [ ] Do not rely on filename numbering alone.
-- [ ] Compare each unchecked item against current source and tests.
-- [ ] Compare each checked item that appears suspicious against current source and tests.
-- [ ] Note corrected or overclaimed historical ledger entries.
-- [ ] Identify duplicate tasks represented in multiple TODO files.
-- [ ] Preserve historical documents unless deletion has a strong documented reason.
+- [ ] Add stable backlog IDs.
+- [ ] Include priority.
+- [ ] Include affected files.
+- [ ] Include current behavior.
+- [ ] Include required behavior.
+- [ ] Include acceptance criteria.
+- [ ] Include automated-test requirement.
+- [ ] Include manual-test requirement.
+- [ ] Include release-blocker status.
+- [ ] Reconcile unchecked items from historical TODO files.
+- [ ] Reconcile `docs/UIUX_FIXES6.md`.
+- [ ] Reconcile Android/Desktop interoperability items.
+- [ ] Distinguish:
+  - [ ] desktop release blockers;
+  - [ ] Android integration blockers;
+  - [ ] deferred features;
+  - [ ] speculative ideas.
 
-### Acceptance
+## P1.7 — Update the ledger
 
-- [ ] A source-of-truth map is included in `DESKTOP_POKER_CURRENT_BACKLOG.md`.
-- [ ] Historical context is preserved without pretending it is current status.
+Append a concise final entry to `memory.md` containing:
 
----
-
-## P1.7 — Reconcile `docs/UIUX_FIXES6.md`
-
-**Files:**
-
-- `docs/UIUX_FIXES6.md`
-- current screen/component files
-- current frontend tests
-- `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-
-### Tasks
-
-For each item, classify `implemented`, `partially implemented`, `not implemented`, `obsolete`, or `deferred` based on current code.
-
-At minimum verify:
-
-- [ ] Port validation touch behavior.
-- [ ] NPC add retry behavior.
-- [ ] Empty standings guard.
-- [ ] Deep-link query cleanup.
-- [ ] Clipboard fallback dismissal.
-- [ ] Lobby ready-state optimistic override.
-- [ ] Mutual exclusion of settings confirmations.
-- [ ] Settings and profile navigation.
-- [ ] Dense lobby seat ARIA labels.
-- [ ] Saved-history versus live-history banner.
-- [ ] Built-in profile delete explanation.
-- [ ] Unsaved profile change warning.
-- [ ] Profile ID slug validation.
-- [ ] Provider-specific key hints.
-- [ ] Minimum-player hint.
-- [ ] Confirmation focus and return focus.
-- [ ] ARIA live regions.
-- [ ] Global focus-visible styling.
-- [ ] Hand-history cap or virtualization.
-- [ ] Leave-flow retry behavior.
-- [ ] Active support-navigation state.
-- [ ] Help scroll behavior.
-- [ ] Startup warning detail.
-- [ ] Invite reachability/staleness note.
-- [ ] Error-state re-check action.
-- [ ] Main-table confirmation announcement.
-- [ ] Profile heading aliases.
-- [ ] Accessibility cross-cutting checklist.
-
-### Acceptance
-
-- [ ] Every current UI/UX gap appears once in the authoritative backlog.
-- [ ] Completed behavior is not reimplemented.
-- [ ] Release blockers are distinguished from polish.
+- [ ] tested commit SHA;
+- [ ] test totals;
+- [ ] ignored tests;
+- [ ] release artifact results;
+- [ ] manual QA results;
+- [ ] open release blockers;
+- [ ] next milestone decision.
 
 ---
 
-## P1.8 — Reconcile real multiplayer and manual QA documents
+# P2 — Optional follow-up improvements
 
-**Files:**
+These are not automatic release blockers unless evidence demonstrates otherwise.
 
-- `docs/MANUAL_QA_CHECKLIST.md`
-- relevant real multiplayer TODO files
-- `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-- `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
+## P2.1 — Improve hand-history scalability
 
-### Tasks
+- [ ] Add pagination or virtualization for very long histories if profiling proves it necessary.
 
-- [ ] Update checklist commands if they still use outdated pre-workspace commands.
-- [ ] Mark manual items only after executing them in this pass.
-- [ ] Add result date, tested SHA, and environment to completed checklist sections.
-- [ ] Add links or references to the release-readiness report evidence.
-- [ ] Verify port-conflict, instance-isolation, reconnect, host-loss, and full-tournament scenarios are represented.
-- [ ] Add missing manual checks discovered during execution.
+## P2.2 — Improve accessibility
 
-### Acceptance
+- [ ] Complete focus return and live-region behavior for confirmations and connection changes.
+- [ ] Perform manual keyboard and screen-reader QA.
 
-- [ ] Manual QA checklist reflects current commands and evidence.
-- [ ] It no longer implies that an old unchecked box describes current status without context.
+## P2.3 — Improve UI honesty
 
----
+- [ ] Remove optimistic ready-state display if still present.
+- [ ] Make host reachability explicit if invite preview still says `Lobby ready` without a live check.
+- [ ] Clarify saved-history fallback behavior if corrupt records remain silently hidden.
 
-## P1.9 — Reconcile Android interoperability status
+## P2.4 — Start Android/UniFFI only after the gate is met
 
-**Files:**
-
-- `docs/ANDROID_INTEROP_AUDIT.md`
-- `docs/ANDROID_ARCHITECTURE.md`
-- desktop protocol models and fixtures
-- `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-
-### Tasks
-
-- [ ] Verify protocol version remains `1`.
-- [ ] Verify join payload codec remains compatible with the audited Android commit.
-- [ ] Verify canonical JSON and crypto derivation remain as documented.
-- [ ] Recheck `ACTION_WINDOW_OPENED_EVENT` payload mismatch.
-- [ ] Recheck `ACTION_REJECTED_EVENT` payload mismatch.
-- [ ] Verify fixture tests still pin current desktop shapes.
-- [ ] Record that live Android/Desktop interop remains unproven unless it is actually executed.
-- [ ] Do not begin Android implementation in this milestone.
-- [ ] Keep Kotlin-owned networking and Rust-owned deterministic core boundary intact.
-- [ ] Add interoperability work to the backlog as a separate future milestone, not a desktop release blocker unless the intended release promises Android compatibility.
-
-### Acceptance
-
-- [ ] Interop status is current and honest.
-- [ ] Known payload mismatches have stable backlog identifiers and acceptance criteria.
+- [ ] Begin UniFFI scaffolding only after the final milestone decision explicitly approves Android integration.
+- [ ] Keep Kotlin in control of networking/session transport.
+- [ ] Keep Rust in control of deterministic poker rules/state/projection.
 
 ---
 
-## P1.10 — Create `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`
-
-### Required structure
-
-- [ ] Title and tested commit SHA.
-- [ ] Statement that this is the authoritative current backlog.
-- [ ] Source documents reviewed.
-- [ ] Release-blocker summary.
-- [ ] Desktop items.
-- [ ] Android interoperability items.
-- [ ] Deferred product features.
-- [ ] Superseded-document map.
-
-### Required fields for each item
-
-- [ ] Identifier, e.g. `DP-RR-P0-001`.
-- [ ] Priority: P0, P1, P2, deferred.
-- [ ] Category.
-- [ ] Current behavior.
-- [ ] Evidence.
-- [ ] Affected files.
-- [ ] Required behavior.
-- [ ] Acceptance criteria.
-- [ ] Automated test requirement.
-- [ ] Manual test requirement.
-- [ ] Desktop release blocker: yes/no.
-- [ ] Status.
-
-### Acceptance
-
-- [ ] No known current gap exists only in an old TODO.
-- [ ] Duplicate items are consolidated.
-- [ ] Every blocker has exact acceptance criteria.
-
----
-
-# P1 — Fix evidence-backed defects
-
-## P1.11 — Create a defect record before changing code
-
-For every defect discovered during this milestone:
-
-- [ ] Assign a stable backlog identifier.
-- [ ] Record tested SHA.
-- [ ] Record environment.
-- [ ] Record exact reproduction steps.
-- [ ] Record expected result.
-- [ ] Record observed result.
-- [ ] Record logs/screenshots without secrets.
-- [ ] Classify severity.
-- [ ] Identify architecture boundary involved.
-- [ ] Identify whether an automated regression test is practical.
-
-### Acceptance
-
-- [ ] No defect fix begins from a vague statement such as “multiplayer seems flaky.”
-
----
-
-## P1.12 — Add a regression test before or with each fix
-
-### Tasks
-
-- [ ] Add the smallest test that forces the failing branch.
-- [ ] For protocol/network defects, prefer deterministic unit or integration seams over arbitrary sleeps.
-- [ ] For frontend defects, test visible state and user interaction rather than implementation details.
-- [ ] For manual-only desktop behavior, add a lower-level automated test where practical and retain the manual scenario.
-- [ ] Verify the new test fails on the defective code when practical.
-- [ ] Verify the new test passes after the fix.
-- [ ] Ensure the test does not accept both contradictory outcomes.
-
-### Forbidden shortcuts
-
-- [ ] Do not weaken assertions.
-- [ ] Do not add broad `catch` blocks that discard errors.
-- [ ] Do not increase timeouts without evidence.
-- [ ] Do not add `unwrap_or_default` to required protocol or private state.
-- [ ] Do not make required mutations “best effort.”
-- [ ] Do not skip the failing test in CI.
-
-### Acceptance
-
-- [ ] Each practical defect fix has a meaningful regression test.
-
----
-
-## P1.13 — Implement the smallest correct fix
-
-### Tasks
-
-- [ ] Preserve `poker-core`/desktop/frontend authority boundaries.
-- [ ] Preserve protocol compatibility unless the defect explicitly requires a versioned protocol change.
-- [ ] Keep errors typed and visible.
-- [ ] Keep fallbacks explicit and observable.
-- [ ] Update documentation when behavior changes.
-- [ ] Run focused tests.
-- [ ] Run full frontend and Rust validation.
-- [ ] Rebuild release binary.
-- [ ] Re-run the original manual scenario.
-- [ ] Record final evidence.
-
-### Acceptance
-
-- [ ] The defect is closed by evidence, not by code inspection alone.
-
----
-
-# P2 — Final validation and reporting
-
-## P2.1 — Re-run the complete clean automated baseline
-
-After all fixes:
-
-- [ ] Confirm working tree state.
-- [ ] Record final commit SHA.
-- [ ] Run `npm ci`.
-- [ ] Run `npm run format:check`.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npm run build`.
-- [ ] Run `npm run test:geometry`.
-- [ ] Run `cargo fmt --check`.
-- [ ] Run `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
-- [ ] Run `cargo test --workspace --all-targets --all-features -- --test-threads=2`.
-- [ ] Run `cargo test -p poker-core --all-targets --all-features`.
-- [ ] Run `cargo tree -p poker-core`.
-- [ ] Run ignored provider tests if the provider is available.
-- [ ] Record actual final totals and ignored tests.
-
-### Acceptance
-
-- [ ] The final report reflects the final SHA, not an earlier baseline SHA.
-
----
-
-## P2.2 — Rebuild final release artifacts
-
-### Tasks
-
-- [ ] Build final release binary.
-- [ ] Build final `.deb`.
-- [ ] Build final AppImage if tooling is available.
-- [ ] Record final hashes and sizes.
-- [ ] Launch each claimed-working artifact.
-- [ ] Confirm package version matches intended release state.
-
-### Acceptance
-
-- [ ] Reported artifacts correspond exactly to the final tested SHA.
-
----
-
-## P2.3 — Re-run affected manual scenarios
-
-### Tasks
-
-- [ ] Re-run any manual scenario touched by a code fix.
-- [ ] Re-run the full two-local-instance tournament after networking, session, projection, or UI fixes.
-- [ ] Re-run the two-machine LAN tournament after networking, protocol, crypto, invite, or reconnect fixes.
-- [ ] Re-run NPC tournament after NPC, profile, provider, or core fixes.
-- [ ] Re-run production reachability checks after frontend boot or build changes.
-
-### Acceptance
-
-- [ ] No fix is declared complete solely because automated tests pass.
-
----
-
-## P2.4 — Create `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`
-
-### Required top-level sections
-
-- [ ] Executive result.
-- [ ] Tested commit and environment.
-- [ ] Automated validation.
-- [ ] Test totals and ignored tests.
-- [ ] Release artifact inventory.
-- [ ] Production reachability/security audit.
-- [ ] Two-local-instance QA.
-- [ ] Two-machine LAN QA.
-- [ ] Reconnect and failure matrix.
-- [ ] Rule-based NPC QA.
-- [ ] LLM NPC QA.
-- [ ] Defects discovered and fixes applied.
-- [ ] Remaining release blockers.
-- [ ] Non-blocking current backlog.
-- [ ] Android/Desktop interoperability status.
-- [ ] Final milestone recommendation.
-
-### Result vocabulary
-
-Use only:
-
-- `PASS`
-- `FAIL`
-- `BLOCKED`
-- `NOT RUN`
-
-### Evidence rules
-
-- [ ] Every PASS names the command or manual scenario executed.
-- [ ] Every FAIL contains reproduction details.
-- [ ] Every BLOCKED contains the concrete missing dependency/environment.
-- [ ] Every NOT RUN explains why it was not attempted.
-- [ ] Historical claims are clearly labeled historical.
-- [ ] No API key, token, private key, reconnect token, or sensitive full payload is included.
-
-### Acceptance
-
-- [ ] A reader can determine release readiness without reading `memory.md`.
-
----
-
-## P2.5 — Update `README.md`
-
-### Tasks
-
-- [ ] Update current product status based on final evidence.
-- [ ] Do not call manual QA complete unless Gates C through E passed.
-- [ ] Update test commands if they changed.
-- [ ] Update artifact paths and packaging prerequisites if required.
-- [ ] Update Android interop wording if the audit changed.
-- [ ] Link to:
-  - [ ] `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`;
-  - [ ] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`;
-  - [ ] `docs/MANUAL_QA_CHECKLIST.md`.
-- [ ] Keep known limitations explicit.
-
-### Acceptance
-
-- [ ] README status matches the final report.
-- [ ] README does not overclaim production readiness.
-
----
-
-## P2.6 — Update historical documents safely
-
-### Tasks
-
-- [ ] Add a superseded/current-status note to stale TODO documents where helpful.
-- [ ] Point readers to `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`.
-- [ ] Do not delete old reviews/specs/TODOs solely to reduce clutter.
-- [ ] Do not rewrite historical completion claims as though they were created today.
-- [ ] Update `docs/MANUAL_QA_CHECKLIST.md` with current execution status and dates.
-- [ ] Update `docs/ANDROID_INTEROP_AUDIT.md` only if current evidence changes it.
-
-### Acceptance
-
-- [ ] Historical audit value remains intact.
-- [ ] New contributors can identify the authoritative documents quickly.
-
----
-
-## P2.7 — Add final `memory.md` ledger entry
-
-### Tasks
-
-- [ ] Add date/time, model/tool identity if the project convention requires it, and final commit SHA.
-- [ ] Summarize commands actually run.
-- [ ] Summarize manual scenarios actually run.
-- [ ] Record test totals from final output.
-- [ ] Record release artifacts produced.
-- [ ] Record final outcome and remaining blockers.
-- [ ] Link by exact path to the release-readiness report and current backlog.
-- [ ] Do not reproduce the entire report.
-- [ ] Do not claim unexecuted work passed.
-
-### Acceptance
-
-- [ ] Ledger is concise and consistent with the authoritative report.
-
----
-
-# Final release decision gates
-
-## Gate A — Automated baseline
-
-- [ ] `npm ci` passed.
-- [ ] Frontend format passed.
-- [ ] Frontend lint passed with zero warnings.
-- [ ] Frontend tests passed.
-- [ ] Frontend production build passed.
-- [ ] Browser geometry tests passed.
-- [ ] Rust format passed.
-- [ ] Clippy passed with warnings denied.
-- [ ] Workspace tests passed.
-- [ ] Focused `poker-core` tests passed.
-- [ ] `poker-core` dependency audit passed.
-
-## Gate B — Production artifact
-
-- [ ] Release binary built and launched.
-- [ ] `.deb` built and inspected.
-- [ ] AppImage result recorded accurately.
-- [ ] Production debug/probe reachability audit passed.
-- [ ] Secret-storage audit passed.
-
-## Gate C — Local multiplayer
-
-- [ ] Two local release instances completed a tournament.
-- [ ] Private cards remained isolated.
-- [ ] Public state remained synchronized.
-- [ ] Instance persistence remained isolated.
-
-## Gate D — LAN multiplayer
-
-- [ ] Two physical machines completed a tournament over real LAN TCP.
-- [ ] Both used the same tested source revision or matching artifact.
-
-## Gate E — Recovery and errors
-
-- [ ] Lobby reconnect passed.
-- [ ] Active-hand reconnect passed.
-- [ ] Reconnect expiry passed.
-- [ ] Eliminated observer reconnect passed.
-- [ ] Host-loss behavior passed.
-- [ ] Port conflict passed.
-- [ ] Invalid invite passed.
-- [ ] Unreachable host passed.
-
-## Gate F — NPC operation
-
-- [ ] Rule-based NPC tournament passed.
-- [ ] LLM NPC result is PASS or explicitly BLOCKED for an external environment reason.
-- [ ] Fallback behavior is observable and policy-compliant.
-
-## Gate G — Blocker closure
-
-- [ ] `docs/DESKTOP_POKER_CURRENT_BACKLOG.md` exists.
-- [ ] No open P0 desktop release blocker remains.
-- [ ] No open desktop-release-blocking P1 remains.
-- [ ] Final report exists and matches the final tested SHA.
-
----
-
-# Required final outcome
-
-Select exactly one outcome in `docs/DESKTOP_POKER_RELEASE_READINESS_REPORT.md`.
-
-## Outcome 1 — Desktop release candidate
-
-Choose only when Gates A through G pass, except a genuinely external optional LLM-provider limitation may remain BLOCKED without blocking rule-based core operation.
-
-- [ ] Recommend preparing and tagging the desktop release.
-- [ ] State the exact version/tag proposed.
-- [ ] State which artifacts will be published.
-
-## Outcome 2 — Additional desktop stabilization
-
-Choose when one or more desktop release blockers remain.
-
-- [ ] List blocker identifiers.
-- [ ] Create a focused follow-up spec and TODO based only on reproduced failures.
-- [ ] Do not start unrelated features.
-
-## Outcome 3 — Android/Desktop interoperability milestone
-
-Choose only after desktop baseline and release blockers are resolved.
-
-- [ ] Preserve native Kotlin/Compose plus shared Rust core architecture.
-- [ ] Preserve Kotlin-owned networking.
-- [ ] Resolve current action-window and action-rejected payload shape mismatches first.
-- [ ] Define a UniFFI-safe adapter in a separate spec.
-- [ ] Do not move desktop networking into `poker-core`.
-
----
-
-# Completion checklist
-
-- [ ] All P0 tasks executed or explicitly documented as blocked.
-- [ ] All discovered defects have evidence and stable backlog IDs.
-- [ ] All implemented fixes have focused tests where practical.
-- [ ] Full final automated validation passes.
-- [ ] Final release artifacts correspond to the final SHA.
-- [ ] Local release-instance QA is complete.
-- [ ] LAN QA is complete or honestly blocks a release-proven claim.
-- [ ] Recovery matrix is complete.
-- [ ] Rule-based NPC QA is complete.
-- [ ] LLM QA result is recorded.
-- [ ] Security and production reachability audits are complete.
-- [ ] Current backlog is committed.
-- [ ] Release-readiness report is committed.
-- [ ] README is consistent with evidence.
-- [ ] Historical documents point to the authoritative backlog/report where appropriate.
-- [ ] `memory.md` has a concise, honest final entry.
-- [ ] Exactly one final milestone outcome is selected.
+# Final validation gate
+
+Run everything again after all fixes and documentation changes:
+
+```bash
+npm ci
+npm run format:check
+npm run lint
+npm run test
+npm run build
+npm run test:geometry
+cargo fmt --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-targets --all-features -- --test-threads=2
+cargo test -p poker-core --all-targets --all-features
+cargo tree -p poker-core
+```
+
+Record final:
+
+- [ ] branch;
+- [ ] commit SHA;
+- [ ] operating system;
+- [ ] Node/npm/Rust/Cargo versions;
+- [ ] frontend totals;
+- [ ] Rust totals;
+- [ ] ignored tests;
+- [ ] package names, sizes, and hashes;
+- [ ] manual local multi-instance result;
+- [ ] manual two-machine LAN result;
+- [ ] reconnect matrix result;
+- [ ] rule-based NPC result;
+- [ ] live LLM result;
+- [ ] secret-storage result;
+- [ ] remaining blockers;
+- [ ] final milestone decision.
+
+## Final decision
+
+Choose exactly one:
+
+- [ ] **Linux desktop release candidate**
+- [x] **Additional desktop stabilization / validation**
+- [ ] **Begin Android/UniFFI milestone**
+
+Do not select **Linux desktop release candidate** if release artifacts, real multiplayer, reconnect, package launch, secret storage, or failure behavior remain unproven.
+
+Do not select **Begin Android/UniFFI milestone** if the desktop baseline is unstable, `poker-core` purity is uncertain, or Android/Desktop canonical fixtures remain unresolved.

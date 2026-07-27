@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { NavigateFunction } from "react-router-dom";
+import type { NavigateFunction } from "react-router";
 import {
   getClientSessionStatus,
   getHostSessionStatus,

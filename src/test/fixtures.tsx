@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { render } from "@testing-library/react";
-import { MemoryRouter, type MemoryRouterProps } from "react-router-dom";
+import { MemoryRouter, type MemoryRouterProps } from "react-router";
 import type { DesktopBootstrapState } from "../api/desktop";
 import { DesktopShellProvider } from "../app/DesktopShellProvider";
 

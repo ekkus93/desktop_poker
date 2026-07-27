@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import {
   joinHostSession,
   type JoinPayload,

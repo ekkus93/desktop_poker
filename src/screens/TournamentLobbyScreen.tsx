@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Clock3, LogOut, Play, WifiOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   clientClaimLobbySeat,
   clientSetLobbyReadyState,

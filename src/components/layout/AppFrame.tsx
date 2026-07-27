@@ -8,7 +8,7 @@ import {
   LogIn,
   Settings,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import type { DesktopBootstrapState } from "../../api/desktop";
 import { useDesktopShell } from "../../app/useDesktopShell";
 

@@ -6,7 +6,7 @@ import {
   TriangleAlert,
   WifiOff,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { resolveHostLanAddress } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";

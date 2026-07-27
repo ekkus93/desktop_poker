@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { ArrowRight, Copy, Radio, TriangleAlert, Wifi } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useDesktopShell } from "../app/useDesktopShell";
 import {
   BLIND_PRESETS,
