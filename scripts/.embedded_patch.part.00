@@ -195,5 +195,3 @@ fn generate_choice(
     let prompt = model
         .apply_chat_template(&template, &messages, true)
         .map_err(|e| LlmError::Embedded(format!("failed to apply model chat template: {e}")))?;
-''',
-)
