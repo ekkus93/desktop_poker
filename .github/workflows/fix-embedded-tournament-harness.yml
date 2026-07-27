@@ -1,0 +1,112 @@
+name: Fix embedded tournament harness
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-embedded-tournament-harness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-embedded-tournament-harness
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize release action labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/runtime_embedded_npc_tournament.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''    hand_number = int(view.get("currentHandNumber") or 0)
+              # Deliberately fold the host's first opportunity so the tournament must settle
+              # at least two hands. After that, prefer all-in to keep CI bounded.
+              if hand_number == 1 and "fold" in legal:
+                  action_kind = "fold"
+                  raise_to_amount = None
+              elif "allIn" in legal:
+                  action_kind = "allIn"
+                  raise_to_amount = None
+              elif "betOrRaise" in legal:
+                  maximum = tray.get("maxRaiseTo")
+                  minimum = tray.get("minRaiseTo")
+                  raise_to_amount = maximum if isinstance(maximum, int) else minimum
+                  if not isinstance(raise_to_amount, int):
+                      raise AssertionError(f"raise action has no legal amount: {tray!r}")
+                  action_kind = "betOrRaise"
+              elif "checkOrCall" in legal:
+                  action_kind = "checkOrCall"
+                  raise_to_amount = None
+              elif "fold" in legal:
+                  action_kind = "fold"
+                  raise_to_amount = None
+              else:
+                  raise AssertionError(f"host has no supported legal action: {tray!r}")
+          '''
+          old = old.replace("              ", "    ")
+          new = '''    hand_number = int(view.get("currentHandNumber") or 0)
+              legal_tokens = {
+                  str(action).strip().lower().replace("-", "").replace(" ", "")
+                  for action in legal
+              }
+              # Deliberately fold the host's first opportunity so the tournament must settle
+              # at least two hands. After that, prefer all-in to keep CI bounded.
+              if hand_number == 1 and "fold" in legal_tokens:
+                  action_kind = "fold"
+                  raise_to_amount = None
+              elif "allin" in legal_tokens:
+                  action_kind = "allIn"
+                  raise_to_amount = None
+              elif "raise" in legal_tokens or "bet" in legal_tokens:
+                  maximum = tray.get("maxRaiseTo")
+                  minimum = tray.get("minRaiseTo")
+                  raise_to_amount = maximum if isinstance(maximum, int) else minimum
+                  if not isinstance(raise_to_amount, int):
+                      raise AssertionError(f"raise action has no legal amount: {tray!r}")
+                  action_kind = "betOrRaise"
+              elif "call" in legal_tokens or "check" in legal_tokens:
+                  action_kind = "checkOrCall"
+                  raise_to_amount = None
+              elif "fold" in legal_tokens:
+                  action_kind = "fold"
+                  raise_to_amount = None
+              else:
+                  raise AssertionError(f"host has no supported legal action: {tray!r}")
+          '''
+          new = new.replace("              ", "    ")
+          if text.count(old) != 1:
+              raise SystemExit("expected action-selection block was not found exactly once")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python3 -m py_compile scripts/runtime_embedded_npc_tournament.py
+
+      - name: Commit harness correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/runtime_embedded_npc_tournament.py
+          git commit -m "Normalize release action labels in embedded tournament"
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
