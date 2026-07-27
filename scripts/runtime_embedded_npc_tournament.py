@@ -86,25 +86,29 @@ def submit_host_action(client: WebDriverClient, view: dict[str, Any]) -> str:
         raise AssertionError(f"action tray has no legalActions list: {tray!r}")
 
     hand_number = int(view.get("currentHandNumber") or 0)
+    legal_tokens = {
+        str(action).strip().lower().replace("-", "").replace(" ", "")
+        for action in legal
+    }
     # Deliberately fold the host's first opportunity so the tournament must settle
     # at least two hands. After that, prefer all-in to keep CI bounded.
-    if hand_number == 1 and "fold" in legal:
+    if hand_number == 1 and "fold" in legal_tokens:
         action_kind = "fold"
         raise_to_amount = None
-    elif "allIn" in legal:
+    elif "allin" in legal_tokens:
         action_kind = "allIn"
         raise_to_amount = None
-    elif "betOrRaise" in legal:
+    elif "raise" in legal_tokens or "bet" in legal_tokens:
         maximum = tray.get("maxRaiseTo")
         minimum = tray.get("minRaiseTo")
         raise_to_amount = maximum if isinstance(maximum, int) else minimum
         if not isinstance(raise_to_amount, int):
             raise AssertionError(f"raise action has no legal amount: {tray!r}")
         action_kind = "betOrRaise"
-    elif "checkOrCall" in legal:
+    elif "call" in legal_tokens or "check" in legal_tokens:
         action_kind = "checkOrCall"
         raise_to_amount = None
-    elif "fold" in legal:
+    elif "fold" in legal_tokens:
         action_kind = "fold"
         raise_to_amount = None
     else:
