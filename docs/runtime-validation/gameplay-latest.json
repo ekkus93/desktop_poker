@@ -4,7 +4,7 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "fef78ded68c2bfa3a40ae314c41d590b8b6c8694eefb759957e2c45c718529fb",
-    "error": "AssertionError: client has no legal all-in action: {'potTotal': 30, 'maxRaiseTo': 1010, 'deadlineEpochMs': 1785130787190, 'minRaiseTo': 40, 'callAmount': 10, 'ownerLabel': 'Player full-game-client-30240041166', 'legalActions': ['Fold', 'Call', 'Raise', 'All-in'], 'currentBet': 20, 'betOrRaiseLabel': 'Raise to 40+', 'checkOrCallLabel': 'Call 10'}",
+    "error": "AssertionError: host cannot call the all-in: {'potTotal': 1030, 'maxRaiseTo': None, 'deadlineEpochMs': 1785131397871, 'minRaiseTo': None, 'callAmount': 970, 'ownerLabel': 'Player full-game-host-30240510962', 'legalActions': ['Fold', 'All-in', 'allIn'], 'currentBet': 1010, 'betOrRaiseLabel': 'Raise to 970+', 'checkOrCallLabel': 'Call 970'}",
     "result": "FAIL",
     "steps": [
       {
@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/4d724eb8-379d-42ba-91f4-a8c2a2cfb448/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/19acf3c1-39c6-47fa-b478-8a3bb0305630/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -38,9 +38,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T05:38:52.740105+00:00",
+  "recordedAtUtc": "2026-07-27T05:48:59.622571+00:00",
   "result": "FAIL",
-  "validatedCommit": "267d1e7f99afdbfce57dc07723cc851840bd30e4",
+  "validatedCommit": "d618f663e7120a25c3066950ce1f0ddb99c17605",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30240041166"
+  "workflowRunId": "30240510962"
 }
