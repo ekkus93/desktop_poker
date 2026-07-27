@@ -123,7 +123,7 @@ def wait_for_source(client: WebDriverClient, text: str, timeout: float = 30.0) -
     wait_for(f"source text {text!r}", lambda: text in client.source(), timeout=timeout)
 
 
-def local_participant(
+def participant_by_id(
     status: dict[str, Any], player_id: str
 ) -> dict[str, Any] | None:
     participants = status.get("participants")
@@ -133,6 +133,35 @@ def local_participant(
         if isinstance(participant, dict) and participant.get("playerId") == player_id:
             return participant
     return None
+
+
+def assert_shared_participant_seats(
+    host_status: dict[str, Any], client_status: dict[str, Any]
+) -> None:
+    host_participants = {
+        participant["playerId"]: participant
+        for participant in host_status.get("participants", [])
+        if isinstance(participant, dict) and isinstance(participant.get("playerId"), str)
+    }
+    client_participants = {
+        participant["playerId"]: participant
+        for participant in client_status.get("participants", [])
+        if isinstance(participant, dict) and isinstance(participant.get("playerId"), str)
+    }
+    common_ids = set(host_participants).intersection(client_participants)
+    if not common_ids:
+        raise AssertionError("Host and client statuses share no participant IDs")
+    mismatches = {
+        player_id: (
+            host_participants[player_id].get("seatIndex"),
+            client_participants[player_id].get("seatIndex"),
+        )
+        for player_id in sorted(common_ids)
+        if host_participants[player_id].get("seatIndex")
+        != client_participants[player_id].get("seatIndex")
+    }
+    if mismatches:
+        raise AssertionError(f"Host/client participant seat indexes diverged: {mismatches}")
 
 
 def verify_private_projection(view: dict[str, Any], label: str) -> None:
@@ -254,31 +283,65 @@ def run(
             and value.get("tableId") == host_status.get("tableId"),
             timeout=45.0,
         )
-        record("client joined the live host over real TCP")
+        assert_shared_participant_seats(host_status, client_status)
+        record("client joined the live host over real TCP with matching seat indexes")
 
-        click_first_enabled_text(host, "Take seat")
+        host_local = participant_by_id(host_status, "local-player")
+        if host_local is None or host_local.get("seatIndex") is None:
+            wait_for_source(host, "Take seat")
+            click_first_enabled_text(host, "Take seat")
+            host_status = wait_for_command(
+                host,
+                "get_host_session_status",
+                lambda value: isinstance(value, dict)
+                and (participant := participant_by_id(value, "local-player"))
+                is not None
+                and participant.get("seatIndex") is not None,
+            )
+            host_local = participant_by_id(host_status, "local-player")
+            record("host claimed an open seat through the release UI")
+        else:
+            record("host began the lobby in its authoritative occupied seat")
+
+        client_player_id = str(client_status.get("localPlayerId"))
+        client_local = participant_by_id(client_status, client_player_id)
+        if client_local is None:
+            raise AssertionError("Client status omitted its local participant")
+        if client_local.get("seatIndex") is None:
+            wait_for_source(client, "Take seat")
+            click_first_enabled_text(client, "Take seat")
+            client_status = wait_for_command(
+                client,
+                "get_client_session_status",
+                lambda value: isinstance(value, dict)
+                and (participant := participant_by_id(value, client_player_id))
+                is not None
+                and participant.get("seatIndex") is not None,
+                timeout=45.0,
+            )
+            client_local = participant_by_id(client_status, client_player_id)
+            record("client claimed the remaining open seat through the release UI")
+        else:
+            record("client was already seated by the authoritative runtime")
+
+        if host_local is None or client_local is None:
+            raise AssertionError("A local participant disappeared after seat assignment")
+        if host_local.get("seatIndex") == client_local.get("seatIndex"):
+            raise AssertionError(
+                f"Host and client share seat index {host_local.get('seatIndex')}"
+            )
+
         host_status = wait_for_command(
             host,
             "get_host_session_status",
             lambda value: isinstance(value, dict)
-            and (participant := local_participant(value, "local-player")) is not None
-            and participant.get("seatIndex") is not None,
+            and (participant := participant_by_id(value, client_player_id)) is not None
+            and participant.get("seatIndex") == client_local.get("seatIndex"),
+            timeout=45.0,
         )
-        host_participant = local_participant(host_status, "local-player")
-        if host_participant is None:
-            raise AssertionError("Host participant disappeared after seat claim")
-        host_seat = host_participant["seatIndex"]
-
-        host_display_name = f"Player {host_bootstrap['instanceLabel']}"
-        wait_for(
-            "client sees the authoritative host seat claim",
-            lambda: host_display_name in client.source()
-            and "1 open seats" in client.source(),
-            timeout=30.0,
-        )
-        click_first_enabled_text(client, "Take seat")
+        assert_shared_participant_seats(host_status, client_status)
         wait_for_source(client, "lobby-seat-local")
-        record(f"host and client claimed distinct seats; host seat index {host_seat}")
+        record("host and client agree on distinct authoritative seat assignments")
 
         click_text(client, "I'm ready")
         wait_for_source(client, "You: Ready")
