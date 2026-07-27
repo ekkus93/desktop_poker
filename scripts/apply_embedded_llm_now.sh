@@ -18,7 +18,6 @@ publish_with_retry() {
 
 fail_with_diagnostic() {
   local status="$1"
-  trap - ERR
   git reset --hard HEAD
   rm -f src-tauri/src/npc/embedded_llm.rs
   mkdir -p docs/runtime-validation
@@ -27,20 +26,14 @@ fail_with_diagnostic() {
   git config user.name "github-actions[bot]"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
   git add docs/runtime-validation/embedded-apply.log
+  if git diff --cached --quiet; then
+    printf '\ndiagnostic output was unchanged\n' >> docs/runtime-validation/embedded-apply.log
+    git add docs/runtime-validation/embedded-apply.log
+  fi
   git commit -m "docs: record embedded LLM transformation failure"
   publish_with_retry
   exit "$status"
 }
-
-record_shell_failure() {
-  local status="$?"
-  local failed_command="$BASH_COMMAND"
-  local failed_line="${BASH_LINENO[0]:-unknown}"
-  printf '\npost-transform shell failure: status=%s line=%s command=%q\n' \
-    "$status" "$failed_line" "$failed_command" >>"$log_tmp"
-  fail_with_diagnostic "$status"
-}
-trap record_shell_failure ERR
 
 cat scripts/.embedded_patch.part.* > /tmp/apply_embedded_llm_changes.py
 if ! python3 -m py_compile /tmp/apply_embedded_llm_changes.py >"$log_tmp" 2>&1; then
@@ -50,48 +43,10 @@ if ! python3 /tmp/apply_embedded_llm_changes.py >"$log_tmp" 2>&1; then
   fail_with_diagnostic 1
 fi
 
-# Remove every one-shot bootstrap path from the generated repository.
-rm -f scripts/.embedded_patch.part.*
-rm -f scripts/apply_embedded_llm_now.sh
-rm -f .github/workflows/apply-embedded-llm.yml
-rm -f .github/workflows/diagnose-embedded-apply.yml
-rm -f .github/workflows/apply-embedded-llm-now.yml
-rm -f docs/runtime-validation/embedded-apply.log
-
-python3 - <<'PY'
-from pathlib import Path
-
-
-def remove_job(path: str, job: str, next_job: str) -> None:
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    marker = f"\n  {job}:\n"
-    if marker in text:
-        start = text.index(marker)
-        end = text.index(f"\n  {next_job}:\n", start)
-        text = text[:start] + text[end:]
-    p.write_text(text, encoding="utf-8")
-
-
-remove_job(".github/workflows/ci.yml", "apply-embedded-local-llm", "verify")
-remove_job(
-    ".github/workflows/runtime-validation.yml",
-    "apply-embedded-local-llm",
-    "release-runtime",
-)
-ci = Path(".github/workflows/ci.yml")
-text = ci.read_text(encoding="utf-8").replace(
-    "  cancel-in-progress: false\n", "  cancel-in-progress: true\n", 1
-)
-ci.write_text(text, encoding="utf-8")
-PY
-
-# Generate reproducible formatting and dependency metadata before publication.
-cargo fmt --all
-npm ci
-npm run format
-cargo generate-lockfile
-
+# Publish generated source first. Formatting, lockfile generation, temporary
+# workflow removal, compilation, and real-model validation are intentionally
+# handled in subsequent master commits so a housekeeping failure cannot hide
+# or discard a valid source transformation.
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add -A
