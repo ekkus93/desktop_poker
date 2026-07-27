@@ -1,5 +1,6 @@
 name: Fix runtime click helper
 
+# Existing workflow touch: trigger the focused repair after the workflow is present on master.
 on:
   push:
     branches:
