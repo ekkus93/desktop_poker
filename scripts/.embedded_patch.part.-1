@@ -1,0 +1,16 @@
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _embedded_patch_excepthook(exc_type, exc_value, traceback):
+    # Revert every tracked partial edit and remove generated untracked source.
+    # The workflow's untracked diagnostic log remains available to commit.
+    subprocess.run(["git", "checkout", "--", "."], check=False)
+    generated = Path("src-tauri/src/npc/embedded_llm.rs")
+    if generated.exists():
+        generated.unlink()
+    sys.__excepthook__(exc_type, exc_value, traceback)
+
+
+sys.excepthook = _embedded_patch_excepthook
