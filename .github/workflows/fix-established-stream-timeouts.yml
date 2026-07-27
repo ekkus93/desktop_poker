@@ -87,7 +87,6 @@ jobs:
               src-tauri/src/networking/runtime/host.rs \
               src-tauri/src/networking/runtime/client_connect.rs \
               src-tauri/src/networking/runtime/tests/misc.rs \
-              docs/runtime-validation/established-stream-timeout-repair-latest.md \
               .github/workflows/fix-established-stream-timeouts.yml \
               scripts/apply_established_stream_timeout_fix.py
             git commit -m "fix: clear handshake read timeouts after connect"
