@@ -1,5 +1,6 @@
 name: Fix established stream timeouts
 
+# Existing workflow touch: execute the verified repair on master.
 on:
   push:
     branches:
