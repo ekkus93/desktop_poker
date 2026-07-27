@@ -1,0 +1,120 @@
+name: Embedded tiny-model NPC validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/embedded-model-ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src-tauri/**"
+  pull_request:
+    paths:
+      - ".github/workflows/embedded-model-ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src-tauri/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: embedded-model-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+  MODEL_FILE: SmolLM2-135M-Instruct-Q3_K_M.gguf
+  MODEL_SHA256: 3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95
+
+jobs:
+  embedded-model:
+    name: Real in-process GGUF NPC decision
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            ca-certificates \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Cache pinned GGUF model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/embedded-models
+          key: smollm2-135m-instruct-q3-k-m-${{ env.MODEL_SHA256 }}
+
+      - name: Download pinned GGUF model
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/embedded-models
+          curl \
+            --fail \
+            --location \
+            --retry 4 \
+            --retry-all-errors \
+            --output ".cache/embedded-models/${MODEL_FILE}.partial" \
+            "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/8637628/SmolLM2-135M-Instruct-Q3_K_M.gguf?download=true"
+          mv \
+            ".cache/embedded-models/${MODEL_FILE}.partial" \
+            ".cache/embedded-models/${MODEL_FILE}"
+
+      - name: Verify pinned model checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="$GITHUB_WORKSPACE/.cache/embedded-models/${MODEL_FILE}"
+          test -f "$model"
+          actual="$(sha256sum "$model" | awk '{print $1}')"
+          printf 'expected=%s\nactual=%s\n' "$MODEL_SHA256" "$actual" \
+            | tee embedded-model.sha256
+          test "$actual" = "$MODEL_SHA256"
+
+      - name: Run real embedded NPC inference smoke
+        env:
+          DESKTOP_POKER_REQUIRE_EMBEDDED_MODEL: "1"
+          DESKTOP_POKER_EMBEDDED_TEST_MODEL: ${{ github.workspace }}/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf
+        run: |
+          set -o pipefail
+          cargo test -p desktop-poker --test embedded_npc_smoke -- --nocapture \
+            2>&1 | tee embedded-model-smoke.log
+
+      - name: Upload embedded-model evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-tiny-model-npc-evidence
+          path: |
+            embedded-model.sha256
+            embedded-model-smoke.log
+          if-no-files-found: error
+          retention-days: 30
