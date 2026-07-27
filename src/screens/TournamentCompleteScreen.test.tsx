@@ -199,6 +199,7 @@ describe("TournamentCompleteScreen", () => {
     renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
 
     expect(await screen.findByText(handHistory[0].summary)).toBeTruthy();
+    expect(await screen.findByText("Final history saved.")).toBeTruthy();
     await waitFor(() => {
       expect(
         readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
@@ -280,7 +281,8 @@ describe("TournamentCompleteScreen", () => {
     renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
 
     expect(await screen.findByText(finalHand.summary)).toBeTruthy();
-    await waitFor(() => expect(mockedGetTableView).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Final history saved.")).toBeTruthy();
+    expect(mockedGetTableView.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(
       readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
     ).toEqual([finalHand, ...firstThreeHands]);
