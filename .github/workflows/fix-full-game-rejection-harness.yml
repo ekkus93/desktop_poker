@@ -1,0 +1,70 @@
+name: Fix full-game rejection harness
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-full-game-rejection-harness.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix-harness:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused harness correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/runtime_full_game_smoke.py")
+          text = path.read_text()
+          old_import = "from runtime_webdriver_smoke import wait_for, wait_for_route\n"
+          new_import = (
+              "from runtime_webdriver_smoke import WebDriverError, wait_for, wait_for_route\n"
+          )
+          old_except = "    except AssertionError as error:\n        return str(error)\n"
+          new_except = (
+              "    except (AssertionError, WebDriverError) as error:\n"
+              "        return str(error)\n"
+          )
+          if text.count(old_import) != 1:
+              raise SystemExit("unexpected runtime_webdriver_smoke import")
+          if text.count(old_except) != 1:
+              raise SystemExit("unexpected invoke_expect_error handler")
+          text = text.replace(old_import, new_import, 1)
+          text = text.replace(old_except, new_except, 1)
+          path.write_text(text)
+          PY
+
+          rm .github/workflows/fix-full-game-rejection-harness.yml
+
+      - name: Commit directly to master
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/runtime_full_game_smoke.py \
+            .github/workflows/fix-full-game-rejection-harness.yml
+          git commit -m "test: recognize WebDriver command rejections"
+
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Unable to publish harness correction" >&2
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
