@@ -3,6 +3,7 @@ import {
   buildQuickSizes,
   clampRaiseAmount,
   defaultRaiseAmount,
+  getErrorMessage,
   isWithinRaiseBounds,
 } from "./mainTableRaise";
 import type { TableActionTrayView } from "../api/desktop";
@@ -133,6 +134,24 @@ describe("isWithinRaiseBounds", () => {
   it("returns false when maxRaiseTo is null", () => {
     expect(isWithinRaiseBounds(500, sampleTray({ maxRaiseTo: null }))).toBe(
       false,
+    );
+  });
+});
+
+describe("getErrorMessage", () => {
+  it("preserves JavaScript Error messages", () => {
+    expect(getErrorMessage(new Error("request failed"))).toBe("request failed");
+  });
+
+  it("preserves non-empty string errors returned by Tauri", () => {
+    expect(getErrorMessage("action window expired")).toBe(
+      "action window expired",
+    );
+  });
+
+  it("uses a safe fallback for unsupported error values", () => {
+    expect(getErrorMessage({ message: "not trusted" })).toBe(
+      "Unknown table error",
     );
   });
 });
