@@ -43,10 +43,11 @@ if ! python3 /tmp/apply_embedded_llm_changes.py >"$log_tmp" 2>&1; then
   fail_with_diagnostic 1
 fi
 
-# Publish generated source first. Formatting, lockfile generation, temporary
-# workflow removal, compilation, and real-model validation are intentionally
-# handled in subsequent master commits so a housekeeping failure cannot hide
-# or discard a valid source transformation.
+# GitHub's Actions token may push source but cannot create or update workflow
+# files. Restore workflows here; those changes are applied afterward through
+# the connected GitHub write API.
+git checkout HEAD -- .github/workflows
+
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add -A
