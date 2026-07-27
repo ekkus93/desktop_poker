@@ -12,6 +12,7 @@ from typing import Any
 
 SOURCE = Path("runtime-gameplay-evidence/release-full-game-result.json")
 OUTPUT_DIR = Path("docs/runtime-validation")
+NON_RESULTS = {"cancelled", "skipped"}
 
 
 def load_result() -> dict[str, Any]:
@@ -51,15 +52,30 @@ def publish_evidence() -> None:
     )
 
 
+def should_skip_publication(build_outcome: str, gameplay_outcome: str) -> bool:
+    if build_outcome in NON_RESULTS:
+        return True
+    return build_outcome == "success" and gameplay_outcome in NON_RESULTS
+
+
 def main() -> None:
+    build_outcome = os.environ.get("BUILD_OUTCOME") or "not-run"
+    gameplay_outcome = os.environ.get("GAMEPLAY_OUTCOME") or "not-run"
+    if should_skip_publication(build_outcome, gameplay_outcome):
+        print(
+            "Skipping durable full-game evidence publication because the workflow "
+            "was cancelled or the gameplay step never started."
+        )
+        return
+
     result = load_result()
     payload: dict[str, Any] = {
         "result": result.get("result", "FAIL"),
         "validatedCommit": os.environ["GITHUB_SHA"],
         "workflowRunId": os.environ["GITHUB_RUN_ID"],
         "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-        "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
-        "gameplayOutcome": os.environ.get("GAMEPLAY_OUTCOME") or "not-run",
+        "buildOutcome": build_outcome,
+        "gameplayOutcome": gameplay_outcome,
         "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
         "evidenceArtifact": "linux-release-full-game-evidence",
         "fullGame": result,
