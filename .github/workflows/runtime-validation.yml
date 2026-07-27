@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - master
+    paths-ignore:
+      - "docs/**"
+      - "memory.md"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: runtime-validation-${{ github.ref }}
@@ -66,9 +69,14 @@ jobs:
         run: cargo install tauri-driver --locked
 
       - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
         run: npm run tauri build -- --no-bundle 2>&1 | tee runtime-validation-build.log
 
       - name: Run release binary through WebDriver
+        id: runtime
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -98,6 +106,7 @@ jobs:
       - name: Inventory runtime evidence
         if: always()
         run: |
+          mkdir -p runtime-validation-evidence
           find runtime-validation-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort \
             | tee runtime-validation-evidence/inventory.txt
@@ -114,3 +123,99 @@ jobs:
             runtime-validation-evidence/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish durable runtime result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("runtime-validation-evidence/release-runtime-result.json")
+          payload: dict[str, object]
+          if source.is_file():
+              try:
+                  payload = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  payload = {
+                      "result": "FAIL",
+                      "error": f"Could not parse runtime result: {error}",
+                  }
+          else:
+              payload = {
+                  "result": "FAIL",
+                  "error": "Runtime result file was not produced.",
+              }
+
+          payload.update(
+              {
+                  "validatedCommit": os.environ["GITHUB_SHA"],
+                  "workflowRunId": os.environ["GITHUB_RUN_ID"],
+                  "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+                  "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
+                  "runtimeOutcome": os.environ.get("RUNTIME_OUTCOME") or "not-run",
+                  "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+                  "evidenceArtifact": "linux-release-runtime-evidence",
+              }
+          )
+
+          Path("docs/runtime-validation/latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Linux Release Runtime Validation",
+              "",
+              f"- Result: **{payload.get('result', 'UNKNOWN')}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Build outcome: `{payload['buildOutcome']}`",
+              f"- Runtime outcome: `{payload['runtimeOutcome']}`",
+              f"- Recorded at: `{payload['recordedAtUtc']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          error = payload.get("error")
+          if error:
+              lines.extend(["## Failure", "", str(error), ""])
+          steps = payload.get("steps")
+          if isinstance(steps, list):
+              lines.extend(["## Executed checks", ""])
+              for step in steps:
+                  if isinstance(step, dict):
+                      lines.append(
+                          f"- **{step.get('result', 'UNKNOWN')}** — {step.get('name', 'unnamed check')}"
+                      )
+              lines.append("")
+          Path("docs/runtime-validation/latest.md").write_text(
+              "\n".join(lines), encoding="utf-8"
+          )
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/runtime-validation/latest.json docs/runtime-validation/latest.md
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: record Linux runtime validation result"
+            git push origin HEAD:master
+          fi
+
+      - name: Enforce runtime validation result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$RUNTIME_OUTCOME" = "success"
