@@ -5,12 +5,12 @@
     "buildOutcome": "success",
     "package": {
       "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
-      "debSha256": "1578048195593bd0efadac09cda92b62e1fd082ee69aaa9c77f5e142526ef341",
+      "debSha256": "fd6d024e2ead45e6f7be1eb5fa8dd5b203af94c5f2656ca7db0d0aefb9b4314b",
       "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
       "desktopId": "Desktop Poker",
       "iconCount": "10",
       "installedBinary": "/usr/bin/desktop-poker",
-      "installedBinarySha256": "42532fbd7b1838ba3e66fc2132dcfb7f25034c6a03acaa4359575751719c72f7",
+      "installedBinarySha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
       "packageArchitecture": "amd64",
       "packageName": "desktop-poker",
       "packageVersion": "0.1.0"
@@ -18,8 +18,8 @@
     "result": "FAIL",
     "runtime": {
       "application": "/usr/bin/desktop-poker",
-      "applicationSha256": "42532fbd7b1838ba3e66fc2132dcfb7f25034c6a03acaa4359575751719c72f7",
-      "instanceId": "installed-deb-webdriver-30310372676",
+      "applicationSha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
+      "instanceId": "installed-deb-webdriver-30312220781",
       "result": "PASS",
       "steps": [
         {
@@ -96,10 +96,10 @@
     ],
     "validationOutcome": "failure"
   },
-  "recordedAtUtc": "2026-07-27T22:29:22.746472+00:00",
+  "recordedAtUtc": "2026-07-27T22:58:40.202533+00:00",
   "result": "FAIL",
-  "validatedCommit": "2e2aa4b5a682c92ba5ee539b34f0f998e7eccfe7",
+  "validatedCommit": "3b5a042ef65da75f9c0eefec9e32e392f6371ab8",
   "validationOutcome": "failure",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30310372676"
+  "workflowRunId": "30312220781"
 }
