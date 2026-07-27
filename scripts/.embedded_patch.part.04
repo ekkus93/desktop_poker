@@ -15,6 +15,21 @@ replace_once(
     '',
 )
 
+# Keep clippy -D warnings clean on current stable Rust.
+replace_once(
+    'src-tauri/src/npc/embedded_llm.rs',
+    '''    let needs_load = runtime
+        .loaded
+        .as_ref()
+        .map_or(true, |loaded| loaded.canonical_path != canonical_path);
+''',
+    '''    let needs_load = runtime
+        .loaded
+        .as_ref()
+        .is_none_or(|loaded| loaded.canonical_path != canonical_path);
+''',
+)
+
 # Validate and canonicalize embedded model paths before persisting them. A
 # missing or invalid model is a visible settings error, not a deferred failure
 # that only appears after a tournament starts.
@@ -101,13 +116,16 @@ replace_once(
 
 # Every workflow that compiles the native llama.cpp dependency needs the same
 # native build toolchain.
-installed_workflow = '.github/workflows/runtime-installed-deb-validation.yml'
-installed_content = read(installed_workflow)
-installed_content = installed_content.replace(
-    '            build-essential \\\n            curl \\\n',
-    '            build-essential \\\n            clang \\\n            libclang-dev \\\n            cmake \\\n            curl \\\n',
-)
-write(installed_workflow, installed_content)
+for native_workflow in [
+    '.github/workflows/runtime-validation.yml',
+    '.github/workflows/runtime-installed-deb-validation.yml',
+]:
+    native_content = read(native_workflow)
+    native_content = native_content.replace(
+        '            build-essential \\\n            curl \\\n',
+        '            build-essential \\\n            clang \\\n            libclang-dev \\\n            cmake \\\n            curl \\\n',
+    )
+    write(native_workflow, native_content)
 
 # The diagnostic workflow was only needed to bootstrap this source
 # transformation. Do not leave hidden write-capable automation in the repo.
