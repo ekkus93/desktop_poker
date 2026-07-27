@@ -15,11 +15,15 @@ concurrency:
   group: diagnose-frontend-lint
   cancel-in-progress: true
 
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
 jobs:
   diagnose:
-    name: Capture frontend lint diagnostics
+    name: Reproduce Verify through frontend lint
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repository
@@ -27,21 +31,68 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
 
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Capture exact frontend lint result
+      - name: Reproduce all preceding Verify steps
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --json > /dev/null || true
+          npm audit --json > /dev/null || true
+          cargo fmt --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace --all-targets --all-features -- --test-threads=2
+          cargo test -p poker-core --all-targets --all-features
+          cargo test --workspace --all-targets --all-features -- --list > /dev/null
+          cargo tree -p poker-core > /dev/null
+          npm run format:check
+
+      - name: Capture exact frontend lint result after Rust verification
         id: lint
         shell: bash
         run: |
           set +e
-          npm run lint > frontend-lint-diagnostic.log 2>&1
+          {
+            echo "--- git status before lint ---"
+            git status --short --untracked-files=all
+            echo "--- generated paths before lint ---"
+            find . -maxdepth 4 -type f \
+              \( -path './target/*' -o -path './src-tauri/gen/*' -o -path './dist/*' \) \
+              -print | sort
+            echo "--- npm run lint ---"
+            npm run lint
+          } > frontend-lint-diagnostic.log 2>&1
           status=$?
           cat frontend-lint-diagnostic.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
@@ -69,6 +120,7 @@ jobs:
               "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
               "frontendLintExitStatus": status,
+              "ordering": "full Verify sequence through frontend lint",
           }
           Path("docs/runtime-validation/frontend-lint-diagnostic-latest.json").write_text(
               json.dumps(payload, indent=2, sort_keys=True) + "\n",
@@ -81,7 +133,7 @@ jobs:
           git add \
             docs/runtime-validation/frontend-lint-diagnostic-latest.log \
             docs/runtime-validation/frontend-lint-diagnostic-latest.json
-          git commit -m "docs: record frontend lint diagnostic result"
+          git commit -m "docs: record ordered frontend lint diagnostic result"
           for attempt in 1 2 3 4 5 6; do
             git pull --rebase origin master
             if git push origin HEAD:master; then
