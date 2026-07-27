@@ -22,7 +22,13 @@ git commit -m "$commit_message"
 max_attempts=5
 for attempt in $(seq 1 "$max_attempts"); do
   echo "Runtime evidence push attempt ${attempt}/${max_attempts}"
-  git fetch --no-tags origin master
+
+  if [[ $(git rev-parse --is-shallow-repository) == "true" ]]; then
+    git fetch --no-tags --unshallow origin master
+  else
+    git fetch --no-tags origin master
+  fi
+
   git rebase origin/master
 
   if git push origin HEAD:master; then
