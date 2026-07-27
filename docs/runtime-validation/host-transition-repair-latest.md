@@ -1,7 +1,7 @@
 # Host Transition Serialization Repair Diagnostic
 
-- Staging commit: `b7778ed652de3618d8120391c0324f572004d31d`
-- Workflow run: `30288754150`
+- Staging commit: `7061dbcaa88ac48784bdae019826c5128811c0d5`
+- Workflow run: `30288836487`
 - Patch outcome: `failure`
 - Verification outcome: `skipped`
 
