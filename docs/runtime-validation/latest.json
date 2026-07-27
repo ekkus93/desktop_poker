@@ -1,67 +1,83 @@
 {
-  "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-  "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
   "buildOutcome": "success",
   "evidenceArtifact": "linux-release-runtime-evidence",
-  "instanceId": "runtime-smoke-30232598478",
-  "recordedAtUtc": "2026-07-27T02:41:42.833519+00:00",
-  "result": "PASS",
-  "runtimeOutcome": "success",
-  "steps": [
-    {
-      "name": "tauri-driver became ready",
-      "result": "PASS"
-    },
-    {
-      "name": "release binary created a WebDriver session",
-      "result": "PASS"
-    },
-    {
-      "name": "Home rendered through the real Tauri backend",
-      "result": "PASS"
-    },
-    {
-      "name": "browser mocks are unavailable in release mode",
-      "result": "PASS"
-    },
-    {
-      "name": "Host route rendered",
-      "result": "PASS"
-    },
-    {
-      "name": "Join route rendered",
-      "result": "PASS"
-    },
-    {
-      "name": "invalid invite failed explicitly: The invite could not be checked.",
-      "result": "PASS"
-    },
-    {
-      "name": "/settings route rendered",
-      "result": "PASS"
-    },
-    {
-      "name": "/rules route rendered",
-      "result": "PASS"
-    },
-    {
-      "name": "session guard redirected /lobby without a live session",
-      "result": "PASS"
-    },
-    {
-      "name": "session guard redirected /table without a live session",
-      "result": "PASS"
-    },
-    {
-      "name": "release /debug route is not reachable",
-      "result": "PASS"
-    },
-    {
-      "name": "runtime screenshot and final page source captured",
-      "result": "PASS"
-    }
-  ],
-  "validatedCommit": "76de807ffb8d365d6b576098ae4af74f892a07a7",
+  "multiInstance": {
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
+    "error": "WebDriverError: tauri-driver did not become ready: timed out",
+    "result": "FAIL",
+    "steps": [
+      {
+        "name": "multi-instance runtime smoke",
+        "result": "FAIL"
+      }
+    ]
+  },
+  "multiInstanceOutcome": "failure",
+  "recordedAtUtc": "2026-07-27T02:56:44.475647+00:00",
+  "result": "FAIL",
+  "singleInstance": {
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
+    "instanceId": "runtime-smoke-30233131900",
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "tauri-driver became ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release binary created a WebDriver session",
+        "result": "PASS"
+      },
+      {
+        "name": "Home rendered through the real Tauri backend",
+        "result": "PASS"
+      },
+      {
+        "name": "browser mocks are unavailable in release mode",
+        "result": "PASS"
+      },
+      {
+        "name": "Host route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "Join route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "invalid invite failed explicitly: The invite could not be checked.",
+        "result": "PASS"
+      },
+      {
+        "name": "/settings route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "/rules route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "session guard redirected /lobby without a live session",
+        "result": "PASS"
+      },
+      {
+        "name": "session guard redirected /table without a live session",
+        "result": "PASS"
+      },
+      {
+        "name": "release /debug route is not reachable",
+        "result": "PASS"
+      },
+      {
+        "name": "runtime screenshot and final page source captured",
+        "result": "PASS"
+      }
+    ]
+  },
+  "singleInstanceOutcome": "success",
+  "validatedCommit": "164bae0700d0e8926a836412d62d492f9046eaa8",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30232598478"
+  "workflowRunId": "30233131900"
 }

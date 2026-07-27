@@ -1,14 +1,17 @@
 # Latest Linux Release Runtime Validation
 
-- Result: **PASS**
-- Validated commit: `76de807ffb8d365d6b576098ae4af74f892a07a7`
-- GitHub Actions run: `30232598478`
+- Overall result: **FAIL**
+- Validated commit: `164bae0700d0e8926a836412d62d492f9046eaa8`
+- GitHub Actions run: `30233131900`
 - Build outcome: `success`
-- Runtime outcome: `success`
-- Recorded at: `2026-07-27T02:41:42.833519+00:00`
+- Single-instance outcome: `success`
+- Multi-instance outcome: `failure`
+- Recorded at: `2026-07-27T02:56:44.475647+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
-## Executed checks
+## Single-instance release smoke
+
+Result: **PASS**
 
 - **PASS** — tauri-driver became ready
 - **PASS** — release binary created a WebDriver session
@@ -23,3 +26,11 @@
 - **PASS** — session guard redirected /table without a live session
 - **PASS** — release /debug route is not reachable
 - **PASS** — runtime screenshot and final page source captured
+
+## Live multi-instance release smoke
+
+Result: **FAIL**
+
+Failure: WebDriverError: tauri-driver did not become ready: timed out
+
+- **FAIL** — multi-instance runtime smoke
