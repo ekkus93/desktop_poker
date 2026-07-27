@@ -115,7 +115,7 @@ jobs:
               }
               trap cleanup EXIT
 
-              python3 scripts/runtime_full_game_smoke.py \
+              python3 scripts/runtime_full_game_webkit.py \
                 --application "'"$binary"'" \
                 --host-driver-url http://127.0.0.1:4544 \
                 --client-driver-url http://127.0.0.1:4554 \
