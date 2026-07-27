@@ -2,20 +2,19 @@
 
 ## Executive result
 
-**Outcome: The direct Linux release binary and initial local multiplayer runtime are now proven, but additional desktop runtime validation is still required before a release tag or Android/UniFFI milestone.**
+**Outcome: The direct Linux release binary, complete local multiplayer tournament, and per-instance restart persistence are now proven. Additional packaging, physical-network, reconnect, keychain, and live-NPC validation is still required before a release tag or Android/UniFFI milestone.**
 
-A real Tauri/WebKit release binary now launches under a Linux graphical session and passes production-route, browser-mock isolation, session-guard, invalid-invite, three-instance isolation, real TCP host/join, lobby seating, ready-state, tournament-start, initial private-card isolation, synchronized public-state, port-conflict, and alternate-port recovery checks.
+A real Tauri/WebKit release binary now passes production-route, browser-mock isolation, session-guard, invalid-invite, three-instance isolation, real TCP host/join, lobby seating, ready-state, tournament-start, private-card isolation, synchronized public state, legal and rejected action handling, multiple settled hands, elimination, observer transition, matching final standings, port-conflict recovery, fresh-profile isolation, and host/client hand-history restoration after release-process restart.
 
-The remaining release blockers are narrower but still material:
+The remaining release blockers are:
 
-- installed `.deb` graphical launch;
-- legal action play through multiple hands, elimination, history, completion, and matching standings;
-- restart and per-instance persistence isolation;
+- installed `.deb` graphical launch and uninstall validation;
+- an explicit AppImage target decision and, if retained, AppImage launch validation;
 - two physical machines on one LAN;
 - reconnect, expiry, observer recovery, host loss, and unreachable-host behavior;
 - release OS-keychain behavior;
-- live rule-based and LLM NPC operation;
-- the remaining Android canonical fixture and mixed-runtime interoperability proof.
+- live rule-based NPC operation;
+- the remaining Android canonical fixture and mixed-runtime interoperability proof before Android implementation.
 
 This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE_READINESS_BASELINE_TODO.md`.
 
@@ -42,20 +41,25 @@ This report is the authoritative evidence record for `docs/DESKTOP_POKER_RELEASE
 - Baseline Rust: `rustc 1.97.1 (8bab26f4f 2026-07-14)`
 - Baseline Cargo: `cargo 1.97.1 (c980f4866 2026-06-30)`
 
-### Linux release runtime validation
+### Latest Linux release runtime validation
 
-- Validated source commit: `d2f4fc82eeb43a9ecec4524e490dda4662e80123`
-- GitHub Actions run: `30234522553`
-- Recorded result: `docs/runtime-validation/latest.json`
+- Validated source commit: `0b49e7e888aa832145d8ef815ad8bc62419a26e1`
+- Single/multi-instance GitHub Actions run: `30289835791`
+- Full-game GitHub Actions run: `30289835913`
+- Recorded results:
+  - `docs/runtime-validation/latest.json`
+  - `docs/runtime-validation/gameplay-latest.json`
 - Environment: Ubuntu 24.04 GitHub-hosted runner
 - Graphical session: Xvfb, 1440×960×24
 - Desktop runtime: Tauri 2 / WebKitGTK through `tauri-driver` and WebKitWebDriver
 - Session bus: isolated `dbus-run-session`
 - Release binary: `target/release/desktop-poker`
-- Release binary SHA-256: `a8dc5d705a573371d64ab3872371598308b697ffa09126a19112e53b57d371fe`
-- Evidence artifact: `linux-release-runtime-evidence`
+- Release binary SHA-256: `2355970b00dd39675f2f8b538cf58501887cfe3cce7c2837197a7900403989e4`
+- Evidence artifacts:
+  - `linux-release-runtime-evidence`
+  - `linux-release-full-game-evidence`
 
-The virtual graphical session is valid evidence for application launch and loopback multi-instance behavior. It does not substitute for installed-package testing, a physical desktop session, two physical LAN machines, a real user keychain, or configured live model providers.
+The virtual graphical session is valid evidence for release application launch, loopback multi-instance behavior, complete gameplay, and profile-specific restart persistence. It does not substitute for installed-package testing, a physical desktop session, two physical LAN machines, a real user keychain, or configured live model providers.
 
 ## Automated validation baseline
 
@@ -75,7 +79,7 @@ The virtual graphical session is valid evidence for application launch and loopb
 | Focused `poker-core` tests | PASS | 125 passed. |
 | `cargo tree -p poker-core` | PASS | Shared core remains platform-neutral. |
 
-Three focused frontend regression tests were added in `src/screens/useLobbySession.test.ts` for the runtime-discovered lobby projection defect. The retained runtime run proves the corrected production behavior. The baseline test total above remains the last explicitly retained full frontend-suite count in this report.
+Additional focused regressions were added during runtime validation for lobby projection, completion-history persistence, delayed final-history synchronization, monotonic history merging, host transition serialization, and rejection of settled-history regression. The host transition repair was committed only after its focused tests, the complete networking tournament test module, formatting, and Clippy passed.
 
 ### Ignored Rust tests
 
@@ -98,8 +102,8 @@ None is claimed as passed.
 - Hidden `/debug` route unreachable: **PASS**
 - Direct `/lobby` and `/table` without sessions redirect safely: **PASS**
 - Invalid invite displays an inline error and remains on Join: **PASS**
-
-The current runtime hash differs from the earlier baseline artifact because the lobby projection fix and runtime validation harness were added after the first release-candidate build.
+- Complete two-player release tournament: **PASS**
+- Restart history restoration for both isolated profiles: **PASS**
 
 ### Debian package
 
@@ -107,17 +111,19 @@ The current runtime hash differs from the earlier baseline artifact because the 
 - Installed binary path and desktop assets: **PASS — static inspection**
 - Installation in a disposable environment: **NOT RUN**
 - Installed graphical launch: **NOT RUN**
+- Uninstall and cleanup behavior: **NOT RUN**
 
 ### AppImage
 
 - Result: **BLOCKED / NOT RUN**
 - No AppImage launch is claimed.
+- The project still needs an explicit decision to retain AppImage as a release target or remove it from the release claim.
 
 ## Production reachability and secret-safety status
 
 | Scenario | Result | Evidence |
 |---|---|---|
-| Release Home/Host/Join/Settings/Help | PASS | Run `30234522553`. |
+| Release Home/Host/Join/Settings/Help | PASS | Run `30289835791`. |
 | Release `/debug` reachability | PASS | Redirected to Home. |
 | Browser-mock substitution in release | PASS | `window.__DESKTOP_POKER_BROWSER_MOCKS__` was absent. |
 | Fake session through direct guarded routes | PASS | `/lobby` and `/table` redirected safely without a session. |
@@ -128,23 +134,24 @@ The current runtime hash differs from the earlier baseline artifact because the 
 
 ### Three release instances and storage isolation
 
-**Result: PASS for launch-time isolation.**
+**Result: PASS.**
 
-The run launched three independent release instances:
+The runtime and full-game workflows launched independently namespaced host, client, conflict, and fresh-profile release instances under `~/.local/share/desktop-poker/profiles/`.
 
-- `runtime-host-30234522553`
-- `runtime-client-30234522553`
-- `runtime-conflict-30234522553`
+Proven behavior:
 
-Each reported a distinct application profile directory under `~/.local/share/desktop-poker/profiles/`. The client’s host draft was independently namespaced before it joined the host.
+- distinct instance IDs and profile directories;
+- independently namespaced host drafts before joining;
+- fresh third profile contains no host/client hand history;
+- host and client history restore after both release processes are stopped and restarted with the same instance IDs.
 
-Restart persistence, history separation, window-state restoration, and post-tournament data isolation remain untested.
+Window-state restoration and every settings field are not separately claimed by the full-game scenario.
 
 ### Real TCP host/join and lobby flow
 
 **Result: PASS.**
 
-- Host started a real TCP listener on `43818`.
+- Host started a real TCP listener on loopback in the isolated runtime environment.
 - Host produced a compact `pkr1_…` invitation.
 - Client validated the invitation and joined the live host.
 - Host and client raw status payloads agreed on participant seat indexes.
@@ -155,16 +162,25 @@ Restart persistence, history separation, window-state restoration, and post-tour
 - Host started the tournament.
 - Both instances transitioned to Main Table.
 
-### Initial table integrity
+### Complete tournament integrity
 
-**Result: PASS for the first running-hand snapshot.**
+**Result: PASS.**
 
-- Each instance saw exactly one local seat.
-- Each local player received exactly two private hole cards.
-- No remote private hole cards were exposed.
-- Table ID, current hand number, street, pot, and board matched between host and client.
+Run `30289835913` proved:
 
-Legal action play, raise boundaries, action-owner visibility, complete hand history, elimination, observer behavior, and tournament completion remain untested in a release runtime.
+- initial public table state synchronized;
+- exactly one action tray was visible and belonged to the acting player;
+- an out-of-bounds raise was rejected without advancing state;
+- the Min quick-size changed the legal raise amount without submitting;
+- fold completed the first hand with synchronized duplicate-free history;
+- subsequent all-in showdown sequences settled additional hands;
+- three hands completed in the retained passing run;
+- the final hand eliminated one player and transitioned that participant to an eliminated observer;
+- both release instances rendered the same winner and final standings;
+- total final chips remained 2000 in the winner’s stack;
+- host and client history both restored after release-process restart.
+
+The retained final history contains exactly hand numbers 1, 2, and 3 with no duplicates. The final hand records a 1940-chip pot and the eliminated host participant.
 
 ### Port conflict and recovery
 
@@ -177,7 +193,7 @@ Legal action play, raise boundaries, action-owner visibility, complete hand hist
 
 The current message is explicit but generic; improving it to include useful bind context remains a UX-quality consideration.
 
-## Runtime defect discovered and fixed
+## Runtime defects discovered and fixed
 
 ### DP-RR-FIX-004 — Unseated participant consumed the only open lobby seat
 
@@ -193,22 +209,45 @@ The same function also classified every seated non-host as `kind: "host"`, which
 - open seats remain actionable;
 - seated participants are classified as `host` or `player` according to `isHost`;
 - three focused regression tests cover pending-client, open-seat, and seated-client projection behavior;
-- run `30234522553` proves the client can claim the remaining seat and continue through tournament start.
+- retained release runtime evidence proves the client can claim the remaining seat and continue through tournament start.
+
+### DP-RR-FIX-005 — Host tick could overwrite a newer settled hand
+
+**Observed through repeated full-game restart failures before run `30289835913`.**
+
+The host tick thread cloned a controller candidate, released the tournament-runtime lock, and only then wrote the candidate to `authoritative_state`. A player action could commit a newer final hand during that gap. The delayed tick then replaced authoritative state with its older candidate, silently deleting the newest settled hand. Because the controller had already completed the tournament, no later tick necessarily repaired the authoritative copy.
+
+This was an authoritative-state integrity race, not merely a browser-storage timing issue.
+
+**Fix:**
+
+- added one host transition lock shared by tick, local action, remote action, tournament start, and direct authoritative replacement paths;
+- serialized controller mutation, authoritative writeback, and transition publication;
+- centralized runtime writeback through `commit_runtime_state()`;
+- rejected table/session mismatch;
+- rejected any candidate that rewrites or removes settled hand history;
+- rejected any candidate that reopens a completed tournament;
+- retained networking-state merge behavior;
+- added regressions proving action submission waits for the transition lock and settled history cannot regress;
+- added merge-safe frontend history persistence and an explicit bounded final-history save gate before completion navigation.
+
+**Verification:**
+
+- focused concurrency regressions: PASS;
+- complete networking tournament test module: PASS;
+- Rust formatting and Clippy with warnings denied: PASS;
+- ordinary packaged runtime run `30289835791`: PASS;
+- complete release tournament and restart run `30289835913`: PASS.
 
 ## Remaining runtime gates
 
 ### Two-local-instance full tournament
 
-**Result: PARTIAL.** Host/join, seat assignment, ready-state, tournament start, initial privacy, and initial public synchronization pass. The following remain:
+**Result: PASS.**
 
-- fold, check, call, bet, raise, quick-size, and all-in confirmation;
-- illegal-raise rejection;
-- acting-player action-tray exclusivity;
-- multiple hands and duplicate-free history;
-- elimination and observer transition;
-- completion and matching standings;
-- normal client leave and host close;
-- restart and persistence isolation.
+The complete release-runtime gate covers host/join, seat assignment, ready-state, tournament start, private-state isolation, legal and illegal action behavior, quick-size, multiple hands, duplicate-free history, elimination, observer transition, matching completion standings, fresh-profile isolation, and host/client restart history restoration.
+
+Normal client leave and host close remain useful shutdown scenarios, but they are no longer prerequisites for claiming that the complete local tournament and persistence gate passed.
 
 ### Two-machine LAN tournament
 
@@ -216,7 +255,7 @@ The same function also classified every seated non-host as `kind: "host"`, which
 
 ### Reconnect and failure matrix
 
-**Result: PARTIAL.** Invalid invite, guarded-route recovery, and host-port conflict pass. Lobby reconnect, active-hand reconnect, expiry, stale-action rejection, eliminated-observer reconnect, host loss, and unavailable-host join remain.
+**Result: PARTIAL.** Invalid invite, guarded-route recovery, host-port conflict, and recovery on a different port pass. Lobby reconnect, active-hand reconnect, expiry, stale/duplicate action rejection after reconnect, eliminated-observer reconnect, host loss, unavailable-host join, and post-completion reconnect remain.
 
 ### Rule-based NPC tournament
 
@@ -236,6 +275,6 @@ Status remains **audited but not fully proven**. The ignored Android canonical f
 
 ## Final milestone recommendation
 
-**Continue desktop runtime validation on `master`. Do not begin the Android/UniFFI milestone yet.**
+**Continue desktop release validation on `master`. Do not begin the Android/UniFFI milestone yet.**
 
-The next highest-value runtime increment is legal action play through at least one complete hand, followed by deterministic progression to elimination/completion and restart-based persistence isolation. Physical LAN, reconnect interruption, keychain, and live NPC/provider checks remain separate gates.
+The next highest-value automatable increment is installed `.deb` launch/uninstall validation, followed by the reconnect and unavailable-host matrix. Physical LAN and real desktop keychain checks require environments not provided by the current GitHub-hosted loopback runner. A live rule-based NPC release tournament should be completed before a normal desktop release claim.
