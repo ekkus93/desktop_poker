@@ -1,4 +1,4 @@
-name: Diagnose Rust Clippy
+name: Diagnose Rust verification
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: diagnose-rust-clippy
+  group: diagnose-rust-verification
   cancel-in-progress: true
 
 env:
@@ -21,9 +21,9 @@ env:
 
 jobs:
   diagnose:
-    name: Capture Clippy diagnostics
+    name: Capture Rust verification diagnostics
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repository
@@ -55,26 +55,51 @@ jobs:
         with:
           workspaces: . -> target
 
-      - name: Capture exact Clippy result
-        id: clippy
+      - name: Capture Rust verification results
+        id: rust
         shell: bash
         run: |
           set +e
+
+          cargo fmt --check > rust-format-diagnostic.log 2>&1
+          fmt_status=$?
+          cat rust-format-diagnostic.log
+
           cargo clippy --workspace --all-targets --all-features -- -D warnings \
             > clippy-diagnostic.log 2>&1
-          status=$?
+          clippy_status=$?
           cat clippy-diagnostic.log
-          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+          cargo test --workspace --all-targets --all-features -- --test-threads=2 \
+            > rust-workspace-diagnostic.log 2>&1
+          workspace_status=$?
+          cat rust-workspace-diagnostic.log
+
+          cargo test -p poker-core --all-targets --all-features \
+            > poker-core-diagnostic.log 2>&1
+          core_status=$?
+          cat poker-core-diagnostic.log
+
+          echo "fmt_status=$fmt_status" >> "$GITHUB_OUTPUT"
+          echo "clippy_status=$clippy_status" >> "$GITHUB_OUTPUT"
+          echo "workspace_status=$workspace_status" >> "$GITHUB_OUTPUT"
+          echo "core_status=$core_status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Publish diagnostic log
+      - name: Publish diagnostic logs
         env:
-          CLIPPY_STATUS: ${{ steps.clippy.outputs.status }}
+          FMT_STATUS: ${{ steps.rust.outputs.fmt_status }}
+          CLIPPY_STATUS: ${{ steps.rust.outputs.clippy_status }}
+          WORKSPACE_STATUS: ${{ steps.rust.outputs.workspace_status }}
+          CORE_STATUS: ${{ steps.rust.outputs.core_status }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p docs/runtime-validation
+          cp rust-format-diagnostic.log docs/runtime-validation/rust-format-diagnostic-latest.log
           cp clippy-diagnostic.log docs/runtime-validation/clippy-diagnostic-latest.log
+          cp rust-workspace-diagnostic.log docs/runtime-validation/rust-workspace-diagnostic-latest.log
+          cp poker-core-diagnostic.log docs/runtime-validation/poker-core-diagnostic-latest.log
           python3 - <<'PY'
           import json
           import os
@@ -86,9 +111,25 @@ jobs:
               "workflowRunId": os.environ["GITHUB_RUN_ID"],
               "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
               "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "formatExitStatus": int(os.environ["FMT_STATUS"]),
               "clippyExitStatus": int(os.environ["CLIPPY_STATUS"]),
+              "workspaceTestsExitStatus": int(os.environ["WORKSPACE_STATUS"]),
+              "pokerCoreTestsExitStatus": int(os.environ["CORE_STATUS"]),
           }
-          Path("docs/runtime-validation/clippy-diagnostic-latest.json").write_text(
+          payload["result"] = (
+              "PASS"
+              if all(
+                  payload[key] == 0
+                  for key in (
+                      "formatExitStatus",
+                      "clippyExitStatus",
+                      "workspaceTestsExitStatus",
+                      "pokerCoreTestsExitStatus",
+                  )
+              )
+              else "FAIL"
+          )
+          Path("docs/runtime-validation/rust-verification-diagnostic-latest.json").write_text(
               json.dumps(payload, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
@@ -97,9 +138,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
+            docs/runtime-validation/rust-format-diagnostic-latest.log \
             docs/runtime-validation/clippy-diagnostic-latest.log \
-            docs/runtime-validation/clippy-diagnostic-latest.json
-          git commit -m "docs: record Clippy diagnostic result"
+            docs/runtime-validation/rust-workspace-diagnostic-latest.log \
+            docs/runtime-validation/poker-core-diagnostic-latest.log \
+            docs/runtime-validation/rust-verification-diagnostic-latest.json
+          git commit -m "docs: record Rust verification diagnostic result"
           for attempt in 1 2 3 4 5 6; do
             git pull --rebase origin master
             if git push origin HEAD:master; then
