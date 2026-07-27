@@ -1,6 +1,5 @@
 name: Fix timeout state synchronization
 
-# Existing workflow touch: trigger the focused repair after it is present on master.
 on:
   push:
     branches:
@@ -21,9 +20,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply transaction fix and regression test
+      - name: Apply transaction fix
+        id: patch
+        continue-on-error: true
+        shell: bash
         run: |
-          python3 - <<'PY'
+          set -o pipefail
+          python3 - <<'PY' 2>&1 | tee timeout-sync-patch.log
           from pathlib import Path
           import re
 
@@ -144,8 +147,6 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
         .and_then(|hand| hand.action_window.clone())
         .expect("initial action window");
 
-    // Stop the background tick so submit_action itself is the operation that
-    // discovers the expired deadline and commits the automatic timeout.
     host.stop_signal.store(true, Ordering::SeqCst);
     thread::sleep(Duration::from_millis(1_100));
 
@@ -184,38 +185,80 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
           test_path.write_text(test_text.replace(marker, test + marker, 1))
           PY
 
-          cargo fmt --all
-          rm .github/workflows/fix-timeout-state-sync.yml
-
-      - name: Run focused regression tests
+      - name: Format and run focused regression
+        id: verify
+        if: steps.patch.outcome == 'success'
+        continue-on-error: true
+        shell: bash
         run: |
-          cargo test -p desktop-poker \
-            networking::runtime::tests::tournament::stale_submission_that_commits_timeout_synchronizes_authoritative_state \
-            -- --exact --nocapture
+          set -o pipefail
+          {
+            cargo fmt --all --check
+            cargo test -p desktop-poker \
+              networking::runtime::tests::tournament::stale_submission_that_commits_timeout_synchronizes_authoritative_state \
+              -- --exact --nocapture
+          } 2>&1 | tee timeout-sync-verify.log
 
-      - name: Commit directly to master and dispatch validation
+      - name: Commit verified fix or durable diagnostics
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          PATCH_OUTCOME: ${{ steps.patch.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            src-tauri/src/networking/runtime/host.rs \
-            src-tauri/src/networking/runtime/tests/tournament.rs \
-            .github/workflows/fix-timeout-state-sync.yml
-          git commit -m "fix: synchronize timeout mutations on rejected actions"
+
+          if [ "$PATCH_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
+            rm .github/workflows/fix-timeout-state-sync.yml
+            git add \
+              src-tauri/src/networking/runtime/host.rs \
+              src-tauri/src/networking/runtime/tests/tournament.rs \
+              .github/workflows/fix-timeout-state-sync.yml
+            git commit -m "fix: synchronize timeout mutations on rejected actions"
+          else
+            git restore \
+              src-tauri/src/networking/runtime/host.rs \
+              src-tauri/src/networking/runtime/tests/tournament.rs
+            mkdir -p docs/runtime-validation
+            {
+              echo "# Timeout State Synchronization Repair Diagnostic"
+              echo
+              echo "- Staging commit: \`$GITHUB_SHA\`"
+              echo "- Workflow run: \`$GITHUB_RUN_ID\`"
+              echo "- Patch outcome: \`$PATCH_OUTCOME\`"
+              echo "- Verification outcome: \`$VERIFY_OUTCOME\`"
+              echo
+              echo '## Patch log'
+              echo
+              echo '```text'
+              tail -n 200 timeout-sync-patch.log 2>/dev/null || true
+              echo '```'
+              echo
+              echo '## Verification log'
+              echo
+              echo '```text'
+              tail -n 300 timeout-sync-verify.log 2>/dev/null || true
+              echo '```'
+            } > docs/runtime-validation/timeout-sync-repair-latest.md
+            git add docs/runtime-validation/timeout-sync-repair-latest.md
+            git commit -m "docs: record timeout synchronization repair failure"
+          fi
 
           for attempt in 1 2 3 4 5; do
             git fetch --no-tags origin master
             git rebase origin/master
             if git push origin HEAD:master; then
-              gh workflow run ci.yml --ref master
-              gh workflow run runtime-full-game-validation.yml --ref master
+              if [ "$PATCH_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
+                gh workflow run ci.yml --ref master
+                gh workflow run runtime-full-game-validation.yml --ref master
+              fi
               exit 0
             fi
             if [ "$attempt" -eq 5 ]; then
-              echo "Unable to publish timeout synchronization fix" >&2
+              echo "Unable to publish timeout synchronization repair result" >&2
               exit 1
             fi
             sleep $((attempt * 2))
