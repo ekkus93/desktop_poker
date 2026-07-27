@@ -1,7 +1,11 @@
 name: Fix completion history persistence v2
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-completion-history-persistence-v2.yml"
 
 permissions:
   actions: write
