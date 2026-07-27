@@ -4,8 +4,95 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "2355970b00dd39675f2f8b538cf58501887cfe3cce7c2837197a7900403989e4",
-    "error": "AssertionError: Timed out waiting for source text 'Player full-game-host-30291090972 won 120 chip(s).'; last error: None",
-    "result": "FAIL",
+    "clientInstanceId": "full-game-client-30293378992",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30293378992",
+    "completedHands": 3,
+    "finalHistory": [
+      {
+        "boardCards": [
+          {
+            "compactLabel": "7\u2660",
+            "label": "Seven of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
+          },
+          {
+            "compactLabel": "J\u2665",
+            "label": "Jack of Hearts",
+            "suitSymbol": "\u2665",
+            "tone": "red"
+          },
+          {
+            "compactLabel": "K\u2663",
+            "label": "King of Clubs",
+            "suitSymbol": "\u2663",
+            "tone": "dark"
+          },
+          {
+            "compactLabel": "10\u2663",
+            "label": "Ten of Clubs",
+            "suitSymbol": "\u2663",
+            "tone": "dark"
+          },
+          {
+            "compactLabel": "K\u2660",
+            "label": "King of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
+          }
+        ],
+        "eliminatedPlayers": [
+          "Player full-game-host-30293378992"
+        ],
+        "handNumber": 3,
+        "potTotal": 1940,
+        "summary": "Player full-game-client-30293378992 won 1940 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30293378992"
+        ]
+      },
+      {
+        "boardCards": [],
+        "eliminatedPlayers": [],
+        "handNumber": 2,
+        "potTotal": 1030,
+        "summary": "Player full-game-client-30293378992 won 1030 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30293378992"
+        ]
+      },
+      {
+        "boardCards": [],
+        "eliminatedPlayers": [],
+        "handNumber": 1,
+        "potTotal": 30,
+        "summary": "Player full-game-client-30293378992 won 30 chip(s).",
+        "winningPlayers": [
+          "Player full-game-client-30293378992"
+        ]
+      }
+    ],
+    "finalStandings": [
+      {
+        "chipCount": 2000,
+        "displayName": "Player full-game-client-30293378992",
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Player full-game-host-30293378992",
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
+    "hostInstanceId": "full-game-host-30293378992",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30293378992",
+    "result": "PASS",
     "steps": [
       {
         "name": "two isolated release instances completed host/join/seat/ready/start",
@@ -20,7 +107,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/da2a75b7-3d9f-45d3-badf-770f7774c3c2/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/e497f9bc-eef4-4ad9-a9b3-d5a39e6327ef/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -40,10 +127,6 @@
         "result": "PASS"
       },
       {
-        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
-        "result": "PASS"
-      },
-      {
         "name": "tournament completed with matching standings and one eliminated observer",
         "result": "PASS"
       },
@@ -56,15 +139,15 @@
         "result": "PASS"
       },
       {
-        "name": "full-game runtime smoke",
-        "result": "FAIL"
+        "name": "host and client history restore after release-process restart",
+        "result": "PASS"
       }
     ]
   },
-  "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T17:55:25.399247+00:00",
-  "result": "FAIL",
-  "validatedCommit": "9afe88ffffa7e76852d9c51af55f832967593aa0",
+  "gameplayOutcome": "success",
+  "recordedAtUtc": "2026-07-27T18:25:03.988721+00:00",
+  "result": "PASS",
+  "validatedCommit": "e90b2f44b7ca0f5b03381d1e98bdd649a6d6e9a8",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30291090972"
+  "workflowRunId": "30293378992"
 }
