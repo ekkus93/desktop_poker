@@ -1,5 +1,6 @@
 name: Fix host transition serialization
 
+# Existing-workflow touch: run the verified one-shot repair on master.
 on:
   push:
     branches:
