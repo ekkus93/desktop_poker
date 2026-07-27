@@ -8,13 +8,25 @@ on:
       - ".github/workflows/embedded-model-ci.yml"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
       - "src-tauri/**"
+      - "scripts/runtime_embedded_npc_tournament.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
   pull_request:
     paths:
       - ".github/workflows/embedded-model-ci.yml"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
       - "src-tauri/**"
+      - "scripts/runtime_embedded_npc_tournament.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
   workflow_dispatch:
 
 permissions:
@@ -29,6 +41,7 @@ env:
   NEEDRESTART_MODE: a
   MODEL_FILE: SmolLM2-135M-Instruct-Q3_K_M.gguf
   MODEL_SHA256: 3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95
+  MODEL_URL: https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/8637628/SmolLM2-135M-Instruct-Q3_K_M.gguf?download=true
 
 jobs:
   embedded-model:
@@ -86,7 +99,7 @@ jobs:
             --retry 4 \
             --retry-all-errors \
             --output ".cache/embedded-models/${MODEL_FILE}.partial" \
-            "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/8637628/SmolLM2-135M-Instruct-Q3_K_M.gguf?download=true"
+            "$MODEL_URL"
           mv \
             ".cache/embedded-models/${MODEL_FILE}.partial" \
             ".cache/embedded-models/${MODEL_FILE}"
@@ -188,3 +201,272 @@ jobs:
             embedded-model-smoke.log
           if-no-files-found: warn
           retention-days: 30
+
+  embedded-tournament:
+    name: Full release embedded-NPC tournament
+    needs: embedded-model
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install native build and runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            ca-certificates \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Restore pinned GGUF model
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/embedded-models
+          key: smollm2-135m-instruct-q3-k-m-${{ env.MODEL_SHA256 }}
+
+      - name: Download pinned GGUF model when cache is unavailable
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/embedded-models
+          curl \
+            --fail \
+            --location \
+            --retry 4 \
+            --retry-all-errors \
+            --output ".cache/embedded-models/${MODEL_FILE}.partial" \
+            "$MODEL_URL"
+          mv \
+            ".cache/embedded-models/${MODEL_FILE}.partial" \
+            ".cache/embedded-models/${MODEL_FILE}"
+
+      - name: Verify tournament model checksum
+        id: checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          model="$GITHUB_WORKSPACE/.cache/embedded-models/${MODEL_FILE}"
+          actual="$(sha256sum "$model" | awk '{print $1}')"
+          printf 'expected=%s\nactual=%s\n' "$MODEL_SHA256" "$actual" \
+            | tee embedded-tournament-model.sha256
+          test "$actual" = "$MODEL_SHA256"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          npm run tauri build -- --no-bundle \
+            2>&1 | tee embedded-tournament-build.log
+
+      - name: Run complete embedded-NPC release tournament
+        id: tournament
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="$GITHUB_WORKSPACE/embedded-tournament-evidence"
+          binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          model="$GITHUB_WORKSPACE/.cache/embedded-models/${MODEL_FILE}"
+          mkdir -p "$evidence_dir"
+          test -x "$binary"
+          test -f "$model"
+          file "$binary" | tee "$evidence_dir/release-binary.file.txt"
+          sha256sum "$binary" | tee "$evidence_dir/release-binary.sha256"
+
+          export EMBEDDED_TOURNAMENT_BINARY="$binary"
+          export EMBEDDED_TOURNAMENT_MODEL="$model"
+          export EMBEDDED_TOURNAMENT_EVIDENCE="$evidence_dir"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+          export DESKTOP_POKER_INSTANCE_ID="embedded-npc-tournament-${GITHUB_RUN_ID}"
+
+          tauri-driver --port 4584 --native-port 4585 \
+            >"$EMBEDDED_TOURNAMENT_EVIDENCE/tauri-driver.log" 2>&1 &
+          driver_pid=$!
+          cleanup() {
+            kill "$driver_pid" 2>/dev/null || true
+            wait "$driver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 scripts/runtime_embedded_npc_tournament.py \
+            --application "$EMBEDDED_TOURNAMENT_BINARY" \
+            --driver-url http://127.0.0.1:4584 \
+            --model "$EMBEDDED_TOURNAMENT_MODEL" \
+            --evidence-dir "$EMBEDDED_TOURNAMENT_EVIDENCE" \
+            --timeout-seconds 240
+          RUNTIME
+
+          if grep -F '[npc-runner]' "$evidence_dir/tauri-driver.log"; then
+            echo "NPC runner emitted an error or fallback diagnostic." >&2
+            exit 1
+          fi
+
+      - name: Inventory embedded tournament evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p embedded-tournament-evidence
+          find embedded-tournament-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort \
+            | tee embedded-tournament-evidence/inventory.txt
+          cat embedded-tournament-evidence/embedded-npc-tournament-result.json || true
+          echo '--- tauri-driver.log ---'
+          cat embedded-tournament-evidence/tauri-driver.log || true
+
+      - name: Publish durable embedded-tournament result
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          CHECKSUM_OUTCOME: ${{ steps.checksum.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          evidence_path = Path("embedded-tournament-evidence/embedded-npc-tournament-result.json")
+          runtime = {"result": "FAIL", "error": "Tournament result was not produced."}
+          if evidence_path.is_file():
+              try:
+                  value = json.loads(evidence_path.read_text(encoding="utf-8"))
+                  if isinstance(value, dict):
+                      runtime = value
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime["error"] = f"Tournament result was unreadable: {error}"
+
+          checksum = os.environ.get("CHECKSUM_OUTCOME", "not-run")
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          tournament = os.environ.get("TOURNAMENT_OUTCOME", "not-run")
+          overall = (
+              "PASS"
+              if checksum == "success"
+              and build == "success"
+              and tournament == "success"
+              and runtime.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": overall,
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "model": os.environ["MODEL_FILE"],
+              "modelSha256": os.environ["MODEL_SHA256"],
+              "checksumOutcome": checksum,
+              "buildOutcome": build,
+              "tournamentOutcome": tournament,
+              "runtime": runtime,
+              "evidenceArtifact": "embedded-npc-tournament-evidence",
+          }
+          json_path = Path("docs/runtime-validation/embedded-tournament-latest.json")
+          md_path = Path("docs/runtime-validation/embedded-tournament-latest.md")
+          json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          md_path.write_text(
+              "# Full release embedded-NPC tournament\n\n"
+              f"- Result: **{overall}**\n"
+              f"- Validated commit: `{payload['validatedCommit']}`\n"
+              f"- Workflow run: `{payload['workflowRunId']}`\n"
+              f"- Model: `{payload['model']}`\n"
+              f"- Release build: `{build}`\n"
+              f"- Tournament: `{tournament}`\n"
+              f"- Completed hands: `{runtime.get('completedHands', 'unknown')}`\n"
+              f"- Embedded NPC actions: `{runtime.get('npcActionCount', 'unknown')}`\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/embedded-tournament-latest.json \
+            docs/runtime-validation/embedded-tournament-latest.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "docs: record full embedded NPC tournament result"
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
+
+      - name: Upload embedded tournament evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-npc-tournament-evidence
+          path: |
+            embedded-tournament-model.sha256
+            embedded-tournament-build.log
+            embedded-tournament-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce embedded tournament result
+        if: always()
+        env:
+          CHECKSUM_OUTCOME: ${{ steps.checksum.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
+        run: |
+          test "$CHECKSUM_OUTCOME" = "success"
+          test "$BUILD_OUTCOME" = "success"
+          test "$TOURNAMENT_OUTCOME" = "success"
