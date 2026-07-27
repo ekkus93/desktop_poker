@@ -12,6 +12,7 @@ from typing import Any
 
 EVIDENCE_DIR = Path("runtime-validation-evidence")
 OUTPUT_DIR = Path("docs/runtime-validation")
+NON_RESULTS = {"cancelled", "skipped"}
 
 
 def load_result(filename: str, label: str) -> dict[str, Any]:
@@ -68,7 +69,27 @@ def publish_evidence() -> None:
     )
 
 
+def should_skip_publication(
+    build_outcome: str, smoke_outcome: str, multi_outcome: str
+) -> bool:
+    if build_outcome in NON_RESULTS:
+        return True
+    return build_outcome == "success" and (
+        smoke_outcome in NON_RESULTS or multi_outcome in NON_RESULTS
+    )
+
+
 def main() -> None:
+    build_outcome = os.environ.get("BUILD_OUTCOME") or "not-run"
+    smoke_outcome = os.environ.get("SMOKE_OUTCOME") or "not-run"
+    multi_outcome = os.environ.get("MULTI_OUTCOME") or "not-run"
+    if should_skip_publication(build_outcome, smoke_outcome, multi_outcome):
+        print(
+            "Skipping durable runtime evidence publication because the workflow "
+            "was cancelled or did not start every required runtime check."
+        )
+        return
+
     single = load_result("release-runtime-result.json", "single-instance runtime")
     multi = load_result(
         "release-multi-instance-result.json", "multi-instance runtime"
@@ -83,9 +104,9 @@ def main() -> None:
         "validatedCommit": os.environ["GITHUB_SHA"],
         "workflowRunId": os.environ["GITHUB_RUN_ID"],
         "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-        "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
-        "singleInstanceOutcome": os.environ.get("SMOKE_OUTCOME") or "not-run",
-        "multiInstanceOutcome": os.environ.get("MULTI_OUTCOME") or "not-run",
+        "buildOutcome": build_outcome,
+        "singleInstanceOutcome": smoke_outcome,
+        "multiInstanceOutcome": multi_outcome,
         "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
         "evidenceArtifact": "linux-release-runtime-evidence",
         "singleInstance": single,
