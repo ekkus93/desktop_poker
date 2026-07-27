@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Publish generated runtime evidence directly to master without force-pushing.
 set -euo pipefail
 
 commit_message=${1:?commit message is required}
