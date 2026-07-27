@@ -3,8 +3,8 @@
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "df7b72d10ce862b50a099e62bfd6f27f785e62c8095eb472e9607362c2f4a3b1",
-    "error": "AssertionError: Timed out waiting for source text 'Player full-game-client-30285939351 won 1940 chip(s).'; last error: None",
+    "applicationSha256": "5a4de416d79e5a5e4e7c4126c635d67ab879b1b4befe1b5ee9a4eba0f8f9d4cd",
+    "error": "AssertionError: Timed out waiting for source text 'Player full-game-host-30286956475 won 120 chip(s).'; last error: None",
     "result": "FAIL",
     "steps": [
       {
@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/ca6fd622-c7c6-43bb-9c96-0e70d765ef35/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/05bac1b0-6ff5-4a35-8622-8f0f0053d71b/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -37,6 +37,10 @@
       },
       {
         "name": "all-in showdown attempt 2 settled with 3 synchronized hands",
+        "result": "PASS"
+      },
+      {
+        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
         "result": "PASS"
       },
       {
@@ -58,9 +62,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-27T16:49:50.626915+00:00",
+  "recordedAtUtc": "2026-07-27T17:03:11.373333+00:00",
   "result": "FAIL",
-  "validatedCommit": "7147e67f8ac9f8599ffa66f9c606f538b431d861",
+  "validatedCommit": "c72ad3543b075937bb8da5aa15d1bd55ed54b3fe",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30285939351"
+  "workflowRunId": "30286956475"
 }
