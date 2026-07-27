@@ -114,7 +114,11 @@ jobs:
         run: cargo fmt --check
 
       - name: Lint Rust
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --workspace --all-targets --all-features -- -D warnings \
+            2>&1 | tee rust-clippy.log
 
       - name: Test Rust workspace
         run: cargo test --workspace --all-targets --all-features -- --test-threads=2 2>&1 | tee rust-workspace-tests.log
@@ -156,6 +160,7 @@ jobs:
             validation-toolchains.log
             npm-audit-production.json
             npm-audit-all.json
+            rust-clippy.log
             rust-workspace-tests.log
             poker-core-tests.log
             rust-test-list.log
@@ -195,6 +200,83 @@ jobs:
           path: browser-geometry-tests.log
           if-no-files-found: error
           retention-days: 30
+
+  publish-result:
+    name: Publish CI result
+    if: always() && github.ref == 'refs/heads/master'
+    needs:
+      - verify
+      - geometry
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record durable CI result
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          GEOMETRY_RESULT: ${{ needs.geometry.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          verify = os.environ["VERIFY_RESULT"]
+          geometry = os.environ["GEOMETRY_RESULT"]
+          result = "PASS" if verify == "success" and geometry == "success" else "FAIL"
+          payload = {
+              "result": result,
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "verifyResult": verify,
+              "geometryResult": geometry,
+              "evidenceArtifacts": ["validation-evidence", "browser-geometry-evidence"],
+          }
+          Path("docs/runtime-validation/ci-latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          Path("docs/runtime-validation/ci-latest.md").write_text(
+              "# CI validation\n\n"
+              f"- Result: **{result}**\n"
+              f"- Validated commit: `{payload['validatedCommit']}`\n"
+              f"- Workflow run: `{payload['workflowRunId']}`\n"
+              f"- Verify: `{verify}`\n"
+              f"- Browser geometry: `{geometry}`\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/ci-latest.json \
+            docs/runtime-validation/ci-latest.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "docs: record CI validation result"
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
 
   release-candidate:
     name: Release candidate artifacts
