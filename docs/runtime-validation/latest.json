@@ -1,5 +1,5 @@
 {
-  "buildOutcome": "skipped",
+  "buildOutcome": "cancelled",
   "evidenceArtifact": "linux-release-runtime-evidence",
   "multiInstance": {
     "error": "multi-instance runtime result file was not produced.",
@@ -7,7 +7,7 @@
     "steps": []
   },
   "multiInstanceOutcome": "skipped",
-  "recordedAtUtc": "2026-07-27T04:09:18.912365+00:00",
+  "recordedAtUtc": "2026-07-27T04:11:31.397236+00:00",
   "result": "FAIL",
   "singleInstance": {
     "error": "single-instance runtime result file was not produced.",
@@ -15,7 +15,7 @@
     "steps": []
   },
   "singleInstanceOutcome": "skipped",
-  "validatedCommit": "8c698bd20a21610d6e870ea360565308e5658b04",
+  "validatedCommit": "37f9a4abc5bea8b2e0a01765357fc6e77956ffae",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30236286545"
+  "workflowRunId": "30236319549"
 }
