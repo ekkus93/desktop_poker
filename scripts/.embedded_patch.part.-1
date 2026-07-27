@@ -1,6 +1,19 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+# The established runtime workflow executes the concatenated Python directly.
+# Hand control to the transactional shell driver once; the inner Python run is
+# marked so it proceeds normally instead of recursing.
+if os.environ.get("DESKTOP_POKER_EMBEDDED_PATCH_INNER") != "1":
+    environment = os.environ.copy()
+    environment["DESKTOP_POKER_EMBEDDED_PATCH_INNER"] = "1"
+    os.execve(
+        "/bin/bash",
+        ["bash", "scripts/apply_embedded_llm_now.sh"],
+        environment,
+    )
 
 
 def _embedded_patch_excepthook(exc_type, exc_value, traceback):
