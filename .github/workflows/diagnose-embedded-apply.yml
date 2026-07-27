@@ -1,6 +1,6 @@
 name: Diagnose and apply embedded LLM
 
-# This workflow is temporary and deletes itself after a successful transformation.
+# Temporary one-shot diagnostic/apply workflow; deletes itself after success.
 on:
   push:
     branches:
