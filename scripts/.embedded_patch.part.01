@@ -1,0 +1,190 @@
+    let tokens = model
+        .str_to_token(&prompt, AddBos::Always)
+        .map_err(|e| LlmError::Embedded(format!("failed to tokenize embedded prompt: {e}")))?;
+
+    if tokens.is_empty() {
+        return Err(LlmError::Embedded(
+            "embedded prompt tokenized to an empty sequence".to_string(),
+        ));
+    }
+
+    let required_tokens = tokens.len() + MAX_GENERATED_TOKENS;
+    if required_tokens > CONTEXT_TOKENS as usize {
+        return Err(LlmError::Embedded(format!(
+            "embedded prompt is too large: requires {required_tokens} tokens but context is {CONTEXT_TOKENS}"
+        )));
+    }
+
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get().min(8) as i32)
+        .unwrap_or(2);
+    let context_params = LlamaContextParams::default()
+        .with_n_ctx(NonZeroU32::new(CONTEXT_TOKENS))
+        .with_n_threads(threads)
+        .with_n_threads_batch(threads);
+    let mut context = model
+        .new_context(backend, context_params)
+        .map_err(|e| LlmError::Embedded(format!("failed to create embedded context: {e}")))?;
+
+    let mut batch = LlamaBatch::new(tokens.len().max(512), 1);
+    let last_index = tokens.len() - 1;
+    for (index, token) in tokens.iter().copied().enumerate() {
+        batch
+            .add(token, index as i32, &[0], index == last_index)
+            .map_err(|e| LlmError::Embedded(format!("failed to build prompt batch: {e}")))?;
+    }
+    context
+        .decode(&mut batch)
+        .map_err(|e| LlmError::Embedded(format!("failed to evaluate embedded prompt: {e}")))?;
+
+    let alternatives = (0..choice_count)
+        .map(|index| format!("\"{index}\""))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let grammar = format!("root ::= {alternatives}");
+    let grammar_sampler = LlamaSampler::grammar(model, &grammar, "root")
+        .map_err(|e| LlmError::Embedded(format!("failed to create choice grammar: {e}")))?;
+    let mut sampler = LlamaSampler::chain_simple([grammar_sampler, LlamaSampler::greedy()]);
+
+    let mut output = Vec::new();
+    let mut next_position = tokens.len() as i32;
+    for _ in 0..MAX_GENERATED_TOKENS {
+        let token = sampler.sample(&context, batch.n_tokens() - 1);
+        sampler.accept(token);
+        if model.is_eog_token(token) {
+            break;
+        }
+
+        let bytes = model
+            .token_to_piece_bytes(token, 32, true, None)
+            .map_err(|e| LlmError::Embedded(format!("failed to decode embedded output: {e}")))?;
+        output.extend_from_slice(&bytes);
+
+        if let Some(choice) = output
+            .iter()
+            .copied()
+            .find(|byte| byte.is_ascii_digit())
+            .map(|digit| usize::from(digit - b'0'))
+        {
+            if choice < choice_count {
+                return Ok(choice);
+            }
+        }
+
+        batch.clear();
+        batch
+            .add(token, next_position, &[0], true)
+            .map_err(|e| LlmError::Embedded(format!("failed to extend output batch: {e}")))?;
+        context
+            .decode(&mut batch)
+            .map_err(|e| LlmError::Embedded(format!("failed during embedded generation: {e}")))?;
+        next_position += 1;
+    }
+
+    Err(LlmError::Embedded(format!(
+        "embedded model did not return a valid choice; raw output={:?}",
+        String::from_utf8_lossy(&output)
+    )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_empty_model_path() {
+        let error = validate_model_path(" ").expect_err("empty path must fail");
+        assert!(error.to_string().contains("path is empty"));
+    }
+
+    #[test]
+    fn rejects_non_gguf_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("model.bin");
+        std::fs::write(&path, b"not a model").unwrap();
+        let error = validate_model_path(path.to_str().unwrap()).expect_err("extension must fail");
+        assert!(error.to_string().contains(".gguf"));
+    }
+}
+''',
+)
+
+replace_once(
+    'src-tauri/src/npc/mod.rs',
+    'pub mod hand_log;\n',
+    'pub mod embedded_llm;\npub mod hand_log;\n',
+)
+
+# Provider type and usability.
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '    LlamaServer,\n',
+    '    LlamaServer,\n    EmbeddedLocal,\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '            LlmProviderType::LlamaServer => "llamaServer",\n',
+    '            LlmProviderType::LlamaServer => "llamaServer",\n            LlmProviderType::EmbeddedLocal => "embeddedLocal",\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '            LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_MODEL,\n',
+    '            LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_MODEL,\n            LlmProviderType::EmbeddedLocal => "",\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '            LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_ENDPOINT,\n',
+    '            LlmProviderType::LlamaServer => LLAMA_SERVER_DEFAULT_ENDPOINT,\n            LlmProviderType::EmbeddedLocal => "embedded://local",\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '            LlmProviderType::LlamaServer => "llama-server",\n',
+    '            LlmProviderType::LlamaServer => "llama-server",\n            LlmProviderType::EmbeddedLocal => "Embedded local GGUF",\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '            LlmProviderType::Ollama | LlmProviderType::LlamaServer => true,\n',
+    '            LlmProviderType::Ollama | LlmProviderType::LlamaServer => true,\n            LlmProviderType::EmbeddedLocal => self\n                .settings\n                .model\n                .as_deref()\n                .is_some_and(|path| !path.trim().is_empty()),\n',
+)
+replace_once(
+    'src-tauri/src/npc/provider.rs',
+    '    fn llama_server_is_usable_without_key() {\n',
+    '    fn embedded_local_is_usable_with_model_path() {\n        let cfg = LlmProviderConfig {\n            settings: LlmProviderSettings {\n                provider: LlmProviderType::EmbeddedLocal,\n                endpoint_url: None,\n                model: Some("/tmp/tiny-model.gguf".to_string()),\n            },\n            api_key: None,\n        };\n        assert!(cfg.is_usable());\n    }\n\n    #[test]\n    fn llama_server_is_usable_without_key() {\n',
+)
+
+# HTTP client gains constrained embedded dispatch.
+replace_once(
+    'src-tauri/src/npc/llm_client.rs',
+    '    #[error("API key missing or empty for provider {0}")]\n    ApiKeyMissing(String),\n',
+    '    #[error("API key missing or empty for provider {0}")]\n    ApiKeyMissing(String),\n    #[error("embedded model error: {0}")]\n    Embedded(String),\n',
+)
+replace_once(
+    'src-tauri/src/npc/llm_client.rs',
+    '            LlmProviderType::OpenAi | LlmProviderType::Ollama | LlmProviderType::LlamaServer => {\n                self.complete_openai_compatible(system, user)\n            }\n',
+    '            LlmProviderType::OpenAi | LlmProviderType::Ollama | LlmProviderType::LlamaServer => {\n                self.complete_openai_compatible(system, user)\n            }\n            LlmProviderType::EmbeddedLocal => Err(LlmError::Embedded(\n                "embedded local provider requires constrained choice inference".to_string(),\n            )),\n',
+)
+replace_once(
+    'src-tauri/src/npc/llm_client.rs',
+    '    fn complete_anthropic(&self, system: &str, user: &str) -> Result<String, LlmError> {\n',
+    '    pub fn choose_embedded_index(\n        &self,\n        system: &str,\n        user: &str,\n        choice_count: usize,\n    ) -> Result<usize, LlmError> {\n        if self.config.settings.provider != LlmProviderType::EmbeddedLocal {\n            return Err(LlmError::Embedded(\n                "constrained embedded inference called for a non-embedded provider".to_string(),\n            ));\n        }\n        let model_path = self\n            .config\n            .settings\n            .model\n            .as_deref()\n            .ok_or_else(|| LlmError::Embedded("embedded model path is not configured".to_string()))?;\n        super::embedded_llm::choose_index(model_path, system, user, choice_count)\n    }\n\n    fn complete_anthropic(&self, system: &str, user: &str) -> Result<String, LlmError> {\n',
+)
+
+# Compact candidate selection for tiny models.
+replace_once(
+    'src-tauri/src/npc/llm_strategy.rs',
+    'use super::prompt::{build_system_prompt, build_user_message, GameStateSnapshot};\n',
+    'use super::prompt::{\n    build_system_prompt, build_user_message, render_game_state, GameStateSnapshot,\n};\n',
+)
+embedded_strategy = r'''
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbeddedActionCandidate {
+    pub action_type: ActionType,
+    pub amount: Option<u32>,
+    pub label: String,
+}
+
+pub fn build_embedded_action_candidates(
+    snapshot: &GameStateSnapshot,
+) -> Vec<EmbeddedActionCandidate> {
+    let mut candidates = Vec::new();
