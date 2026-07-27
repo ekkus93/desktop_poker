@@ -1,0 +1,126 @@
+name: Fix single-actionable all-in settlement
+
+# Existing workflow touch: execute the verified core repair on master.
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/fix-single-actionable-all-in.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: single-actionable-all-in-repair
+  cancel-in-progress: true
+
+jobs:
+  repair-single-actionable-all-in:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply single-actionable all-in repair
+        id: patch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 scripts/apply_single_actionable_all_in_fix.py \
+            2>&1 | tee single-actionable-all-in-patch.log
+          cargo fmt --all
+
+      - name: Run poker-core regressions
+        id: verify
+        if: steps.patch.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            cargo fmt --all --check
+            cargo test -p poker-core \
+              tournament::tests::hand::matched_all_in_with_one_actionable_player_runs_out_and_settles \
+              -- --exact --nocapture
+            cargo test -p poker-core
+          } 2>&1 | tee single-actionable-all-in-verify.log
+
+      - name: Publish verified repair or diagnostics
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCH_OUTCOME: ${{ steps.patch.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$PATCH_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
+            rm \
+              .github/workflows/fix-single-actionable-all-in.yml \
+              scripts/apply_single_actionable_all_in_fix.py
+            git add \
+              crates/poker-core/src/tournament/controller_core.rs \
+              crates/poker-core/src/tournament/tests/hand.rs \
+              .github/workflows/fix-single-actionable-all-in.yml \
+              scripts/apply_single_actionable_all_in_fix.py
+            git commit -m "fix: auto-settle matched all-in runouts"
+          else
+            git restore \
+              crates/poker-core/src/tournament/controller_core.rs \
+              crates/poker-core/src/tournament/tests/hand.rs
+            rm \
+              .github/workflows/fix-single-actionable-all-in.yml \
+              scripts/apply_single_actionable_all_in_fix.py
+            mkdir -p docs/runtime-validation
+            {
+              echo "# Single-Actionable All-In Repair Diagnostic"
+              echo
+              echo "- Staging commit: \`$GITHUB_SHA\`"
+              echo "- Workflow run: \`$GITHUB_RUN_ID\`"
+              echo "- Patch outcome: \`$PATCH_OUTCOME\`"
+              echo "- Verification outcome: \`$VERIFY_OUTCOME\`"
+              echo
+              echo '## Patch log'
+              echo
+              echo '```text'
+              tail -n 200 single-actionable-all-in-patch.log 2>/dev/null || true
+              echo '```'
+              echo
+              echo '## Verification log'
+              echo
+              echo '```text'
+              tail -n 400 single-actionable-all-in-verify.log 2>/dev/null || true
+              echo '```'
+            } > docs/runtime-validation/single-actionable-all-in-repair-latest.md
+            git add \
+              docs/runtime-validation/single-actionable-all-in-repair-latest.md \
+              .github/workflows/fix-single-actionable-all-in.yml \
+              scripts/apply_single_actionable_all_in_fix.py
+            git commit -m "docs: record single-actionable all-in repair failure"
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              if [ "$PATCH_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ]; then
+                gh workflow run ci.yml --ref master
+                gh workflow run runtime-validation.yml --ref master
+                gh workflow run runtime-full-game-validation.yml --ref master
+              fi
+              exit 0
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Unable to publish single-actionable all-in repair result" >&2
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
