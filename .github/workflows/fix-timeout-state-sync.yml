@@ -1,5 +1,6 @@
 name: Fix timeout state synchronization
 
+# Existing workflow touch: trigger the focused repair after it is present on master.
 on:
   push:
     branches:
