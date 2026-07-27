@@ -2,12 +2,11 @@
   "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
   "applicationSha256": "9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211",
   "buildOutcome": "success",
-  "error": "AssertionError: Timed out waiting for route /host with text 'Host Tournament Setup'; last error: None",
   "evidenceArtifact": "linux-release-runtime-evidence",
-  "instanceId": "runtime-smoke-30232202361",
-  "recordedAtUtc": "2026-07-27T02:32:56.478641+00:00",
-  "result": "FAIL",
-  "runtimeOutcome": "failure",
+  "instanceId": "runtime-smoke-30232598478",
+  "recordedAtUtc": "2026-07-27T02:41:42.833519+00:00",
+  "result": "PASS",
+  "runtimeOutcome": "success",
   "steps": [
     {
       "name": "tauri-driver became ready",
@@ -26,11 +25,43 @@
       "result": "PASS"
     },
     {
-      "name": "runtime smoke",
-      "result": "FAIL"
+      "name": "Host route rendered",
+      "result": "PASS"
+    },
+    {
+      "name": "Join route rendered",
+      "result": "PASS"
+    },
+    {
+      "name": "invalid invite failed explicitly: The invite could not be checked.",
+      "result": "PASS"
+    },
+    {
+      "name": "/settings route rendered",
+      "result": "PASS"
+    },
+    {
+      "name": "/rules route rendered",
+      "result": "PASS"
+    },
+    {
+      "name": "session guard redirected /lobby without a live session",
+      "result": "PASS"
+    },
+    {
+      "name": "session guard redirected /table without a live session",
+      "result": "PASS"
+    },
+    {
+      "name": "release /debug route is not reachable",
+      "result": "PASS"
+    },
+    {
+      "name": "runtime screenshot and final page source captured",
+      "result": "PASS"
     }
   ],
-  "validatedCommit": "0b26a412341d42fdd44048ad05e2a9a90a7ca4bd",
+  "validatedCommit": "76de807ffb8d365d6b576098ae4af74f892a07a7",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30232202361"
+  "workflowRunId": "30232598478"
 }
