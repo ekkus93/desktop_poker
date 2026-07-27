@@ -113,7 +113,6 @@ pub fn choose_llm_action(
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EmbeddedActionCandidate {
     pub action_type: ActionType,

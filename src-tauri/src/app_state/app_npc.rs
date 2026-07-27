@@ -49,11 +49,10 @@ impl DesktopAppState {
         mut config: crate::npc::LlmProviderConfig,
     ) -> Result<(), String> {
         if config.settings.provider == crate::npc::LlmProviderType::EmbeddedLocal {
-            let configured_path = config
-                .settings
-                .model
-                .as_deref()
-                .ok_or_else(|| "embedded local provider requires a GGUF model path".to_string())?;
+            let configured_path =
+                config.settings.model.as_deref().ok_or_else(|| {
+                    "embedded local provider requires a GGUF model path".to_string()
+                })?;
             let canonical = crate::npc::embedded_llm::validate_model_path(configured_path)
                 .map_err(|error| error.to_string())?;
             config.settings.model = Some(canonical.to_string_lossy().into_owned());

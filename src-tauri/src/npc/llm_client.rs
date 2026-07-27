@@ -178,12 +178,9 @@ impl LlmClient {
                 "constrained embedded inference called for a non-embedded provider".to_string(),
             ));
         }
-        let model_path = self
-            .config
-            .settings
-            .model
-            .as_deref()
-            .ok_or_else(|| LlmError::Embedded("embedded model path is not configured".to_string()))?;
+        let model_path = self.config.settings.model.as_deref().ok_or_else(|| {
+            LlmError::Embedded("embedded model path is not configured".to_string())
+        })?;
         super::embedded_llm::choose_index(model_path, system, user, choice_count)
     }
 

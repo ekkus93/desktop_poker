@@ -274,7 +274,9 @@ export function DeviceSettingsScreen() {
             {selectedProvider !== "embeddedLocal" ? (
               <label className="field">
                 Endpoint URL{" "}
-                <span style={{ fontWeight: 400, opacity: 0.7 }}>(optional)</span>
+                <span style={{ fontWeight: 400, opacity: 0.7 }}>
+                  (optional)
+                </span>
                 <input
                   placeholder={DEFAULT_ENDPOINTS[selectedProvider]}
                   value={endpointUrl}
@@ -285,9 +287,13 @@ export function DeviceSettingsScreen() {
             ) : null}
 
             <label className="field">
-              {selectedProvider === "embeddedLocal" ? "GGUF model path" : "Model"}{" "}
+              {selectedProvider === "embeddedLocal"
+                ? "GGUF model path"
+                : "Model"}{" "}
               <span style={{ fontWeight: 400, opacity: 0.7 }}>
-                ({selectedProvider === "embeddedLocal" ? "required" : "optional"})
+                (
+                {selectedProvider === "embeddedLocal" ? "required" : "optional"}
+                )
               </span>
               <input
                 placeholder={DEFAULT_MODELS[selectedProvider] || "loaded model"}

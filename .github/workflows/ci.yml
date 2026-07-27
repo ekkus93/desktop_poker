@@ -18,87 +18,13 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   DEBIAN_FRONTEND: noninteractive
   NEEDRESTART_MODE: a
 
 jobs:
-  apply-embedded-local-llm:
-    name: Apply embedded local LLM
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Apply embedded LLM implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat scripts/.embedded_patch.part.* > /tmp/apply_embedded_llm_changes.py
-          python3 -m py_compile /tmp/apply_embedded_llm_changes.py
-          python3 /tmp/apply_embedded_llm_changes.py
-          npm ci
-          cargo fmt
-          npm run format
-          cargo generate-lockfile
-
-      - name: Remove one-time application machinery
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f scripts/.embedded_patch.part.*
-          rm -f .github/workflows/apply-embedded-llm.yml
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.github/workflows/ci.yml')
-          text = path.read_text(encoding='utf-8')
-          start = text.index('\n  apply-embedded-local-llm:\n')
-          end = text.index('\n  verify:\n', start)
-          text = text[:start] + text[end:]
-          text = text.replace('  cancel-in-progress: false\n', '  cancel-in-progress: true\n', 1)
-          path.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Commit implementation to master
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --stat
-          git commit -m "Add embedded GGUF NPC inference"
-          for attempt in 1 2 3 4 5 6 7 8; do
-            git pull --rebase origin master
-            if git push origin HEAD:master; then
-              exit 0
-            fi
-            echo "push raced with another master update; retrying ($attempt/8)"
-            sleep 3
-          done
-          echo "failed to push embedded LLM implementation after retries" >&2
-          exit 1
-
   verify:
     name: Verify
     runs-on: ubuntu-24.04

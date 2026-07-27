@@ -3,9 +3,7 @@ use desktop_poker_lib::npc::llm_client::LlmClient;
 use desktop_poker_lib::npc::llm_strategy::choose_embedded_action;
 use desktop_poker_lib::npc::profile::NpcProfile;
 use desktop_poker_lib::npc::prompt::GameStateSnapshot;
-use desktop_poker_lib::npc::provider::{
-    LlmProviderConfig, LlmProviderSettings, LlmProviderType,
-};
+use desktop_poker_lib::npc::provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
 use desktop_poker_lib::npc::strategy::Position;
 
 #[test]
@@ -80,7 +78,10 @@ fn embedded_tiny_model_selects_a_legal_npc_action() {
 
     let (action, amount) =
         choose_embedded_action(&client, &profile, &snapshot).expect("model must choose an action");
-    assert!(legal_actions.contains(&action), "model returned illegal {action:?}");
+    assert!(
+        legal_actions.contains(&action),
+        "model returned illegal {action:?}"
+    );
     if action == ActionType::Raise {
         let amount = amount.expect("raise must include an amount");
         assert!((150..=1_000).contains(&amount));
