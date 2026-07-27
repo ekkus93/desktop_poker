@@ -101,7 +101,7 @@ jobs:
               export WEBKIT_DISABLE_COMPOSITING_MODE=1
               export GDK_BACKEND=x11
               export DESKTOP_POKER_INSTANCE_ID="runtime-smoke-${GITHUB_RUN_ID}"
-              tauri-driver --port 4444 \
+              tauri-driver --port 4444 --native-port 4445 \
                 >runtime-validation-evidence/single-tauri-driver.log 2>&1 &
               driver_pid=$!
               trap '\''kill "$driver_pid" 2>/dev/null || true; wait "$driver_pid" 2>/dev/null || true'\'' EXIT
@@ -129,15 +129,15 @@ jobs:
               export GDK_BACKEND=x11
 
               DESKTOP_POKER_INSTANCE_ID="runtime-host-${GITHUB_RUN_ID}" \
-                tauri-driver --port 4444 \
+                tauri-driver --port 4444 --native-port 4445 \
                 >runtime-validation-evidence/host-tauri-driver.log 2>&1 &
               host_driver_pid=$!
               DESKTOP_POKER_INSTANCE_ID="runtime-client-${GITHUB_RUN_ID}" \
-                tauri-driver --port 4445 \
+                tauri-driver --port 4454 --native-port 4455 \
                 >runtime-validation-evidence/client-tauri-driver.log 2>&1 &
               client_driver_pid=$!
               DESKTOP_POKER_INSTANCE_ID="runtime-conflict-${GITHUB_RUN_ID}" \
-                tauri-driver --port 4446 \
+                tauri-driver --port 4464 --native-port 4465 \
                 >runtime-validation-evidence/conflict-tauri-driver.log 2>&1 &
               conflict_driver_pid=$!
 
@@ -152,8 +152,8 @@ jobs:
               python3 scripts/runtime_multi_instance_smoke.py \
                 --application "'"$binary"'" \
                 --host-driver-url http://127.0.0.1:4444 \
-                --client-driver-url http://127.0.0.1:4445 \
-                --conflict-driver-url http://127.0.0.1:4446 \
+                --client-driver-url http://127.0.0.1:4454 \
+                --conflict-driver-url http://127.0.0.1:4464 \
                 --evidence-dir runtime-validation-evidence
             '
 
@@ -195,104 +195,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p docs/runtime-validation
-          python3 - <<'PY'
-          from __future__ import annotations
-
-          import json
-          import os
-          from datetime import datetime, timezone
-          from pathlib import Path
-          from typing import Any
-
-          def load_result(path: str, label: str) -> dict[str, Any]:
-              source = Path(path)
-              if not source.is_file():
-                  return {
-                      "result": "FAIL",
-                      "error": f"{label} result file was not produced.",
-                      "steps": [],
-                  }
-              try:
-                  value = json.loads(source.read_text(encoding="utf-8"))
-              except (json.JSONDecodeError, OSError) as error:
-                  return {
-                      "result": "FAIL",
-                      "error": f"Could not parse {label} result: {error}",
-                      "steps": [],
-                  }
-              if not isinstance(value, dict):
-                  return {
-                      "result": "FAIL",
-                      "error": f"{label} result was not a JSON object.",
-                      "steps": [],
-                  }
-              return value
-
-          single = load_result(
-              "runtime-validation-evidence/release-runtime-result.json",
-              "single-instance runtime",
-          )
-          multi = load_result(
-              "runtime-validation-evidence/release-multi-instance-result.json",
-              "multi-instance runtime",
-          )
-          overall = (
-              "PASS"
-              if single.get("result") == "PASS" and multi.get("result") == "PASS"
-              else "FAIL"
-          )
-          payload: dict[str, Any] = {
-              "result": overall,
-              "validatedCommit": os.environ["GITHUB_SHA"],
-              "workflowRunId": os.environ["GITHUB_RUN_ID"],
-              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
-              "buildOutcome": os.environ.get("BUILD_OUTCOME") or "not-run",
-              "singleInstanceOutcome": os.environ.get("SMOKE_OUTCOME") or "not-run",
-              "multiInstanceOutcome": os.environ.get("MULTI_OUTCOME") or "not-run",
-              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
-              "evidenceArtifact": "linux-release-runtime-evidence",
-              "singleInstance": single,
-              "multiInstance": multi,
-          }
-          Path("docs/runtime-validation/latest.json").write_text(
-              json.dumps(payload, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-
-          lines = [
-              "# Latest Linux Release Runtime Validation",
-              "",
-              f"- Overall result: **{overall}**",
-              f"- Validated commit: `{payload['validatedCommit']}`",
-              f"- GitHub Actions run: `{payload['workflowRunId']}`",
-              f"- Build outcome: `{payload['buildOutcome']}`",
-              f"- Single-instance outcome: `{payload['singleInstanceOutcome']}`",
-              f"- Multi-instance outcome: `{payload['multiInstanceOutcome']}`",
-              f"- Recorded at: `{payload['recordedAtUtc']}`",
-              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
-              "",
-          ]
-          for heading, result in (
-              ("Single-instance release smoke", single),
-              ("Live multi-instance release smoke", multi),
-          ):
-              lines.extend([f"## {heading}", "", f"Result: **{result.get('result', 'UNKNOWN')}**", ""])
-              if result.get("error"):
-                  lines.extend([f"Failure: {result['error']}", ""])
-              steps = result.get("steps")
-              if isinstance(steps, list):
-                  for step in steps:
-                      if isinstance(step, dict):
-                          lines.append(
-                              f"- **{step.get('result', 'UNKNOWN')}** — {step.get('name', 'unnamed check')}"
-                          )
-                  lines.append("")
-          Path("docs/runtime-validation/latest.md").write_text(
-              "\n".join(lines), encoding="utf-8"
-          )
-          PY
-
+          python3 scripts/publish_runtime_validation.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/runtime-validation/latest.json docs/runtime-validation/latest.md
