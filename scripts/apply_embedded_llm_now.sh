@@ -18,6 +18,7 @@ publish_with_retry() {
 
 fail_with_diagnostic() {
   local status="$1"
+  trap - ERR
   git reset --hard HEAD
   rm -f src-tauri/src/npc/embedded_llm.rs
   mkdir -p docs/runtime-validation
@@ -30,6 +31,16 @@ fail_with_diagnostic() {
   publish_with_retry
   exit "$status"
 }
+
+record_shell_failure() {
+  local status="$?"
+  local failed_command="$BASH_COMMAND"
+  local failed_line="${BASH_LINENO[0]:-unknown}"
+  printf '\npost-transform shell failure: status=%s line=%s command=%q\n' \
+    "$status" "$failed_line" "$failed_command" >>"$log_tmp"
+  fail_with_diagnostic "$status"
+}
+trap record_shell_failure ERR
 
 cat scripts/.embedded_patch.part.* > /tmp/apply_embedded_llm_changes.py
 if ! python3 -m py_compile /tmp/apply_embedded_llm_changes.py >"$log_tmp" 2>&1; then
