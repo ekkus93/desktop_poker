@@ -1,0 +1,15 @@
+{
+  "buildOutcome": "skipped",
+  "evidenceArtifact": "linux-release-full-game-evidence",
+  "fullGame": {
+    "error": "Full-game result file was not produced.",
+    "result": "FAIL",
+    "steps": []
+  },
+  "gameplayOutcome": "skipped",
+  "recordedAtUtc": "2026-07-27T04:09:48.391656+00:00",
+  "result": "FAIL",
+  "validatedCommit": "04ab0209a9f1835990d0a169dbaf50a37f1deb10",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30236301718"
+}
