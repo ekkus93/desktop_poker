@@ -29,12 +29,8 @@ function errorMessage(error: unknown) {
 }
 
 export function TournamentCompleteScreen() {
-  const {
-    bootstrap,
-    hostDraft,
-    persistedHandHistoryCount,
-    wasHost,
-  } = useDesktopShell();
+  const { bootstrap, hostDraft, persistedHandHistoryCount, wasHost } =
+    useDesktopShell();
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [savedHandHistoryCount, setSavedHandHistoryCount] = useState(
     persistedHandHistoryCount,
@@ -49,7 +45,11 @@ export function TournamentCompleteScreen() {
       let latestSnapshot: TableViewSnapshot | null = null;
       let lastError: unknown = null;
 
-      for (let attempt = 0; attempt < FINAL_HISTORY_SYNC_ATTEMPTS; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < FINAL_HISTORY_SYNC_ATTEMPTS;
+        attempt += 1
+      ) {
         try {
           const snapshot = await getTableView("local");
           if (cancelled) {
