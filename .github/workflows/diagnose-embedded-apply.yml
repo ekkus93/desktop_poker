@@ -1,5 +1,6 @@
 name: Diagnose and apply embedded LLM
 
+# This workflow is temporary and deletes itself after a successful transformation.
 on:
   push:
     branches:
