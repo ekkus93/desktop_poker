@@ -4,172 +4,127 @@
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-27T22:10:49.631854+00:00",
-  "result": "FAIL",
+  "recordedAtUtc": "2026-07-27T22:30:33.398656+00:00",
+  "result": "PASS",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "001174aec9aa3615eb50cfe7d87e15b5260a8ebf4410f3f47f3296792236ee71",
-    "error": "AssertionError: host has no supported legal action: {'potTotal': 30, 'maxRaiseTo': 100, 'deadlineEpochMs': 1785190264240, 'minRaiseTo': 40, 'callAmount': 20, 'ownerLabel': 'CI Human Host', 'legalActions': ['Fold', 'Call', 'Raise', 'All-in'], 'currentBet': 20, 'betOrRaiseLabel': 'Raise to 40+', 'checkOrCallLabel': 'Call 20'}",
-    "hostActions": [],
-    "lastTableView": {
-      "actionOwnerLabel": "CI Human Host",
-      "actionTray": {
-        "betOrRaiseLabel": "Raise to 40+",
-        "callAmount": 20,
-        "checkOrCallLabel": "Call 20",
-        "currentBet": 20,
-        "deadlineEpochMs": 1785190264240,
-        "legalActions": [
-          "Fold",
-          "Call",
-          "Raise",
-          "All-in"
-        ],
-        "maxRaiseTo": 100,
-        "minRaiseTo": 40,
-        "ownerLabel": "CI Human Host",
-        "potTotal": 30
+    "completedHands": 2,
+    "finalStandings": [
+      {
+        "chipCount": 300,
+        "displayName": "Bot Alpha",
+        "isLocal": false,
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
       },
-      "blindLevelLabel": "Level 1",
-      "boardCards": [],
-      "currentHandNumber": 1,
-      "eliminationSummary": "Table state is live.",
-      "eventFeed": [
-        {
-          "kind": "Action window",
-          "message": "CI Human Host to act.",
-          "sequence": 3
-        },
-        {
-          "kind": "Hand start",
-          "message": "Hand 1 started.",
-          "sequence": 2
-        },
-        {
-          "kind": "Tournament start",
-          "message": "Embedded GGUF NPC CI Tournament is live with 3 seated players.",
-          "sequence": 1
-        }
-      ],
-      "handHistory": [],
-      "observerBanner": null,
-      "phaseLabel": "Running",
-      "potTotal": 30,
-      "seats": [
-        {
-          "cardsHidden": false,
-          "chipCount": 100,
-          "contribution": 0,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Active",
-            "Contribution: 0"
-          ],
-          "displayName": "CI Human Host",
-          "holeCards": [
-            {
-              "compactLabel": "7\u2666",
-              "label": "Seven of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "10\u2665",
-              "label": "Ten of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            }
-          ],
-          "isActing": true,
-          "isCompact": false,
-          "isEliminated": false,
-          "isLocal": true,
-          "isObserver": false,
-          "markerLabel": "Dealer",
-          "seatIndex": 1,
-          "statusLabel": "Active"
-        },
-        {
-          "cardsHidden": true,
-          "chipCount": 90,
-          "contribution": 10,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Active",
-            "Contribution: 10"
-          ],
-          "displayName": "Bot Alpha",
-          "holeCards": [],
-          "isActing": false,
-          "isCompact": true,
-          "isEliminated": false,
-          "isLocal": false,
-          "isObserver": false,
-          "markerLabel": "Small blind",
-          "seatIndex": 2,
-          "statusLabel": "Active"
-        },
-        {
-          "cardsHidden": true,
-          "chipCount": 80,
-          "contribution": 20,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Active",
-            "Contribution: 20"
-          ],
-          "displayName": "Bot Beta",
-          "holeCards": [],
-          "isActing": false,
-          "isCompact": true,
-          "isEliminated": false,
-          "isLocal": false,
-          "isObserver": false,
-          "markerLabel": "Big blind",
-          "seatIndex": 3,
-          "statusLabel": "Active"
-        }
-      ],
-      "sessionConnection": "normal",
-      "standings": [
-        {
-          "chipCount": 100,
-          "displayName": "CI Human Host",
-          "isLocal": true,
-          "isObserver": false,
-          "note": "Dealer",
-          "rank": 1,
-          "statusLabel": "Active"
-        },
-        {
-          "chipCount": 90,
-          "displayName": "Bot Alpha",
-          "isLocal": false,
-          "isObserver": false,
-          "note": "Small blind",
-          "rank": 2,
-          "statusLabel": "Active"
-        },
-        {
-          "chipCount": 80,
-          "displayName": "Bot Beta",
-          "isLocal": false,
-          "isObserver": false,
-          "note": "Big blind",
-          "rank": 3,
-          "statusLabel": "Active"
-        }
-      ],
-      "streetLabel": "Preflop",
-      "tableId": "table-embedded-npc-tournament-30309129113-1785190249233",
-      "tableName": "Main Table",
-      "tournamentName": "Embedded GGUF NPC CI Tournament",
-      "tournamentPhase": "running",
-      "viewerMode": "local"
-    },
+      {
+        "chipCount": 0,
+        "displayName": "Bot Beta",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "CI Human Host",
+        "isLocal": true,
+        "isObserver": true,
+        "note": null,
+        "rank": 3,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
+    "hostActions": [
+      "hand 1: fold",
+      "hand 2: allIn"
+    ],
+    "instanceId": "embedded-npc-tournament-30310372741",
     "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
-    "npcActions": [],
-    "result": "FAIL",
+    "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
+    "npcActionCount": 10,
+    "npcActionCounts": {
+      "Bot Alpha": 6,
+      "Bot Beta": 4
+    },
+    "npcActions": [
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 6
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Raise to 40.",
+        "profileId": "balanced-sam",
+        "sequence": 8
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 10
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Bet to 60.",
+        "profileId": "aggressive-alice",
+        "sequence": 13
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 15
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Bet to 80.",
+        "profileId": "aggressive-alice",
+        "sequence": 18
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 20
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha All-in to 100.",
+        "profileId": "aggressive-alice",
+        "sequence": 23
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta All-in to 100.",
+        "profileId": "balanced-sam",
+        "sequence": 25
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 2,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 30
+      }
+    ],
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-30310372741",
+    "result": "PASS",
     "steps": [
       {
         "name": "tauri-driver became ready",
@@ -188,13 +143,21 @@
         "result": "PASS"
       },
       {
-        "name": "embedded NPC tournament",
-        "result": "FAIL"
+        "name": "tournament completed across 2 hands with 10 committed embedded NPC actions",
+        "result": "PASS"
+      },
+      {
+        "name": "both embedded NPC identities and profile assignments produced live actions",
+        "result": "PASS"
+      },
+      {
+        "name": "final standings contain the human host and both embedded NPC players",
+        "result": "PASS"
       }
     ]
   },
-  "tournamentOutcome": "failure",
-  "validatedCommit": "e79e8d56179c9037b18f4d2b3c55e7b64843a318",
+  "tournamentOutcome": "success",
+  "validatedCommit": "2e2aa4b5a682c92ba5ee539b34f0f998e7eccfe7",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30309129113"
+  "workflowRunId": "30310372741"
 }
