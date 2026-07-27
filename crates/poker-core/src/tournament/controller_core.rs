@@ -480,16 +480,20 @@ impl TournamentController {
             return Ok(());
         }
 
-        if self.remaining_contenders().len() <= 1 {
+        let remaining_contenders = self.remaining_contenders();
+        if remaining_contenders.len() <= 1 {
             self.settle_current_hand(now_ms)?;
             return Ok(());
         }
 
         if self.players_who_can_act().is_empty() {
-            if self.remaining_contenders().iter().all(|player_id| {
-                self.participation(player_id)
-                    .is_some_and(|state| state == HandParticipationState::AllIn)
-            }) {
+            let active_contender_count = remaining_contenders
+                .iter()
+                .filter(|player_id| {
+                    self.participation(player_id) == Some(HandParticipationState::Active)
+                })
+                .count();
+            if active_contender_count <= 1 {
                 self.reveal_remaining_board()?;
                 self.settle_current_hand(now_ms)?;
             } else {

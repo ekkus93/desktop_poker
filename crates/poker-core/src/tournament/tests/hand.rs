@@ -282,3 +282,42 @@ fn handle_full_raise_clears_acted_set_and_sets_new_increment() {
     // p1 may not raise again immediately (in acted set after raise)
     assert!(!controller.player_may_raise("p1"));
 }
+
+#[test]
+fn matched_all_in_with_one_actionable_player_runs_out_and_settles() {
+    let mut controller = started_two_player_controller();
+    // Preserve the tournament chip total while making p1's all-in smaller
+    // than p2's remaining stack. After p2 calls, p2 still has chips but no
+    // opponent can respond to another wager. The board must run out.
+    controller.set_player_stack("p1", 850).unwrap();
+    controller.set_player_stack("p2", 1_000).unwrap();
+
+    let first_window = action_window(&controller);
+    assert_eq!(first_window.player_id, "p1");
+    controller
+        .apply_action("p1".to_string(), ActionType::AllIn, None, 0)
+        .unwrap();
+
+    let response_window = action_window(&controller);
+    assert_eq!(response_window.player_id, "p2");
+    assert!(response_window.legal_actions.contains(&ActionType::Call));
+    controller
+        .apply_action("p2".to_string(), ActionType::Call, None, 0)
+        .unwrap();
+
+    assert_eq!(
+        controller.state().hand_results.len(),
+        1,
+        "a matched all-in must settle without opening a lone action window"
+    );
+    assert_eq!(controller.state().hand_results[0].board_cards.len(), 5);
+    assert!(
+        controller
+            .state()
+            .current_hand
+            .as_ref()
+            .and_then(|hand| hand.action_window.as_ref())
+            .is_none(),
+        "no action window may remain when only one contender can act"
+    );
+}
