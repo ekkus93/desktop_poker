@@ -203,8 +203,7 @@ fn generate_choice(
     let mut sampler = LlamaSampler::chain_simple([grammar_sampler, LlamaSampler::greedy()]);
 
     let mut output = Vec::new();
-    let mut next_position = tokens.len() as i32;
-    for _ in 0..MAX_GENERATED_TOKENS {
+    for next_position in (tokens.len() as i32..).take(MAX_GENERATED_TOKENS) {
         let token = sampler.sample(&context, batch.n_tokens() - 1);
         if model.is_eog_token(token) {
             break;
@@ -233,7 +232,6 @@ fn generate_choice(
         context
             .decode(&mut batch)
             .map_err(|e| LlmError::Embedded(format!("failed during embedded generation: {e}")))?;
-        next_position += 1;
     }
 
     Err(LlmError::Embedded(format!(
