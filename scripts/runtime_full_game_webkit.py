@@ -83,12 +83,22 @@ def canonical_table_view(client: WebDriverClient) -> dict[str, Any]:
     return view
 
 
+def wait_for_route_with_completion_sync(
+    client: WebDriverClient, route: str, text: str
+) -> None:
+    ORIGINAL_WAIT_FOR_ROUTE(client, route, text)
+    if route == "/complete":
+        wait_for_source(client, "Final history saved.", timeout=15.0)
+
+
 ORIGINAL_TABLE_VIEW = runtime_full_game_smoke.table_view
+ORIGINAL_WAIT_FOR_ROUTE = runtime_full_game_smoke.wait_for_route
 
 
 def main() -> int:
     runtime_full_game_smoke.click_first_enabled_text = click_first_enabled_text
     runtime_full_game_smoke.table_view = canonical_table_view
+    runtime_full_game_smoke.wait_for_route = wait_for_route_with_completion_sync
     return runtime_full_game_smoke.main()
 
 
