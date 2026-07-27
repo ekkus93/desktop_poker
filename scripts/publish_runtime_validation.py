@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -54,6 +55,19 @@ def render_section(heading: str, result: dict[str, Any]) -> list[str]:
     return lines
 
 
+def publish_evidence() -> None:
+    subprocess.run(
+        [
+            "bash",
+            "scripts/push_runtime_evidence.sh",
+            "docs: record Linux runtime validation result",
+            "docs/runtime-validation/latest.json",
+            "docs/runtime-validation/latest.md",
+        ],
+        check=True,
+    )
+
+
 def main() -> None:
     single = load_result("release-runtime-result.json", "single-instance runtime")
     multi = load_result(
@@ -99,6 +113,7 @@ def main() -> None:
     lines.extend(render_section("Single-instance release smoke", single))
     lines.extend(render_section("Live multi-instance release smoke", multi))
     (OUTPUT_DIR / "latest.md").write_text("\n".join(lines), encoding="utf-8")
+    publish_evidence()
 
 
 if __name__ == "__main__":
