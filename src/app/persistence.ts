@@ -133,19 +133,41 @@ export function readPersistedHandHistoryWithStatus(storageNamespace: string) {
   };
 }
 
+function writePersistedHandHistory(
+  storageNamespace: string,
+  entries: TableHistoryEntryView[],
+): PersistedHandHistory {
+  const history = {
+    updatedAtMs: Date.now(),
+    entries: normalizeHandHistoryEntries(entries),
+  } satisfies PersistedHandHistory;
+
+  localStorage.setItem(
+    storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
+    JSON.stringify(history),
+  );
+
+  return history;
+}
+
 export function persistHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
 ) {
-  const normalizedEntries = normalizeHandHistoryEntries(entries);
+  writePersistedHandHistory(storageNamespace, entries);
+}
 
-  localStorage.setItem(
-    storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
-    JSON.stringify({
-      updatedAtMs: Date.now(),
-      entries: normalizedEntries,
-    } satisfies PersistedHandHistory),
-  );
+export function mergePersistedHandHistory(
+  storageNamespace: string,
+  entries: TableHistoryEntryView[],
+) {
+  const existingEntries =
+    readPersistedHandHistory(storageNamespace)?.entries ?? [];
+
+  return writePersistedHandHistory(storageNamespace, [
+    ...existingEntries,
+    ...entries,
+  ]);
 }
 
 function hasUsableTauriWindowRuntime(): boolean {
