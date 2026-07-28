@@ -1,37 +1,17 @@
 {
-  "buildOutcome": "success",
-  "checksumOutcome": "success",
+  "buildOutcome": "skipped",
+  "checksumOutcome": "skipped",
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-28T06:45:40.479117+00:00",
+  "recordedAtUtc": "2026-07-28T10:15:19.953184+00:00",
   "result": "FAIL",
   "runtime": {
-    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "473ec05f02ff8f3721aa3bf25c687929e2b5da5edb9521aaa5a46f35bb3c2e47",
-    "error": "AssertionError: Tauri command 'set_llm_provider_config' failed: could not delete provider key for embeddedLocal: keychain delete failed: Platform secure storage failure: DBus error: The name org.freedesktop.secrets was not provided by any .service files",
-    "evidenceCaptureError": "Tauri command 'get_table_view' failed: no active live session is available for the table view",
-    "hostActions": [],
-    "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
-    "npcActions": [],
-    "result": "FAIL",
-    "steps": [
-      {
-        "name": "tauri-driver became ready",
-        "result": "PASS"
-      },
-      {
-        "name": "release binary created a real Tauri/WebKit session",
-        "result": "PASS"
-      },
-      {
-        "name": "embedded NPC tournament",
-        "result": "FAIL"
-      }
-    ]
+    "error": "Tournament result was not produced.",
+    "result": "FAIL"
   },
-  "tournamentOutcome": "failure",
-  "validatedCommit": "f35d8552648091211ed05c99ac8474ae07541be6",
+  "tournamentOutcome": "skipped",
+  "validatedCommit": "1a640dddad72bc4c0d2b4466cb67f1912fdba0f4",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30335336722"
+  "workflowRunId": "30349896273"
 }
