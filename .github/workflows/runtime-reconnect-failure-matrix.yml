@@ -1,4 +1,4 @@
-name: Reconnect protocol and release failure matrix
+name: Reconnect protocol and release matrix
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
       - "src-tauri/**"
       - "crates/**"
       - "scripts/runtime_reconnect_failure_matrix.py"
+      - "scripts/runtime_embedded_npc_tournament.py"
       - "scripts/runtime_multi_instance_smoke.py"
       - "scripts/runtime_webdriver_smoke.py"
       - "scripts/push_runtime_evidence.sh"
@@ -31,7 +32,7 @@ env:
 
 jobs:
   reconnect-failure-matrix:
-    name: Reconnect tests and release host-loss scenarios
+    name: Reconnect tests and release interruption scenarios
     runs-on: ubuntu-24.04
     timeout-minutes: 50
 
@@ -41,7 +42,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install native build and WebDriver dependencies
+      - name: Install native build, socket, and WebDriver dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -52,6 +53,7 @@ jobs:
             curl \
             wget \
             file \
+            iproute2 \
             libxdo-dev \
             libssl-dev \
             libayatana-appindicator3-dev \
@@ -61,6 +63,7 @@ jobs:
             xvfb \
             xauth \
             dbus-x11
+          command -v ss
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -100,7 +103,7 @@ jobs:
           npm run tauri build -- --no-bundle \
             2>&1 | tee reconnect-release-build.log
 
-      - name: Run release unreachable-host and host-loss matrix
+      - name: Run release reconnect and host-loss matrix
         id: runtime
         if: steps.build.outcome == 'success'
         continue-on-error: true
@@ -167,7 +170,7 @@ jobs:
           runtime_path = evidence / "release-reconnect-failure-result.json"
           runtime: dict[str, object] = {
               "result": "FAIL",
-              "error": "Release reconnect failure result was not produced.",
+              "error": "Release reconnect result was not produced.",
           }
           if runtime_path.is_file():
               try:
@@ -226,7 +229,7 @@ jobs:
           retention-days: 30
 
       - name: Publish durable reconnect result on master
-        if: always() && github.ref == 'refs/heads/master'
+        if: always() && !cancelled() && github.ref == 'refs/heads/master'
         env:
           PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
@@ -283,14 +286,14 @@ jobs:
           )
 
           lines = [
-              "# Latest Reconnect Protocol and Release Failure Validation",
+              "# Latest Reconnect Protocol and Release Validation",
               "",
               f"- Result: **{payload['result']}**",
               f"- Validated commit: `{payload['validatedCommit']}`",
               f"- GitHub Actions run: `{payload['workflowRunId']}`",
               f"- Protocol tests: `{payload['protocolOutcome']}`",
               f"- Release build: `{payload['buildOutcome']}`",
-              f"- Release failure matrix: `{payload['releaseRuntimeOutcome']}`",
+              f"- Release reconnect matrix: `{payload['releaseRuntimeOutcome']}`",
               f"- Evidence artifact: `{payload['evidenceArtifact']}`",
               "",
           ]
@@ -315,7 +318,7 @@ jobs:
             docs/runtime-validation/reconnect-failure-latest.md
 
       - name: Enforce reconnect validation result
-        if: always()
+        if: always() && !cancelled()
         env:
           PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
