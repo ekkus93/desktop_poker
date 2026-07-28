@@ -42,9 +42,8 @@ describe("RuntimeWarningBanners", () => {
     render(<RuntimeWarningBanners />);
 
     expect(
-      await screen.findByRole("alert", { name: "" }).catch(() =>
-        screen.findByText(/runtime health status is unavailable/i),
-      ),
+      await screen.findByText(/runtime health status is unavailable/i),
     ).toBeTruthy();
+    expect(screen.getByRole("alert")).toBeTruthy();
   });
 });
