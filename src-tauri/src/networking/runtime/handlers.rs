@@ -16,7 +16,7 @@ use crate::{
         ReadyStateRequest, ReconnectTournamentRequest, ResyncRequest, SeatClaimRequest,
         SignedEnvelope, SnapshotEvent,
     },
-    tournament::{ActionRequest, TournamentController},
+    tournament::{ActionRequest, ActionSubmissionOutcome, TournamentController},
 };
 
 use super::*;
@@ -65,9 +65,7 @@ pub(crate) fn handle_join_request(
     host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
 ) -> Result<InitialRequestAcceptance, NetworkingError> {
     let request: JoinTournamentRequest = serde_json::from_value(request_envelope.payload.clone())
-        .map_err(|error| {
-        NetworkingError::new(format!("invalid join request payload: {error}"))
-    })?;
+        .map_err(|error| NetworkingError::new(format!("invalid join request payload: {error}")))?;
 
     request_envelope
         .verify(crypto_provider, &request.signing_public_key)
@@ -358,12 +356,28 @@ pub(crate) fn handle_ready_state_request(
     apply_ready_state(&mut state, &request_envelope.sender_id, request.is_ready)
 }
 
+#[derive(Debug)]
+pub(crate) enum RemoteActionSubmissionOutcome {
+    Committed {
+        previous_state: TournamentState,
+        after_state: TournamentState,
+    },
+    RejectedNoStateChange {
+        error: NetworkingError,
+    },
+    TimeoutAdvancedThenRejected {
+        previous_state: TournamentState,
+        after_state: TournamentState,
+        error: NetworkingError,
+    },
+}
+
 pub(crate) fn handle_action_submission_request(
     crypto_provider: &impl ProtocolCryptoProvider,
     request_envelope: JsonSignedEnvelope,
     authoritative_state: &Arc<Mutex<TournamentState>>,
     tournament_runtime: &Arc<Mutex<Option<TournamentController>>>,
-) -> Result<(), NetworkingError> {
+) -> Result<RemoteActionSubmissionOutcome, NetworkingError> {
     let request: PlayerActionSubmission = serde_json::from_value(request_envelope.payload.clone())
         .map_err(|error| {
             NetworkingError::new(format!("invalid action submission payload: {error}"))
@@ -382,28 +396,79 @@ pub(crate) fn handle_action_submission_request(
             .map_err(|error| NetworkingError::new(error.to_string()))?;
     }
 
-    let next_state = {
+    let before_state = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?
+        .clone();
+    let action_request = ActionRequest {
+        player_id: request_envelope.sender_id,
+        action_window_id: request.action_window_id,
+        action_type: request.action_type,
+        raise_to_amount: request.raise_to_amount,
+    };
+
+    let (next_state, action_outcome) = {
         let mut runtime = tournament_runtime
             .lock()
             .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?;
         let controller = runtime
             .as_mut()
             .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
-        controller
-            .submit_action(
-                ActionRequest {
-                    player_id: request_envelope.sender_id.clone(),
-                    action_window_id: request.action_window_id,
-                    action_type: request.action_type,
-                    raise_to_amount: request.raise_to_amount,
-                },
-                now_epoch_ms(),
-            )
-            .map_err(|error| NetworkingError::new(error.to_string()))?;
-        controller.state().clone()
+        if controller.state() != &before_state {
+            return Err(NetworkingError::new(
+                "tournament runtime diverged from authoritative state before remote action",
+            ));
+        }
+        let rollback_controller = controller.clone();
+        let action_outcome =
+            match controller.submit_action_with_outcome(action_request, now_epoch_ms()) {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    *controller = rollback_controller;
+                    return Err(NetworkingError::new(error.to_string()));
+                }
+            };
+        let next_state = controller.state().clone();
+
+        let invalid_transition = match &action_outcome {
+            ActionSubmissionOutcome::Committed => next_state == before_state,
+            ActionSubmissionOutcome::RejectedNoStateChange { .. } => next_state != before_state,
+            ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => {
+                next_state == before_state
+            }
+        };
+        if invalid_transition {
+            *controller = rollback_controller;
+            return Err(NetworkingError::new(
+                "remote action outcome did not match its controller state transition; mutation was rolled back",
+            ));
+        }
+
+        (next_state, action_outcome)
     };
 
-    commit_runtime_state(authoritative_state, next_state)?;
-
-    Ok(())
+    match action_outcome {
+        ActionSubmissionOutcome::Committed => {
+            let (previous_state, after_state) =
+                commit_runtime_state(authoritative_state, next_state)?;
+            Ok(RemoteActionSubmissionOutcome::Committed {
+                previous_state,
+                after_state,
+            })
+        }
+        ActionSubmissionOutcome::RejectedNoStateChange { error } => {
+            Ok(RemoteActionSubmissionOutcome::RejectedNoStateChange {
+                error: NetworkingError::new(error.to_string()),
+            })
+        }
+        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { error } => {
+            let (previous_state, after_state) =
+                commit_runtime_state(authoritative_state, next_state)?;
+            Ok(RemoteActionSubmissionOutcome::TimeoutAdvancedThenRejected {
+                previous_state,
+                after_state,
+                error: NetworkingError::new(error.to_string()),
+            })
+        }
+    }
 }
