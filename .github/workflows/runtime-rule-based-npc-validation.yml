@@ -205,7 +205,7 @@ jobs:
           retention-days: 30
 
       - name: Publish durable rule-based tournament result on master
-        if: always() && github.ref == 'refs/heads/master'
+        if: always() && !cancelled() && github.ref == 'refs/heads/master'
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
@@ -311,7 +311,7 @@ jobs:
             docs/runtime-validation/rule-based-tournament-latest.md
 
       - name: Enforce rule-based tournament result
-        if: always()
+        if: always() && !cancelled()
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
