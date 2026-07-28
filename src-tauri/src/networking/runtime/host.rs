@@ -920,29 +920,57 @@ impl HostServer {
                         .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
                         .try_clone()
                         .map_err(|error| {
-                            NetworkingError::new(format!("failed to clone client stream: {error}"))
+                            NetworkingError::new(format!("failed to clone client stream: {error}",))
                         })
                         .and_then(|mut stream| write_json_frame(&mut stream, &snapshot_envelope))
                 })
                 .unwrap_or_else(|| Err(NetworkingError::new("unknown connected client")));
 
-            if write_result.is_err() {
-                failed_clients.push(player_id);
+            if let Err(error) = write_result {
+                failed_clients.push((player_id, error.to_string()));
             }
         }
 
-        if !failed_clients.is_empty() {
+        if failed_clients.is_empty() {
+            return Ok(());
+        }
+
+        {
             let mut connected_clients = self
                 .clients
                 .lock()
                 .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-            for player_id in failed_clients {
-                connected_clients.remove(&player_id);
-                mark_participant_reconnect_eligible(&self.authoritative_state, &player_id)?;
+            for (player_id, _) in &failed_clients {
+                connected_clients.remove(player_id);
             }
         }
 
-        Ok(())
+        let mut recovery_errors = Vec::new();
+        for (player_id, _) in &failed_clients {
+            if let Err(error) =
+                mark_participant_reconnect_eligible(&self.authoritative_state, player_id)
+            {
+                recovery_errors.push(format!("{player_id}: {error}"));
+            }
+        }
+
+        let failed_summary = failed_clients
+            .iter()
+            .map(|(player_id, error)| format!("{player_id}: {error}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        let recovery_suffix = if recovery_errors.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; reconnect eligibility updates also failed: {}",
+                recovery_errors.join("; "),
+            )
+        };
+
+        Err(NetworkingError::new(format!(
+            "snapshot sync failed for connected clients: {failed_summary}{recovery_suffix}",
+        )))
     }
 
     fn update_lobby_state(

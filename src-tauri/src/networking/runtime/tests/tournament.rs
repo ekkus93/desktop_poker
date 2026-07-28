@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    net::{Shutdown, TcpListener, TcpStream},
     sync::{atomic::Ordering, mpsc, Arc, Mutex},
     thread,
     time::{Duration, Instant},
@@ -14,6 +15,78 @@ use crate::{
 };
 
 use super::support::*;
+
+#[test]
+fn lobby_snapshot_write_failure_is_nonfatal_visible_and_recoverable() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-lobby-sync-failure", 92);
+    let player_id = "player-sync-failure";
+
+    host.register_npc_participant(player_id, "Sync Failure")
+        .expect("participant registration succeeds");
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("test listener");
+    let address = listener.local_addr().expect("test listener address");
+    let connector = thread::spawn(move || TcpStream::connect(address).expect("connect pair"));
+    let (server_stream, _) = listener.accept().expect("accept pair");
+    let peer_stream = connector.join().expect("connector joins");
+    peer_stream.shutdown(Shutdown::Both).expect("close peer");
+    server_stream
+        .shutdown(Shutdown::Both)
+        .expect("close host-side stream before insertion");
+
+    let encryption_public_key = host
+        .authoritative_state()
+        .expect("state before failure")
+        .participants
+        .get(player_id)
+        .expect("registered participant")
+        .identity
+        .encryption_public_key
+        .clone();
+    host.clients.lock().expect("client registry").insert(
+        player_id.to_string(),
+        ConnectedClient {
+            stream: Arc::new(Mutex::new(server_stream)),
+            encryption_public_key,
+        },
+    );
+
+    let before_health = host.runtime_health();
+    host.claim_seat(player_id, 0)
+        .expect("authoritative seat mutation remains successful");
+
+    let state = host.authoritative_state().expect("state after mutation");
+    let participant = state
+        .participants
+        .get(player_id)
+        .expect("participant remains");
+    assert_eq!(participant.seat_index, Some(0));
+    assert_eq!(
+        participant.connection_state,
+        crate::domain::ConnectionState::Reconnecting
+    );
+    assert_eq!(
+        participant.state,
+        crate::domain::ParticipantState::Reconnecting
+    );
+    assert!(participant.reconnect_expiry_ms.is_some());
+    assert!(!host
+        .clients
+        .lock()
+        .expect("client registry")
+        .contains_key(player_id));
+
+    let health = host.runtime_health();
+    assert_eq!(
+        health.snapshot_sync_error_count,
+        before_health.snapshot_sync_error_count + 1,
+    );
+    assert!(health
+        .last_error
+        .as_deref()
+        .is_some_and(|message| message.contains("snapshot sync failed")));
+}
 
 #[test]
 fn host_start_tournament_emits_running_public_and_private_events_to_connected_clients() {
