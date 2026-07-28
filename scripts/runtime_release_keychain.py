@@ -70,22 +70,48 @@ def assert_non_secret_config(config: Any) -> dict[str, Any]:
     return config
 
 
-def scan_profile(profile_dir: Path, secret: str) -> list[dict[str, Any]]:
-    if not profile_dir.is_dir():
-        raise AssertionError(f"profile directory does not exist: {profile_dir}")
+def storage_paths(bootstrap: dict[str, Any]) -> tuple[Path, Path]:
+    profile_dir = Path(str(bootstrap.get("profileDirectory") or ""))
+    if profile_dir.parent.name != "profiles":
+        raise AssertionError(f"unexpected profile directory layout: {profile_dir}")
+    return profile_dir, profile_dir.parent.parent
+
+
+def scan_app_data(
+    app_data_dir: Path,
+    secret: str,
+    *,
+    require_exists: bool,
+) -> list[dict[str, Any]]:
+    if not app_data_dir.exists():
+        if require_exists:
+            raise AssertionError(f"app-data directory does not exist: {app_data_dir}")
+        return []
+    if not app_data_dir.is_dir():
+        raise AssertionError(f"app-data path is not a directory: {app_data_dir}")
+
     inventory: list[dict[str, Any]] = []
     secret_bytes = secret.encode("utf-8")
-    for path in sorted(profile_dir.rglob("*")):
+    for path in sorted(app_data_dir.rglob("*")):
         if not path.is_file():
             continue
-        relative = path.relative_to(profile_dir).as_posix()
+        relative = path.relative_to(app_data_dir).as_posix()
         data = path.read_bytes()
         inventory.append({"path": relative, "size": len(data)})
         if path.name in FORBIDDEN_KEY_FILES:
-            raise AssertionError(f"release profile created forbidden plaintext key file: {relative}")
+            raise AssertionError(f"release app data contains forbidden plaintext key file: {relative}")
         if secret_bytes in data:
-            raise AssertionError(f"release credential leaked into profile file: {relative}")
+            raise AssertionError(f"release credential leaked into app-data file: {relative}")
     return inventory
+
+
+def assert_settings_file(inventory: list[dict[str, Any]], expected: bool) -> None:
+    paths = {str(entry.get("path")) for entry in inventory}
+    present = "llm-provider.json" in paths
+    if present != expected:
+        raise AssertionError(
+            f"llm-provider.json presence was {present}, expected {expected}; files={sorted(paths)}"
+        )
 
 
 def assert_log_redacted(runtime_log: Path, secret: str) -> None:
@@ -123,21 +149,22 @@ def run_success(
     try:
         client.wait_until_ready()
         first_bootstrap = start_release(client, application)
-        profile_dir = Path(str(first_bootstrap.get("profileDirectory") or ""))
+        profile_dir, app_data_dir = storage_paths(first_bootstrap)
         if first_bootstrap.get("llmApiKeyConfigured") is True:
             raise AssertionError("fresh release keychain profile was already configured")
-        record("fresh release profile started without a configured provider")
+        record("fresh release process started without a configured provider")
 
         invoke(client, "set_llm_api_key", {"key": secret})
         configured = invoke(client, "get_bootstrap_state")
         if configured.get("llmApiKeyConfigured") is not True:
             raise AssertionError(f"bootstrap did not report stored key: {configured!r}")
         settings = assert_non_secret_config(invoke(client, "get_llm_provider_config"))
-        inventory_after_set = scan_profile(profile_dir, secret)
+        inventory_after_set = scan_app_data(app_data_dir, secret, require_exists=True)
+        assert_settings_file(inventory_after_set, True)
         assert_log_redacted(runtime_log, secret)
         capture(client, evidence_dir, "keychain-configured")
         record("release credential was accepted while public config remained non-secret")
-        record("profile files and runtime log contain no credential or plaintext key file")
+        record("global app-data files and runtime log contain no credential or plaintext key file")
 
         client.close()
         restarted_bootstrap = start_release(client, application)
@@ -152,9 +179,9 @@ def run_success(
             raise AssertionError(
                 f"provider settings changed after restart: {settings!r} -> {restarted_settings!r}"
             )
-        scan_profile(profile_dir, secret)
+        scan_app_data(app_data_dir, secret, require_exists=True)
         assert_log_redacted(runtime_log, secret)
-        record("same-profile release restart recovered the credential through the keychain")
+        record("release restart recovered the credential through the OS keychain")
 
         invoke(client, "clear_llm_api_key")
         cleared = invoke(client, "get_bootstrap_state")
@@ -162,7 +189,8 @@ def run_success(
             raise AssertionError(f"bootstrap still reports a configured key: {cleared!r}")
         if invoke(client, "get_llm_provider_config") is not None:
             raise AssertionError("provider config remained visible after clear")
-        inventory_after_clear = scan_profile(profile_dir, secret)
+        inventory_after_clear = scan_app_data(app_data_dir, secret, require_exists=True)
+        assert_settings_file(inventory_after_clear, False)
         assert_log_redacted(runtime_log, secret)
         record("clear removed provider settings and the keychain credential")
 
@@ -174,15 +202,16 @@ def run_success(
             )
         if invoke(client, "get_llm_provider_config") is not None:
             raise AssertionError("cleared provider settings reappeared after restart")
-        scan_profile(profile_dir, secret)
+        final_inventory = scan_app_data(app_data_dir, secret, require_exists=True)
+        assert_settings_file(final_inventory, False)
         assert_log_redacted(runtime_log, secret)
         capture(client, evidence_dir, "keychain-cleared-after-restart")
         record("second release restart confirmed durable keychain deletion")
 
-        (evidence_dir / "profile-inventory-after-set.json").write_text(
+        (evidence_dir / "app-data-inventory-after-set.json").write_text(
             json.dumps(inventory_after_set, indent=2) + "\n", encoding="utf-8"
         )
-        (evidence_dir / "profile-inventory-after-clear.json").write_text(
+        (evidence_dir / "app-data-inventory-after-clear.json").write_text(
             json.dumps(inventory_after_clear, indent=2) + "\n", encoding="utf-8"
         )
         return {
@@ -192,6 +221,7 @@ def run_success(
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
             "instanceId": first_bootstrap.get("instanceId"),
             "profileDirectory": str(profile_dir),
+            "appDataDirectory": str(app_data_dir),
             "provider": settings.get("provider"),
             "secretLength": len(secret),
             "steps": steps,
@@ -232,22 +262,23 @@ def run_failure(
     try:
         client.wait_until_ready()
         bootstrap = start_release(client, application)
-        profile_dir = Path(str(bootstrap.get("profileDirectory") or ""))
+        profile_dir, app_data_dir = storage_paths(bootstrap)
         error = expect_error(client, "set_llm_api_key", {"key": secret})
         lowered = error.lower()
-        if "keychain" not in lowered and "secret service" not in lowered:
+        if "keychain" not in lowered and "secret service" not in lowered and "dbus" not in lowered:
             raise AssertionError(f"keychain failure was not explicit: {error!r}")
         after = invoke(client, "get_bootstrap_state")
         if after.get("llmApiKeyConfigured") is True:
             raise AssertionError("failed keychain write still marked provider configured")
         if invoke(client, "get_llm_provider_config") is not None:
             raise AssertionError("failed keychain write retained provider settings")
-        inventory = scan_profile(profile_dir, secret)
+        inventory = scan_app_data(app_data_dir, secret, require_exists=False)
+        assert_settings_file(inventory, False)
         assert_log_redacted(runtime_log, secret)
         capture(client, evidence_dir, "keychain-unavailable")
         record("unavailable keychain produced an explicit release error")
         record("failed keychain write created no provider state or plaintext fallback")
-        (evidence_dir / "profile-inventory.json").write_text(
+        (evidence_dir / "app-data-inventory.json").write_text(
             json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
         )
         return {
@@ -257,6 +288,7 @@ def run_failure(
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
             "instanceId": bootstrap.get("instanceId"),
             "profileDirectory": str(profile_dir),
+            "appDataDirectory": str(app_data_dir),
             "error": error,
             "steps": steps,
         }
