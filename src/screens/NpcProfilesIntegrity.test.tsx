@@ -49,6 +49,92 @@ function renderProfiles() {
   });
 }
 
+/**
+ * Node's built-in Request rejects AbortSignal instances created by jsdom's
+ * separate realm. React Router only needs a client-side request descriptor for
+ * this loader-free navigation, so use a minimal compatible test implementation
+ * that preserves the supplied signal and headers verbatim.
+ */
+function installClientNavigationRequestShim() {
+  const originalRequest = globalThis.Request;
+
+  class ClientNavigationRequest {
+    readonly body = null;
+    readonly bodyUsed = false;
+    readonly cache = "default";
+    readonly credentials = "same-origin";
+    readonly destination = "";
+    readonly headers: Headers;
+    readonly integrity = "";
+    readonly keepalive = false;
+    readonly method: string;
+    readonly mode = "cors";
+    readonly redirect = "follow";
+    readonly referrer = "about:client";
+    readonly referrerPolicy = "";
+    readonly signal: AbortSignal | null;
+    readonly url: string;
+
+    constructor(input: RequestInfo | URL, init: RequestInit = {}) {
+      this.url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      this.method = init.method ?? "GET";
+      this.headers = new Headers(init.headers);
+      this.signal = init.signal ?? null;
+    }
+
+    clone() {
+      return new ClientNavigationRequest(this.url, {
+        headers: this.headers,
+        method: this.method,
+        signal: this.signal,
+      });
+    }
+
+    async arrayBuffer() {
+      return new ArrayBuffer(0);
+    }
+
+    async blob() {
+      return new Blob();
+    }
+
+    async bytes() {
+      return new Uint8Array();
+    }
+
+    async formData() {
+      return new FormData();
+    }
+
+    async json() {
+      return null;
+    }
+
+    async text() {
+      return "";
+    }
+  }
+
+  Object.defineProperty(globalThis, "Request", {
+    configurable: true,
+    value: ClientNavigationRequest,
+    writable: true,
+  });
+
+  return () => {
+    Object.defineProperty(globalThis, "Request", {
+      configurable: true,
+      value: originalRequest,
+      writable: true,
+    });
+  };
+}
+
 describe("NpcProfilesScreen integrity guards", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -98,39 +184,44 @@ describe("NpcProfilesScreen integrity guards", () => {
   });
 
   it("blocks data-router navigation until the user explicitly discards changes", async () => {
-    const profile = createProfile();
-    mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
-    const { router } = renderWithProviders(
-      <Routes>
-        <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
-        <Route path="/settings" element={<h1>Settings destination</h1>} />
-      </Routes>,
-      {
-        bootstrap: createBootstrap({ llmApiKeyConfigured: true }),
-        initialEntries: ["/npc-profiles"],
-      },
-    );
+    const restoreRequest = installClientNavigationRequestShim();
+    try {
+      const profile = createProfile();
+      mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
+      const { router } = renderWithProviders(
+        <Routes>
+          <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
+          <Route path="/settings" element={<h1>Settings destination</h1>} />
+        </Routes>,
+        {
+          bootstrap: createBootstrap({ llmApiKeyConfigured: true }),
+          initialEntries: ["/npc-profiles"],
+        },
+      );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: /first player/i }),
-    );
-    fireEvent.change(screen.getByLabelText("Profile content"), {
-      target: { value: "unsaved route change" },
-    });
+      fireEvent.click(
+        await screen.findByRole("button", { name: /first player/i }),
+      );
+      fireEvent.change(screen.getByLabelText("Profile content"), {
+        target: { value: "unsaved route change" },
+      });
 
-    let navigationPromise!: Promise<void>;
-    act(() => {
-      navigationPromise = router.navigate("/settings");
-    });
+      let navigationPromise!: Promise<void>;
+      act(() => {
+        navigationPromise = router.navigate("/settings");
+      });
 
-    expect(screen.queryByText("Settings destination")).toBeNull();
-    expect(screen.getByRole("dialog")).toBeTruthy();
+      expect(screen.queryByText("Settings destination")).toBeNull();
+      expect(screen.getByRole("dialog")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-    await act(async () => {
-      await navigationPromise;
-    });
-    expect(await screen.findByText("Settings destination")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+      await act(async () => {
+        await navigationPromise;
+      });
+      expect(await screen.findByText("Settings destination")).toBeTruthy();
+    } finally {
+      restoreRequest();
+    }
   });
 
   it("prevents a hard unload while profile edits are dirty", async () => {
