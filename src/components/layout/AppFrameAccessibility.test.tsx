@@ -33,13 +33,10 @@ function renderFrame(initialEntry: string) {
 
 describe("AppFrame accessibility navigation", () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      "requestAnimationFrame",
-      (callback: FrameRequestCallback) => {
-        callback(0);
-        return 1;
-      },
-    );
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
   });
 

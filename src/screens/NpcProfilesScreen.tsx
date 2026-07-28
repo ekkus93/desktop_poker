@@ -86,7 +86,13 @@ export function NpcProfilesScreen() {
 
   const blocker = useBlocker(
     useCallback(
-      ({ currentLocation, nextLocation }) =>
+      ({
+        currentLocation,
+        nextLocation,
+      }: {
+        currentLocation: { pathname: string };
+        nextLocation: { pathname: string };
+      }) =>
         hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
       [hasUnsavedChanges],
     ),

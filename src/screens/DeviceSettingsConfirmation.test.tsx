@@ -59,9 +59,11 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     );
     expect((resetButton as HTMLButtonElement).disabled).toBe(true);
     expect(
-      (screen.getByRole("button", {
-        name: /clear saved invites/i,
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: /clear saved invites/i,
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
     expect(
       screen.queryByRole("dialog", { name: "Clear saved invitations?" }),
@@ -85,9 +87,11 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     );
     expect((clearButton as HTMLButtonElement).disabled).toBe(true);
     expect(
-      (screen.getByRole("button", {
-        name: "Reset host setup",
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: "Reset host setup",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
     expect(
       screen.queryByRole("dialog", { name: "Reset saved host setup?" }),
@@ -107,9 +111,11 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect((resetButton as HTMLButtonElement).disabled).toBe(false);
     expect(
-      (screen.getByRole("button", {
-        name: /clear saved invites/i,
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: /clear saved invites/i,
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
     expect(document.activeElement).toBe(resetButton);
   });
