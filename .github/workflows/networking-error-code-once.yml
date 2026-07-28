@@ -1,4 +1,4 @@
-name: Add networking error codes once
+name: Fix networking error constructor once
 
 on:
   push:
@@ -16,57 +16,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Add optional code to NetworkingError
+      - name: Repair NetworkingError constructor
         run: |
           python3 - <<'PY'
           from pathlib import Path
           path = Path("src-tauri/src/networking/runtime/mod.rs")
           lines = path.read_text(encoding="utf-8").splitlines()
 
-          def find(needle, start=0):
+          def find_exact(value, start=0):
               for index, line in enumerate(lines[start:], start):
-                  if needle in line:
+                  if line.strip() == value:
                       return index
-              raise SystemExit(f"missing {needle!r}")
+              raise SystemExit(f"missing exact line {value!r}")
 
-          if any("code: Option<String>" in line for line in lines):
-              raise SystemExit("NetworkingError code already exists")
+          fn_line = find_exact("pub fn new(message: impl Into<String>) -> Self {")
+          code_line = find_exact("code: None,", fn_line)
+          self_line = find_exact("Self {", fn_line)
+          message_line = find_exact("message: message.into(),", fn_line)
 
-          struct_start = find("pub struct NetworkingError {")
-          message_field = find("message: String,", struct_start)
-          lines.insert(message_field, "    code: Option<String>,")
+          if not code_line < self_line < message_line:
+              raise SystemExit(
+                  f"unexpected constructor order: code={code_line}, self={self_line}, message={message_line}"
+              )
 
-          new_start = find("pub fn new(message: impl Into<String>)", struct_start)
-          self_start = find("Self {", new_start)
-          lines.insert(self_start + 1, "            code: None,")
-
-          display_impl = find("impl std::fmt::Display for NetworkingError", new_start)
-          close = display_impl - 2
-          if lines[close].strip() != "}":
-              raise SystemExit(f"unexpected impl close: {lines[close]!r}")
-          lines[close:close] = [
-              "",
-              "    #[must_use]",
-              "    pub fn with_code(code: impl Into<String>, message: impl Into<String>) -> Self {",
-              "        Self {",
-              "            code: Some(code.into()),",
-              "            message: message.into(),",
-              "        }",
-              "    }",
-              "",
-              "    #[must_use]",
-              "    pub fn code(&self) -> Option<&str> {",
-              "        self.code.as_deref()",
-              "    }",
-          ]
-
+          lines.pop(code_line)
+          self_line -= 1
+          lines.insert(self_line + 1, "            code: None,")
           path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
-      - name: Commit patch
+      - name: Commit repair
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src-tauri/src/networking/runtime/mod.rs
-          git commit -m "Carry stable networking error codes"
+          git commit -m "Fix coded networking error constructor"
           git pull --rebase origin master
           git push origin HEAD:master
