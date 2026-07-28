@@ -19,6 +19,7 @@ function FrameHarness() {
     <AppFrame bootstrap={bootstrap} navigation={navigation}>
       <Routes>
         <Route path="/" element={<h2>Home surface</h2>} />
+        <Route path="/join" element={<h2>Join surface</h2>} />
         <Route path="/host" element={<h2>Host surface</h2>} />
       </Routes>
     </AppFrame>
@@ -54,8 +55,9 @@ describe("AppFrame accessibility navigation", () => {
   });
 
   it("moves focus to main content after an SPA route change", async () => {
-    renderWithProviders(<FrameHarness />, { initialEntries: ["/"] });
+    renderWithProviders(<FrameHarness />, { initialEntries: ["/join"] });
 
+    expect(screen.getByText("Join surface")).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: "Host" }));
     expect(await screen.findByText("Host surface")).toBeTruthy();
 
