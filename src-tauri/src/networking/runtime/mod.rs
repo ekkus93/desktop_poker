@@ -1,8 +1,8 @@
 use std::{
     collections::HashMap,
-    net::{IpAddr, SocketAddr, TcpStream},
+    net::{IpAddr, Shutdown, SocketAddr, TcpStream},
     sync::{
-        atomic::{AtomicBool, AtomicU64},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc::{Receiver, RecvTimeoutError},
         Arc, Mutex,
     },
@@ -241,6 +241,8 @@ pub struct ClientRuntime {
     incoming: Receiver<ClientRuntimeEvent>,
     reconnect_identity: Arc<Mutex<ClientReconnectIdentity>>,
     command_connection: Arc<Mutex<ClientCommandConnection>>,
+    stop_signal: Arc<AtomicBool>,
+    runtime_thread: Option<JoinHandle<()>>,
 }
 
 impl ClientRuntime {
@@ -254,6 +256,34 @@ impl ClientRuntime {
                 RecvTimeoutError::Timeout => ClientRuntimePollError::Timeout,
                 RecvTimeoutError::Disconnected => ClientRuntimePollError::Disconnected,
             })
+    }
+}
+
+impl Drop for ClientRuntime {
+    fn drop(&mut self) {
+        self.stop_signal.store(true, Ordering::SeqCst);
+
+        let stream_handle = match self.command_connection.lock() {
+            Ok(mut connection) => connection.stream.take(),
+            Err(poisoned) => poisoned.into_inner().stream.take(),
+        };
+        if let Some(stream_handle) = stream_handle {
+            match stream_handle.lock() {
+                Ok(stream) => {
+                    let _ = stream.shutdown(Shutdown::Both);
+                }
+                Err(poisoned) => {
+                    let stream = poisoned.into_inner();
+                    let _ = stream.shutdown(Shutdown::Both);
+                }
+            }
+        }
+
+        if let Some(runtime_thread) = self.runtime_thread.take() {
+            if runtime_thread.thread().id() != std::thread::current().id() {
+                let _ = runtime_thread.join();
+            }
+        }
     }
 }
 
@@ -389,6 +419,8 @@ mod poll_tests {
                 next_counter: 1,
                 stream: None,
             })),
+            stop_signal: Arc::new(AtomicBool::new(false)),
+            runtime_thread: None,
         }
     }
 
@@ -432,6 +464,44 @@ mod poll_tests {
             .expect_err("closed channel should report disconnect");
 
         assert_eq!(error, ClientRuntimePollError::Disconnected);
+    }
+
+    #[test]
+    fn dropping_runtime_sets_stop_signal_and_joins_worker() {
+        let (sender, receiver) = mpsc::channel();
+        let stop_signal = Arc::new(AtomicBool::new(false));
+        let worker_stop_signal = Arc::clone(&stop_signal);
+        let worker_exited = Arc::new(AtomicBool::new(false));
+        let worker_exited_for_thread = Arc::clone(&worker_exited);
+        let runtime_thread = std::thread::spawn(move || {
+            while !worker_stop_signal.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            worker_exited_for_thread.store(true, Ordering::SeqCst);
+            drop(sender);
+        });
+
+        let runtime = ClientRuntime {
+            incoming: receiver,
+            reconnect_identity: Arc::new(Mutex::new(ClientReconnectIdentity {
+                signing_keys: None,
+                encryption_keys: None,
+            })),
+            command_connection: Arc::new(Mutex::new(ClientCommandConnection {
+                player_id: "player-1".to_string(),
+                table_id: "table-1".to_string(),
+                session_epoch: 1,
+                next_counter: 1,
+                stream: None,
+            })),
+            stop_signal: Arc::clone(&stop_signal),
+            runtime_thread: Some(runtime_thread),
+        };
+
+        drop(runtime);
+
+        assert!(stop_signal.load(Ordering::SeqCst));
+        assert!(worker_exited.load(Ordering::SeqCst));
     }
 }
 
