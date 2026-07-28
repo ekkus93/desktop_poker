@@ -1,0 +1,54 @@
+name: Update provider README once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/provider-readme-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Document embedded local provider
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("README.md")
+          lines = path.read_text(encoding="utf-8").splitlines()
+
+          def find_exact(value):
+              matches = [index for index, line in enumerate(lines) if line == value]
+              if len(matches) != 1:
+                  raise SystemExit(f"expected one exact match for {value!r}, found {len(matches)}")
+              return matches[0]
+
+          llama_row = find_exact("| llama-server | No | `http://localhost:8080` | *(loaded model)* |")
+          embedded_row = "| Embedded local GGUF *(experimental)* | No | In-process (`llama-cpp-2`) | Absolute `.gguf` model path |"
+          if embedded_row not in lines:
+              lines.insert(llama_row + 1, embedded_row)
+
+          provider_sentence = find_exact(
+              "All four providers use the same prompt format. Anthropic uses the `/v1/messages` API; the other three use the OpenAI-compatible `/v1/chat/completions` endpoint."
+          )
+          lines[provider_sentence:provider_sentence + 1] = [
+              "The four HTTP providers use the same structured prompt format. Anthropic uses the `/v1/messages` API; OpenAI, Ollama, and llama-server use the OpenAI-compatible `/v1/chat/completions` endpoint. The experimental embedded-local provider consumes the same prompt in-process and requires an absolute path to a GGUF model instead of an endpoint or API key.",
+          ]
+
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+      - name: Commit README update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Document embedded local LLM provider"
+          git pull --rebase origin master
+          git push origin HEAD:master
