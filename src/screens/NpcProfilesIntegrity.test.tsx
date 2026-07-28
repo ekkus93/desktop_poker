@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Link, Route, Routes } from "react-router";
 import {
   deleteNpcProfile,
   listNpcProfiles,
@@ -43,7 +43,7 @@ function profileList(profiles: NpcProfile[]) {
 }
 
 function renderProfiles() {
-  renderWithProviders(<NpcProfilesScreen />, {
+  return renderWithProviders(<NpcProfilesScreen />, {
     bootstrap: createBootstrap({ llmApiKeyConfigured: true }),
     initialEntries: ["/npc-profiles"],
   });
@@ -97,17 +97,14 @@ describe("NpcProfilesScreen integrity guards", () => {
     expect(screen.queryByDisplayValue("changed but unsaved")).toBeNull();
   });
 
-  it("blocks SPA navigation until the user explicitly discards changes", async () => {
+  it("blocks data-router navigation until the user explicitly discards changes", async () => {
     const profile = createProfile();
     mockedListNpcProfiles.mockResolvedValue(profileList([profile]));
-    renderWithProviders(
-      <>
-        <Link to="/settings">Leave editor</Link>
-        <Routes>
-          <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
-          <Route path="/settings" element={<h1>Settings destination</h1>} />
-        </Routes>
-      </>,
+    const { router } = renderWithProviders(
+      <Routes>
+        <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
+        <Route path="/settings" element={<h1>Settings destination</h1>} />
+      </Routes>,
       {
         bootstrap: createBootstrap({ llmApiKeyConfigured: true }),
         initialEntries: ["/npc-profiles"],
@@ -120,12 +117,19 @@ describe("NpcProfilesScreen integrity guards", () => {
     fireEvent.change(screen.getByLabelText("Profile content"), {
       target: { value: "unsaved route change" },
     });
-    fireEvent.click(screen.getByRole("link", { name: "Leave editor" }));
+
+    let navigationPromise!: Promise<void>;
+    act(() => {
+      navigationPromise = router.navigate("/settings");
+    });
 
     expect(screen.queryByText("Settings destination")).toBeNull();
     expect(screen.getByRole("dialog")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await act(async () => {
+      await navigationPromise;
+    });
     expect(await screen.findByText("Settings destination")).toBeTruthy();
   });
 
