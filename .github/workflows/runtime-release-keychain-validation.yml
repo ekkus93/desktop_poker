@@ -1,0 +1,375 @@
+name: Linux release keychain validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-release-keychain-validation.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "crates/**"
+      - "scripts/runtime_release_keychain.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-release-keychain-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  release-keychain:
+    name: Release Secret Service persistence and failure paths
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install native, WebDriver, and Secret Service dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11 \
+            gnome-keyring \
+            libsecret-tools
+          command -v gnome-keyring-daemon
+          command -v secret-tool
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --no-bundle \
+            2>&1 | tee release-keychain-build.log
+
+      - name: Validate real Secret Service persistence, redaction, and clear
+        id: success_path
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$GITHUB_WORKSPACE/release-keychain-success-evidence"
+          binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          mkdir -p "$evidence_dir"
+          test -x "$binary"
+          export KEYCHAIN_BINARY="$binary"
+          export KEYCHAIN_SUCCESS_EVIDENCE="$evidence_dir"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+          export DESKTOP_POKER_INSTANCE_ID="release-keychain-success-${GITHUB_RUN_ID}"
+
+          mkdir -p "$HOME/.local/share/keyrings"
+          daemon_env="$(printf '%s' 'desktop-poker-ci-keyring' \
+            | gnome-keyring-daemon --unlock --components=secrets)"
+          eval "$daemon_env"
+          export GNOME_KEYRING_CONTROL
+
+          printf '%s' 'secret-service-ready' \
+            | secret-tool store \
+                --label='Desktop Poker CI Secret Service readiness' \
+                service desktop-poker-ci-readiness \
+                username readiness
+          test "$(secret-tool lookup service desktop-poker-ci-readiness username readiness)" \
+            = 'secret-service-ready'
+          secret-tool clear service desktop-poker-ci-readiness username readiness
+
+          tauri-driver --port 4644 --native-port 4645 \
+            >"$KEYCHAIN_SUCCESS_EVIDENCE/tauri-driver.log" 2>&1 &
+          driver_pid=$!
+          cleanup() {
+            kill "$driver_pid" 2>/dev/null || true
+            wait "$driver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 scripts/runtime_release_keychain.py \
+            --application "$KEYCHAIN_BINARY" \
+            --driver-url http://127.0.0.1:4644 \
+            --evidence-dir "$KEYCHAIN_SUCCESS_EVIDENCE" \
+            --mode success
+          RUNTIME
+
+      - name: Validate unavailable-keychain failure without plaintext fallback
+        id: failure_path
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$GITHUB_WORKSPACE/release-keychain-failure-evidence"
+          binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          mkdir -p "$evidence_dir"
+          test -x "$binary"
+          export KEYCHAIN_BINARY="$binary"
+          export KEYCHAIN_FAILURE_EVIDENCE="$evidence_dir"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            env -u DBUS_SESSION_BUS_ADDRESS -u GNOME_KEYRING_CONTROL \
+            bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+          export DESKTOP_POKER_INSTANCE_ID="release-keychain-failure-${GITHUB_RUN_ID}"
+
+          tauri-driver --port 4654 --native-port 4655 \
+            >"$KEYCHAIN_FAILURE_EVIDENCE/tauri-driver.log" 2>&1 &
+          driver_pid=$!
+          cleanup() {
+            kill "$driver_pid" 2>/dev/null || true
+            wait "$driver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 scripts/runtime_release_keychain.py \
+            --application "$KEYCHAIN_BINARY" \
+            --driver-url http://127.0.0.1:4654 \
+            --evidence-dir "$KEYCHAIN_FAILURE_EVIDENCE" \
+            --mode failure
+          RUNTIME
+
+      - name: Assemble release keychain result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          SUCCESS_OUTCOME: ${{ steps.success_path.outcome }}
+          FAILURE_OUTCOME: ${{ steps.failure_path.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          def load(path: Path, label: str) -> dict[str, object]:
+              if not path.is_file():
+                  return {"result": "FAIL", "error": f"{label} result was not produced."}
+              try:
+                  value = json.loads(path.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  return {"result": "FAIL", "error": f"{label} result was unreadable: {error}"}
+              return value if isinstance(value, dict) else {
+                  "result": "FAIL",
+                  "error": f"{label} result was not an object.",
+              }
+
+          success = load(
+              Path("release-keychain-success-evidence/release-keychain-success-result.json"),
+              "success path",
+          )
+          failure = load(
+              Path("release-keychain-failure-evidence/release-keychain-failure-result.json"),
+              "failure path",
+          )
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          success_outcome = os.environ.get("SUCCESS_OUTCOME", "not-run")
+          failure_outcome = os.environ.get("FAILURE_OUTCOME", "not-run")
+          result = (
+              "PASS"
+              if build == "success"
+              and success_outcome == "success"
+              and failure_outcome == "success"
+              and success.get("result") == "PASS"
+              and failure.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": result,
+              "buildOutcome": build,
+              "successPathOutcome": success_outcome,
+              "failurePathOutcome": failure_outcome,
+              "successPath": success,
+              "failurePath": failure,
+          }
+          output = Path("release-keychain-evidence")
+          output.mkdir(parents=True, exist_ok=True)
+          (output / "release-keychain-workflow-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory release keychain evidence
+        if: always()
+        run: |
+          for directory in \
+            release-keychain-success-evidence \
+            release-keychain-failure-evidence \
+            release-keychain-evidence; do
+            mkdir -p "$directory"
+            find "$directory" -maxdepth 3 -type f -printf '%p %s bytes\n' | sort
+          done | tee release-keychain-evidence/inventory.txt
+          cat release-keychain-evidence/release-keychain-workflow-result.json || true
+          echo '--- success runtime log ---'
+          cat release-keychain-success-evidence/tauri-driver.log || true
+          echo '--- failure runtime log ---'
+          cat release-keychain-failure-evidence/tauri-driver.log || true
+
+      - name: Upload release keychain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-keychain-evidence
+          path: |
+            release-keychain-build.log
+            release-keychain-success-evidence/
+            release-keychain-failure-evidence/
+            release-keychain-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable release keychain result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          SUCCESS_OUTCOME: ${{ steps.success_path.outcome }}
+          FAILURE_OUTCOME: ${{ steps.failure_path.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("release-keychain-evidence/release-keychain-workflow-result.json")
+          if source.is_file():
+              try:
+                  workflow = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  workflow = {"result": "FAIL", "error": str(error)}
+          else:
+              workflow = {"result": "FAIL", "error": "Workflow result missing."}
+
+          payload = {
+              "result": workflow.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "successPathOutcome": os.environ.get("SUCCESS_OUTCOME", "not-run"),
+              "failurePathOutcome": os.environ.get("FAILURE_OUTCOME", "not-run"),
+              "evidenceArtifact": "linux-release-keychain-evidence",
+              "successPath": workflow.get("successPath"),
+              "failurePath": workflow.get("failurePath"),
+          }
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          json_path = output_dir / "release-keychain-latest.json"
+          md_path = output_dir / "release-keychain-latest.md"
+          json_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Linux Release Keychain Validation",
+              "",
+              f"- Result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Release build: `{payload['buildOutcome']}`",
+              f"- Secret Service persistence path: `{payload['successPathOutcome']}`",
+              f"- Unavailable-keychain path: `{payload['failurePathOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          for heading, key in (("Persistence and clear", "successPath"), ("Failure behavior", "failurePath")):
+              value = payload.get(key)
+              lines.extend([f"## {heading}", ""])
+              if isinstance(value, dict):
+                  if value.get("error"):
+                      lines.append(str(value["error"]))
+                  for step in value.get("steps", []):
+                      if isinstance(step, dict):
+                          lines.append(
+                              f"- **{step.get('result', 'UNKNOWN')}** — "
+                              f"{step.get('name', 'unnamed check')}"
+                          )
+              lines.append("")
+          md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record release keychain validation result" \
+            docs/runtime-validation/release-keychain-latest.json \
+            docs/runtime-validation/release-keychain-latest.md
+
+      - name: Enforce release keychain result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          SUCCESS_OUTCOME: ${{ steps.success_path.outcome }}
+          FAILURE_OUTCOME: ${{ steps.failure_path.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$SUCCESS_OUTCOME" = "success"
+          test "$FAILURE_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("release-keychain-evidence/release-keychain-workflow-result.json"))["result"])')" = "PASS"
