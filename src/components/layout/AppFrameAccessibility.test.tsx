@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBootstrap, renderWithProviders } from "../../test/fixtures";
@@ -54,11 +54,15 @@ describe("AppFrame accessibility navigation", () => {
     expect(main.getAttribute("tabindex")).toBe("-1");
   });
 
-  it("moves focus to main content after an SPA route change", async () => {
-    renderWithProviders(<FrameHarness />, { initialEntries: ["/join"] });
+  it("moves focus to main content after a data-router navigation", async () => {
+    const { router } = renderWithProviders(<FrameHarness />, {
+      initialEntries: ["/join"],
+    });
 
     expect(screen.getByText("Join surface")).toBeTruthy();
-    fireEvent.click(screen.getByRole("link", { name: "Host" }));
+    await act(async () => {
+      await router.navigate("/host");
+    });
     expect(await screen.findByText("Host surface")).toBeTruthy();
 
     await waitFor(() => {
