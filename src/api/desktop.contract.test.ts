@@ -117,9 +117,7 @@ describe("desktop DTO contract", () => {
       expectedKeys("ClientSessionStatus"),
     );
     expect(sortedKeys(tableView)).toEqual(expectedKeys("TableViewSnapshot"));
-    expect(sortedKeys(debugState)).toEqual(
-      expectedKeys("DebugInspectorState"),
-    );
+    expect(sortedKeys(debugState)).toEqual(expectedKeys("DebugInspectorState"));
     expect(sortedKeys(profileList)).toEqual(
       expectedKeys("NpcProfileListResult"),
     );
