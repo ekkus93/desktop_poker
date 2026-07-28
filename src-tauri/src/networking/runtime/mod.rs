@@ -45,15 +45,30 @@ pub(crate) use snapshot::*;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NetworkingError {
+    code: Option<String>,
     message: String,
 }
 
 impl NetworkingError {
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
+            code: None,
         Self {
             message: message.into(),
         }
+    }
+
+    #[must_use]
+    pub fn with_code(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: Some(code.into()),
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn code(&self) -> Option<&str> {
+        self.code.as_deref()
     }
 }
 
