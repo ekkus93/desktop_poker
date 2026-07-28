@@ -1,5 +1,5 @@
 import { fireEvent, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDesktopShell } from "./useDesktopShell";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
 
@@ -8,6 +8,7 @@ function StorageHarness() {
     displayName,
     joinPayloadDraft,
     recentJoinPayloads,
+    startupWarnings,
     setDisplayName,
     setJoinPayloadDraft,
     rememberJoinPayload,
@@ -18,6 +19,7 @@ function StorageHarness() {
       <p>Display: {displayName}</p>
       <p>Draft: {joinPayloadDraft || "empty"}</p>
       <p>Recent: {recentJoinPayloads.join(",") || "empty"}</p>
+      <p>Warnings: {startupWarnings.join("|") || "none"}</p>
       <button onClick={() => setDisplayName("Alice")} type="button">
         Set Alice
       </button>
@@ -39,6 +41,10 @@ function StorageHarness() {
     </div>
   );
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("DesktopShellProvider", () => {
   it("isolates stored shell state by storage namespace", () => {
@@ -120,5 +126,29 @@ describe("DesktopShellProvider", () => {
     expect(
       localStorage.getItem("desktop-poker:legacy-host:host-draft"),
     ).not.toContain('"advancedOpen":false');
+  });
+
+  it("surfaces local storage write failures without crashing the shell", async () => {
+    localStorage.clear();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota exceeded", "QuotaExceededError");
+    });
+
+    renderWithProviders(<StorageHarness />, {
+      bootstrap: createBootstrap({
+        storageNamespace: "desktop-poker:write-failure",
+        instanceId: "write-failure",
+        instanceLabel: "write-failure",
+      }),
+    });
+
+    expect(screen.getByText(/Display:/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Local preferences could not be saved/),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set Alice" }));
+    expect(screen.getByText("Display: Alice")).toBeTruthy();
+    expect(screen.getByText(/only for this session/)).toBeTruthy();
   });
 });
