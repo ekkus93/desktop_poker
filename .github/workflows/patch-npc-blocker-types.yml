@@ -1,0 +1,89 @@
+name: Patch NPC blocker types
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-npc-blocker-types.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-npc-blocker-types
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply and verify blocker typing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B npc-blocker-types origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/screens/NpcProfilesScreen.tsx")
+          text = path.read_text(encoding="utf-8")
+          old = '''      ({ currentLocation, nextLocation }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+'''
+          new = '''      ({
+        currentLocation,
+        nextLocation,
+      }: {
+        currentLocation: { pathname: string };
+        nextLocation: { pathname: string };
+      }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+'''
+          old_count = text.count(old)
+          new_count = text.count(new)
+          if old_count == 1 and new_count == 0:
+              text = text.replace(old, new, 1)
+          elif old_count == 0 and new_count == 1:
+              pass
+          else:
+              raise SystemExit(
+                  f"unexpected blocker type state: old={old_count}, new={new_count}"
+              )
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          npm ci
+          npm run format
+          npm run lint
+          npm run build
+
+          rm .github/workflows/patch-npc-blocker-types.yml
+          npm run format:check
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: type NPC profile navigation blocker"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
