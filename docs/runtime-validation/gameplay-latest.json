@@ -7,9 +7,9 @@
     "steps": []
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T11:04:07.847411+00:00",
+  "recordedAtUtc": "2026-07-28T11:07:28.556776+00:00",
   "result": "FAIL",
-  "validatedCommit": "03488fe3d6a342984ebf10b172b2c77b618af100",
+  "validatedCommit": "cda7f3ea34208d3c866dc847ccc92df62e3a7eb4",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30353218743"
+  "workflowRunId": "30353422982"
 }
