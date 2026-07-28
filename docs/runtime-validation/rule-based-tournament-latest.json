@@ -1,14 +1,249 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-07-28T16:26:56.361643+00:00",
-  "result": "FAIL",
+  "recordedAtUtc": "2026-07-28T16:34:47.305385+00:00",
+  "result": "PASS",
   "ruleBasedTournament": {
-    "error": "Rule-based tournament result was not produced.",
-    "result": "FAIL"
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "723ac73c8552c161f020ee8dc5d29672665079e5bd77ad62d0e381b519e7221c",
+    "completedHands": 22,
+    "finalStandings": [
+      {
+        "chipCount": 300,
+        "displayName": "CI Human Host",
+        "isLocal": true,
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Rule Bot Alpha",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Rule Bot Beta",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 3,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
+    "hostActions": [
+      "hand 1: fold",
+      "hand 3: allIn",
+      "hand 4: allIn",
+      "hand 6: allIn",
+      "hand 7: allIn",
+      "hand 8: allIn",
+      "hand 9: allIn",
+      "hand 10: allIn",
+      "hand 12: allIn",
+      "hand 14: allIn",
+      "hand 16: allIn",
+      "hand 18: allIn",
+      "hand 20: allIn",
+      "hand 22: allIn"
+    ],
+    "instanceId": "rule-based-npc-30378674159",
+    "npcActionCount": 24,
+    "npcActionCounts": {
+      "Rule Bot Alpha": 9,
+      "Rule Bot Beta": 15
+    },
+    "npcActions": [
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 1,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 6
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 2,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 10
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 2,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 12
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 3,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 16
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 3,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 20
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 4,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 26
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 4,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 28
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 5,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 32
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 5,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 34
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 6,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 38
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 6,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 42
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 7,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 48
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 7,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 50
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 8,
+        "message": "Rule Bot Alpha Call.",
+        "sequence": 54
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 8,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 56
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 8,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 60
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 9,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 64
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 10,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 74
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 11,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 78
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 13,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 87
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 15,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 96
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 17,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 105
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 19,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 114
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 21,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 123
+      }
+    ],
+    "npcDiagnosticCount": 0,
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30378674159",
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "tauri-driver became ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release binary created a real Tauri/WebKit session",
+        "result": "PASS"
+      },
+      {
+        "name": "two unprofiled rule-based NPCs were seated and ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release table entered hand 1 with the production NPC runner active",
+        "result": "PASS"
+      },
+      {
+        "name": "tournament completed across 22 hands with 24 committed rule-based NPC actions",
+        "result": "PASS"
+      },
+      {
+        "name": "both rule-based NPC identities produced live accepted actions",
+        "result": "PASS"
+      },
+      {
+        "name": "production runtime log contained no NPC error or fallback diagnostic",
+        "result": "PASS"
+      },
+      {
+        "name": "final standings contain the human host and both rule-based NPC players",
+        "result": "PASS"
+      }
+    ]
   },
-  "tournamentOutcome": "failure",
-  "validatedCommit": "d95ef20c6968f57b53790ac7a755faf09b7a963a",
+  "tournamentOutcome": "success",
+  "validatedCommit": "9d31efcd8f4aac47a2128fbf93c252889590753b",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30378185285"
+  "workflowRunId": "30378674159"
 }
