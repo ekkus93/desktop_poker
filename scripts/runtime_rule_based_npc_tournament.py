@@ -34,13 +34,6 @@ def table_view(client: WebDriverClient) -> dict[str, Any]:
     return value
 
 
-def debug_state(client: WebDriverClient) -> dict[str, Any]:
-    value = invoke(client, "get_debug_state", VIEW_PAYLOAD)
-    if not isinstance(value, dict):
-        raise AssertionError(f"get_debug_state returned {value!r}")
-    return value
-
-
 def participant_map(status: dict[str, Any]) -> dict[str, dict[str, Any]]:
     participants = status.get("participants")
     if not isinstance(participants, list):
@@ -83,6 +76,21 @@ def collect_bot_actions(
                     }
                 )
                 break
+
+
+def assert_no_npc_diagnostics(runtime_log: Path) -> None:
+    if not runtime_log.is_file():
+        raise AssertionError(f"production runtime log is missing: {runtime_log}")
+    diagnostics = [
+        line
+        for line in runtime_log.read_text(encoding="utf-8", errors="replace").splitlines()
+        if "[npc-runner]" in line
+    ]
+    if diagnostics:
+        raise AssertionError(
+            "NPC runner emitted an error or fallback diagnostic: "
+            + " | ".join(diagnostics[-10:])
+        )
 
 
 def configure_and_start(
@@ -138,7 +146,7 @@ def configure_and_start(
     if not isinstance(status, dict):
         raise AssertionError(f"add_npc_players returned {status!r}")
 
-    expected_names = {"CI Human Host", *(name for name, _ in BOT_CONFIGS)}
+    expected_names = {"CI Human Host"} | {name for name, _ in BOT_CONFIGS}
     participants = participant_map(status)
     if set(participants) != expected_names:
         raise AssertionError(f"unexpected participant set: {sorted(participants)}")
@@ -175,6 +183,7 @@ def run(
     timeout_seconds: float,
 ) -> dict[str, Any]:
     evidence_dir.mkdir(parents=True, exist_ok=True)
+    runtime_log = evidence_dir / "tauri-driver.log"
     client = WebDriverClient(driver_url)
     steps: list[dict[str, str]] = []
     bot_actions: list[dict[str, Any]] = []
@@ -281,17 +290,7 @@ def run(
                 f"expected at least three rule-based NPC decisions, observed {len(bot_actions)}"
             )
 
-        diagnostics = debug_state(client)
-        if diagnostics.get("lastNpcActionError") is not None:
-            raise AssertionError(
-                f"NPC runner reported an action error: {diagnostics['lastNpcActionError']!r}"
-            )
-        if diagnostics.get("lastLlmFallback") is not None:
-            raise AssertionError(
-                f"rule-based tournament unexpectedly recorded an LLM fallback: "
-                f"{diagnostics['lastLlmFallback']!r}"
-            )
-
+        assert_no_npc_diagnostics(runtime_log)
         capture(client, evidence_dir, "rule-based-tournament-complete")
         (evidence_dir / "final-table-view.json").write_text(
             json.dumps(final_view, indent=2) + "\n", encoding="utf-8"
@@ -299,15 +298,12 @@ def run(
         (evidence_dir / "rule-based-npc-actions.json").write_text(
             json.dumps(bot_actions, indent=2) + "\n", encoding="utf-8"
         )
-        (evidence_dir / "debug-state.json").write_text(
-            json.dumps(diagnostics, indent=2) + "\n", encoding="utf-8"
-        )
         record(
             f"tournament completed across {len(history)} hands with "
             f"{len(bot_actions)} committed rule-based NPC actions"
         )
         record("both rule-based NPC identities produced live accepted actions")
-        record("NPC diagnostics and LLM fallback state remained clear")
+        record("production runtime log contained no NPC error or fallback diagnostic")
         record("final standings contain the human host and both rule-based NPC players")
 
         return {
@@ -322,8 +318,7 @@ def run(
             "npcActions": bot_actions,
             "hostActions": host_actions,
             "finalStandings": standings,
-            "lastNpcActionError": diagnostics.get("lastNpcActionError"),
-            "lastLlmFallback": diagnostics.get("lastLlmFallback"),
+            "npcDiagnosticCount": 0,
             "steps": steps,
         }
     except Exception as error:  # noqa: BLE001 - preserve complete runtime evidence
@@ -341,7 +336,6 @@ def run(
             if client.session_id is not None:
                 capture(client, evidence_dir, "rule-based-tournament-failure")
                 failure["lastTableView"] = table_view(client)
-                failure["debugState"] = debug_state(client)
         except Exception as evidence_error:  # noqa: BLE001
             failure["evidenceCaptureError"] = str(evidence_error)
         raise RuntimeError(json.dumps(failure, indent=2)) from error
