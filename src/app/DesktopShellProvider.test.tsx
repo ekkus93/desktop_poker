@@ -144,7 +144,7 @@ describe("DesktopShellProvider", () => {
 
     expect(screen.getByText(/Display:/)).toBeTruthy();
     expect(
-      await screen.findByText(/Local preferences could not be saved/),
+      await screen.findByText(/Local data could not be saved/),
     ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Set Alice" }));
