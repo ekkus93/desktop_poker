@@ -1,16 +1,15 @@
 # Latest Rule-Based NPC Tournament Validation
 
-- Result: **PASS**
-- Validated commit: `0679711e5151d9719d59c1014b5db7665bf525ab`
-- GitHub Actions run: `30392626989`
+- Result: **FAIL**
+- Validated commit: `d02b69924f33d62e6f8ab4a7db31acb4f15fd5d2`
+- GitHub Actions run: `30393331242`
 - Build outcome: `success`
-- Tournament outcome: `success`
+- Tournament outcome: `failure`
 - Evidence artifact: `linux-rule-based-npc-tournament-evidence`
 
-## Result summary
+## Failure
 
-- Completed hands: `12`
-- Rule-based NPC actions: `13`
+AssertionError: NPC runner emitted an error or fallback diagnostic: [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] action window expired for player npc-seat-1 (window=aw-34)
 
 ## Executed checks
 
@@ -18,7 +17,4 @@
 - **PASS** — release binary created a real Tauri/WebKit session
 - **PASS** — two unprofiled rule-based NPCs were seated and ready
 - **PASS** — release table entered hand 1 with the production NPC runner active
-- **PASS** — tournament completed across 12 hands with 13 committed rule-based NPC actions
-- **PASS** — both rule-based NPC identities produced live accepted actions
-- **PASS** — production runtime log contained no NPC error or fallback diagnostic
-- **PASS** — final standings contain the human host and both rule-based NPC players
+- **FAIL** — rule-based NPC tournament
