@@ -97,7 +97,7 @@ impl LlmProviderSettings {
 pub struct LlmProviderConfig {
     #[serde(flatten)]
     pub settings: LlmProviderSettings,
-    /// API key — required for Anthropic and OpenAI, ignored for Ollama/llama-server.
+    /// API key — required for Anthropic and OpenAI; ignored by local providers.
     pub api_key: Option<String>,
 }
 
@@ -279,27 +279,63 @@ mod tests {
     }
 
     #[test]
-    fn flat_serde_roundtrip_preserves_all_fields() {
-        let cfg = LlmProviderConfig {
-            settings: LlmProviderSettings {
-                provider: LlmProviderType::Anthropic,
-                endpoint_url: Some("https://my.proxy".to_string()),
-                model: Some("claude-opus-4-8".to_string()),
-            },
-            api_key: Some("sk-ant-abc".to_string()),
-        };
-        let json = serde_json::to_string(&cfg).unwrap();
-        // Flat wire format: all fields at the top level.
-        assert!(json.contains("\"provider\""));
-        assert!(json.contains("\"apiKey\""));
-        assert!(json.contains("\"endpointUrl\""));
-        assert!(json.contains("\"model\""));
-        let back: LlmProviderConfig = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.settings.provider, LlmProviderType::Anthropic);
-        assert_eq!(back.api_key.as_deref(), Some("sk-ant-abc"));
-        assert_eq!(
-            back.settings.endpoint_url.as_deref(),
-            Some("https://my.proxy")
-        );
+    fn flat_serde_roundtrip_preserves_every_provider_variant() {
+        let cases = [
+            (
+                LlmProviderType::Anthropic,
+                Some("sk-ant-abc"),
+                Some("https://my.anthropic.proxy"),
+                Some("claude-opus-4-8"),
+            ),
+            (
+                LlmProviderType::OpenAi,
+                Some("sk-openai-abc"),
+                Some("https://my.openai.proxy"),
+                Some("gpt-4o-mini"),
+            ),
+            (
+                LlmProviderType::Ollama,
+                None,
+                Some("http://localhost:11434"),
+                Some("llama3.2:3b"),
+            ),
+            (
+                LlmProviderType::LlamaServer,
+                None,
+                Some("http://localhost:8080"),
+                Some("default"),
+            ),
+            (
+                LlmProviderType::EmbeddedLocal,
+                None,
+                None,
+                Some("/tmp/tiny-model.gguf"),
+            ),
+        ];
+
+        for (provider, api_key, endpoint_url, model) in cases {
+            let expected_provider = provider.clone();
+            let cfg = LlmProviderConfig {
+                settings: LlmProviderSettings {
+                    provider,
+                    endpoint_url: endpoint_url.map(str::to_string),
+                    model: model.map(str::to_string),
+                },
+                api_key: api_key.map(str::to_string),
+            };
+
+            let json = serde_json::to_string(&cfg).expect("provider config should serialize");
+            assert!(json.contains("\"provider\""));
+            assert!(json.contains("\"apiKey\""));
+            assert!(json.contains("\"endpointUrl\""));
+            assert!(json.contains("\"model\""));
+
+            let back: LlmProviderConfig =
+                serde_json::from_str(&json).expect("provider config should deserialize");
+            assert_eq!(back.settings.provider, expected_provider);
+            assert_eq!(back.api_key.as_deref(), api_key);
+            assert_eq!(back.settings.endpoint_url.as_deref(), endpoint_url);
+            assert_eq!(back.settings.model.as_deref(), model);
+        }
     }
 }
