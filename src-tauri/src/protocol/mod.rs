@@ -18,6 +18,13 @@ pub const PROTOCOL_VERSION: u32 = 1;
 pub const SERIALIZATION_STRATEGY: &str = "serde models plus canonical JSON bytes for signing";
 pub const JOIN_PAYLOAD_PREFIX: &str = "pkr1_";
 
+pub const ERROR_CODE_JOIN_REJECTED: &str = "JOIN_REJECTED";
+pub const ERROR_CODE_RECONNECT_ALREADY_CONNECTED: &str = "RECONNECT_ALREADY_CONNECTED";
+pub const ERROR_CODE_RECONNECT_REJECTED: &str = "RECONNECT_REJECTED";
+pub const ERROR_CODE_STALE_COUNTER: &str = "STALE_COUNTER";
+pub const ERROR_CODE_INVALID_SIGNATURE: &str = "INVALID_SIGNATURE";
+pub const ERROR_CODE_TABLE_OR_SESSION_MISMATCH: &str = "TABLE_OR_SESSION_MISMATCH";
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolError {
     message: String,
