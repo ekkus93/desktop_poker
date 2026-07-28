@@ -1,0 +1,321 @@
+name: Linux rule-based NPC tournament validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-rule-based-npc-validation.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "crates/**"
+      - "scripts/runtime_rule_based_npc_tournament.py"
+      - "scripts/runtime_embedded_npc_tournament.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-rule-based-npc-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  rule-based-npc-tournament:
+    name: Release rule-based NPC tournament
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux runtime and WebDriver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        run: npm run tauri build -- --no-bundle 2>&1 | tee rule-based-npc-build.log
+
+      - name: Run complete rule-based NPC tournament
+        id: tournament
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rule-based-tournament-evidence
+          binary="$PWD/target/release/desktop-poker"
+          test -x "$binary"
+          file "$binary" | tee rule-based-tournament-evidence/release-binary.file.txt
+          sha256sum "$binary" | tee rule-based-tournament-evidence/release-binary.sha256
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -lc '
+              set -euo pipefail
+              export NO_AT_BRIDGE=1
+              export WEBKIT_DISABLE_COMPOSITING_MODE=1
+              export GDK_BACKEND=x11
+
+              DESKTOP_POKER_INSTANCE_ID="rule-based-npc-${GITHUB_RUN_ID}" \
+                tauri-driver --port 4594 --native-port 4595 \
+                >rule-based-tournament-evidence/tauri-driver.log 2>&1 &
+              driver_pid=$!
+
+              cleanup() {
+                kill "$driver_pid" 2>/dev/null || true
+                wait "$driver_pid" 2>/dev/null || true
+              }
+              trap cleanup EXIT
+
+              python3 scripts/runtime_rule_based_npc_tournament.py \
+                --application "'"$binary"'" \
+                --driver-url http://127.0.0.1:4594 \
+                --evidence-dir rule-based-tournament-evidence
+            '
+
+      - name: Assemble rule-based tournament result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("rule-based-tournament-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+          source = evidence / "rule-based-npc-tournament-result.json"
+          runtime: dict[str, object]
+          if source.is_file():
+              try:
+                  parsed = json.loads(source.read_text(encoding="utf-8"))
+                  runtime = parsed if isinstance(parsed, dict) else {
+                      "result": "FAIL",
+                      "error": "Rule-based result was not a JSON object.",
+                  }
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime = {
+                      "result": "FAIL",
+                      "error": f"Could not parse rule-based result: {error}",
+                      "rawResult": source.read_text(encoding="utf-8", errors="replace"),
+                  }
+          else:
+              runtime = {
+                  "result": "FAIL",
+                  "error": "Rule-based tournament result was not produced.",
+              }
+
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          tournament = os.environ.get("TOURNAMENT_OUTCOME", "not-run")
+          result = (
+              "PASS"
+              if build == "success"
+              and tournament == "success"
+              and runtime.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": result,
+              "buildOutcome": build,
+              "tournamentOutcome": tournament,
+              "ruleBasedTournament": runtime,
+          }
+          (evidence / "rule-based-workflow-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory rule-based tournament evidence
+        if: always()
+        run: |
+          find rule-based-tournament-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort \
+            | tee rule-based-tournament-evidence/inventory.txt
+          cat rule-based-tournament-evidence/rule-based-workflow-result.json || true
+          cat rule-based-tournament-evidence/tauri-driver.log || true
+
+      - name: Upload rule-based tournament evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-rule-based-npc-tournament-evidence
+          path: |
+            rule-based-npc-build.log
+            rule-based-tournament-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable rule-based tournament result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("rule-based-tournament-evidence/rule-based-workflow-result.json")
+          if source.is_file():
+              try:
+                  workflow = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  workflow = {
+                      "result": "FAIL",
+                      "ruleBasedTournament": {
+                          "result": "FAIL",
+                          "error": str(error),
+                      },
+                  }
+          else:
+              workflow = {
+                  "result": "FAIL",
+                  "ruleBasedTournament": {
+                      "result": "FAIL",
+                      "error": "Rule-based workflow result missing.",
+                  },
+              }
+
+          runtime = workflow.get("ruleBasedTournament")
+          if not isinstance(runtime, dict):
+              runtime = {
+                  "result": "FAIL",
+                  "error": "Rule-based runtime payload was not an object.",
+              }
+
+          payload = {
+              "result": workflow.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "tournamentOutcome": os.environ.get("TOURNAMENT_OUTCOME", "not-run"),
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
+              "ruleBasedTournament": runtime,
+          }
+
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          json_path = output_dir / "rule-based-tournament-latest.json"
+          md_path = output_dir / "rule-based-tournament-latest.md"
+          json_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Rule-Based NPC Tournament Validation",
+              "",
+              f"- Result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Build outcome: `{payload['buildOutcome']}`",
+              f"- Tournament outcome: `{payload['tournamentOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          error = runtime.get("error")
+          if error:
+              lines.extend(["## Failure", "", str(error), ""])
+          completed_hands = runtime.get("completedHands")
+          npc_action_count = runtime.get("npcActionCount")
+          if completed_hands is not None or npc_action_count is not None:
+              lines.extend([
+                  "## Result summary",
+                  "",
+                  f"- Completed hands: `{completed_hands}`",
+                  f"- Rule-based NPC actions: `{npc_action_count}`",
+                  "",
+              ])
+          steps = runtime.get("steps")
+          if isinstance(steps, list):
+              lines.extend(["## Executed checks", ""])
+              for step in steps:
+                  if isinstance(step, dict):
+                      lines.append(
+                          f"- **{step.get('result', 'UNKNOWN')}** — "
+                          f"{step.get('name', 'unnamed check')}"
+                      )
+          md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record rule-based NPC tournament result" \
+            docs/runtime-validation/rule-based-tournament-latest.json \
+            docs/runtime-validation/rule-based-tournament-latest.md
+
+      - name: Enforce rule-based tournament result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TOURNAMENT_OUTCOME: ${{ steps.tournament.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$TOURNAMENT_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("rule-based-tournament-evidence/rule-based-workflow-result.json"))["result"])')" = "PASS"
