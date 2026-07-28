@@ -1,0 +1,511 @@
+name: Apply accessible dialog migration
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/apply-accessible-dialog-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-accessible-dialog-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Migrate confirmation surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B accessible-dialog-migration origin/master
+
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path_name}: expected one exact match, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          def replace_all(path_name: str, old: str, new: str, expected: int) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(
+                      f"{path_name}: expected {expected} matches, found {count}"
+                  )
+              path.write_text(text.replace(old, new), encoding="utf-8")
+
+          def sub_once(path_name: str, pattern: str, replacement: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding="utf-8")
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"{path_name}: regex replacement count was {count}")
+              path.write_text(updated, encoding="utf-8")
+
+          # Lobby: explicit connection announcements and accessible leave/close dialog.
+          replace_once(
+              "src/screens/TournamentLobbyScreen.tsx",
+              'import { useDesktopShell } from "../app/useDesktopShell";\n',
+              'import { useDesktopShell } from "../app/useDesktopShell";\n'
+              'import { AccessibleDialog } from "../components/shared/AccessibleDialog";\n',
+          )
+          replace_once(
+              "src/screens/TournamentLobbyScreen.tsx",
+              '<p className="inline-banner error">{hostRecoveryError}</p>',
+              '<p className="inline-banner error" role="alert">\n'
+              '                  {hostRecoveryError}\n'
+              '                </p>',
+          )
+          replace_once(
+              "src/screens/TournamentLobbyScreen.tsx",
+              '''{clientTerminated ? (
+                <div className="inline-banner error">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Disconnected from host — session could not be recovered.
+                </div>
+              ) : clientReconnecting ? (
+                <div className="inline-banner info">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Reconnecting to host…
+                </div>
+              ) : connectionSlow ? (
+                <div className="inline-banner info">
+                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                  Connection slow — retrying…
+                </div>
+              ) : null}''',
+              '''{clientTerminated ? (
+                <div className="inline-banner error" role="alert">
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
+                  Disconnected from host — session could not be recovered.
+                </div>
+              ) : clientReconnecting ? (
+                <div
+                  aria-live="polite"
+                  className="inline-banner info"
+                  role="status"
+                >
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
+                  Reconnecting to host…
+                </div>
+              ) : connectionSlow ? (
+                <div
+                  aria-live="polite"
+                  className="inline-banner info"
+                  role="status"
+                >
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
+                  Connection slow — retrying…
+                </div>
+              ) : null}''',
+          )
+          replace_all(
+              "src/screens/TournamentLobbyScreen.tsx",
+              '<p className="inline-banner error">{lobbyError}</p>',
+              '<p className="inline-banner error" role="alert">\n'
+              '                  {lobbyError}\n'
+              '                </p>',
+              2,
+          )
+          sub_once(
+              "src/screens/TournamentLobbyScreen.tsx",
+              r'''\{showLeaveFlow \? \(\n\s*<section className="dialog-card">.*?</section>\n\s*\) : null\}''',
+              '''{showLeaveFlow ? (
+        <AccessibleDialog
+          kicker={localSeat?.kind === "host" ? "Close" : "Leave"}
+          onCancel={() => setShowLeaveFlow(false)}
+          title={leaveTitle}
+          titleId="leave-table-title"
+        >
+          {lobbyError ? (
+            <p className="inline-banner error" role="alert">
+              {lobbyError}
+            </p>
+          ) : null}
+          <div className="button-row">
+            <button
+              className="primary-button"
+              disabled={submitting}
+              onClick={() => {
+                void leaveLiveSession();
+              }}
+              type="button"
+            >
+              {leaveActionLabel}
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => setShowLeaveFlow(false)}
+              type="button"
+            >
+              Stay here
+            </button>
+          </div>
+        </AccessibleDialog>
+      ) : null}''',
+          )
+
+          # NPC profiles: focus-managed unsaved-change confirmation and live errors.
+          replace_once(
+              "src/screens/NpcProfilesScreen.tsx",
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+              'import { AccessibleDialog } from "../components/shared/AccessibleDialog";\n'
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+          )
+          sub_once(
+              "src/screens/NpcProfilesScreen.tsx",
+              r'''\{unsavedDialogVisible \? \(\n\s*<section\n\s*aria-labelledby="unsaved-profile-title".*?</section>\n\s*\) : null\}''',
+              '''{unsavedDialogVisible ? (
+        <AccessibleDialog
+          description="Your latest profile edits have not been saved. Discarding them cannot be undone."
+          kicker="Unsaved changes"
+          onCancel={keepEditing}
+          title="Discard unsaved profile changes?"
+          titleId="unsaved-profile-title"
+        >
+          <div className="button-row">
+            <button
+              className="primary-button"
+              onClick={discardChanges}
+              type="button"
+            >
+              Discard changes
+            </button>
+            <button
+              className="secondary-button"
+              onClick={keepEditing}
+              type="button"
+            >
+              Keep editing
+            </button>
+          </div>
+        </AccessibleDialog>
+      ) : null}''',
+          )
+          replace_all(
+              "src/screens/NpcProfilesScreen.tsx",
+              '<p className="inline-banner error">',
+              '<p className="inline-banner error" role="alert">',
+              4,
+          )
+          replace_once(
+              "src/screens/NpcProfilesScreen.tsx",
+              '<p className="inline-banner success">Profile saved.</p>',
+              '<p className="inline-banner success" role="status">\n'
+              '                Profile saved.\n'
+              '              </p>',
+          )
+
+          # Settings: keep launch actions visible and place confirmation in a modal.
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+              'import { AccessibleDialog } from "../components/shared/AccessibleDialog";\n'
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+          )
+          sub_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              r'''<div className="button-row">\n\s*\{localSetupConfirmation === "resetHostDraft".*?</div>\n\s*\{resetSuccess \? \(''',
+              '''<div className="button-row">
+            <button
+              className="secondary-button"
+              disabled={localSetupConfirmation !== null}
+              onClick={() => {
+                setLocalSetupConfirmation("resetHostDraft");
+                setResetSuccess(false);
+              }}
+              type="button"
+            >
+              Reset host setup
+            </button>
+            <button
+              className="secondary-button"
+              disabled={localSetupConfirmation !== null}
+              onClick={() => {
+                setLocalSetupConfirmation("clearRecentInvites");
+                setClearSuccess(false);
+              }}
+              type="button"
+            >
+              Clear saved invites ({recentJoinPayloads.length})
+            </button>
+          </div>
+          {localSetupConfirmation ? (
+            <AccessibleDialog
+              description={
+                localSetupConfirmation === "resetHostDraft"
+                  ? "This removes the saved host setup on this device."
+                  : "This removes every saved invitation on this device."
+              }
+              kicker="Confirm destructive action"
+              onCancel={() => setLocalSetupConfirmation(null)}
+              title={
+                localSetupConfirmation === "resetHostDraft"
+                  ? "Reset saved host setup?"
+                  : "Clear saved invitations?"
+              }
+              titleId="local-setup-confirmation-title"
+            >
+              <div className="button-row">
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    if (localSetupConfirmation === "resetHostDraft") {
+                      resetHostDraft();
+                      setResetSuccess(true);
+                    } else {
+                      clearRecentJoinPayloads();
+                      setClearSuccess(true);
+                    }
+                    setLocalSetupConfirmation(null);
+                  }}
+                  type="button"
+                >
+                  {localSetupConfirmation === "resetHostDraft"
+                    ? "Confirm reset"
+                    : "Confirm clear"}
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setLocalSetupConfirmation(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </AccessibleDialog>
+          ) : null}
+          {resetSuccess ? (''',
+          )
+          replace_all(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '<p className="inline-banner error">',
+              '<p className="inline-banner error" role="alert">',
+              1,
+          )
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '<p className="inline-banner success">{providerStatus}</p>',
+              '<p className="inline-banner success" role="status">\n'
+              '              {providerStatus}\n'
+              '            </p>',
+          )
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '<p className="inline-banner success">Host setup reset.</p>',
+              '<p className="inline-banner success" role="status">\n'
+              '              Host setup reset.\n'
+              '            </p>',
+          )
+          replace_once(
+              "src/screens/DeviceSettingsScreen.tsx",
+              '<p className="inline-banner success">Saved invites cleared.</p>',
+              '<p className="inline-banner success" role="status">\n'
+              '              Saved invites cleared.\n'
+              '            </p>',
+          )
+
+          # Main table: announce connection/action changes and focus all-in confirmation.
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+              'import { AccessibleDialog } from "../components/shared/AccessibleDialog";\n'
+              'import { SectionCard } from "../components/shared/SectionCard";\n',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '''<div
+                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
+                >''',
+              '''<div
+                  aria-atomic="true"
+                  aria-live="polite"
+                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
+                >''',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '''{tableView?.sessionConnection === "reconnecting" ? (
+          <div className="inline-banner info">
+            <WifiOff className="button-icon" strokeWidth={1.9} />
+            Reconnecting to host…
+          </div>
+        ) : connectionSlow ? (
+          <div className="inline-banner info">
+            <WifiOff className="button-icon" strokeWidth={1.9} />
+            Connection slow — retrying…
+          </div>
+        ) : null}''',
+              '''{tableView?.sessionConnection === "reconnecting" ? (
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
+            Reconnecting to host…
+          </div>
+        ) : connectionSlow ? (
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
+            Connection slow — retrying…
+          </div>
+        ) : null}''',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '<div className="inline-banner info observer-banner">',
+              '<div className="inline-banner info observer-banner" role="status">',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '''{submitting ? (
+                    <div className="inline-banner info">
+                      Sending your action to the host…
+                    </div>
+                  ) : null}''',
+              '''{submitting ? (
+                    <div
+                      aria-live="polite"
+                      className="inline-banner info"
+                      role="status"
+                    >
+                      Sending your action to the host…
+                    </div>
+                  ) : null}''',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '''{confirmation ? (
+                    <div className="confirmation-card" role="status">
+                      <strong>{confirmation.label}</strong>
+                      <p className="field-hint">
+                        {confirmation.actionKind === "betOrRaise"
+                          ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
+                          : "Commit the remaining stack as an all-in action?"}
+                      </p>
+                      <div className="button-row">
+                        <button
+                          className="primary-button"
+                          disabled={submitting}
+                          onClick={() => void confirmQueuedAction()}
+                          type="button"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="secondary-button"
+                          disabled={submitting}
+                          onClick={() => setConfirmation(null)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}''',
+              '''{confirmation ? (
+                    <AccessibleDialog
+                      className="confirmation-card"
+                      description={
+                        confirmation.actionKind === "betOrRaise"
+                          ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
+                          : "Commit the remaining stack as an all-in action?"
+                      }
+                      onCancel={() => setConfirmation(null)}
+                      title={confirmation.label}
+                      titleId="table-action-confirmation-title"
+                    >
+                      <div className="button-row">
+                        <button
+                          className="primary-button"
+                          disabled={submitting}
+                          onClick={() => void confirmQueuedAction()}
+                          type="button"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="secondary-button"
+                          disabled={submitting}
+                          onClick={() => setConfirmation(null)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </AccessibleDialog>
+                  ) : null}''',
+          )
+          replace_once(
+              "src/screens/MainTableScreen.tsx",
+              '<div className="inline-banner error">{actionError}</div>',
+              '<div className="inline-banner error" role="alert">\n'
+              '                      {actionError}\n'
+              '                    </div>',
+          )
+          PY
+
+          npm ci
+          npm run format
+          rm .github/workflows/apply-accessible-dialog-migration.yml
+          npm run format:check
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: migrate confirmations to accessible dialogs"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
