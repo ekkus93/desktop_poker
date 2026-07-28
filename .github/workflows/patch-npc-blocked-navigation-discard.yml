@@ -1,0 +1,135 @@
+name: Patch NPC blocked navigation discard
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-npc-blocked-navigation-discard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-npc-blocked-navigation-discard
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply and verify discard sequencing
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B npc-blocked-navigation-discard origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/screens/NpcProfilesScreen.tsx")
+          text = path.read_text(encoding="utf-8")
+
+          state_anchor = '''  const [pendingEditorTransition, setPendingEditorTransition] =
+    useState<EditorTransition | null>(null);
+'''
+          state_replacement = state_anchor + '''  const [discardBlockedNavigation, setDiscardBlockedNavigation] =
+    useState(false);
+'''
+          if "discardBlockedNavigation" not in text:
+              if text.count(state_anchor) != 1:
+                  raise SystemExit("dirty-navigation state anchor not found")
+              text = text.replace(state_anchor, state_replacement, 1)
+
+          unload_anchor = '''  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (!hasUnsavedChanges) {
+          return;
+        }
+        event.preventDefault();
+        event.returnValue = "";
+      },
+      [hasUnsavedChanges],
+    ),
+    { capture: true },
+  );
+'''
+          effect = unload_anchor + '''
+  useEffect(() => {
+    if (
+      discardBlockedNavigation &&
+      blocker.state === "blocked" &&
+      !hasUnsavedChanges
+    ) {
+      setDiscardBlockedNavigation(false);
+      blocker.proceed();
+    }
+  }, [blocker, discardBlockedNavigation, hasUnsavedChanges]);
+'''
+          if "setDiscardBlockedNavigation(false);" not in text:
+              if text.count(unload_anchor) != 1:
+                  raise SystemExit("before-unload anchor not found")
+              text = text.replace(unload_anchor, effect, 1)
+
+          old_discard = '''  function discardChanges() {
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+      return;
+    }
+'''
+          new_discard = '''  function discardChanges() {
+    if (blocker.state === "blocked") {
+      if (detail) {
+        setDetailBaselineContent(detail.content);
+      }
+      if (newMode) {
+        setNewId("");
+        setNewContent("");
+      }
+      setDiscardBlockedNavigation(true);
+      return;
+    }
+'''
+          if old_discard in text:
+              text = text.replace(old_discard, new_discard, 1)
+          elif new_discard not in text:
+              raise SystemExit("discard handler anchor not found")
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          npm ci
+          npm run format
+          npx vitest run src/screens/NpcProfilesIntegrity.test.tsx
+          npm run lint
+          npm run build
+
+          rm .github/workflows/patch-npc-blocked-navigation-discard.yml
+          npm run format:check
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: sequence blocked navigation after discarded profile edits"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
