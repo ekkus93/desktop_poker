@@ -34,7 +34,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const [showLeaveFlow, setShowLeaveFlow] = useState(false);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [optimisticReadyOverride, setOptimisticReadyOverride] = useState<
+  const [readyTransitionTarget, setReadyTransitionTarget] = useState<
     boolean | null
   >(null);
 
@@ -49,7 +49,22 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
   const participants = liveSession ? buildLiveSeats(liveSession) : [];
   const activeSeats = participants.filter((seat) => seat.kind !== "open");
   const localSeat = participants.find((seat) => seat.isLocal);
-  const localSeatReady = optimisticReadyOverride ?? localSeat?.ready ?? false;
+  const localSeatReady = localSeat?.ready ?? false;
+  const readyTransitionPending = readyTransitionTarget !== null;
+  const localReadyStatusLabel = readyTransitionPending
+    ? readyTransitionTarget
+      ? "You: Marking ready…"
+      : "You: Undoing ready…"
+    : localSeatReady
+      ? "You: Ready"
+      : "You: Waiting";
+  const readyActionLabel = readyTransitionPending
+    ? readyTransitionTarget
+      ? "Marking ready…"
+      : "Undoing ready…"
+    : localSeatReady
+      ? "Undo ready"
+      : "I'm ready";
   const seatsStillWaiting = activeSeats.filter(
     (seat) => !seat.ready && !seat.isNpc,
   ).length;
@@ -211,7 +226,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
     setSubmitting(true);
     setLobbyError(null);
     const nextReady = !localSeatReady;
-    setOptimisticReadyOverride(nextReady);
+    setReadyTransitionTarget(nextReady);
 
     try {
       if (hostSession) {
@@ -227,10 +242,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
           ? error.message
           : "Unable to change ready state.",
       );
-      setOptimisticReadyOverride(null);
     } finally {
       setSubmitting(false);
-      setOptimisticReadyOverride(null);
+      setReadyTransitionTarget(null);
     }
   };
 
@@ -299,14 +313,16 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
               </div>
               <div className="lobby-status-row">
                 <span
-                  className={`status-badge ${localSeatReady ? "success" : "info"}`}
+                  aria-atomic="true"
+                  aria-live="polite"
+                  className={`status-badge ${!readyTransitionPending && localSeatReady ? "success" : "info"}`}
                 >
-                  {localSeatReady ? (
+                  {!readyTransitionPending && localSeatReady ? (
                     <Check className="button-icon" strokeWidth={1.9} />
                   ) : (
                     <Clock3 className="button-icon" strokeWidth={1.9} />
                   )}
-                  {localSeatReady ? "You: Ready" : "You: Waiting"}
+                  {localReadyStatusLabel}
                 </span>
                 <span
                   className={`status-badge ${tableReady ? "success" : "info"}`}
@@ -344,6 +360,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 {liveLobbyActionsEnabled &&
                 liveLocalParticipant?.seatIndex !== null ? (
                   <button
+                    aria-busy={readyTransitionPending}
                     className={
                       localSeatReady
                         ? "primary-button compact-button"
@@ -355,7 +372,7 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     }}
                     type="button"
                   >
-                    {localSeatReady ? "Undo ready" : "I'm ready"}
+                    {readyActionLabel}
                   </button>
                 ) : null}
                 {liveCanStart ? (
