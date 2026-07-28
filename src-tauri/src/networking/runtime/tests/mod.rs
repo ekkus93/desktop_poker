@@ -1,6 +1,7 @@
 mod support;
 
 mod end_to_end;
+mod host_shutdown;
 mod join;
 mod misc;
 mod protocol_warning;
