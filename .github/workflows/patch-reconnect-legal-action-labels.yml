@@ -1,5 +1,6 @@
 name: Patch reconnect legal-action labels
 
+# Existing workflow update intentionally triggers this one-time patch.
 on:
   push:
     branches:
