@@ -2,14 +2,14 @@
   "buildOutcome": "failure",
   "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
   "protocolOutcome": "success",
-  "recordedAtUtc": "2026-07-28T10:17:40.797960+00:00",
+  "recordedAtUtc": "2026-07-28T10:27:39.891742+00:00",
   "releaseRuntimeOutcome": "skipped",
   "result": "FAIL",
   "runtime": {
     "error": "Release reconnect result was not produced.",
     "result": "FAIL"
   },
-  "validatedCommit": "f40a808a84bdc5b344e5da37dccd61fc2398e13e",
+  "validatedCommit": "1d6f1632200a8f310d0e69b2c8dec8e9e56f9738",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30350086544"
+  "workflowRunId": "30350725540"
 }
