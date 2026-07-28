@@ -1,25 +1,25 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **PASS**
-- Validated commit: `729183461abceb463c49d0735bd18d76bdb42294`
-- GitHub Actions run: `30316281970`
+- Validated commit: `24bc1a51d19c173b920fc56ffe27874046dbaf45`
+- GitHub Actions run: `30323351107`
 - Build outcome: `success`
 - Gameplay outcome: `success`
-- Recorded at: `2026-07-28T00:09:53.925064+00:00`
+- Recorded at: `2026-07-28T02:35:13.675169+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Result summary
 
 - Completed hands: `3`
-- Host instance: `full-game-host-30316281970`
-- Client instance: `full-game-client-30316281970`
+- Host instance: `full-game-host-30323351107`
+- Client instance: `full-game-client-30323351107`
 
 ## Executed checks
 
 - **PASS** — two isolated release instances completed host/join/seat/ready/start
 - **PASS** — initial running-hand public state is synchronized
 - **PASS** — exactly one action tray is visible; initial actor is host
-- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/a24a0e15-5ef0-4395-b806-290f9e87b3df/execute/async error raise exceeds remaining stack: None
+- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/8611c646-26c2-4f64-83e0-1e16a4ce95f0/execute/async error raise exceeds remaining stack: None
 - **PASS** — quick-size Min updates the legal raise amount without submitting
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
 - **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
