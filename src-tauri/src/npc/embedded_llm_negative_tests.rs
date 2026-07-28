@@ -42,11 +42,9 @@ fn rejects_directory_even_when_name_ends_in_gguf() {
             .expect("temporary path should be valid UTF-8"),
     )
     .expect_err("directory must not be accepted as a model file");
-    assert!(
-        error
-            .to_string()
-            .contains("does not exist or is not a regular file")
-    );
+    assert!(error
+        .to_string()
+        .contains("does not exist or is not a regular file"));
 }
 
 #[test]
