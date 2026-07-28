@@ -38,12 +38,12 @@
     ]
   },
   "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T17:09:02.996972+00:00",
+  "recordedAtUtc": "2026-07-28T19:26:07.217728+00:00",
   "result": "FAIL",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "efeff5767e2a589416f703fc8341a274896c4c93e38cd3721ca4764f1b127e42",
-    "instanceId": "runtime-smoke-30381309998",
+    "instanceId": "runtime-smoke-30391727387",
     "result": "PASS",
     "steps": [
       {
@@ -101,7 +101,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "253b20a0b2555fa8a6b9cb3ccb33375bb8171e47",
+  "validatedCommit": "566a4168539371e0a363b083a6f868f843d86741",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30381309998"
+  "workflowRunId": "30391727387"
 }
