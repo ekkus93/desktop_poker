@@ -2,15 +2,15 @@
   "appImageValidation": {
     "appImage": {
       "appImage": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
-      "appImageSha256": "09495dc4607e710a96af704fe48165308c87c621cfaedee6fbffcfdd0c36c656",
-      "appImageSizeBytes": "82663928"
+      "appImageSha256": "c49e00fc1e60266fb45092153b0407523a85be202b14b250557fa46a2b7dda36",
+      "appImageSizeBytes": "82659832"
     },
     "buildOutcome": "success",
     "result": "PASS",
     "runtime": {
       "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
-      "applicationSha256": "09495dc4607e710a96af704fe48165308c87c621cfaedee6fbffcfdd0c36c656",
-      "instanceId": "appimage-webdriver-30335336681",
+      "applicationSha256": "c49e00fc1e60266fb45092153b0407523a85be202b14b250557fa46a2b7dda36",
+      "instanceId": "appimage-webdriver-30349510698",
       "result": "PASS",
       "steps": [
         {
@@ -81,10 +81,10 @@
   },
   "buildOutcome": "success",
   "evidenceArtifact": "linux-appimage-evidence",
-  "recordedAtUtc": "2026-07-28T06:39:09.705441+00:00",
+  "recordedAtUtc": "2026-07-28T10:11:32.838417+00:00",
   "result": "PASS",
-  "validatedCommit": "f35d8552648091211ed05c99ac8474ae07541be6",
+  "validatedCommit": "70053e4af0a06c24810e6d07ece4669691ef1404",
   "validationOutcome": "success",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30335336681"
+  "workflowRunId": "30349510698"
 }
