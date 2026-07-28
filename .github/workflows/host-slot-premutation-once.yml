@@ -1,0 +1,117 @@
+name: Move client slot admission before mutation once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/host-slot-premutation-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Move slot reservation ahead of authoritative mutation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src-tauri/src/networking/runtime/host.rs")
+          lines = path.read_text(encoding="utf-8").splitlines()
+
+          def find(needle, start=0):
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing {needle!r}")
+
+          response_start = find("let response = match initial_request {")
+          response_end = find("};", response_start)
+          old_response = lines[response_start:response_end + 1]
+          if not any("handle_initial_client_request" in line for line in old_response):
+              raise SystemExit("unexpected initial request response block")
+
+          indent = lines[response_start][: len(lines[response_start]) - len(lines[response_start].lstrip())]
+          i1 = indent + "    "
+          i2 = i1 + "    "
+          i3 = i2 + "    "
+          replacement = [
+              f"{indent}let (response, active_client_slot_guard) = match initial_request {{",
+              f"{i1}Ok(request_envelope) => {{",
+              f"{i2}let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {{",
+              f"{i3}update_health(&runtime_health_conn2, |health| {{",
+              f"{i3}    health.connected_client_limit_rejection_count += 1;",
+              f"{i3}    health.record_error(format!(",
+              f'{i3}        "active client connection limit reached ({{max_active_clients}})",',
+              f"{i3}    ));",
+              f"{i3}}});",
+              f"{i3}if let Ok(envelope) = build_protocol_error_envelope(",
+              f"{i3}    &crypto_provider,",
+              f"{i3}    &join_payload,",
+              f"{i3}    &server_sequence,",
+              f"{i3}    &host_signing_keys,",
+              f"{i3}    crate::protocol::ERROR_CODE_CONNECTED_CLIENT_LIMIT,",
+              f'{i3}    "host active client connection limit reached".to_string(),',
+              f"{i3}    None,",
+              f"{i3}) {{",
+              f"{i3}    let _ = write_json_frame(&mut stream, &envelope);",
+              f"{i3}}}",
+              f"{i3}return;",
+              f"{i2}}};",
+              f"{i2}(",
+              f"{i3}handle_initial_client_request(",
+              f"{i3}    &crypto_provider,",
+              f"{i3}    request_envelope,",
+              f"{i3}    &join_payload,",
+              f"{i3}    &authoritative_state,",
+              f"{i3}    &server_sequence,",
+              f"{i3}    &host_signing_keys,",
+              f"{i3}    &host_encryption_keys,",
+              f"{i3}),",
+              f"{i3}Some(active_client_slot_guard),",
+              f"{i2})",
+              f"{i1}}}",
+              f"{i1}Err(error) => (Err(error), None),",
+              f"{indent}}};",
+          ]
+          lines[response_start:response_end + 1] = replacement
+
+          acceptance = find("Ok(InitialRequestAcceptance {", response_start)
+          old_slot_start = find("let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {", acceptance)
+          old_slot_end = find("};", old_slot_start)
+          # The block contains nested `};` sequences. Find the one immediately before the snapshot write.
+          snapshot_write = find("if write_json_frame(&mut stream, &snapshot_envelope).is_ok()", old_slot_start)
+          old_slot_end = snapshot_write - 2
+          if lines[old_slot_end].strip() != "};":
+              raise SystemExit(f"unexpected old slot block terminator: {lines[old_slot_end]!r}")
+          slot_indent = lines[old_slot_start][: len(lines[old_slot_start]) - len(lines[old_slot_start].lstrip())]
+          lines[old_slot_start:old_slot_end + 1] = [
+              f"{slot_indent}let Some(active_client_slot_guard) = active_client_slot_guard else {{",
+              f"{slot_indent}    update_health(&runtime_health_conn2, |health| {{",
+              f"{slot_indent}        health.state_lock_error_count += 1;",
+              f'{slot_indent}        health.record_error("successful initial request lost its reserved client slot");',
+              f"{slot_indent}    }});",
+              f"{slot_indent}    return;",
+              f"{slot_indent}}};",
+          ]
+
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+      - name: Format Rust
+        run: cargo fmt
+      - name: Commit integrity fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/src/networking/runtime/host.rs
+          git commit -m "Reserve host client slots before state mutation"
+          git pull --rebase origin master
+          git push origin HEAD:master
