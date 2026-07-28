@@ -3,7 +3,7 @@
   "evidenceArtifact": "linux-release-full-game-evidence",
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "bc2b6c4344b79c5835e438714547d00ff97cd54ef955af1b7073f076341b84d0",
+    "applicationSha256": "a22b2952c4c024b484cb9258443662eec612cf328a509d0c243886500cebae47",
     "error": "AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None",
     "result": "FAIL",
     "steps": [
@@ -14,9 +14,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T19:48:32.618174+00:00",
+  "recordedAtUtc": "2026-07-28T20:06:41.234755+00:00",
   "result": "FAIL",
-  "validatedCommit": "d02b69924f33d62e6f8ab4a7db31acb4f15fd5d2",
+  "validatedCommit": "abea9f5d60839dc96cf4787b36cf3f4f4566a52f",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30393331171"
+  "workflowRunId": "30394648036"
 }
