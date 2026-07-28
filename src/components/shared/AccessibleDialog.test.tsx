@@ -72,10 +72,11 @@ describe("AccessibleDialog", () => {
     expect(document.activeElement).toBe(cancel);
   });
 
-  it("closes on Escape and returns focus to the opener", () => {
+  it("closes on Escape and returns focus to the focused opener", () => {
     const onCancel = vi.fn();
     render(<DialogHarness onCancel={onCancel} />);
     const opener = screen.getByRole("button", { name: "Open dialog" });
+    opener.focus();
     fireEvent.click(opener);
 
     fireEvent.keyDown(
