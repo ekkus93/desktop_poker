@@ -344,7 +344,10 @@ def validate_gameplay(
         f"Fold completed hand {first_history[0].get('handNumber')} with synchronized duplicate-free history"
     )
 
-    max_showdowns = 6
+    # A called heads-up all-in does not guarantee elimination: the shorter
+    # stack can win or the board can split. Keep a finite safety bound, but
+    # make the probabilistic completion check resistant to rare win streaks.
+    max_showdowns = 20
     for attempt in range(1, max_showdowns + 1):
         host_view, client_view = wait_for_views(
             host,
