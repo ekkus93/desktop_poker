@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/4bb7a140-85d4-444b-9580-6a2adb1d0cbd/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: Tauri command 'submit_table_action' failed: raise exceeds remaining stack",
         "result": "PASS"
       },
       {
@@ -40,6 +40,18 @@
         "result": "PASS"
       },
       {
+        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
+        "result": "PASS"
+      },
+      {
+        "name": "all-in showdown attempt 4 settled with 5 synchronized hands",
+        "result": "PASS"
+      },
+      {
+        "name": "all-in showdown attempt 5 settled with 6 synchronized hands",
+        "result": "PASS"
+      },
+      {
         "name": "tournament completed with matching standings and one eliminated observer",
         "result": "PASS"
       },
@@ -50,9 +62,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T05:10:32.709773+00:00",
+  "recordedAtUtc": "2026-07-28T05:18:28.224812+00:00",
   "result": "FAIL",
-  "validatedCommit": "1c0546e23ede69c4539bbaad9f58abac999d1a26",
+  "validatedCommit": "e24983d4f262da2fce4db6307cc78bb9afd1123d",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30330631038"
+  "workflowRunId": "30330945441"
 }
