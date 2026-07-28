@@ -218,7 +218,9 @@ impl HostServer {
                                             &join_payload,
                                             &server_sequence,
                                             &host_signing_keys,
-                                            "JOIN_REJECTED",
+                                            error
+                                                .code()
+                                                .unwrap_or(crate::protocol::ERROR_CODE_JOIN_REJECTED),
                                             error.to_string(),
                                             None,
                                         ) {

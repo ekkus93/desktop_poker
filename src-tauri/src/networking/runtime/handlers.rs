@@ -208,7 +208,10 @@ pub(crate) fn handle_reconnect_request(
         }
 
         if participant.connection_state == ConnectionState::Connected {
-            return Err(NetworkingError::new("participant is already connected"));
+            return Err(NetworkingError::with_code(
+                crate::protocol::ERROR_CODE_RECONNECT_ALREADY_CONNECTED,
+                "participant is already connected",
+            ));
         }
 
         if !is_reconnectable_participant(participant) {

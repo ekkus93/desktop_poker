@@ -113,6 +113,7 @@ impl ClientRuntime {
                             reconnect_token.as_deref(),
                             last_seen_server_sequence.unwrap_or(0),
                             &mut next_counter,
+                            &stop_signal_for_thread,
                         ) {
                             Ok((reconnected_stream, snapshot_envelope)) => {
                                 if stop_signal_for_thread.load(Ordering::SeqCst) {
@@ -198,6 +199,10 @@ impl ClientRuntime {
                                 continue;
                             }
                             Err(error) => {
+                                if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                    break;
+                                }
+
                                 // Best-effort reconnect cleanup: failure to acquire this lock only
                                 // prevents clearing an already-invalid command stream; the
                                 // reconnect failure is reported via SafeError below.
