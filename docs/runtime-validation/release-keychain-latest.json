@@ -1,19 +1,59 @@
 {
-  "buildOutcome": "cancelled",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-release-keychain-evidence",
   "failurePath": {
-    "error": "failure path result was not produced.",
-    "result": "FAIL"
+    "error": "WebDriverError: WebDriver POST /session/64f839bb-0340-4a31-af2f-5e4d58b3d325/execute/async error could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory: None",
+    "mode": "failure",
+    "result": "FAIL",
+    "steps": [
+      {
+        "name": "release keychain failure path",
+        "result": "FAIL"
+      }
+    ]
   },
-  "failurePathOutcome": "skipped",
-  "recordedAtUtc": "2026-07-28T04:31:19.447439+00:00",
+  "failurePathOutcome": "failure",
+  "recordedAtUtc": "2026-07-28T05:03:32.848107+00:00",
   "result": "FAIL",
   "successPath": {
-    "error": "success path result was not produced.",
-    "result": "FAIL"
+    "appDataDirectory": "/home/runner/.local/share/desktop-poker",
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "65f10574533deae420ee03ddb3a421010c2a9500156492784ba697779e9c6d54",
+    "instanceId": "release-keychain-success-30330069272",
+    "mode": "success",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30330069272",
+    "provider": "anthropic",
+    "result": "PASS",
+    "secretLength": 36,
+    "steps": [
+      {
+        "name": "fresh release process started without a configured provider",
+        "result": "PASS"
+      },
+      {
+        "name": "release credential was accepted while public config remained non-secret",
+        "result": "PASS"
+      },
+      {
+        "name": "global app-data files and runtime log contain no credential or plaintext key file",
+        "result": "PASS"
+      },
+      {
+        "name": "release restart recovered the credential through the OS keychain",
+        "result": "PASS"
+      },
+      {
+        "name": "clear removed provider settings and the keychain credential",
+        "result": "PASS"
+      },
+      {
+        "name": "second release restart confirmed durable keychain deletion",
+        "result": "PASS"
+      }
+    ]
   },
-  "successPathOutcome": "skipped",
-  "validatedCommit": "b4ad2227fa595fa28897bdb8d1bcb2c49dcc5062",
+  "successPathOutcome": "success",
+  "validatedCommit": "88c1b86e02adea8e450b55bb24d894467a1b4237",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30328832539"
+  "workflowRunId": "30330069272"
 }
