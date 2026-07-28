@@ -157,20 +157,29 @@ jobs:
           set -euo pipefail
           evidence_dir="$GITHUB_WORKSPACE/release-keychain-failure-evidence"
           binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          missing_bus="$RUNNER_TEMP/desktop-poker-missing-secret-service-bus"
+          missing_control="$RUNNER_TEMP/desktop-poker-missing-keyring-control"
           mkdir -p "$evidence_dir"
+          rm -f "$missing_bus"
+          rm -rf "$missing_control"
           test -x "$binary"
           export KEYCHAIN_BINARY="$binary"
           export KEYCHAIN_FAILURE_EVIDENCE="$evidence_dir"
+          export KEYCHAIN_MISSING_BUS="$missing_bus"
+          export KEYCHAIN_MISSING_CONTROL="$missing_control"
           export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
 
-          xvfb-run -a --server-args="-screen 0 1440x960x24" \
-            env -u DBUS_SESSION_BUS_ADDRESS -u GNOME_KEYRING_CONTROL \
-            bash -s <<'RUNTIME'
+          xvfb-run -a --server-args="-screen 0 1440x960x24" bash -s <<'RUNTIME'
           set -Eeuo pipefail
           export NO_AT_BRIDGE=1
           export WEBKIT_DISABLE_COMPOSITING_MODE=1
           export GDK_BACKEND=x11
           export DESKTOP_POKER_INSTANCE_ID="release-keychain-failure-${GITHUB_RUN_ID}"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=${KEYCHAIN_MISSING_BUS}"
+          export GNOME_KEYRING_CONTROL="$KEYCHAIN_MISSING_CONTROL"
+
+          test ! -e "$KEYCHAIN_MISSING_BUS"
+          test ! -e "$KEYCHAIN_MISSING_CONTROL"
 
           tauri-driver --port 4654 --native-port 4655 \
             >"$KEYCHAIN_FAILURE_EVIDENCE/tauri-driver.log" 2>&1 &
@@ -282,7 +291,7 @@ jobs:
           retention-days: 30
 
       - name: Publish durable release keychain result on master
-        if: always() && github.ref == 'refs/heads/master'
+        if: always() && !cancelled() && github.ref == 'refs/heads/master'
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           SUCCESS_OUTCOME: ${{ steps.success_path.outcome }}
@@ -341,7 +350,10 @@ jobs:
               f"- Evidence artifact: `{payload['evidenceArtifact']}`",
               "",
           ]
-          for heading, key in (("Persistence and clear", "successPath"), ("Failure behavior", "failurePath")):
+          for heading, key in (
+              ("Persistence and clear", "successPath"),
+              ("Failure behavior", "failurePath"),
+          ):
               value = payload.get(key)
               lines.extend([f"## {heading}", ""])
               if isinstance(value, dict):
@@ -363,7 +375,7 @@ jobs:
             docs/runtime-validation/release-keychain-latest.md
 
       - name: Enforce release keychain result
-        if: always()
+        if: always() && !cancelled()
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           SUCCESS_OUTCOME: ${{ steps.success_path.outcome }}
