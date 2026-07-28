@@ -1,113 +1,22 @@
 {
-  "buildOutcome": "success",
-  "evidenceArtifact": "linux-debian-package-v3-evidence",
+  "buildOutcome": "skipped",
+  "evidenceArtifact": "linux-debian-package-evidence",
   "installedDeb": {
-    "buildOutcome": "success",
-    "package": {
-      "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
-      "debSha256": "c62fd6cfa66d52647267a44ead35c71b440f9015f8180ea73cb38dd3bfb28a5c",
-      "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
-      "desktopId": "Desktop Poker",
-      "iconCount": "3",
-      "installedBinary": "/usr/bin/desktop-poker",
-      "installedBinarySha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
-      "packageArchitecture": "amd64",
-      "packageName": "desktop-poker",
-      "packageVersion": "0.1.0"
-    },
-    "result": "PASS",
+    "buildOutcome": "skipped",
+    "package": {},
+    "result": "FAIL",
     "runtime": {
-      "application": "/usr/bin/desktop-poker",
-      "applicationSha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
-      "instanceId": "installed-deb-webdriver-30327500950",
-      "result": "PASS",
-      "steps": [
-        {
-          "name": "tauri-driver became ready",
-          "result": "PASS"
-        },
-        {
-          "name": "release binary created a WebDriver session",
-          "result": "PASS"
-        },
-        {
-          "name": "Home rendered through the real Tauri backend",
-          "result": "PASS"
-        },
-        {
-          "name": "browser mocks are unavailable in release mode",
-          "result": "PASS"
-        },
-        {
-          "name": "Host route rendered",
-          "result": "PASS"
-        },
-        {
-          "name": "Join route rendered",
-          "result": "PASS"
-        },
-        {
-          "name": "invalid invite failed explicitly: The invite could not be checked.",
-          "result": "PASS"
-        },
-        {
-          "name": "/settings route rendered",
-          "result": "PASS"
-        },
-        {
-          "name": "/rules route rendered",
-          "result": "PASS"
-        },
-        {
-          "name": "session guard redirected /lobby without a live session",
-          "result": "PASS"
-        },
-        {
-          "name": "session guard redirected /table without a live session",
-          "result": "PASS"
-        },
-        {
-          "name": "release /debug route is not reachable",
-          "result": "PASS"
-        },
-        {
-          "name": "runtime screenshot and final page source captured",
-          "result": "PASS"
-        }
-      ]
+      "error": "Installed runtime result was not produced.",
+      "result": "FAIL",
+      "steps": []
     },
-    "steps": [
-      {
-        "name": "Debian package was produced",
-        "result": "PASS"
-      },
-      {
-        "name": "Debian package installed through apt",
-        "result": "PASS"
-      },
-      {
-        "name": "Package owns a valid executable, desktop entry, and icon files",
-        "result": "PASS"
-      },
-      {
-        "name": "Installed executable passed the production WebDriver smoke",
-        "result": "PASS"
-      },
-      {
-        "name": "Installed desktop entry launched the packaged process and X11 window",
-        "result": "PASS"
-      },
-      {
-        "name": "Package purge removed the executable, desktop entry, and icon files",
-        "result": "PASS"
-      }
-    ],
-    "validationOutcome": "success"
+    "steps": [],
+    "validationOutcome": "skipped"
   },
-  "recordedAtUtc": "2026-07-28T04:08:31.870645+00:00",
-  "result": "PASS",
-  "validatedCommit": "cfea80bac02e578a3a61be837c132ba5613d7324",
-  "validationOutcome": "success",
+  "recordedAtUtc": "2026-07-28T04:51:14.139905+00:00",
+  "result": "FAIL",
+  "validatedCommit": "32d89a77c236ba4a4758bb5a53902e86e370b48f",
+  "validationOutcome": "skipped",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30327500950"
+  "workflowRunId": "30329887766"
 }
