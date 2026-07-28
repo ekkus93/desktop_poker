@@ -1,16 +1,18 @@
 # Latest Linux Release Full-Game Validation
 
-- Result: **FAIL**
-- Validated commit: `cdc57a19923ae9b4053d1b4f58e5726a3a86f363`
-- GitHub Actions run: `30333795265`
+- Result: **PASS**
+- Validated commit: `3070fac89afae461bfd2c0be05e6d3db7e229ff6`
+- GitHub Actions run: `30334263180`
 - Build outcome: `success`
-- Gameplay outcome: `failure`
-- Recorded at: `2026-07-28T06:14:44.179239+00:00`
+- Gameplay outcome: `success`
+- Recorded at: `2026-07-28T06:19:59.705884+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
-## Failure
+## Result summary
 
-AssertionError: Timed out waiting for completed hand history to persist before leaving the table; last error: None
+- Completed hands: `3`
+- Host instance: `full-game-host-30334263180`
+- Client instance: `full-game-client-30334263180`
 
 ## Executed checks
 
@@ -22,10 +24,7 @@ AssertionError: Timed out waiting for completed hand history to persist before l
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
 - **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
 - **PASS** — all-in showdown attempt 2 settled with 3 synchronized hands
-- **PASS** — all-in showdown attempt 3 settled with 4 synchronized hands
-- **PASS** — all-in showdown attempt 4 settled with 5 synchronized hands
-- **PASS** — all-in showdown attempt 5 settled with 6 synchronized hands
-- **PASS** — all-in showdown attempt 6 settled with 7 synchronized hands
-- **PASS** — all-in showdown attempt 7 settled with 8 synchronized hands
 - **PASS** — tournament completed with matching standings and one eliminated observer
-- **FAIL** — full-game runtime smoke
+- **PASS** — both release instances render the same Tournament Complete winner
+- **PASS** — fresh third profile contains no host/client hand history
+- **PASS** — host and client history restore after release-process restart
