@@ -64,6 +64,31 @@ fn record_state_lock_error(
 }
 
 #[allow(clippy::too_many_arguments)]
+fn send_action_rejection_best_effort(
+    stream: &mut TcpStream,
+    crypto_provider: &DefaultCryptoProvider,
+    join_payload: &JoinPayload,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    rejected_message_id: String,
+    error: &NetworkingError,
+) {
+    if let Ok(envelope) = build_protocol_error_envelope(
+        crypto_provider,
+        join_payload,
+        server_sequence,
+        host_signing_keys,
+        "ACTION_SUBMISSION_REJECTED",
+        error.to_string(),
+        Some(rejected_message_id),
+    ) {
+        // Best-effort rejection reply. Authoritative state and transition
+        // publication have already been handled before this helper is called.
+        let _ = write_json_frame(stream, &envelope);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_host_client_session(
     player_id: String,
     mut stream: TcpStream,
@@ -207,10 +232,6 @@ pub(crate) fn spawn_host_client_session(
                             }
                         };
                         let rejected_message_id = request_envelope.message_id.clone();
-                        let previous_state = authoritative_state
-                            .lock()
-                            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))
-                            .map(|state| state.clone());
                         let response = handle_action_submission_request(
                             &crypto_provider,
                             request_envelope,
@@ -219,64 +240,15 @@ pub(crate) fn spawn_host_client_session(
                         );
 
                         match response {
-                            Ok(()) => {
-                                let previous_state = match previous_state {
-                                    Ok(state) => state,
-                                    Err(error) => {
-                                        record_state_lock_error(
-                                            &runtime_health,
-                                            format!(
-                                                "authoritative state lock poisoned reading \
-                                                 previous state for action by {player_id}: \
-                                                 {error}"
-                                            ),
-                                        );
-                                        if let Ok(envelope) = build_protocol_error_envelope(
-                                            &crypto_provider,
-                                            &join_payload,
-                                            &server_sequence,
-                                            &host_signing_keys,
-                                            "ACTION_SUBMISSION_REJECTED",
-                                            error.to_string(),
-                                            Some(rejected_message_id.clone()),
-                                        ) {
-                                            // Best-effort rejection reply; if the write fails the
-                                            // client will time out and reconnect.
-                                            let _ = write_json_frame(&mut stream, &envelope);
-                                        }
-                                        break;
-                                    }
-                                };
-                                let next_state = match authoritative_state
-                                    .lock()
-                                    .map_err(|_| {
-                                        NetworkingError::new("authoritative state lock poisoned")
-                                    })
-                                    .map(|state| state.clone())
-                                {
-                                    Ok(state) => state,
-                                    Err(_) => {
-                                        record_state_lock_error(
-                                            &runtime_health,
-                                            format!(
-                                                "authoritative state lock poisoned reading \
-                                                 next state after action by {player_id}"
-                                            ),
-                                        );
-                                        disconnect_client(
-                                            &clients,
-                                            &authoritative_state,
-                                            &runtime_health,
-                                            &player_id,
-                                        );
-                                        break;
-                                    }
-                                };
+                            Ok(RemoteActionSubmissionOutcome::Committed {
+                                previous_state,
+                                after_state,
+                            }) => {
                                 if publish_runtime_transition(
                                     &join_payload,
                                     &authoritative_state,
                                     &previous_state,
-                                    &next_state,
+                                    &after_state,
                                     &clients,
                                     &server_sequence,
                                     &host_signing_keys,
@@ -294,20 +266,53 @@ pub(crate) fn spawn_host_client_session(
                                     break;
                                 }
                             }
-                            Err(error) => {
-                                if let Ok(envelope) = build_protocol_error_envelope(
+                            Ok(RemoteActionSubmissionOutcome::TimeoutAdvancedThenRejected {
+                                previous_state,
+                                after_state,
+                                error,
+                            }) => {
+                                if publish_runtime_transition(
+                                    &join_payload,
+                                    &authoritative_state,
+                                    &previous_state,
+                                    &after_state,
+                                    &clients,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    &host_encryption_keys,
+                                    &public_events,
+                                )
+                                .is_err()
+                                {
+                                    disconnect_client(
+                                        &clients,
+                                        &authoritative_state,
+                                        &runtime_health,
+                                        &player_id,
+                                    );
+                                    break;
+                                }
+                                send_action_rejection_best_effort(
+                                    &mut stream,
                                     &crypto_provider,
                                     &join_payload,
                                     &server_sequence,
                                     &host_signing_keys,
-                                    "ACTION_SUBMISSION_REJECTED",
-                                    error.to_string(),
-                                    Some(rejected_message_id),
-                                ) {
-                                    // Best-effort rejection reply; if the write fails the
-                                    // client will time out and reconnect.
-                                    let _ = write_json_frame(&mut stream, &envelope);
-                                }
+                                    rejected_message_id,
+                                    &error,
+                                );
+                            }
+                            Ok(RemoteActionSubmissionOutcome::RejectedNoStateChange { error })
+                            | Err(error) => {
+                                send_action_rejection_best_effort(
+                                    &mut stream,
+                                    &crypto_provider,
+                                    &join_payload,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    rejected_message_id,
+                                    &error,
+                                );
                             }
                         }
                     }
