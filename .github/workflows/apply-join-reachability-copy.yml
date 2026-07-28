@@ -1,0 +1,136 @@
+name: Apply truthful invite reachability messaging
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/apply-join-reachability-copy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-join-reachability-copy
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply, verify, and publish messaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B truthful-invite-reachability origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          screen = Path("src/screens/JoinTournamentScreen.tsx")
+          text = screen.read_text(encoding="utf-8")
+
+          replacements = {
+              "`Ready: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`":
+                  "`Invite decoded: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`",
+              '      : "Invite checked. Join when ready."':
+                  '      : "Invite decoded. Connecting is the host reachability check."',
+              '<p className="kicker">Invite looks good</p>':
+                  '<p className="kicker">Invite decoded</p>',
+              '<strong>Lobby ready</strong>':
+                  '<strong>Reachability not checked</strong>',
+              'Checking the invite and host details…':
+                  'Checking the invite format and signed host details…',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected one occurrence of {old!r}, found {count}")
+              text = text.replace(old, new, 1)
+
+          old_auto_error = """        setJoinError(normaliseError(error));
+          setInviteBanner("Invite already attached to this launch.");
+"""
+          new_auto_error = """        setJoinError(
+          `Unable to connect to ${bootstrap.parsedLaunchJoinPayload.hostAddress}:${bootstrap.parsedLaunchJoinPayload.hostPort}. ${normaliseError(error)} The invite can be valid even when the host is offline or blocked by a firewall.`,
+        );
+          setInviteBanner("Invite already attached to this launch.");
+"""
+          if text.count(old_auto_error) != 1:
+              raise SystemExit("auto-join error anchor was not unique")
+          text = text.replace(old_auto_error, new_auto_error, 1)
+
+          old_manual_error = """    } catch (error) {
+      setJoinError(normaliseError(error));
+    } finally {
+"""
+          new_manual_error = """    } catch (error) {
+      setJoinError(
+        `Unable to connect to ${validationState.payload.hostAddress}:${validationState.payload.hostPort}. ${normaliseError(error)} The invite can be valid even when the host is offline or blocked by a firewall.`,
+      );
+    } finally {
+"""
+          if text.count(old_manual_error) != 1:
+              raise SystemExit("manual join error anchor was not unique")
+          text = text.replace(old_manual_error, new_manual_error, 1)
+
+          screen.write_text(text, encoding="utf-8")
+
+          tests = Path("src/screens/JoinTournamentScreen.test.tsx")
+          test_text = tests.read_text(encoding="utf-8")
+          test_text = test_text.replace(
+              'expect(screen.getByText("Ready: 192.168.1.10:43818")).toBeTruthy();',
+              'expect(\n      screen.getByText("Invite decoded: 192.168.1.10:43818"),\n    ).toBeTruthy();',
+              1,
+          )
+          test_text = test_text.replace(
+              'expect(screen.getByText(/invite checked\\. join when ready/i)).toBeTruthy();',
+              'expect(\n      screen.getByText(/connecting is the host reachability check/i),\n    ).toBeTruthy();\n    expect(screen.getByText(/reachability not checked/i)).toBeTruthy();',
+              1,
+          )
+          test_text = test_text.replace(
+              'expect(await screen.findByText(/connection refused/i)).toBeTruthy();',
+              'expect(\n      await screen.findByText(\n        /unable to connect to 192\\.168\\.1\\.10:43818.*connection refused.*offline or blocked by a firewall/i,\n      ),\n    ).toBeTruthy();',
+              1,
+          )
+          tests.write_text(test_text, encoding="utf-8")
+          PY
+
+          npm ci
+          npm run format
+          npx vitest run src/screens/JoinTournamentScreen.test.tsx
+          npm run lint
+          npm run build
+
+          rm .github/workflows/apply-join-reachability-copy.yml
+          npm run format:check
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: distinguish invite decoding from host reachability"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
