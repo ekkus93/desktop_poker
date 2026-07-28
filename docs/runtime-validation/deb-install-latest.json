@@ -1,11 +1,11 @@
 {
   "buildOutcome": "success",
-  "evidenceArtifact": "linux-installed-deb-evidence",
+  "evidenceArtifact": "linux-debian-package-evidence",
   "installedDeb": {
     "buildOutcome": "success",
     "package": {
       "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
-      "debSha256": "fd6d024e2ead45e6f7be1eb5fa8dd5b203af94c5f2656ca7db0d0aefb9b4314b",
+      "debSha256": "697b85035fe3373dcd676d238c664995656a5a8ab6866252d647a41933780185",
       "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
       "desktopId": "Desktop Poker",
       "iconCount": "10",
@@ -19,7 +19,7 @@
     "runtime": {
       "application": "/usr/bin/desktop-poker",
       "applicationSha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
-      "instanceId": "installed-deb-webdriver-30312220781",
+      "instanceId": "installed-deb-webdriver-30324567761",
       "result": "PASS",
       "steps": [
         {
@@ -86,7 +86,7 @@
         "result": "PASS"
       },
       {
-        "name": "Package owns executable, desktop entry, and icon files",
+        "name": "Package owns a valid executable, desktop entry, and icons",
         "result": "PASS"
       },
       {
@@ -96,10 +96,10 @@
     ],
     "validationOutcome": "failure"
   },
-  "recordedAtUtc": "2026-07-27T22:58:40.202533+00:00",
+  "recordedAtUtc": "2026-07-28T03:05:01.117052+00:00",
   "result": "FAIL",
-  "validatedCommit": "3b5a042ef65da75f9c0eefec9e32e392f6371ab8",
+  "validatedCommit": "991a680a0d581d542d3161dd5c6c8fbbebab55d1",
   "validationOutcome": "failure",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30312220781"
+  "workflowRunId": "30324567761"
 }
