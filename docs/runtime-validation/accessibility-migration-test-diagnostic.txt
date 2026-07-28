@@ -1,0 +1,306 @@
+Accessibility migration verification diagnostic
+
+overall_status=2
+base_sha=42cb222b077b7e0a4bbec3a5011f0774e7a80fca
+
+=== last 300 log lines ===
+                [33mclass[39m=[32m"seat-card lobby-seat-card lobby-seat-filled lobby-seat-local lobby-seat-ready"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"seat-card-header"[39m
+                [36m>[39m
+                  [36m<div>[39m
+                    [36m<strong>[39m
+                      [0mSeat [0m
+                      [0m1[0m
+                    [36m</strong>[39m
+                    [36m<span>[39m
+                      [0mYou[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"status-badge success"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-hidden[39m=[32m"true"[39m
+                      [33mclass[39m=[32m"lucide lucide-check button-icon"[39m
+                      [33mfill[39m=[32m"none"[39m
+                      [33mheight[39m=[32m"24"[39m
+                      [33mstroke[39m=[32m"currentColor"[39m
+                      [33mstroke-linecap[39m=[32m"round"[39m
+                      [33mstroke-linejoin[39m=[32m"round"[39m
+                      [33mstroke-width[39m=[32m"1.9"[39m
+                      [33mviewBox[39m=[32m"0 0 24 24"[39m
+                      [33mwidth[39m=[32m"24"[39m
+                      [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                    [36m>[39m
+                      [36m<path[39m
+                        [33md[39m=[32m"M20 6 9 17l-5-5"[39m
+                      [36m/>[39m
+                    [36m</svg>[39m
+                    [0mReady[0m
+                  [36m</span>[39m
+                [36m</div>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"seat-detail"[39m
+                [36m>[39m
+                  [0mHost · connected[0m
+                [36m</p>[39m
+              [36m</article>[39m
+              [36m<article[39m
+                [33mclass[39m=[32m"seat-card lobby-seat-card lobby-seat-filled  lobby-seat-ready"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"seat-card-header"[39m
+                [36m>[39m
+                  [36m<div>[39m
+                    [36m<strong>[39m
+                      [0mSeat [0m
+                      [0m2[0m
+                    [36m</strong>[39m
+                    [36m<span>[39m
+                      [0mClient Bravo[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"status-badge success"[39m
+                  [36m>[39m
+                    [36m<svg[39m
+                      [33maria-hidden[39m=[32m"true"[39m
+                      [33mclass[39m=[32m"lucide lucide-check button-icon"[39m
+                      [33mfill[39m=[32m"none"[39m
+                      [33mheight[39m=[32m"24"[39m
+                      [33mstroke[39m=[32m"currentColor"[39m
+                      [33mstroke-linecap[39m=[32m"round"[39m
+                      [33mstroke-linejoin[39m=[32m"round"[39m
+                      [33mstroke-width[39m=[32m"1.9"[39m
+                      [33mviewBox[39m=[32m"0 0 24 24"[39m
+                      [33mwidth[39m=[32m"24"[39m
+                      [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                    [36m>[39m
+                      [36m<path[39m
+                        [33md[39m=[32m"M20 6 9 17l-5-5"[39m
+                      [36m/>[39m
+                    [36m</svg>[39m
+                    [0mReady[0m
+                  [36m</span>[39m
+                [36m</div>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"seat-detail"[39m
+                [36m>[39m
+                  [0mconnected[0m
+                [36m</p>[39m
+              [36m</article>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/screens/TournamentLobbyAuthoritativeReady.test.tsx:[2m199:14[22m[39m
+    [90m197| [39m    expect(await screen.findByText("You: Undoing ready…")).toBeTruthy(…
+    [90m198| [39m    [34mexpect[39m(
+    [90m199| [39m      screen[33m.[39m[34mgetByText[39m([32m"Host Alpha"[39m)[33m.[39m[34mclosest[39m([32m"article"[39m)[33m?.[39mtextContent[33m,[39m
+    [90m   | [39m             [31m^[39m
+    [90m200| [39m    )[33m.[39m[34mtoContain[39m([32m"Ready"[39m)[33m;[39m
+    [90m201| [39m    [35mconst[39m pendingUndo [33m=[39m screen[33m.[39m[34mgetByRole[39m([32m"button"[39m[33m,[39m {
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/layout/AppFrameAccessibility.test.tsx[2m > [22mAppFrame accessibility navigation[2m > [22mmoves focus to main content after an SPA route change
+[31m[1mTestingLibraryElementError[22m: Unable to find an accessible element with the role "link" and name "Host"
+
+Here are the accessible roles:
+
+  link:
+
+  Name "Skip to main content":
+  [36m<a[31m
+    [33mclass[31m=[32m"skip-link"[31m
+    [33mhref[31m=[32m"#main-content"[31m
+  [36m/>[31m
+
+  --------------------------------------------------
+  banner:
+
+  Name "":
+  [36m<header[31m
+    [33mclass[31m=[32m"topbar"[31m
+  [36m/>[31m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[31m
+    [33mclass[31m=[32m"kicker"[31m
+  [36m/>[31m
+
+  Name "":
+  [36m<p[31m
+    [33mclass[31m=[32m"player-pill"[31m
+  [36m/>[31m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Desktop Poker Test":
+  [36m<h1 />[31m
+
+  Name "Home surface":
+  [36m<h2 />[31m
+
+  --------------------------------------------------
+  main:
+
+  Name "":
+  [36m<main[31m
+    [33mclass[31m=[32m"content"[31m
+    [33mid[31m=[32m"main-content"[31m
+    [33mstyle[31m=[32m"height: 100%; overflow: hidden;"[31m
+    [33mtabindex[31m=[32m"-1"[31m
+  [36m/>[31m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[31m
+  [36m<div>[31m
+    [36m<div[31m
+      [33mclass[31m=[32m"app-frame landing-frame"[31m
+      [33mstyle[31m=[32m"height: 100dvh; overflow: hidden;"[31m
+    [36m>[31m
+      [36m<a[31m
+        [33mclass[31m=[32m"skip-link"[31m
+        [33mhref[31m=[32m"#main-content"[31m
+      [36m>[31m
+        [0mSkip to main content[0m
+      [36m</a>[31m
+      [36m<header[31m
+        [33mclass[31m=[32m"topbar"[31m
+      [36m>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"topbar-brand"[31m
+        [36m>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"kicker"[31m
+          [36m>[31m
+            [0mDesktop Poker[0m
+          [36m</p>[31m
+          [36m<h1>[31m
+            [0mDesktop Poker Test[0m
+          [36m</h1>[31m
+        [36m</div>[31m
+        [36m<div[31m
+          [33maria-hidden[31m=[32m"true"[31m
+          [33mclass[31m=[32m"topbar-spacer"[31m
+        [36m/>[31m
+        [36m<div[31m
+          [33mclass[31m=[32m"topbar-meta"[31m
+        [36m>[31m
+          [36m<p[31m
+            [33mclass[31m=[32m"player-pill"[31m
+          [36m>[31m
+            [0mPlaying as [0m
+            [0mPlayer test-instance[0m
+          [36m</p>[31m
+        [36m</div>[31m
+      [36m</header>[31m
+      [36m<main[31m
+        [33mclass[31m=[32m"content"[31m
+        [33mid[31m=[32m"main-content"[31m
+        [33mstyle[31m=[32m"height: 100%; overflow: hidden;"[31m
+        [33mtabindex[31m=[32m"-1"[31m
+      [36m>[31m
+        [36m<h2>[31m
+          [0mHome surface[0m
+        [36m</h2>[31m
+      [36m</main>[31m
+    [36m</div>[31m
+  [36m</div>[31m
+[36m</body>[31m[39m
+[90m [2m❯[22m Object.getElementError node_modules/@testing-library/dom/dist/config.js:[2m37:19[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m76:38[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m52:17[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m95:19[22m[39m
+[36m [2m❯[22m src/components/layout/AppFrameAccessibility.test.tsx:[2m56:28[22m[39m
+    [90m 54| [39m    [34mrenderWithProviders[39m([33m<[39m[33mFrameHarness[39m [33m/[39m[33m>[39m[33m,[39m { initialEntries[33m:[39m [[32m"/"[39m] })[33m;[39m
+    [90m 55| [39m
+    [90m 56| [39m    fireEvent[33m.[39m[34mclick[39m(screen[33m.[39m[34mgetByRole[39m([32m"link"[39m[33m,[39m { name[33m:[39m [32m"Host"[39m }))[33m;[39m
+    [90m   | [39m                           [31m^[39m
+    [90m 57| [39m    [34mexpect[39m([35mawait[39m screen[33m.[39m[34mfindByText[39m([32m"Host surface"[39m))[33m.[39m[34mtoBeTruthy[39m()[33m;[39m
+    [90m 58| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/components/shared/AccessibleDialog.test.tsx[2m > [22mAccessibleDialog[2m > [22mcloses on Escape and returns focus to the opener
+[31m[1mAssertionError[22m: expected <body><div>…(1)</div></body> to be <button type="button"></button> // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[31m+ <body>[39m
+[31m+   <div>[39m
+[2m      <button[22m
+[2m        type="button"[22m
+[2m      >[22m
+[2m        Open dialog[22m
+[2m      </button>[22m
+[31m+   </div>[39m
+[31m+ </body>[39m
+
+[36m [2m❯[22m src/components/shared/AccessibleDialog.test.tsx:[2m88:36[22m[39m
+    [90m 86| [39m    [34mexpect[39m(onCancel)[33m.[39m[34mtoHaveBeenCalledTimes[39m([34m1[39m)[33m;[39m
+    [90m 87| [39m    [34mexpect[39m(screen[33m.[39m[34mqueryByRole[39m([32m"dialog"[39m))[33m.[39m[34mtoBeNull[39m()[33m;[39m
+    [90m 88| [39m    [34mexpect[39m(document[33m.[39mactiveElement)[33m.[39m[34mtoBe[39m(opener)[33m;[39m
+    [90m   | [39m                                   [31m^[39m
+    [90m 89| [39m  })[33m;[39m
+    [90m 90| [39m})[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m5 failed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[31m11 failed[39m[22m[2m | [22m[1m[32m6 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 10:46:42
+[2m   Duration [22m 1.55s[2m (transform 265ms, setup 114ms, collect 410ms, tests 459ms, environment 337ms, prepare 67ms)[22m
+
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/DeviceSettingsConfirmation.test.tsx,title=src/screens/DeviceSettingsConfirmation.test.tsx > DeviceSettingsScreen destructive confirmation exclusivity > cancel closes the confirmation%2C re-enables actions%2C and restores focus,line=117,column=36::AssertionError: expected <body><div>…(1)</div></body> to be <button …(2)></button> // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A+ <body>%0A+   <div>%0A+     <section%0A+       class="screen-shell support-screen-shell"%0A+     >%0A+       <header%0A+         class="screen-header"%0A+       >%0A+         <div%0A+           class="screen-copy"%0A+         >%0A+           <p%0A+             class="kicker"%0A+           >%0A+             Desktop Poker%0A+           </p>%0A+           <h2>%0A+             Settings%0A+           </h2>%0A+         </div>%0A+         <div%0A+           class="badge-row"%0A+         >%0A+           <span%0A+             class="status-badge info"%0A+           >%0A+             <svg%0A+               aria-hidden="true"%0A+               class="lucide lucide-info badge-icon"%0A+               fill="none"%0A+               height="12"%0A+               stroke="currentColor"%0A+               stroke-linecap="round"%0A+               stroke-linejoin="round"%0A+               stroke-width="2"%0A+               viewBox="0 0 24 24"%0A+               width="12"%0A+               xmlns="http://www.w3.org/2000/svg"%0A+             >%0A+               <circle%0A+                 cx="12"%0A+                 cy="12"%0A+                 r="10"%0A+               />%0A+               <path%0A+                 d="M12 16v-4"%0A+               />%0A+               <path%0A+                 d="M12 8h.01"%0A+               />%0A+             </svg>%0A+             This device%0A+           </span>%0A+         </div>%0A+       </header>%0A+       <div%0A+         class="help-grid"%0A+       >%0A+         <section%0A+           class="section-card support-card device-settings-card"%0A+         >%0A+           <p%0A+             class="kicker"%0A+           >%0A+             Profile%0A+           </p>%0A+           <h3>%0A+             Player name%0A+           </h3>%0A+           <div%0A+             class="form-grid"%0A+           >%0A+             <label%0A+               class="field"%0A+             >%0A+               Display name%0A+               <input%0A+                 value="Player test-instance"%0A+               />%0A+             </label>%0A+             <p%0A+               class="field-hint"%0A+             >%0A+               Shown at the table.%0A+             </p>%0A+           </div>%0A+         </section>%0A+         <section%0A+           class="section-card support-card device-settings-card"%0A+         >%0A+           <p%0A+             class="kicker"%0A+           >%0A+             AI Players%0A+           </p>%0A+           <h3>%0A+             LLM provider%0A+           </h3>%0A+           <p%0A+             class="field-hint"%0A+           >%0A+             Status:%0A+              %0A+             <strong>%0A+               Not configured%0A+             </strong>%0A+           </p>%0A+           <div%0A+             class="form-grid"%0A+           >%0A+             <label%0A+               class="field"%0A+             >%0A+               Provider%0A+               <select%0A+                 aria-label="LLM provider"%0A+               >%0A+                 <option%0A+                   value="anthropic"%0A+                 >%0A+                   Anthropic (Claude)%0A+                 </option>%0A+                 <option%0A+                   value="openAi"%0A+                 >%0A+                   OpenAI%0A+                 </option>%0A+                 <option%0A+                   value="ollama"%0A+                 >%0A+                   Ollama (local)%0A+                 </option>%0A+                 <option%0A+                   value="llamaServer"%0A+                 >%0A+                   llama-server (local)%0A+                 </option>%0A+                 <option%0A+                   value="embeddedLocal"%0A+                 >%0A+                   Embedded GGUF (in app)%0A+                 </option>%0A+               </select>%0A+             </label>%0A+             <label%0A+               class="field"%0A+             >%0A+               API key%0A+               <input%0A+                 aria-label="API key"%0A+                 placeholder="sk-ant-..."%0A+                 type="password"%0A+                 value=""%0A+               />%0A+             </label>%0A+             <p%0A+               class="field-hint field-hint--warning"%0A+             >%0A+               Release builds store API keys in the OS keychain. Development builds use a local file. Use a dedicated low-privilege key; do not use production keys with access to sensitive resources.%0A+             </p>%0A+             <label%0A+               class="field"%0A+             >%0A+               Endpoint URL%0A+                %0A+               <span%0A+                 style="font-weight: 400; opacity: 0.7;"%0A+               >%0A+                 (optional)%0A+               </span>%0A+               <input%0A+                 aria-label="Endpoint URL"%0A+                 placeholder="https://api.anthropic.com"%0A+                 value=""%0A+               />%0A+             </label>%0A+             <label%0A+               class="field"%0A+             >%0A+               Model%0A+                %0A+               <span%0A+                 style="font-weight: 400; opacity: 0.7;"%0A+               >%0A+                 (%0A+                 optional%0A+                 )%0A+               </span>%0A+               <input%0A+                 aria-label="Model"%0A+                 placeholder="claude-haiku-4-5-20251001"%0A+                 value=""%0A+               />%0A+             </label>%0A+           </div>%0A+           <div%0A+             class="button-row"%0A+           >%0A+             <button%0A+               class="primary-button"%0A+               disabled=""%0A+               type="button"%0A+             >%0A+               Save%0A+             </button>%0A+           </div>%0A+           <div%0A+             class="button-row"%0A+           >%0A+             <button%0A+               class="secondary-button"%0A+               type="button"%0A+             >%0A+               Manage AI profiles%0A+             </button>%0A+           </div>%0A+         </section>%0A+         <section%0A+           class="section-card support-card device-settings-card"%0A+         >%0A+           <p%0A+             class="kicker"%0A+           >%0A+             Saved on this device%0A+           </p>%0A+           <h3>%0A+             Local setup%0A+           </h3>%0A+           <div%0A+             class="button-row"%0A+           >%0A              <button%0A                class="secondary-button"%0A                type="button"%0A              >%0A                Reset host setup%0A+             </button>%0A+             <button%0A+               class="secondary-button"%0A+               type="button"%0A+             >%0A+               Clear saved invites (%0A+               0%0A+               )%0A              </button>%0A+           </div>%0A+           <p%0A+             class="field-hint"%0A+           >%0A+             0%0A+              saved invite%0A+             s%0A+             .%0A+           </p>%0A+         </section>%0A+       </div>%0A+     </section>%0A+   </div>%0A+ </body>%0A%0A ❯ src/screens/DeviceSettingsConfirmation.test.tsx:117:36%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > blocks an in-screen profile switch until the user discards changes,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > blocks SPA navigation until the user explicitly discards changes,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > prevents a hard unload while profile edits are dirty,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > rejects malformed profile IDs before calling the backend,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > rejects duplicate profile IDs before calling the backend,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesScreen.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > clears the dirty baseline after a successful save,line=88,column=19::Error: useBlocker must be used within a data router.  See https://reactrouter.com/en/main/routers/picking-a-router.%0A ❯ invariant node_modules/react-router/dist/development/lib/router/history.js:189:79%0A ❯ useDataRouterContext node_modules/react-router/dist/development/lib/hooks.js:818:2%0A ❯ useBlocker node_modules/react-router/dist/development/lib/hooks.js:1248:29%0A ❯ NpcProfilesScreen src/screens/NpcProfilesScreen.tsx:88:19%0A ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:25904:20%0A ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:7662:22%0A ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10166:19%0A ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:11778:18%0A ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:874:13%0A ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:17641:22%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/TournamentLobbyAuthoritativeReady.test.tsx,title=src/screens/TournamentLobbyAuthoritativeReady.test.tsx > TournamentLobbyScreen authoritative ready transitions > keeps waiting state and Start disabled until the ready mutation is confirmed,line=137,column=14::TestingLibraryElementError: Unable to find an element with the text: Host Alpha. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <section%0A      class="screen-shell"%0A    >%0A      <header%0A        class="screen-header"%0A      >%0A        <div%0A          class="screen-copy"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Desktop Poker%0A          </p>%0A          <h2>%0A            Lobby%0A          </h2>%0A        </div>%0A        <div%0A          class="badge-row"%0A        >%0A          <span%0A            class="status-badge info"%0A          >%0A            <svg%0A              aria-hidden="true"%0A              class="lucide lucide-info badge-icon"%0A              fill="none"%0A              height="12"%0A              stroke="currentColor"%0A              stroke-linecap="round"%0A              stroke-linejoin="round"%0A              stroke-width="2"%0A              viewBox="0 0 24 24"%0A              width="12"%0A              xmlns="http://www.w3.org/2000/svg"%0A            >%0A              <circle%0A                cx="12"%0A                cy="12"%0A                r="10"%0A              />%0A              <path%0A                d="M12 16v-4"%0A              />%0A              <path%0A                d="M12 8h.01"%0A              />%0A            </svg>%0A            2/2 connected%0A          </span>%0A        </div>%0A      </header>%0A      <div%0A        class="content-grid lobby-shell-grid"%0A      >%0A        <section%0A          class="section-card lobby-stage-card"%0A        >%0A          <div%0A            class="lobby-stage-layout "%0A          >%0A            <div%0A              class="lobby-stage-summary"%0A            >%0A              <div%0A                class="lobby-table-meta"%0A              >%0A                <strong%0A                  class="lobby-table-name"%0A                >%0A                  Authoritative Ready Test%0A                </strong>%0A                <span%0A                  class="field-hint"%0A                >%0A                  2%0A                   seats%0A                </span>%0A              </div>%0A              <div%0A                class="lobby-status-row"%0A              >%0A                <span%0A                  aria-atomic="true"%0A                  aria-live="polite"%0A                  class="status-badge info"%0A                >%0A                  <svg%0A                    aria-hidden="true"%0A                    class="lucide lucide-clock3 lucide-clock-3 button-icon"%0A                    fill="none"%0A                    height="24"%0A                    stroke="currentColor"%0A                    stroke-linecap="round"%0A                    stroke-linejoin="round"%0A                    stroke-width="1.9"%0A                    viewBox="0 0 24 24"%0A                    width="24"%0A                    xmlns="http://www.w3.org/2000/svg"%0A                  >%0A                    <circle%0A                      cx="12"%0A                      cy="12"%0A                      r="10"%0A                    />%0A                    <path%0A                      d="M12 6v6h4"%0A                    />%0A                  </svg>%0A                  You: Marking ready…%0A                </span>%0A                <span%0A                  class="status-badge info"%0A                >%0A                  <svg%0A                    aria-hidden="true"%0A                    class="lucide lucide-clock3 lucide-clock-3 button-icon"%0A                    fill="none"%0A                    height="24"%0A                    stroke="currentColor"%0A                    stroke-linecap="round"%0A                    stroke-linejoin="round"%0A                    stroke-width="1.9"%0A                    viewBox="0 0 24 24"%0A                    width="24"%0A                    xmlns="http://www.w3.org/2000/svg"%0A                  >%0A                    <circle%0A                      cx="12"%0A                      cy="12"%0A                      r="10"%0A                    />%0A                    <path%0A                      d="M12 6v6h4"%0A                    />%0A                  </svg>%0A                  2 waiting%0A                </span>%0A                <span%0A                  class="status-badge accent"%0A                >%0A                  Table full%0A                </span>%0A              </div>%0A              <div%0A                class="button-row lobby-primary-actions workstation-actions compact-workstation-actions"%0A              >%0A                <button%0A                  aria-busy="true"%0A                  class="secondary-button compact-button"%0A                  disabled=""%0A                  type="button"%0A                >%0A                  Marking ready…%0A                </button>%0A                <button%0A                  class="primary-button compact-button"%0A                  disabled=""%0A                  type="button"%0A                >%0A                  <span%0A                    class="button-content"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-play button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"%0A                      />%0A                    </svg>%0A                    <span>%0A                      Start tournament%0A                    </span>%0A                  </span>%0A                </button>%0A                <button%0A                  class="secondary-button compact-button"%0A                  type="button"%0A                >%0A                  <span%0A                    class="button-content"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-log-out button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="m16 17 5-5-5-5"%0A                      />%0A                      <path%0A                        d="M21 12H9"%0A                      />%0A                      <path%0A                        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"%0A                      />%0A                    </svg>%0A                    <span>%0A                      Close table%0A                    </span>%0A                  </span>%0A                </button>%0A              </div>%0A            </div>%0A            <div%0A              class="seat-grid lobby-seat-grid "%0A            >%0A              <article%0A                class="seat-card lobby-seat-card lobby-seat-filled lobby-seat-local "%0A              >%0A                <div%0A                  class="seat-card-header"%0A                >%0A                  <div>%0A                    <strong>%0A                      Seat %0A                      1%0A                    </strong>%0A                    <span>%0A                      You%0A                    </span>%0A                  </div>%0A                  <span%0A                    class="status-badge info"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-clock3 lucide-clock-3 button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <circle%0A                        cx="12"%0A                        cy="12"%0A                        r="10"%0A                      />%0A                      <path%0A                        d="M12 6v6h4"%0A                      />%0A                    </svg>%0A                    Waiting%0A                  </span>%0A                </div>%0A                <p%0A                  class="seat-detail"%0A                >%0A                  Host · connected%0A                </p>%0A              </article>%0A              <article%0A                class="seat-card lobby-seat-card lobby-seat-filled  "%0A              >%0A                <div%0A                  class="seat-card-header"%0A                >%0A                  <div>%0A                    <strong>%0A                      Seat %0A                      2%0A                    </strong>%0A                    <span>%0A                      Client Bravo%0A                    </span>%0A                  </div>%0A                  <span%0A                    class="status-badge info"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-clock3 lucide-clock-3 button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <circle%0A                        cx="12"%0A                        cy="12"%0A                        r="10"%0A                      />%0A                      <path%0A                        d="M12 6v6h4"%0A                      />%0A                    </svg>%0A                    Waiting%0A                  </span>%0A                </div>%0A                <p%0A                  class="seat-detail"%0A                >%0A                  connected%0A                </p>%0A              </article>%0A            </div>%0A          </div>%0A        </section>%0A      </div>%0A    </section>%0A  </div>%0A</body>%0A ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19%0A ❯ src/screens/TournamentLobbyAuthoritativeReady.test.tsx:137:14%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/TournamentLobbyAuthoritativeReady.test.tsx,title=src/screens/TournamentLobbyAuthoritativeReady.test.tsx > TournamentLobbyScreen authoritative ready transitions > keeps confirmed ready state visible as pending until undo is acknowledged,line=199,column=14::TestingLibraryElementError: Unable to find an element with the text: Host Alpha. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <section%0A      class="screen-shell"%0A    >%0A      <header%0A        class="screen-header"%0A      >%0A        <div%0A          class="screen-copy"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Desktop Poker%0A          </p>%0A          <h2>%0A            Lobby%0A          </h2>%0A        </div>%0A        <div%0A          class="badge-row"%0A        >%0A          <span%0A            class="status-badge info"%0A          >%0A            <svg%0A              aria-hidden="true"%0A              class="lucide lucide-info badge-icon"%0A              fill="none"%0A              height="12"%0A              stroke="currentColor"%0A              stroke-linecap="round"%0A              stroke-linejoin="round"%0A              stroke-width="2"%0A              viewBox="0 0 24 24"%0A              width="12"%0A              xmlns="http://www.w3.org/2000/svg"%0A            >%0A              <circle%0A                cx="12"%0A                cy="12"%0A                r="10"%0A              />%0A              <path%0A                d="M12 16v-4"%0A              />%0A              <path%0A                d="M12 8h.01"%0A              />%0A            </svg>%0A            Ready to deal%0A          </span>%0A        </div>%0A      </header>%0A      <div%0A        class="content-grid lobby-shell-grid"%0A      >%0A        <section%0A          class="section-card lobby-stage-card"%0A        >%0A          <div%0A            class="lobby-stage-layout "%0A          >%0A            <div%0A              class="lobby-stage-summary"%0A            >%0A              <div%0A                class="lobby-table-meta"%0A              >%0A                <strong%0A                  class="lobby-table-name"%0A                >%0A                  Authoritative Ready Test%0A                </strong>%0A                <span%0A                  class="field-hint"%0A                >%0A                  2%0A                   seats%0A                </span>%0A              </div>%0A              <div%0A                class="lobby-status-row"%0A              >%0A                <span%0A                  aria-atomic="true"%0A                  aria-live="polite"%0A                  class="status-badge info"%0A                >%0A                  <svg%0A                    aria-hidden="true"%0A                    class="lucide lucide-clock3 lucide-clock-3 button-icon"%0A                    fill="none"%0A                    height="24"%0A                    stroke="currentColor"%0A                    stroke-linecap="round"%0A                    stroke-linejoin="round"%0A                    stroke-width="1.9"%0A                    viewBox="0 0 24 24"%0A                    width="24"%0A                    xmlns="http://www.w3.org/2000/svg"%0A                  >%0A                    <circle%0A                      cx="12"%0A                      cy="12"%0A                      r="10"%0A                    />%0A                    <path%0A                      d="M12 6v6h4"%0A                    />%0A                  </svg>%0A                  You: Undoing ready…%0A                </span>%0A                <span%0A                  class="status-badge success"%0A                >%0A                  <svg%0A                    aria-hidden="true"%0A                    class="lucide lucide-check button-icon"%0A                    fill="none"%0A                    height="24"%0A                    stroke="currentColor"%0A                    stroke-linecap="round"%0A                    stroke-linejoin="round"%0A                    stroke-width="1.9"%0A                    viewBox="0 0 24 24"%0A                    width="24"%0A                    xmlns="http://www.w3.org/2000/svg"%0A                  >%0A                    <path%0A                      d="M20 6 9 17l-5-5"%0A                    />%0A                  </svg>%0A                  Table: Ready%0A                </span>%0A                <span%0A                  class="status-badge accent"%0A                >%0A                  Table full%0A                </span>%0A              </div>%0A              <div%0A                class="button-row lobby-primary-actions workstation-actions compact-workstation-actions"%0A              >%0A                <button%0A                  aria-busy="true"%0A                  class="primary-button compact-button"%0A                  disabled=""%0A                  type="button"%0A                >%0A                  Undoing ready…%0A                </button>%0A                <button%0A                  class="primary-button compact-button"%0A                  disabled=""%0A                  type="button"%0A                >%0A                  <span%0A                    class="button-content"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-play button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"%0A                      />%0A                    </svg>%0A                    <span>%0A                      Start tournament%0A                    </span>%0A                  </span>%0A                </button>%0A                <button%0A                  class="secondary-button compact-button"%0A                  type="button"%0A                >%0A                  <span%0A                    class="button-content"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-log-out button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="m16 17 5-5-5-5"%0A                      />%0A                      <path%0A                        d="M21 12H9"%0A                      />%0A                      <path%0A                        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"%0A                      />%0A                    </svg>%0A                    <span>%0A                      Close table%0A                    </span>%0A                  </span>%0A                </button>%0A              </div>%0A            </div>%0A            <div%0A              class="seat-grid lobby-seat-grid "%0A            >%0A              <article%0A                class="seat-card lobby-seat-card lobby-seat-filled lobby-seat-local lobby-seat-ready"%0A              >%0A                <div%0A                  class="seat-card-header"%0A                >%0A                  <div>%0A                    <strong>%0A                      Seat %0A                      1%0A                    </strong>%0A                    <span>%0A                      You%0A                    </span>%0A                  </div>%0A                  <span%0A                    class="status-badge success"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-check button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="M20 6 9 17l-5-5"%0A                      />%0A                    </svg>%0A                    Ready%0A                  </span>%0A                </div>%0A                <p%0A                  class="seat-detail"%0A                >%0A                  Host · connected%0A                </p>%0A              </article>%0A              <article%0A                class="seat-card lobby-seat-card lobby-seat-filled  lobby-seat-ready"%0A              >%0A                <div%0A                  class="seat-card-header"%0A                >%0A                  <div>%0A                    <strong>%0A                      Seat %0A                      2%0A                    </strong>%0A                    <span>%0A                      Client Bravo%0A                    </span>%0A                  </div>%0A                  <span%0A                    class="status-badge success"%0A                  >%0A                    <svg%0A                      aria-hidden="true"%0A                      class="lucide lucide-check button-icon"%0A                      fill="none"%0A                      height="24"%0A                      stroke="currentColor"%0A                      stroke-linecap="round"%0A                      stroke-linejoin="round"%0A                      stroke-width="1.9"%0A                      viewBox="0 0 24 24"%0A                      width="24"%0A                      xmlns="http://www.w3.org/2000/svg"%0A                    >%0A                      <path%0A                        d="M20 6 9 17l-5-5"%0A                      />%0A                    </svg>%0A                    Ready%0A                  </span>%0A                </div>%0A                <p%0A                  class="seat-detail"%0A                >%0A                  connected%0A                </p>%0A              </article>%0A            </div>%0A          </div>%0A        </section>%0A      </div>%0A    </section>%0A  </div>%0A</body>%0A ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19%0A ❯ src/screens/TournamentLobbyAuthoritativeReady.test.tsx:199:14%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/components/layout/AppFrameAccessibility.test.tsx,title=src/components/layout/AppFrameAccessibility.test.tsx > AppFrame accessibility navigation > moves focus to main content after an SPA route change,line=56,column=28::TestingLibraryElementError: Unable to find an accessible element with the role "link" and name "Host"%0A%0AHere are the accessible roles:%0A%0A  link:%0A%0A  Name "Skip to main content":%0A  <a%0A    class="skip-link"%0A    href="#main-content"%0A  />%0A%0A  --------------------------------------------------%0A  banner:%0A%0A  Name "":%0A  <header%0A    class="topbar"%0A  />%0A%0A  --------------------------------------------------%0A  paragraph:%0A%0A  Name "":%0A  <p%0A    class="kicker"%0A  />%0A%0A  Name "":%0A  <p%0A    class="player-pill"%0A  />%0A%0A  --------------------------------------------------%0A  heading:%0A%0A  Name "Desktop Poker Test":%0A  <h1 />%0A%0A  Name "Home surface":%0A  <h2 />%0A%0A  --------------------------------------------------%0A  main:%0A%0A  Name "":%0A  <main%0A    class="content"%0A    id="main-content"%0A    style="height: 100%25; overflow: hidden;"%0A    tabindex="-1"%0A  />%0A%0A  --------------------------------------------------%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <div%0A      class="app-frame landing-frame"%0A      style="height: 100dvh; overflow: hidden;"%0A    >%0A      <a%0A        class="skip-link"%0A        href="#main-content"%0A      >%0A        Skip to main content%0A      </a>%0A      <header%0A        class="topbar"%0A      >%0A        <div%0A          class="topbar-brand"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Desktop Poker%0A          </p>%0A          <h1>%0A            Desktop Poker Test%0A          </h1>%0A        </div>%0A        <div%0A          aria-hidden="true"%0A          class="topbar-spacer"%0A        />%0A        <div%0A          class="topbar-meta"%0A        >%0A          <p%0A            class="player-pill"%0A          >%0A            Playing as %0A            Player test-instance%0A          </p>%0A        </div>%0A      </header>%0A      <main%0A        class="content"%0A        id="main-content"%0A        style="height: 100%25; overflow: hidden;"%0A        tabindex="-1"%0A      >%0A        <h2>%0A          Home surface%0A        </h2>%0A      </main>%0A    </div>%0A  </div>%0A</body>%0A ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19%0A ❯ src/components/layout/AppFrameAccessibility.test.tsx:56:28%0A%0A
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/components/shared/AccessibleDialog.test.tsx,title=src/components/shared/AccessibleDialog.test.tsx > AccessibleDialog > closes on Escape and returns focus to the opener,line=88,column=36::AssertionError: expected <body><div>…(1)</div></body> to be <button type="button"></button> // Object.is equality%0A%0A- Expected%0A+ Received%0A%0A+ <body>%0A+   <div>%0A      <button%0A        type="button"%0A      >%0A        Open dialog%0A      </button>%0A+   </div>%0A+ </body>%0A%0A ❯ src/components/shared/AccessibleDialog.test.tsx:88:36%0A%0A
+=== lint ===
+
+> desktop-poker@0.1.0 lint
+> eslint . --ext ts,tsx --max-warnings 0
+
+=== build ===
+
+> desktop-poker@0.1.0 build
+> tsc && vite build
+
+src/screens/NpcProfilesScreen.tsx(90,10): error TS7031: Binding element 'currentLocation' implicitly has an 'any' type.
+src/screens/NpcProfilesScreen.tsx(90,27): error TS7031: Binding element 'nextLocation' implicitly has an 'any' type.
