@@ -1,5 +1,6 @@
 use std::{
     fs,
+    io::{Error as IoError, ErrorKind},
     path::{Path, PathBuf},
 };
 
@@ -19,9 +20,31 @@ const STARTER_PROFILES: &[(&str, &str)] = &[
     ("balanced-sam", include_str!("profiles/balanced-sam.md")),
 ];
 
+const PROFILE_ID_MAX_LEN: usize = 64;
+const PROFILE_ID_REQUIREMENT: &str =
+    "profile ID must match [a-z0-9-]{1,64}";
+
 /// Set of IDs that are built-in and cannot be deleted.
 pub const BUILTIN_PROFILE_IDS: &[&str] =
     &["aggressive-alice", "conservative-carlos", "balanced-sam"];
+
+/// Validate a profile filename stem before any filesystem path is constructed.
+pub fn validate_profile_id(id: &str) -> Result<(), ProfileError> {
+    let valid = !id.is_empty()
+        && id.len() <= PROFILE_ID_MAX_LEN
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+
+    if valid {
+        Ok(())
+    } else {
+        Err(ProfileError::Io(IoError::new(
+            ErrorKind::InvalidInput,
+            PROFILE_ID_REQUIREMENT,
+        )))
+    }
+}
 
 /// Returns the profiles directory path: `{app_data_dir}/npc-profiles/`.
 pub fn profiles_dir(app_data_dir: &Path) -> PathBuf {
@@ -75,7 +98,7 @@ pub struct NpcProfileListResult {
 
 /// List all profiles in `dir`, sorted alphabetically by name.
 ///
-/// Files that fail to parse are included in `errors` rather than silently skipped.
+/// Files that fail validation or parsing are included in `errors` rather than silently skipped.
 pub fn list_profiles(dir: &Path) -> Result<NpcProfileListResult, ProfileError> {
     ensure_profiles_dir(dir)?;
 
@@ -107,6 +130,13 @@ pub fn list_profiles(dir: &Path) -> Result<NpcProfileListResult, ProfileError> {
             .and_then(|n| n.to_str())
             .unwrap_or(&stem)
             .to_string();
+        if let Err(error) = validate_profile_id(&stem) {
+            errors.push(NpcProfileError {
+                filename,
+                error: error.to_string(),
+            });
+            continue;
+        }
         let content = match fs::read_to_string(&path) {
             Ok(c) => c,
             Err(e) => {
@@ -134,17 +164,18 @@ pub fn list_profiles(dir: &Path) -> Result<NpcProfileListResult, ProfileError> {
 
 /// Load a single profile by its ID (filename stem).
 pub fn load_profile(dir: &Path, id: &str) -> Result<NpcProfile, ProfileError> {
+    validate_profile_id(id)?;
     let path = dir.join(format!("{id}.md"));
     let content = fs::read_to_string(&path)?;
     parse_profile(id, &content)
 }
 
-/// Write `content` to `{dir}/{id}.md`, validating it parses before writing.
+/// Write `content` to `{dir}/{id}.md`, validating ID and content before writing.
 ///
 /// Returns the parsed profile on success.
 pub fn save_profile(dir: &Path, id: &str, content: &str) -> Result<NpcProfile, ProfileError> {
+    validate_profile_id(id)?;
     ensure_profiles_dir(dir)?;
-    // Validate before writing.
     let profile = parse_profile(id, content)?;
     let path = dir.join(format!("{id}.md"));
     fs::write(&path, content)?;
@@ -153,6 +184,7 @@ pub fn save_profile(dir: &Path, id: &str, content: &str) -> Result<NpcProfile, P
 
 /// Delete `{dir}/{id}.md`.
 pub fn delete_profile(dir: &Path, id: &str) -> Result<(), ProfileError> {
+    validate_profile_id(id)?;
     let path = dir.join(format!("{id}.md"));
     fs::remove_file(&path)?;
     Ok(())
@@ -178,10 +210,34 @@ A balanced test player.";
     const BAD: &str = "no frontmatter here";
 
     #[test]
+    fn profile_id_validation_accepts_documented_slug_format() {
+        assert!(validate_profile_id("a").is_ok());
+        assert!(validate_profile_id("player-2").is_ok());
+        assert!(validate_profile_id(&"a".repeat(64)).is_ok());
+    }
+
+    #[test]
+    fn profile_id_validation_rejects_invalid_and_traversal_values() {
+        for id in [
+            "",
+            "Uppercase",
+            "with_underscore",
+            "with space",
+            "../escape",
+            "nested/profile",
+            ".",
+            "..",
+        ] {
+            let error = validate_profile_id(id).expect_err("invalid ID must fail");
+            assert!(error.to_string().contains(PROFILE_ID_REQUIREMENT));
+        }
+        assert!(validate_profile_id(&"a".repeat(65)).is_err());
+    }
+
+    #[test]
     fn list_profiles_empty_dir_seeds_starters() {
         let dir = temp_dir();
         let result = list_profiles(dir.path()).unwrap();
-        // Starter profiles should have been seeded.
         assert_eq!(result.profiles.len(), 3);
         assert!(result.errors.is_empty());
         let names: Vec<&str> = result.profiles.iter().map(|p| p.name.as_str()).collect();
@@ -195,7 +251,6 @@ A balanced test player.";
         let dir = temp_dir();
         let pdir = profiles_dir(dir.path());
         fs::create_dir_all(&pdir).unwrap();
-        // Write one valid and one invalid profile.
         fs::write(pdir.join("good.md"), SAMPLE).unwrap();
         fs::write(pdir.join("bad.md"), BAD).unwrap();
 
@@ -205,6 +260,20 @@ A balanced test player.";
         assert_eq!(result.errors.len(), 1, "parse errors");
         assert_eq!(result.errors[0].filename, "bad.md");
         assert!(!result.errors[0].error.is_empty());
+    }
+
+    #[test]
+    fn list_profiles_surfaces_invalid_filename_as_error() {
+        let dir = temp_dir();
+        let pdir = profiles_dir(dir.path());
+        fs::create_dir_all(&pdir).unwrap();
+        fs::write(pdir.join("Invalid_Name.md"), SAMPLE).unwrap();
+
+        let result = list_profiles(&pdir).unwrap();
+        assert!(result.profiles.is_empty());
+        assert_eq!(result.errors.len(), 1);
+        assert_eq!(result.errors[0].filename, "Invalid_Name.md");
+        assert!(result.errors[0].error.contains(PROFILE_ID_REQUIREMENT));
     }
 
     #[test]
@@ -249,8 +318,20 @@ A balanced test player.";
 
         let result = save_profile(&pdir, "bad", BAD);
         assert!(result.is_err());
-        // File should not have been written.
         assert!(!pdir.join("bad.md").exists());
+    }
+
+    #[test]
+    fn filesystem_operations_reject_invalid_ids_before_path_access() {
+        let dir = temp_dir();
+        let pdir = profiles_dir(dir.path());
+        fs::create_dir_all(&pdir).unwrap();
+        let outside = dir.path().join("escape.md");
+
+        assert!(save_profile(&pdir, "../escape", SAMPLE).is_err());
+        assert!(load_profile(&pdir, "../escape").is_err());
+        assert!(delete_profile(&pdir, "../escape").is_err());
+        assert!(!outside.exists());
     }
 
     #[test]
