@@ -4,11 +4,11 @@
   "failurePath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "696dc09c7e12107374d68ee6fecea9f996692af9eb11ac100324828797034882",
+    "applicationSha256": "9915b5937475076971fbd9850fbbe7c238cf00b4ebe705e575832f4a92bfdff0",
     "error": "could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory",
-    "instanceId": "release-keychain-failure-30373646998",
+    "instanceId": "release-keychain-failure-30373977819",
     "mode": "failure",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-30373646998",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-30373977819",
     "result": "PASS",
     "steps": [
       {
@@ -22,15 +22,15 @@
     ]
   },
   "failurePathOutcome": "success",
-  "recordedAtUtc": "2026-07-28T15:32:01.604363+00:00",
+  "recordedAtUtc": "2026-07-28T15:36:31.053487+00:00",
   "result": "PASS",
   "successPath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "696dc09c7e12107374d68ee6fecea9f996692af9eb11ac100324828797034882",
-    "instanceId": "release-keychain-success-30373646998",
+    "applicationSha256": "9915b5937475076971fbd9850fbbe7c238cf00b4ebe705e575832f4a92bfdff0",
+    "instanceId": "release-keychain-success-30373977819",
     "mode": "success",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30373646998",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30373977819",
     "provider": "anthropic",
     "result": "PASS",
     "secretLength": 36,
@@ -62,7 +62,7 @@
     ]
   },
   "successPathOutcome": "success",
-  "validatedCommit": "d9d7a54074b6363102329d626ef6c9889a49d9f6",
+  "validatedCommit": "ed3aaf67064b61e7bb83e4a67ba20c0b94e89698",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30373646998"
+  "workflowRunId": "30373977819"
 }
