@@ -4,136 +4,8 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
-    "clientInstanceId": "full-game-client-30328972399",
-    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30328972399",
-    "completedHands": 4,
-    "finalHistory": [
-      {
-        "boardCards": [
-          {
-            "compactLabel": "3\u2663",
-            "label": "Three of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "A\u2665",
-            "label": "Ace of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "10\u2666",
-            "label": "Ten of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "9\u2666",
-            "label": "Nine of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "7\u2666",
-            "label": "Seven of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          }
-        ],
-        "eliminatedPlayers": [
-          "Player full-game-client-30328972399"
-        ],
-        "handNumber": 4,
-        "potTotal": 120,
-        "summary": "Player full-game-host-30328972399 won 120 chip(s).",
-        "winningPlayers": [
-          "Player full-game-host-30328972399"
-        ]
-      },
-      {
-        "boardCards": [
-          {
-            "compactLabel": "6\u2660",
-            "label": "Six of Spades",
-            "suitSymbol": "\u2660",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "4\u2660",
-            "label": "Four of Spades",
-            "suitSymbol": "\u2660",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "J\u2660",
-            "label": "Jack of Spades",
-            "suitSymbol": "\u2660",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "8\u2666",
-            "label": "Eight of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "7\u2663",
-            "label": "Seven of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          }
-        ],
-        "eliminatedPlayers": [],
-        "handNumber": 3,
-        "potTotal": 1940,
-        "summary": "Player full-game-host-30328972399 won 1940 chip(s).",
-        "winningPlayers": [
-          "Player full-game-host-30328972399"
-        ]
-      },
-      {
-        "boardCards": [],
-        "eliminatedPlayers": [],
-        "handNumber": 2,
-        "potTotal": 1030,
-        "summary": "Player full-game-client-30328972399 won 1030 chip(s).",
-        "winningPlayers": [
-          "Player full-game-client-30328972399"
-        ]
-      },
-      {
-        "boardCards": [],
-        "eliminatedPlayers": [],
-        "handNumber": 1,
-        "potTotal": 30,
-        "summary": "Player full-game-client-30328972399 won 30 chip(s).",
-        "winningPlayers": [
-          "Player full-game-client-30328972399"
-        ]
-      }
-    ],
-    "finalStandings": [
-      {
-        "chipCount": 2000,
-        "displayName": "Player full-game-host-30328972399",
-        "isObserver": false,
-        "note": "Dealer",
-        "rank": 1,
-        "statusLabel": "Active"
-      },
-      {
-        "chipCount": 0,
-        "displayName": "Player full-game-client-30328972399",
-        "isObserver": true,
-        "note": null,
-        "rank": 2,
-        "statusLabel": "Eliminated observer"
-      }
-    ],
-    "hostInstanceId": "full-game-host-30328972399",
-    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30328972399",
-    "result": "PASS",
+    "error": "AssertionError: Timed out waiting for completed hand history to persist before leaving the table; last error: None",
+    "result": "FAIL",
     "steps": [
       {
         "name": "two isolated release instances completed host/join/seat/ready/start",
@@ -148,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/35372cac-9066-4a2c-8fa7-ff3558f41f6d/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/b224bf16-0845-4b4b-ba20-ef779b6bcd96/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -176,23 +48,15 @@
         "result": "PASS"
       },
       {
-        "name": "both release instances render the same Tournament Complete winner",
-        "result": "PASS"
-      },
-      {
-        "name": "fresh third profile contains no host/client hand history",
-        "result": "PASS"
-      },
-      {
-        "name": "host and client history restore after release-process restart",
-        "result": "PASS"
+        "name": "full-game runtime smoke",
+        "result": "FAIL"
       }
     ]
   },
-  "gameplayOutcome": "success",
-  "recordedAtUtc": "2026-07-28T04:34:59.571694+00:00",
-  "result": "PASS",
-  "validatedCommit": "385d2f2daa470cf328ef702daed6837010a8e46b",
+  "gameplayOutcome": "failure",
+  "recordedAtUtc": "2026-07-28T04:39:21.929655+00:00",
+  "result": "FAIL",
+  "validatedCommit": "aed5215efa654eecb6e5db6d734f923bd00b43bd",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30328972399"
+  "workflowRunId": "30329177934"
 }
