@@ -2,28 +2,22 @@
   "buildOutcome": "success",
   "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
   "protocolOutcome": "success",
-  "recordedAtUtc": "2026-07-28T05:53:07.031151+00:00",
-  "releaseRuntimeOutcome": "failure",
-  "result": "FAIL",
+  "recordedAtUtc": "2026-07-28T06:49:17.582892+00:00",
+  "releaseRuntimeOutcome": "success",
+  "result": "PASS",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "65f10574533deae420ee03ddb3a421010c2a9500156492784ba697779e9c6d54",
-    "error": "AssertionError: Timed out waiting for Tauri command get_client_session_status; last error: None",
-    "result": "FAIL",
+    "applicationSha256": "473ec05f02ff8f3721aa3bf25c687929e2b5da5edb9521aaa5a46f35bb3c2e47",
+    "result": "PASS",
     "scenarios": {
-      "activeHandReconnect": {
-        "afterSockets": [
-          "0      0               10.1.0.184:38886              10.1.0.184:43859"
-        ],
-        "beforeSockets": [
-          "0      0               10.1.0.184:38880              10.1.0.184:43859"
-        ],
-        "clientStatus": {
+      "activeHandHostLoss": {
+        "actionError": "action tray is disabled until the local player owns the turn",
+        "status": {
           "activeSeatCount": 2,
-          "hostAddress": "10.1.0.184",
+          "hostAddress": "10.1.0.171",
           "hostPort": 43859,
-          "lastError": null,
-          "localPlayerId": "player-reconnect-client-30332398233",
+          "lastError": "Disconnected from host",
+          "localPlayerId": "player-reconnect-client-30335336702",
           "openSeatCount": 0,
           "participants": [
             {
@@ -41,14 +35,58 @@
               "isHost": false,
               "isReady": true,
               "participantState": "active",
-              "playerId": "player-reconnect-client-30332398233",
+              "playerId": "player-reconnect-client-30335336702",
               "seatIndex": 1
             }
           ],
           "phase": "running",
           "reconnecting": false,
-          "sessionEpoch": 1785217964192,
-          "tableId": "table-reconnect-host-30332398233-1785217964192",
+          "sessionEpoch": 1785221354434,
+          "tableId": "table-reconnect-host-30335336702-1785221354434",
+          "tableName": "Main Table",
+          "terminated": true,
+          "tournamentName": "Successful Reconnect Scenario"
+        },
+        "tableError": "Disconnected from host"
+      },
+      "activeHandReconnect": {
+        "afterSockets": [
+          "0      0               10.1.0.171:44850             10.1.0.171:43859"
+        ],
+        "beforeSockets": [
+          "0      0               10.1.0.171:44848             10.1.0.171:43859"
+        ],
+        "clientStatus": {
+          "activeSeatCount": 2,
+          "hostAddress": "10.1.0.171",
+          "hostPort": 43859,
+          "lastError": null,
+          "localPlayerId": "player-reconnect-client-30335336702",
+          "openSeatCount": 0,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "player-reconnect-client-30335336702",
+              "seatIndex": 1
+            }
+          ],
+          "phase": "running",
+          "reconnecting": false,
+          "sessionEpoch": 1785221354434,
+          "tableId": "table-reconnect-host-30335336702-1785221354434",
           "tableName": "Main Table",
           "terminated": false,
           "tournamentName": "Successful Reconnect Scenario"
@@ -59,7 +97,7 @@
           "isHost": false,
           "isReady": true,
           "participantState": "active",
-          "playerId": "player-reconnect-client-30332398233",
+          "playerId": "player-reconnect-client-30335336702",
           "seatIndex": 1
         },
         "postReconnectAction": {
@@ -169,14 +207,14 @@
                 "displayName": "Failure Matrix Client",
                 "holeCards": [
                   {
-                    "compactLabel": "J\u2660",
-                    "label": "Jack of Spades",
-                    "suitSymbol": "\u2660",
-                    "tone": "dark"
+                    "compactLabel": "3\u2665",
+                    "label": "Three of Hearts",
+                    "suitSymbol": "\u2665",
+                    "tone": "red"
                   },
                   {
-                    "compactLabel": "6\u2663",
-                    "label": "Six of Clubs",
+                    "compactLabel": "3\u2663",
+                    "label": "Three of Clubs",
                     "suitSymbol": "\u2663",
                     "tone": "dark"
                   }
@@ -213,7 +251,7 @@
               }
             ],
             "streetLabel": "Preflop",
-            "tableId": "table-reconnect-host-30332398233-1785217964192",
+            "tableId": "table-reconnect-host-30335336702-1785221354434",
             "tableName": "Main Table",
             "tournamentName": "Successful Reconnect Scenario",
             "tournamentPhase": "running",
@@ -287,10 +325,10 @@
                   "tone": "dark"
                 },
                 {
-                  "compactLabel": "Q\u2660",
-                  "label": "Queen of Spades",
-                  "suitSymbol": "\u2660",
-                  "tone": "dark"
+                  "compactLabel": "3\u2665",
+                  "label": "Three of Hearts",
+                  "suitSymbol": "\u2665",
+                  "tone": "red"
                 }
               ],
               "isActing": false,
@@ -325,26 +363,21 @@
             }
           ],
           "streetLabel": "Preflop",
-          "tableId": "table-reconnect-host-30332398233-1785217964192",
+          "tableId": "table-reconnect-host-30335336702-1785221354434",
           "tableName": "Main Table",
           "tournamentName": "Successful Reconnect Scenario",
           "tournamentPhase": "running",
           "viewerMode": "local"
         }
       },
-      "lobbyReconnect": {
-        "afterSockets": [
-          "0      0               10.1.0.184:38880              10.1.0.184:43859"
-        ],
-        "beforeSockets": [
-          "0      0               10.1.0.184:38868              10.1.0.184:43859"
-        ],
-        "clientStatus": {
+      "lobbyHostLoss": {
+        "actionError": "no open action window",
+        "status": {
           "activeSeatCount": 1,
-          "hostAddress": "10.1.0.184",
-          "hostPort": 43859,
-          "lastError": null,
-          "localPlayerId": "player-reconnect-client-30332398233",
+          "hostAddress": "10.1.0.171",
+          "hostPort": 43860,
+          "lastError": "Disconnected from host",
+          "localPlayerId": "player-reconnect-client-30335336702",
           "openSeatCount": 1,
           "participants": [
             {
@@ -362,14 +395,58 @@
               "isHost": false,
               "isReady": false,
               "participantState": "admitted",
-              "playerId": "player-reconnect-client-30332398233",
+              "playerId": "player-reconnect-client-30335336702",
               "seatIndex": null
             }
           ],
           "phase": "waitingForPlayers",
           "reconnecting": false,
-          "sessionEpoch": 1785217964192,
-          "tableId": "table-reconnect-host-30332398233-1785217964192",
+          "sessionEpoch": 1785221356067,
+          "tableId": "table-reconnect-host-30335336702-1785221356067",
+          "tableName": "Main Table",
+          "terminated": true,
+          "tournamentName": "Lobby Host Loss Scenario"
+        },
+        "tableError": "Disconnected from host"
+      },
+      "lobbyReconnect": {
+        "afterSockets": [
+          "0      0               10.1.0.171:44848             10.1.0.171:43859"
+        ],
+        "beforeSockets": [
+          "0      0               10.1.0.171:44834             10.1.0.171:43859"
+        ],
+        "clientStatus": {
+          "activeSeatCount": 1,
+          "hostAddress": "10.1.0.171",
+          "hostPort": 43859,
+          "lastError": null,
+          "localPlayerId": "player-reconnect-client-30335336702",
+          "openSeatCount": 1,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": false,
+              "participantState": "seated",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": false,
+              "participantState": "admitted",
+              "playerId": "player-reconnect-client-30335336702",
+              "seatIndex": null
+            }
+          ],
+          "phase": "waitingForPlayers",
+          "reconnecting": false,
+          "sessionEpoch": 1785221354434,
+          "tableId": "table-reconnect-host-30335336702-1785221354434",
           "tableName": "Main Table",
           "terminated": false,
           "tournamentName": "Successful Reconnect Scenario"
@@ -380,7 +457,7 @@
           "isHost": false,
           "isReady": false,
           "participantState": "admitted",
-          "playerId": "player-reconnect-client-30332398233",
+          "playerId": "player-reconnect-client-30335336702",
           "seatIndex": null
         }
       },
@@ -414,12 +491,16 @@
         "result": "PASS"
       },
       {
-        "name": "release reconnect matrix",
-        "result": "FAIL"
+        "name": "active-hand host loss became terminal and rejected stale table/action access",
+        "result": "PASS"
+      },
+      {
+        "name": "lobby host loss became terminal and rejected stale table/action access",
+        "result": "PASS"
       }
     ]
   },
-  "validatedCommit": "2432ceb80ec02916cf8ccb91a225f3f67aa6c95e",
+  "validatedCommit": "f35d8552648091211ed05c99ac8474ae07541be6",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30332398233"
+  "workflowRunId": "30335336702"
 }

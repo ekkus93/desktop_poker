@@ -1,16 +1,12 @@
 # Latest Reconnect Protocol and Release Validation
 
-- Result: **FAIL**
-- Validated commit: `2432ceb80ec02916cf8ccb91a225f3f67aa6c95e`
-- GitHub Actions run: `30332398233`
+- Result: **PASS**
+- Validated commit: `f35d8552648091211ed05c99ac8474ae07541be6`
+- GitHub Actions run: `30335336702`
 - Protocol tests: `success`
 - Release build: `success`
-- Release reconnect matrix: `failure`
+- Release reconnect matrix: `success`
 - Evidence artifact: `reconnect-protocol-and-release-failure-evidence`
-
-## Failure
-
-AssertionError: Timed out waiting for Tauri command get_client_session_status; last error: None
 
 ## Executed checks
 
@@ -20,4 +16,5 @@ AssertionError: Timed out waiting for Tauri command get_client_session_status; l
 - **PASS** — lobby reconnect replaced the TCP tuple and restored a usable client session
 - **PASS** — active-hand reconnect restored the same hand on a new TCP tuple
 - **PASS** — post-reconnect client action succeeded and immediate duplicate was rejected
-- **FAIL** — release reconnect matrix
+- **PASS** — active-hand host loss became terminal and rejected stale table/action access
+- **PASS** — lobby host loss became terminal and rejected stale table/action access
