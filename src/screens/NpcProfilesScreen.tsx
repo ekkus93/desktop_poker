@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useBeforeUnload, useBlocker } from "react-router";
 import {
   deleteNpcProfile,
   listNpcProfiles,
@@ -14,6 +15,9 @@ const BUILTIN_PROFILE_IDS = [
   "conservative-carlos",
   "balanced-sam",
 ];
+const PROFILE_ID_PATTERN = /^[a-z0-9-]{1,64}$/;
+const PROFILE_ID_HELP =
+  "Use 1–64 lowercase letters, numbers, or hyphens.";
 
 const FORMAT_HELP = `---
 name: My Player
@@ -36,12 +40,32 @@ type ProfileDetailState = {
   tiltBehaviour: string | null;
 };
 
+type EditorTransition =
+  | { kind: "openProfile"; profile: NpcProfile }
+  | { kind: "newProfile" }
+  | { kind: "cancelNew" }
+  | { kind: "deleteProfile"; id: string };
+
+function profileDetail(profile: NpcProfile): ProfileDetailState {
+  const rawContent = `---\nname: ${profile.name}\nstyle: ${profile.style}\nskill: ${profile.skill}\n---\n${profile.description}`;
+  return {
+    id: profile.id,
+    name: profile.name,
+    content: rawContent,
+    opponentTendencies: profile.opponentTendencies,
+    tiltBehaviour: profile.tiltBehaviour,
+  };
+}
+
 export function NpcProfilesScreen() {
   const [profiles, setProfiles] = useState<NpcProfile[]>([]);
   const [profileErrors, setProfileErrors] = useState<NpcProfileError[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetailState | null>(null);
+  const [detailBaselineContent, setDetailBaselineContent] = useState<
+    string | null
+  >(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -49,6 +73,40 @@ export function NpcProfilesScreen() {
   const [newId, setNewId] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newError, setNewError] = useState<string | null>(null);
+  const [pendingEditorTransition, setPendingEditorTransition] =
+    useState<EditorTransition | null>(null);
+
+  const detailDirty = Boolean(
+    detail &&
+      detailBaselineContent !== null &&
+      detail.content !== detailBaselineContent,
+  );
+  const newProfileDirty =
+    newMode && (newId.length > 0 || newContent.length > 0);
+  const hasUnsavedChanges = detailDirty || newProfileDirty;
+
+  const blocker = useBlocker(
+    useCallback(
+      ({ currentLocation, nextLocation }) =>
+        hasUnsavedChanges &&
+        currentLocation.pathname !== nextLocation.pathname,
+      [hasUnsavedChanges],
+    ),
+  );
+
+  useBeforeUnload(
+    useCallback(
+      (event) => {
+        if (!hasUnsavedChanges) {
+          return;
+        }
+        event.preventDefault();
+        event.returnValue = "";
+      },
+      [hasUnsavedChanges],
+    ),
+    { capture: true },
+  );
 
   async function reload() {
     setLoading(true);
@@ -95,27 +153,46 @@ export function NpcProfilesScreen() {
     };
   }, []);
 
-  function handleOpenProfile(profile: NpcProfile) {
-    const rawContent = `---\nname: ${profile.name}\nstyle: ${profile.style}\nskill: ${profile.skill}\n---\n${profile.description}`;
-    setDetail({
-      id: profile.id,
-      name: profile.name,
-      content: rawContent,
-      opponentTendencies: profile.opponentTendencies,
-      tiltBehaviour: profile.tiltBehaviour,
-    });
+  function openProfile(profile: NpcProfile) {
+    const nextDetail = profileDetail(profile);
+    setDetail(nextDetail);
+    setDetailBaselineContent(nextDetail.content);
+    setNewMode(false);
+    setNewId("");
+    setNewContent("");
+    setNewError(null);
     setSaveError(null);
     setSaveSuccess(false);
     setDeleteError(null);
+  }
+
+  function beginNewProfile() {
+    setDetail(null);
+    setDetailBaselineContent(null);
+    setNewMode(true);
+    setNewId("");
+    setNewContent("");
+    setNewError(null);
+    setSaveSuccess(false);
+    setDeleteError(null);
+  }
+
+  function cancelNewProfile() {
+    setNewMode(false);
+    setNewId("");
+    setNewContent("");
+    setNewError(null);
   }
 
   async function handleSaveDetail() {
     if (!detail) return;
     setSaveError(null);
     setSaveSuccess(false);
+    const savedContent = detail.content;
     try {
-      const updated = await saveNpcProfile(detail.id, detail.content);
+      const updated = await saveNpcProfile(detail.id, savedContent);
       setSaveSuccess(true);
+      setDetailBaselineContent(savedContent);
       setDetail((prev) =>
         prev
           ? {
@@ -137,6 +214,7 @@ export function NpcProfilesScreen() {
     try {
       await deleteNpcProfile(id);
       setDetail(null);
+      setDetailBaselineContent(null);
       await reload();
     } catch (e) {
       setDeleteError(
@@ -152,6 +230,14 @@ export function NpcProfilesScreen() {
       setNewError("Profile ID is required.");
       return;
     }
+    if (!PROFILE_ID_PATTERN.test(slug)) {
+      setNewError(`Invalid profile ID. ${PROFILE_ID_HELP}`);
+      return;
+    }
+    if (profiles.some((profile) => profile.id === slug)) {
+      setNewError(`A profile with ID '${slug}' already exists.`);
+      return;
+    }
     try {
       await saveNpcProfile(slug, newContent);
       setNewMode(false);
@@ -163,9 +249,55 @@ export function NpcProfilesScreen() {
     }
   }
 
+  async function performEditorTransition(transition: EditorTransition) {
+    switch (transition.kind) {
+      case "openProfile":
+        openProfile(transition.profile);
+        break;
+      case "newProfile":
+        beginNewProfile();
+        break;
+      case "cancelNew":
+        cancelNewProfile();
+        break;
+      case "deleteProfile":
+        await handleDelete(transition.id);
+        break;
+    }
+  }
+
+  function requestEditorTransition(transition: EditorTransition) {
+    if (hasUnsavedChanges) {
+      setPendingEditorTransition(transition);
+      return;
+    }
+    void performEditorTransition(transition);
+  }
+
+  function keepEditing() {
+    setPendingEditorTransition(null);
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
+  }
+
+  function discardChanges() {
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+      return;
+    }
+    const transition = pendingEditorTransition;
+    setPendingEditorTransition(null);
+    if (transition) {
+      void performEditorTransition(transition);
+    }
+  }
+
   const hasParsedSections =
     detail &&
     (detail.opponentTendencies != null || detail.tiltBehaviour != null);
+  const unsavedDialogVisible =
+    pendingEditorTransition !== null || blocker.state === "blocked";
 
   return (
     <ScreenShell
@@ -209,7 +341,9 @@ export function NpcProfilesScreen() {
                 <li key={p.id} style={{ marginBottom: "0.5rem" }}>
                   <button
                     className="secondary-button"
-                    onClick={() => handleOpenProfile(p)}
+                    onClick={() =>
+                      requestEditorTransition({ kind: "openProfile", profile: p })
+                    }
                     type="button"
                   >
                     {p.name}
@@ -230,10 +364,7 @@ export function NpcProfilesScreen() {
           <div className="button-row">
             <button
               className="primary-button"
-              onClick={() => {
-                setNewMode(true);
-                setSaveSuccess(false);
-              }}
+              onClick={() => requestEditorTransition({ kind: "newProfile" })}
               type="button"
             >
               New profile
@@ -262,6 +393,12 @@ export function NpcProfilesScreen() {
                 />
               </label>
             </div>
+
+            {detailDirty ? (
+              <p className="inline-banner info" role="status">
+                Unsaved profile changes.
+              </p>
+            ) : null}
 
             <details style={{ marginTop: "0.75rem" }}>
               <summary
@@ -350,7 +487,12 @@ export function NpcProfilesScreen() {
               <button
                 className="secondary-button"
                 disabled={BUILTIN_PROFILE_IDS.includes(detail.id)}
-                onClick={() => handleDelete(detail.id)}
+                onClick={() =>
+                  requestEditorTransition({
+                    kind: "deleteProfile",
+                    id: detail.id,
+                  })
+                }
                 type="button"
               >
                 Delete
@@ -378,19 +520,35 @@ export function NpcProfilesScreen() {
               <label className="field">
                 Profile ID (slug, e.g. my-player)
                 <input
+                  aria-describedby="profile-id-help"
+                  aria-invalid={newError?.includes("profile ID") ?? false}
                   value={newId}
-                  onChange={(e) => setNewId(e.target.value)}
+                  onChange={(e) => {
+                    setNewId(e.target.value);
+                    setNewError(null);
+                  }}
                 />
               </label>
+              <p className="field-hint" id="profile-id-help">
+                {PROFILE_ID_HELP}
+              </p>
               <label className="field">
                 Profile content
                 <textarea
                   rows={14}
                   value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
+                  onChange={(e) => {
+                    setNewContent(e.target.value);
+                    setNewError(null);
+                  }}
                 />
               </label>
             </div>
+            {newProfileDirty ? (
+              <p className="inline-banner info" role="status">
+                Unsaved new profile.
+              </p>
+            ) : null}
             <div className="button-row">
               <button
                 className="primary-button"
@@ -401,10 +559,9 @@ export function NpcProfilesScreen() {
               </button>
               <button
                 className="secondary-button"
-                onClick={() => {
-                  setNewMode(false);
-                  setNewError(null);
-                }}
+                onClick={() =>
+                  requestEditorTransition({ kind: "cancelNew" })
+                }
                 type="button"
               >
                 Cancel
@@ -416,6 +573,40 @@ export function NpcProfilesScreen() {
           </SectionCard>
         ) : null}
       </div>
+
+      {unsavedDialogVisible ? (
+        <section
+          aria-labelledby="unsaved-profile-title"
+          aria-modal="true"
+          className="dialog-card"
+          role="dialog"
+        >
+          <p className="kicker">Unsaved changes</p>
+          <h3 id="unsaved-profile-title">
+            Discard unsaved profile changes?
+          </h3>
+          <p>
+            Your latest profile edits have not been saved. Discarding them
+            cannot be undone.
+          </p>
+          <div className="button-row">
+            <button
+              className="primary-button"
+              onClick={discardChanges}
+              type="button"
+            >
+              Discard changes
+            </button>
+            <button
+              className="secondary-button"
+              onClick={keepEditing}
+              type="button"
+            >
+              Keep editing
+            </button>
+          </div>
+        </section>
+      ) : null}
     </ScreenShell>
   );
 }
