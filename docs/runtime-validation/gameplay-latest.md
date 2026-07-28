@@ -1,29 +1,30 @@
 # Latest Linux Release Full-Game Validation
 
-- Result: **FAIL**
-- Validated commit: `6e46f91f5502e51fc921098aa32376e760147b60`
-- GitHub Actions run: `30325497251`
+- Result: **PASS**
+- Validated commit: `ce248296b3b8fb4d862ee973549d53b0222c6209`
+- GitHub Actions run: `30326348030`
 - Build outcome: `success`
-- Gameplay outcome: `failure`
-- Recorded at: `2026-07-28T03:24:07.514726+00:00`
+- Gameplay outcome: `success`
+- Recorded at: `2026-07-28T03:40:45.943411+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
-## Failure
+## Result summary
 
-AssertionError: Tournament did not complete after 6 all-in showdowns
+- Completed hands: `3`
+- Host instance: `full-game-host-30326348030`
+- Client instance: `full-game-client-30326348030`
 
 ## Executed checks
 
 - **PASS** — two isolated release instances completed host/join/seat/ready/start
 - **PASS** — initial running-hand public state is synchronized
 - **PASS** — exactly one action tray is visible; initial actor is host
-- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/ea6ca405-f309-4b7d-b4e8-c08bed9e55e3/execute/async error raise exceeds remaining stack: None
+- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/836f4277-6c1f-4cab-8b22-5ba186b8cdd4/execute/async error raise exceeds remaining stack: None
 - **PASS** — quick-size Min updates the legal raise amount without submitting
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
 - **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
 - **PASS** — all-in showdown attempt 2 settled with 3 synchronized hands
-- **PASS** — all-in showdown attempt 3 settled with 4 synchronized hands
-- **PASS** — all-in showdown attempt 4 settled with 5 synchronized hands
-- **PASS** — all-in showdown attempt 5 settled with 6 synchronized hands
-- **PASS** — all-in showdown attempt 6 settled with 7 synchronized hands
-- **FAIL** — full-game runtime smoke
+- **PASS** — tournament completed with matching standings and one eliminated observer
+- **PASS** — both release instances render the same Tournament Complete winner
+- **PASS** — fresh third profile contains no host/client hand history
+- **PASS** — host and client history restore after release-process restart
