@@ -10,6 +10,7 @@ import {
   type TableViewerMode,
 } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
+import { AccessibleDialog } from "../components/shared/AccessibleDialog";
 import { SectionCard } from "../components/shared/SectionCard";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { ScreenShell } from "./ScreenShell";
@@ -313,13 +314,21 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         ) : null}
 
         {tableView?.sessionConnection === "reconnecting" ? (
-          <div className="inline-banner info">
-            <WifiOff className="button-icon" strokeWidth={1.9} />
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
             Reconnecting to host…
           </div>
         ) : connectionSlow ? (
-          <div className="inline-banner info">
-            <WifiOff className="button-icon" strokeWidth={1.9} />
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
             Connection slow — retrying…
           </div>
         ) : null}
@@ -349,6 +358,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}
               >
                 <div
+                  aria-atomic="true"
+                  aria-live="polite"
                   className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
                 >
                   <p className="kicker">
@@ -390,7 +401,10 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                 </header>
 
                 {tableView.observerBanner ? (
-                  <div className="inline-banner info observer-banner">
+                  <div
+                    className="inline-banner info observer-banner"
+                    role="status"
+                  >
                     <strong>Observer mode</strong>
                     <span>{tableView.observerBanner}</span>
                     {tableView.currentHandNumber !== null ? (
@@ -504,7 +518,11 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     </button>
                   </div>
                   {submitting ? (
-                    <div className="inline-banner info">
+                    <div
+                      aria-live="polite"
+                      className="inline-banner info"
+                      role="status"
+                    >
                       Sending your action to the host…
                     </div>
                   ) : null}
@@ -569,13 +587,17 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                     </div>
                   )}
                   {confirmation ? (
-                    <div className="confirmation-card" role="status">
-                      <strong>{confirmation.label}</strong>
-                      <p className="field-hint">
-                        {confirmation.actionKind === "betOrRaise"
+                    <AccessibleDialog
+                      className="confirmation-card"
+                      description={
+                        confirmation.actionKind === "betOrRaise"
                           ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
-                          : "Commit the remaining stack as an all-in action?"}
-                      </p>
+                          : "Commit the remaining stack as an all-in action?"
+                      }
+                      onCancel={() => setConfirmation(null)}
+                      title={confirmation.label}
+                      titleId="table-action-confirmation-title"
+                    >
                       <div className="button-row">
                         <button
                           className="primary-button"
@@ -594,10 +616,12 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
                           Cancel
                         </button>
                       </div>
-                    </div>
+                    </AccessibleDialog>
                   ) : null}
                   {actionError ? (
-                    <div className="inline-banner error">{actionError}</div>
+                    <div className="inline-banner error" role="alert">
+                      {actionError}
+                    </div>
                   ) : null}
                 </SectionCard>
               ) : (

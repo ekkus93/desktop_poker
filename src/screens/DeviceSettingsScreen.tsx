@@ -10,6 +10,7 @@ import {
   type LlmProviderType,
 } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
+import { AccessibleDialog } from "../components/shared/AccessibleDialog";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
@@ -341,10 +342,14 @@ export function DeviceSettingsScreen() {
           </div>
 
           {providerStatus ? (
-            <p className="inline-banner success">{providerStatus}</p>
+            <p className="inline-banner success" role="status">
+              {providerStatus}
+            </p>
           ) : null}
           {providerError ? (
-            <p className="inline-banner error">{providerError}</p>
+            <p className="inline-banner error" role="alert">
+              {providerError}
+            </p>
           ) : null}
 
           <div className="button-row">
@@ -364,80 +369,83 @@ export function DeviceSettingsScreen() {
           className="support-card device-settings-card"
         >
           <div className="button-row">
-            {localSetupConfirmation === "resetHostDraft" ? (
-              <>
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    resetHostDraft();
-                    setLocalSetupConfirmation(null);
-                    setResetSuccess(true);
-                  }}
-                  type="button"
-                >
-                  Confirm reset
-                </button>
-                <button
-                  className="secondary-button"
-                  onClick={() => setLocalSetupConfirmation(null)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                className="secondary-button"
-                disabled={localSetupConfirmation !== null}
-                onClick={() => {
-                  setLocalSetupConfirmation("resetHostDraft");
-                  setResetSuccess(false);
-                }}
-                type="button"
-              >
-                Reset host setup
-              </button>
-            )}
-            {localSetupConfirmation === "clearRecentInvites" ? (
-              <>
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    clearRecentJoinPayloads();
-                    setLocalSetupConfirmation(null);
-                    setClearSuccess(true);
-                  }}
-                  type="button"
-                >
-                  Confirm clear
-                </button>
-                <button
-                  className="secondary-button"
-                  onClick={() => setLocalSetupConfirmation(null)}
-                  type="button"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                className="secondary-button"
-                disabled={localSetupConfirmation !== null}
-                onClick={() => {
-                  setLocalSetupConfirmation("clearRecentInvites");
-                  setClearSuccess(false);
-                }}
-                type="button"
-              >
-                Clear saved invites ({recentJoinPayloads.length})
-              </button>
-            )}
+            <button
+              className="secondary-button"
+              disabled={localSetupConfirmation !== null}
+              onClick={() => {
+                setLocalSetupConfirmation("resetHostDraft");
+                setResetSuccess(false);
+              }}
+              type="button"
+            >
+              Reset host setup
+            </button>
+            <button
+              className="secondary-button"
+              disabled={localSetupConfirmation !== null}
+              onClick={() => {
+                setLocalSetupConfirmation("clearRecentInvites");
+                setClearSuccess(false);
+              }}
+              type="button"
+            >
+              Clear saved invites ({recentJoinPayloads.length})
+            </button>
           </div>
+          {localSetupConfirmation ? (
+            <AccessibleDialog
+              description={
+                localSetupConfirmation === "resetHostDraft"
+                  ? "This removes the saved host setup on this device."
+                  : "This removes every saved invitation on this device."
+              }
+              kicker="Confirm destructive action"
+              onCancel={() => setLocalSetupConfirmation(null)}
+              title={
+                localSetupConfirmation === "resetHostDraft"
+                  ? "Reset saved host setup?"
+                  : "Clear saved invitations?"
+              }
+              titleId="local-setup-confirmation-title"
+            >
+              <div className="button-row">
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    if (localSetupConfirmation === "resetHostDraft") {
+                      resetHostDraft();
+                      setResetSuccess(true);
+                    } else {
+                      clearRecentJoinPayloads();
+                      setClearSuccess(true);
+                    }
+                    setLocalSetupConfirmation(null);
+                  }}
+                  type="button"
+                >
+                  {localSetupConfirmation === "resetHostDraft"
+                    ? "Confirm reset"
+                    : "Confirm clear"}
+                </button>
+                <button
+                  className="secondary-button"
+                  onClick={() => setLocalSetupConfirmation(null)}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </AccessibleDialog>
+          ) : null}
           {resetSuccess ? (
-            <p className="inline-banner success">Host setup reset.</p>
+            <p className="inline-banner success" role="status">
+              Host setup reset.
+            </p>
           ) : null}
           {clearSuccess ? (
-            <p className="inline-banner success">Saved invites cleared.</p>
+            <p className="inline-banner success" role="status">
+              Saved invites cleared.
+            </p>
           ) : null}
           <p className="field-hint">
             {recentJoinPayloads.length} saved invite

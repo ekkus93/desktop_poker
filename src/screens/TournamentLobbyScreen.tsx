@@ -11,6 +11,7 @@ import {
   stopHostSession,
 } from "../api/desktop";
 import { useDesktopShell } from "../app/useDesktopShell";
+import { AccessibleDialog } from "../components/shared/AccessibleDialog";
 import { ScreenShell } from "./ScreenShell";
 import { buildLiveSeats, useLobbySession } from "./useLobbySession";
 import type { ScreenProps } from "./types";
@@ -115,7 +116,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                     Recovery required before players can join again.
                   </span>
                 </div>
-                <p className="inline-banner error">{hostRecoveryError}</p>
+                <p className="inline-banner error" role="alert">
+                  {hostRecoveryError}
+                </p>
                 <div className="button-row workstation-actions compact-workstation-actions">
                   <button
                     className="primary-button compact-button"
@@ -341,18 +344,38 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 </span>
               </div>
               {clientTerminated ? (
-                <div className="inline-banner error">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                <div className="inline-banner error" role="alert">
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
                   Disconnected from host — session could not be recovered.
                 </div>
               ) : clientReconnecting ? (
-                <div className="inline-banner info">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                <div
+                  aria-live="polite"
+                  className="inline-banner info"
+                  role="status"
+                >
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
                   Reconnecting to host…
                 </div>
               ) : connectionSlow ? (
-                <div className="inline-banner info">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
+                <div
+                  aria-live="polite"
+                  className="inline-banner info"
+                  role="status"
+                >
+                  <WifiOff
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.9}
+                  />
                   Connection slow — retrying…
                 </div>
               ) : null}
@@ -419,7 +442,9 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
                 </button>
               </div>
               {lobbyError ? (
-                <p className="inline-banner error">{lobbyError}</p>
+                <p className="inline-banner error" role="alert">
+                  {lobbyError}
+                </p>
               ) : null}
             </div>
             <div
@@ -485,36 +510,35 @@ export function TournamentLobbyScreen({ bootstrap }: ScreenProps) {
         </section>
       </div>
       {showLeaveFlow ? (
-        <section className="dialog-card">
-          <p className="kicker">
-            {localSeat?.kind === "host" ? "Close" : "Leave"}
-          </p>
-          <h3>{leaveTitle}</h3>
+        <AccessibleDialog
+          kicker={localSeat?.kind === "host" ? "Close" : "Leave"}
+          onCancel={() => setShowLeaveFlow(false)}
+          title={leaveTitle}
+          titleId="leave-table-title"
+        >
           {lobbyError ? (
-            <p className="inline-banner error">{lobbyError}</p>
+            <p className="inline-banner error" role="alert">
+              {lobbyError}
+            </p>
           ) : null}
           <div className="button-row">
             <button
               className="primary-button"
               disabled={submitting}
-              onClick={() => {
-                void leaveLiveSession();
-              }}
+              onClick={() => void leaveLiveSession()}
               type="button"
             >
               {leaveActionLabel}
             </button>
             <button
               className="secondary-button"
-              onClick={() => {
-                setShowLeaveFlow(false);
-              }}
+              onClick={() => setShowLeaveFlow(false)}
               type="button"
             >
               Stay here
             </button>
           </div>
-        </section>
+        </AccessibleDialog>
       ) : null}
     </ScreenShell>
   );

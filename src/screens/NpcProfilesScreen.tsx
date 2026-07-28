@@ -7,6 +7,7 @@ import {
   type NpcProfile,
   type NpcProfileError,
 } from "../api/desktop";
+import { AccessibleDialog } from "../components/shared/AccessibleDialog";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 
@@ -336,7 +337,9 @@ export function NpcProfilesScreen() {
           {loading ? (
             <p>Loading profiles…</p>
           ) : listError ? (
-            <p className="inline-banner error">{listError}</p>
+            <p className="inline-banner error" role="alert">
+              {listError}
+            </p>
           ) : profiles.length === 0 ? (
             <p>No profiles found.</p>
           ) : (
@@ -506,13 +509,19 @@ export function NpcProfilesScreen() {
               </button>
             </div>
             {saveSuccess ? (
-              <p className="inline-banner success">Profile saved.</p>
+              <p className="inline-banner success" role="status">
+                Profile saved.
+              </p>
             ) : null}
             {saveError ? (
-              <p className="inline-banner error">{saveError}</p>
+              <p className="inline-banner error" role="alert">
+                {saveError}
+              </p>
             ) : null}
             {deleteError ? (
-              <p className="inline-banner error">{deleteError}</p>
+              <p className="inline-banner error" role="alert">
+                {deleteError}
+              </p>
             ) : null}
           </SectionCard>
         ) : null}
@@ -573,25 +582,22 @@ export function NpcProfilesScreen() {
               </button>
             </div>
             {newError ? (
-              <p className="inline-banner error">{newError}</p>
+              <p className="inline-banner error" role="alert">
+                {newError}
+              </p>
             ) : null}
           </SectionCard>
         ) : null}
       </div>
 
       {unsavedDialogVisible ? (
-        <section
-          aria-labelledby="unsaved-profile-title"
-          aria-modal="true"
-          className="dialog-card"
-          role="dialog"
+        <AccessibleDialog
+          description="Your latest profile edits have not been saved. Discarding them cannot be undone."
+          kicker="Unsaved changes"
+          onCancel={keepEditing}
+          title="Discard unsaved profile changes?"
+          titleId="unsaved-profile-title"
         >
-          <p className="kicker">Unsaved changes</p>
-          <h3 id="unsaved-profile-title">Discard unsaved profile changes?</h3>
-          <p>
-            Your latest profile edits have not been saved. Discarding them
-            cannot be undone.
-          </p>
           <div className="button-row">
             <button
               className="primary-button"
@@ -608,7 +614,7 @@ export function NpcProfilesScreen() {
               Keep editing
             </button>
           </div>
-        </section>
+        </AccessibleDialog>
       ) : null}
     </ScreenShell>
   );
