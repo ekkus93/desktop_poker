@@ -133,3 +133,6 @@ jobs:
             sleep 3
           done
           exit 1
+
+      - name: Confirm patch completion
+        run: echo "Blocked navigation discard fix applied and verified."
