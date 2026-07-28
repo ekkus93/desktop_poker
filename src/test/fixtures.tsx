@@ -63,6 +63,7 @@ export function renderWithProviders(
     ],
     { initialEntries: [...(initialEntries ?? ["/"])] },
   );
+  const renderResult = render(<RouterProvider router={router} />);
 
-  return render(<RouterProvider router={router} />);
+  return { ...renderResult, router };
 }
