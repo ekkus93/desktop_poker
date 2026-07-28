@@ -1,0 +1,72 @@
+name: Add networking error codes once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/networking-error-code-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Add optional code to NetworkingError
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("src-tauri/src/networking/runtime/mod.rs")
+          lines = path.read_text(encoding="utf-8").splitlines()
+
+          def find(needle, start=0):
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing {needle!r}")
+
+          if any("code: Option<String>" in line for line in lines):
+              raise SystemExit("NetworkingError code already exists")
+
+          struct_start = find("pub struct NetworkingError {")
+          message_field = find("message: String,", struct_start)
+          lines.insert(message_field, "    code: Option<String>,")
+
+          new_start = find("pub fn new(message: impl Into<String>)", struct_start)
+          self_start = find("Self {", new_start)
+          lines.insert(self_start + 1, "            code: None,")
+
+          display_impl = find("impl std::fmt::Display for NetworkingError", new_start)
+          close = display_impl - 2
+          if lines[close].strip() != "}":
+              raise SystemExit(f"unexpected impl close: {lines[close]!r}")
+          lines[close:close] = [
+              "",
+              "    #[must_use]",
+              "    pub fn with_code(code: impl Into<String>, message: impl Into<String>) -> Self {",
+              "        Self {",
+              "            code: Some(code.into()),",
+              "            message: message.into(),",
+              "        }",
+              "    }",
+              "",
+              "    #[must_use]",
+              "    pub fn code(&self) -> Option<&str> {",
+              "        self.code.as_deref()",
+              "    }",
+          ]
+
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/src/networking/runtime/mod.rs
+          git commit -m "Carry stable networking error codes"
+          git pull --rebase origin master
+          git push origin HEAD:master
