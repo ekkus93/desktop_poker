@@ -1,0 +1,188 @@
+name: Add pending join limit once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/host-pending-joins-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Add bounded pending join admission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8").splitlines()
+
+          def write(path, lines):
+              Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+          def find(lines, needle, start=0):
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing {needle!r}")
+
+          path = "src-tauri/src/networking/runtime/mod.rs"
+          lines = read(path)
+          if any("PendingInitialJoinTracker" in line for line in lines):
+              raise SystemExit("pending join tracker already exists")
+
+          atomic_import = find(lines, "atomic::{AtomicBool, AtomicU64, Ordering},")
+          lines[atomic_import] = lines[atomic_import].replace(
+              "AtomicBool, AtomicU64, Ordering",
+              "AtomicBool, AtomicU64, AtomicUsize, Ordering",
+          )
+
+          health_anchor = find(lines, "pub snapshot_sync_error_count: u64,")
+          lines.insert(
+              health_anchor + 1,
+              "    /// Incremented when the host rejects a connection before spawning an initial-join handler.",
+          )
+          lines.insert(health_anchor + 2, "    pub pending_join_limit_rejection_count: u64,")
+
+          host_server = find(lines, "pub struct HostServer {")
+          admission_block = [
+              "pub(crate) const MAX_PENDING_INITIAL_JOINS: usize = 16;",
+              "",
+              "#[derive(Debug)]",
+              "pub(crate) struct PendingInitialJoinTracker {",
+              "    in_flight: AtomicUsize,",
+              "    maximum: usize,",
+              "}",
+              "",
+              "impl PendingInitialJoinTracker {",
+              "    pub(crate) fn new(maximum: usize) -> Self {",
+              "        Self {",
+              "            in_flight: AtomicUsize::new(0),",
+              "            maximum,",
+              "        }",
+              "    }",
+              "",
+              "    pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<PendingInitialJoinGuard> {",
+              "        let acquired = self",
+              "            .in_flight",
+              "            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {",
+              "                (current < self.maximum).then_some(current + 1)",
+              "            })",
+              "            .is_ok();",
+              "",
+              "        acquired.then(|| PendingInitialJoinGuard {",
+              "            tracker: Arc::clone(self),",
+              "        })",
+              "    }",
+              "",
+              "    #[cfg(test)]",
+              "    fn in_flight(&self) -> usize {",
+              "        self.in_flight.load(Ordering::SeqCst)",
+              "    }",
+              "}",
+              "",
+              "#[derive(Debug)]",
+              "pub(crate) struct PendingInitialJoinGuard {",
+              "    tracker: Arc<PendingInitialJoinTracker>,",
+              "}",
+              "",
+              "impl Drop for PendingInitialJoinGuard {",
+              "    fn drop(&mut self) {",
+              "        let previous = self.tracker.in_flight.fetch_sub(1, Ordering::SeqCst);",
+              "        debug_assert!(previous > 0, \"pending initial join counter underflow\");",
+              "    }",
+              "}",
+              "",
+          ]
+          lines[host_server:host_server] = admission_block
+
+          final_tests = find(lines, "#[cfg(test)]\nmod tests;") if False else None
+          tests_module = find(lines, "#[cfg(test)]", host_server + len(admission_block))
+          # Insert an independent focused test module immediately before the final `mod tests;` declaration.
+          final_mod_tests = None
+          for index in range(len(lines) - 1):
+              if lines[index] == "#[cfg(test)]" and lines[index + 1] == "mod tests;":
+                  final_mod_tests = index
+          if final_mod_tests is None:
+              raise SystemExit("could not locate final runtime tests module declaration")
+          lines[final_mod_tests:final_mod_tests] = [
+              "#[cfg(test)]",
+              "mod admission_tests {",
+              "    use super::*;",
+              "",
+              "    #[test]",
+              "    fn pending_join_tracker_enforces_limit_and_releases_slots_on_drop() {",
+              "        let tracker = Arc::new(PendingInitialJoinTracker::new(2));",
+              "        let first = tracker.try_acquire().expect(\"first slot\");",
+              "        let second = tracker.try_acquire().expect(\"second slot\");",
+              "        assert!(tracker.try_acquire().is_none());",
+              "        assert_eq!(tracker.in_flight(), 2);",
+              "",
+              "        drop(first);",
+              "        assert_eq!(tracker.in_flight(), 1);",
+              "        let replacement = tracker.try_acquire().expect(\"released slot\");",
+              "        assert_eq!(tracker.in_flight(), 2);",
+              "",
+              "        drop(second);",
+              "        drop(replacement);",
+              "        assert_eq!(tracker.in_flight(), 0);",
+              "    }",
+              "}",
+              "",
+          ]
+          write(path, lines)
+
+          path = "src-tauri/src/networking/runtime/host.rs"
+          lines = read(path)
+          runtime_health = find(lines, "let runtime_health = Arc::new(Mutex::new(HostRuntimeHealth::default()));")
+          lines.insert(
+              runtime_health + 1,
+              "        let pending_initial_joins = Arc::new(PendingInitialJoinTracker::new(MAX_PENDING_INITIAL_JOINS));",
+          )
+
+          clone_health = find(lines, "let runtime_health = Arc::clone(&runtime_health);", runtime_health)
+          lines.insert(
+              clone_health + 1,
+              "            let pending_initial_joins = Arc::clone(&pending_initial_joins);",
+          )
+
+          stream_match_end = find(lines, "};", find(lines, "let mut stream = match incoming", clone_health))
+          admission_lines = [
+              "",
+              "                        let Some(pending_join_guard) = pending_initial_joins.try_acquire() else {",
+              "                            update_health(&runtime_health, |health| {",
+              "                                health.pending_join_limit_rejection_count += 1;",
+              "                                health.record_error(format!(",
+              "                                    \"pending initial join limit reached ({MAX_PENDING_INITIAL_JOINS})\"",
+              "                                ));",
+              "                            });",
+              "                            continue;",
+              "                        };",
+          ]
+          lines[stream_match_end + 1:stream_match_end + 1] = admission_lines
+
+          closure_start = find(lines, ".spawn(move || {", stream_match_end + len(admission_lines))
+          indent = lines[closure_start][: len(lines[closure_start]) - len(lines[closure_start].lstrip())] + "    "
+          lines.insert(closure_start + 1, f"{indent}let _pending_join_guard = pending_join_guard;")
+          write(path, lines)
+          PY
+      - name: Format Rust
+        run: cargo fmt
+      - name: Commit bounded admission
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/src/networking/runtime/mod.rs src-tauri/src/networking/runtime/host.rs
+          git commit -m "Bound pending host join handlers"
+          git pull --rebase origin master
+          git push origin HEAD:master
