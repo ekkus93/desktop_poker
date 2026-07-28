@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Replace copy-dependent invite assertion
+      - name: Replace stale invite copy assertion
         shell: bash
         run: |
           set -euo pipefail
@@ -26,25 +26,10 @@ jobs:
 
           path = Path("scripts/runtime_multi_instance_smoke.py")
           text = path.read_text(encoding="utf-8")
-          old = '''        wait_for_source(client, "Invite looks good", timeout=30.0)
-          click_first_enabled_text(client, "Continue to lobby")
-          '''
-          new = '''        wait_for(
-              "validated invite with enabled Continue to lobby",
-              lambda: client.execute(
-                  """
-          const control = Array.from(document.querySelectorAll('button, a')).find(
-            (candidate) => (candidate.textContent || '').trim() === 'Continue to lobby'
-          );
-          return Boolean(control && !(control instanceof HTMLButtonElement && control.disabled));
-          """
-              ),
-              timeout=30.0,
-          )
-          click_first_enabled_text(client, "Continue to lobby")
-          '''
-          if old not in text:
-              raise SystemExit("stale invite assertion was not found exactly once")
+          old = 'wait_for_source(client, "Invite looks good", timeout=30.0)'
+          new = 'wait_for_source(client, "Invite decoded", timeout=30.0)'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one stale assertion, found {text.count(old)}")
           path.write_text(text.replace(old, new, 1), encoding="utf-8")
           PY
           python3 -m py_compile scripts/runtime_multi_instance_smoke.py
