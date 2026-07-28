@@ -1,19 +1,68 @@
 {
-  "buildOutcome": "failure",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-release-keychain-evidence",
   "failurePath": {
-    "error": "failure path result was not produced.",
-    "result": "FAIL"
+    "appDataDirectory": "/home/runner/.local/share/desktop-poker",
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "d1ccaf699cc657e054a2bdcfedf47e7ac5d595d61a7a7ac463b7c7cb47a2adb8",
+    "error": "could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory",
+    "instanceId": "release-keychain-failure-30377064790",
+    "mode": "failure",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-30377064790",
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "unavailable keychain produced an explicit release error",
+        "result": "PASS"
+      },
+      {
+        "name": "failed keychain write created no provider state or plaintext fallback",
+        "result": "PASS"
+      }
+    ]
   },
-  "failurePathOutcome": "skipped",
-  "recordedAtUtc": "2026-07-28T15:49:41.941902+00:00",
-  "result": "FAIL",
+  "failurePathOutcome": "success",
+  "recordedAtUtc": "2026-07-28T16:14:13.381743+00:00",
+  "result": "PASS",
   "successPath": {
-    "error": "success path result was not produced.",
-    "result": "FAIL"
+    "appDataDirectory": "/home/runner/.local/share/desktop-poker",
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "d1ccaf699cc657e054a2bdcfedf47e7ac5d595d61a7a7ac463b7c7cb47a2adb8",
+    "instanceId": "release-keychain-success-30377064790",
+    "mode": "success",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30377064790",
+    "provider": "anthropic",
+    "result": "PASS",
+    "secretLength": 36,
+    "steps": [
+      {
+        "name": "fresh release process started without a configured provider",
+        "result": "PASS"
+      },
+      {
+        "name": "release credential was accepted while public config remained non-secret",
+        "result": "PASS"
+      },
+      {
+        "name": "global app-data files and runtime log contain no credential or plaintext key file",
+        "result": "PASS"
+      },
+      {
+        "name": "release restart recovered the credential through the OS keychain",
+        "result": "PASS"
+      },
+      {
+        "name": "clear removed provider settings and the keychain credential",
+        "result": "PASS"
+      },
+      {
+        "name": "second release restart confirmed durable keychain deletion",
+        "result": "PASS"
+      }
+    ]
   },
-  "successPathOutcome": "skipped",
-  "validatedCommit": "e823286558193d945792689c321910e8d1dddade",
+  "successPathOutcome": "success",
+  "validatedCommit": "f7ff87e1552dcc531366c1d616a4db1aa61c0c78",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30375158673"
+  "workflowRunId": "30377064790"
 }

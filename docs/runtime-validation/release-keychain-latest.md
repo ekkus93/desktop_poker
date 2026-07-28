@@ -1,18 +1,25 @@
 # Latest Linux Release Keychain Validation
 
-- Result: **FAIL**
-- Validated commit: `e823286558193d945792689c321910e8d1dddade`
-- GitHub Actions run: `30375158673`
-- Release build: `failure`
-- Secret Service persistence path: `skipped`
-- Unavailable-keychain path: `skipped`
+- Result: **PASS**
+- Validated commit: `f7ff87e1552dcc531366c1d616a4db1aa61c0c78`
+- GitHub Actions run: `30377064790`
+- Release build: `success`
+- Secret Service persistence path: `success`
+- Unavailable-keychain path: `success`
 - Evidence artifact: `linux-release-keychain-evidence`
 
 ## Persistence and clear
 
-success path result was not produced.
+- **PASS** — fresh release process started without a configured provider
+- **PASS** — release credential was accepted while public config remained non-secret
+- **PASS** — global app-data files and runtime log contain no credential or plaintext key file
+- **PASS** — release restart recovered the credential through the OS keychain
+- **PASS** — clear removed provider settings and the keychain credential
+- **PASS** — second release restart confirmed durable keychain deletion
 
 ## Failure behavior
 
-failure path result was not produced.
+could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory
+- **PASS** — unavailable keychain produced an explicit release error
+- **PASS** — failed keychain write created no provider state or plaintext fallback
 
