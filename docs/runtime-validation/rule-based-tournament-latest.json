@@ -1,12 +1,12 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-07-28T16:47:45.666250+00:00",
+  "recordedAtUtc": "2026-07-28T16:57:21.740091+00:00",
   "result": "PASS",
   "ruleBasedTournament": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "e30d294ce763328b3866d25355272106bf08552e1cc9ab92033390a8d8b82d50",
-    "completedHands": 10,
+    "applicationSha256": "99521b3e63ef37a2e0865094811b9803584c12ecbcbe69c882fe9edaa4ec6cac",
+    "completedHands": 13,
     "finalStandings": [
       {
         "chipCount": 300,
@@ -40,17 +40,20 @@
       "hand 1: fold",
       "hand 3: allIn",
       "hand 4: allIn",
+      "hand 5: allIn",
       "hand 6: allIn",
       "hand 7: allIn",
-      "hand 8: allIn",
       "hand 9: allIn",
-      "hand 10: allIn"
+      "hand 10: allIn",
+      "hand 11: allIn",
+      "hand 12: allIn",
+      "hand 13: allIn"
     ],
-    "instanceId": "rule-based-npc-30379735701",
-    "npcActionCount": 17,
+    "instanceId": "rule-based-npc-30380411108",
+    "npcActionCount": 23,
     "npcActionCounts": {
-      "Rule Bot Alpha": 9,
-      "Rule Bot Beta": 8
+      "Rule Bot Alpha": 12,
+      "Rule Bot Beta": 11
     },
     "npcActions": [
       {
@@ -74,7 +77,7 @@
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 3,
-        "message": "Rule Bot Beta Raise to 60.",
+        "message": "Rule Bot Beta Fold.",
         "sequence": 16
       },
       {
@@ -84,80 +87,116 @@
         "sequence": 20
       },
       {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 3,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 22
-      },
-      {
         "displayName": "Rule Bot Alpha",
         "handNumber": 4,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 28
+        "sequence": 26
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 4,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 30
+        "sequence": 28
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 5,
-        "message": "Rule Bot Alpha Fold.",
+        "message": "Rule Bot Alpha All-in to 60.",
+        "sequence": 32
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 5,
+        "message": "Rule Bot Beta Fold.",
         "sequence": 34
       },
       {
         "displayName": "Rule Bot Beta",
-        "handNumber": 5,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 36
-      },
-      {
-        "displayName": "Rule Bot Beta",
         "handNumber": 6,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 40
+        "sequence": 41
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 6,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 44
+        "sequence": 45
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 7,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 50
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 8,
-        "message": "Rule Bot Alpha Call.",
-        "sequence": 55
+        "sequence": 51
       },
       {
         "displayName": "Rule Bot Beta",
-        "handNumber": 8,
+        "handNumber": 7,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 57
+        "sequence": 53
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 8,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 61
+        "sequence": 57
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 8,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 59
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 9,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 65
+        "sequence": 63
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 9,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 67
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 10,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 73
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 10,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 75
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 11,
+        "message": "Rule Bot Alpha Raise to 60.",
+        "sequence": 79
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 11,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 81
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 11,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 85
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 12,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 89
       }
     ],
     "npcDiagnosticCount": 0,
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30379735701",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30380411108",
     "result": "PASS",
     "steps": [
       {
@@ -177,7 +216,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed across 10 hands with 17 committed rule-based NPC actions",
+        "name": "tournament completed across 13 hands with 23 committed rule-based NPC actions",
         "result": "PASS"
       },
       {
@@ -195,7 +234,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "46c30c22d7ad42cd68dbd9b95c70836e2155d70a",
+  "validatedCommit": "4c469fbacf092bed0588128aaf470369fbac10a0",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30379735701"
+  "workflowRunId": "30380411108"
 }
