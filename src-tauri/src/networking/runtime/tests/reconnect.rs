@@ -1,6 +1,9 @@
 use std::{
     net::Shutdown,
-    sync::{atomic::AtomicU64, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, AtomicU64},
+        Arc, Mutex,
+    },
     thread,
     time::Duration,
 };
@@ -303,6 +306,7 @@ fn reconnect_after_disconnect_retries_until_prior_connection_cleans_up() {
     );
 
     let mut next_counter = 2;
+    let stop_signal = AtomicBool::new(false);
     let (reconnected_stream, reconnected_snapshot) = thread::scope(|scope| {
         scope.spawn(|| {
             thread::sleep(Duration::from_millis(60));
@@ -319,6 +323,7 @@ fn reconnect_after_disconnect_retries_until_prior_connection_cleans_up() {
             Some(reconnect_token.as_str()),
             snapshot.server_sequence.unwrap_or(0),
             &mut next_counter,
+            &stop_signal,
         )
     })
     .expect("reconnect should succeed after cleanup");
@@ -369,6 +374,7 @@ fn reconnect_after_disconnect_reports_retry_exhaustion_without_creating_a_duplic
     );
 
     let mut next_counter = 2;
+    let stop_signal = AtomicBool::new(false);
     let error = reconnect_after_disconnect(
         &provider,
         &join_payload,
@@ -377,6 +383,7 @@ fn reconnect_after_disconnect_reports_retry_exhaustion_without_creating_a_duplic
         Some(reconnect_token.as_str()),
         snapshot.server_sequence.unwrap_or(0),
         &mut next_counter,
+        &stop_signal,
     )
     .expect_err("reconnect should exhaust retries while the original stream stays connected");
 

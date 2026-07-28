@@ -14,7 +14,7 @@ use crate::{
     domain::{JoinPayload, TournamentState},
     networking::{read_json_frame, write_json_frame},
     protocol::{encode_join_payload, validate_join_payload, JsonSignedEnvelope, PROTOCOL_VERSION},
-    tournament::ActionRequest,
+    tournament::{ActionRequest, ActionSubmissionOutcome},
 };
 
 use super::*;
@@ -777,7 +777,7 @@ impl HostServer {
             .lock()
             .map_err(|_| NetworkingError::new("host transition lock poisoned"))?;
         let before_state = self.authoritative_state()?;
-        let (next_state, action_result) = {
+        let (next_state, action_outcome) = {
             let mut runtime = self
                 .tournament_runtime
                 .lock()
@@ -785,46 +785,91 @@ impl HostServer {
             let controller = runtime
                 .as_mut()
                 .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
+            let rollback_controller = controller.clone();
 
-            let action_result = controller
-                .submit_action(
-                    ActionRequest {
-                        player_id: player_id.to_string(),
-                        action_window_id,
-                        action_type,
-                        raise_to_amount,
-                    },
-                    now_epoch_ms(),
+            let action_outcome = match controller.submit_action_with_outcome(
+                ActionRequest {
+                    player_id: player_id.to_string(),
+                    action_window_id,
+                    action_type,
+                    raise_to_amount,
+                },
+                now_epoch_ms(),
+            ) {
+                Ok(outcome) => outcome,
+                Err(error) => {
+                    *controller = rollback_controller;
+                    return Err(NetworkingError::new(error.to_string()));
+                }
+            };
+            let next_state = controller.state().clone();
+
+            if matches!(
+                action_outcome,
+                ActionSubmissionOutcome::RejectedNoStateChange { .. }
+            ) && next_state != before_state
+            {
+                *controller = rollback_controller;
+                return Err(NetworkingError::new(
+                    "rejected action mutated controller state; mutation was rolled back",
+                ));
+            }
+
+            (next_state, action_outcome)
+        };
+
+        match action_outcome {
+            ActionSubmissionOutcome::Committed => {
+                if next_state == before_state {
+                    return Err(NetworkingError::new(
+                        "committed action did not change runtime state",
+                    ));
+                }
+                let (previous_state, after_state) =
+                    commit_runtime_state(&self.authoritative_state, next_state)?;
+                publish_runtime_transition(
+                    &self.join_payload,
+                    &self.authoritative_state,
+                    &previous_state,
+                    &after_state,
+                    &self.clients,
+                    &self.server_sequence,
+                    &self.host_signing_keys,
+                    &self.host_encryption_keys,
+                    &self.public_events,
                 )
-                .map_err(|error| NetworkingError::new(error.to_string()));
-            (controller.state().clone(), action_result)
-        };
+            }
+            ActionSubmissionOutcome::RejectedNoStateChange { error } => {
+                Err(NetworkingError::new(error.to_string()))
+            }
+            ActionSubmissionOutcome::TimeoutAdvancedThenRejected { error } => {
+                if next_state == before_state {
+                    return Err(NetworkingError::new(format!(
+                        "timeout-advanced rejection did not change runtime state: {error}",
+                    )));
+                }
+                let publish_result = commit_runtime_state(&self.authoritative_state, next_state)
+                    .and_then(|(previous_state, after_state)| {
+                        publish_runtime_transition(
+                            &self.join_payload,
+                            &self.authoritative_state,
+                            &previous_state,
+                            &after_state,
+                            &self.clients,
+                            &self.server_sequence,
+                            &self.host_signing_keys,
+                            &self.host_encryption_keys,
+                            &self.public_events,
+                        )
+                    });
 
-        let publish_result = if next_state != before_state {
-            let (previous_state, after_state) =
-                commit_runtime_state(&self.authoritative_state, next_state)?;
-            publish_runtime_transition(
-                &self.join_payload,
-                &self.authoritative_state,
-                &previous_state,
-                &after_state,
-                &self.clients,
-                &self.server_sequence,
-                &self.host_signing_keys,
-                &self.host_encryption_keys,
-                &self.public_events,
-            )
-        } else {
-            Ok(())
-        };
-
-        match (action_result, publish_result) {
-            (Ok(()), Ok(())) => Ok(()),
-            (Err(action_error), Ok(())) => Err(action_error),
-            (Ok(()), Err(publish_error)) => Err(publish_error),
-            (Err(action_error), Err(publish_error)) => Err(NetworkingError::new(format!(
-                "{action_error}; additionally failed to publish committed runtime state: {publish_error}"
-            ))),
+                match publish_result {
+                    Ok(()) => Err(NetworkingError::new(error.to_string())),
+                    Err(publish_error) => Err(NetworkingError::new(format!(
+                        "{error}; additionally failed to publish timeout-advanced runtime state: {publish_error}",
+                    ))),
+                }
+            }
         }
     }
 

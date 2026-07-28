@@ -151,6 +151,105 @@ fn submit_action_errors_when_player_does_not_own_window() {
     );
 }
 
+#[test]
+fn submit_action_outcome_rejects_wrong_player_without_state_change() {
+    let mut controller = started_two_player_controller();
+    let before = controller.state().clone();
+    let window = action_window(&controller);
+    let wrong_player = if window.player_id == "p1" { "p2" } else { "p1" };
+
+    let outcome = controller
+        .submit_action_with_outcome(
+            ActionRequest {
+                player_id: wrong_player.to_string(),
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            0,
+        )
+        .expect("wrong-player rejection is an explicit outcome");
+
+    assert!(matches!(
+        outcome,
+        ActionSubmissionOutcome::RejectedNoStateChange { .. }
+    ));
+    assert_eq!(controller.state(), &before);
+}
+
+#[test]
+fn submit_action_outcome_rejects_stale_id_without_state_change() {
+    let mut controller = started_two_player_controller();
+    let before = controller.state().clone();
+    let window = action_window(&controller);
+
+    let outcome = controller
+        .submit_action_with_outcome(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: "aw-stale".to_string(),
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            0,
+        )
+        .expect("stale-window rejection is an explicit outcome");
+
+    assert!(matches!(
+        outcome,
+        ActionSubmissionOutcome::RejectedNoStateChange { .. }
+    ));
+    assert_eq!(controller.state(), &before);
+}
+
+#[test]
+fn submit_action_outcome_reports_timeout_advance_then_rejection() {
+    let mut controller = started_two_player_controller();
+    let before = controller.state().clone();
+    let window = action_window(&controller);
+    let deadline = window.deadline_epoch_ms;
+
+    let outcome = controller
+        .submit_action_with_outcome(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            deadline,
+        )
+        .expect("timeout advancement should remain valid");
+
+    assert!(matches!(
+        outcome,
+        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. }
+    ));
+    assert_ne!(controller.state(), &before);
+}
+
+#[test]
+fn submit_action_outcome_reports_committed_action() {
+    let mut controller = started_two_player_controller();
+    let before = controller.state().clone();
+    let window = action_window(&controller);
+
+    let outcome = controller
+        .submit_action_with_outcome(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            0,
+        )
+        .expect("legal action should commit");
+
+    assert_eq!(outcome, ActionSubmissionOutcome::Committed);
+    assert_ne!(controller.state(), &before);
+}
+
 // T3.5 — commit_total_wager deducts stack, accumulates pot, and tracks contributions
 
 #[test]

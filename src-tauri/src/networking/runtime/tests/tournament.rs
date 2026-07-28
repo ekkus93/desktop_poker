@@ -461,6 +461,49 @@ fn client_action_submission_syncs_running_state_across_the_live_runtime() {
 }
 
 #[test]
+fn rejected_wrong_player_action_does_not_publish_or_mutate() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-rejected-action", 90);
+
+    for (player_id, display_name, seat_index) in
+        [("player-a", "Alice", 0_u8), ("player-b", "Bob", 1_u8)]
+    {
+        host.register_npc_participant(player_id, display_name)
+            .expect("participant registers");
+        host.claim_seat(player_id, seat_index)
+            .expect("participant claims seat");
+        host.set_ready_state(player_id, true)
+            .expect("participant becomes ready");
+    }
+
+    host.start_tournament().expect("tournament starts");
+    host.stop_signal.store(true, Ordering::SeqCst);
+    let before = host.authoritative_state().expect("before state");
+    let before_events = host.public_events().expect("before events");
+    let window = before
+        .current_hand
+        .as_ref()
+        .and_then(|hand| hand.action_window.clone())
+        .expect("action window");
+    let wrong_player = if window.player_id == "player-a" {
+        "player-b"
+    } else {
+        "player-a"
+    };
+
+    host.submit_action(
+        wrong_player,
+        window.action_window_id,
+        ActionType::Fold,
+        None,
+    )
+    .expect_err("wrong player action must be rejected");
+
+    assert_eq!(host.authoritative_state().expect("after state"), before);
+    assert_eq!(host.public_events().expect("after events"), before_events);
+}
+
+#[test]
 fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
     let provider = DefaultCryptoProvider;
     let mut initial_state = sample_tournament_state("table-timeout-sync", 89);
@@ -480,6 +523,7 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
     }
 
     host.start_tournament().expect("tournament starts");
+    let event_count_before_timeout = host.public_events().expect("events before timeout").len();
     let original_window = host
         .authoritative_state()
         .expect("running state")
@@ -517,6 +561,16 @@ fn stale_submission_that_commits_timeout_synchronizes_authoritative_state() {
             .map(|window| window.action_window_id.as_str()),
         Some(original_window.action_window_id.as_str()),
         "the expired action window must not remain visible after rejection"
+    );
+    let events_after_timeout = host.public_events().expect("events after timeout");
+    assert!(events_after_timeout.len() > event_count_before_timeout);
+    let hand_ended_count = events_after_timeout
+        .iter()
+        .filter(|entry| entry.message_type == ProtocolMessageType::HandEndedEvent)
+        .count();
+    assert_eq!(
+        hand_ended_count, 1,
+        "timeout transition publishes one hand end"
     );
 }
 

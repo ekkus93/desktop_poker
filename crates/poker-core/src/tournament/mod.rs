@@ -47,20 +47,17 @@ impl From<EngineError> for TournamentError {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ActionSubmissionOutcome {
     Committed,
-    RejectedNoStateChange {
-        error: TournamentError,
-    },
-    TimeoutAdvancedThenRejected {
-        error: TournamentError,
-    },
+    RejectedNoStateChange { error: TournamentError },
+    TimeoutAdvancedThenRejected { error: TournamentError },
 }
 
 impl ActionSubmissionOutcome {
     pub fn into_result(self) -> Result<(), TournamentError> {
         match self {
             Self::Committed => Ok(()),
-            Self::RejectedNoStateChange { error }
-            | Self::TimeoutAdvancedThenRejected { error } => Err(error),
+            Self::RejectedNoStateChange { error } | Self::TimeoutAdvancedThenRejected { error } => {
+                Err(error)
+            }
         }
     }
 }

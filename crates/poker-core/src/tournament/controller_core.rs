@@ -179,14 +179,27 @@ impl TournamentController {
         request: ActionRequest,
         now_ms: u64,
     ) -> Result<(), TournamentError> {
+        self.submit_action_with_outcome(request, now_ms)?
+            .into_result()
+    }
+
+    pub fn submit_action_with_outcome(
+        &mut self,
+        request: ActionRequest,
+        now_ms: u64,
+    ) -> Result<ActionSubmissionOutcome, TournamentError> {
         let rollback_state = self.clone();
-        let current_window = self
+        let Some(current_window) = self
             .state
             .current_hand
             .as_ref()
             .and_then(|hand| hand.action_window.as_ref())
             .cloned()
-            .ok_or_else(|| TournamentError::new("stale action window rejected"))?;
+        else {
+            return Ok(ActionSubmissionOutcome::RejectedNoStateChange {
+                error: TournamentError::new("stale action window rejected"),
+            });
+        };
 
         if now_ms >= current_window.deadline_epoch_ms {
             if let Err(error) = self.commit_timeout(now_ms) {
@@ -197,17 +210,23 @@ impl TournamentController {
                 *self = rollback_state;
                 return Err(error);
             }
-            return Err(TournamentError::new("stale action window rejected"));
+            return Ok(ActionSubmissionOutcome::TimeoutAdvancedThenRejected {
+                error: TournamentError::new("stale action window rejected"),
+            });
         }
 
         if request.player_id != current_window.player_id {
-            return Err(TournamentError::new(
-                "action rejected: player does not own the action window",
-            ));
+            return Ok(ActionSubmissionOutcome::RejectedNoStateChange {
+                error: TournamentError::new(
+                    "action rejected: player does not own the action window",
+                ),
+            });
         }
 
         if request.action_window_id != current_window.action_window_id {
-            return Err(TournamentError::new("stale action window rejected"));
+            return Ok(ActionSubmissionOutcome::RejectedNoStateChange {
+                error: TournamentError::new("stale action window rejected"),
+            });
         }
 
         if let Err(error) = self.apply_action(
@@ -217,49 +236,56 @@ impl TournamentController {
             now_ms,
         ) {
             *self = rollback_state;
-            return Err(error);
+            return Ok(ActionSubmissionOutcome::RejectedNoStateChange { error });
         }
         if let Err(error) = self.validate_state() {
             *self = rollback_state;
             return Err(error);
         }
-        Ok(())
+        Ok(ActionSubmissionOutcome::Committed)
     }
 
     pub fn advance_time(&mut self, now_ms: u64) -> Result<(), TournamentError> {
-        loop {
-            if self
-                .state
-                .current_hand
-                .as_ref()
-                .and_then(|hand| hand.action_window.as_ref())
-                .is_some_and(|window| now_ms >= window.deadline_epoch_ms)
-            {
-                self.commit_timeout(now_ms)?;
-                continue;
-            }
-
-            if self
-                .state
-                .current_hand
-                .as_ref()
-                .is_some_and(|hand| hand.cycle_phase == HandCyclePhase::BetweenHands)
-                && self
-                    .intermission_deadline_ms
-                    .is_some_and(|deadline_ms| now_ms >= deadline_ms)
-            {
-                self.advance_blind_levels_if_due(now_ms);
-                if self.state.phase != TournamentPhase::Complete {
-                    self.start_next_hand(now_ms)?;
+        let rollback_state = self.clone();
+        let result = (|| {
+            loop {
+                if self
+                    .state
+                    .current_hand
+                    .as_ref()
+                    .and_then(|hand| hand.action_window.as_ref())
+                    .is_some_and(|window| now_ms >= window.deadline_epoch_ms)
+                {
+                    self.commit_timeout(now_ms)?;
+                    continue;
                 }
-                continue;
+
+                if self
+                    .state
+                    .current_hand
+                    .as_ref()
+                    .is_some_and(|hand| hand.cycle_phase == HandCyclePhase::BetweenHands)
+                    && self
+                        .intermission_deadline_ms
+                        .is_some_and(|deadline_ms| now_ms >= deadline_ms)
+                {
+                    self.advance_blind_levels_if_due(now_ms);
+                    if self.state.phase != TournamentPhase::Complete {
+                        self.start_next_hand(now_ms)?;
+                    }
+                    continue;
+                }
+
+                break;
             }
 
-            break;
-        }
+            self.validate_state()
+        })();
 
-        self.validate_state()?;
-        Ok(())
+        if result.is_err() {
+            *self = rollback_state;
+        }
+        result
     }
 
     pub(crate) fn validate_state(&self) -> Result<(), TournamentError> {
