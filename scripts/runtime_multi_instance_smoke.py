@@ -264,7 +264,7 @@ def run(
         client.clear(invite_input)
         client.type_text(invite_input, invite)
         click_text(client, "Check invite")
-        wait_for_source(client, "Invite looks good", timeout=30.0)
+        wait_for_source(client, "Invite decoded", timeout=30.0)
         click_first_enabled_text(client, "Continue to lobby")
         wait_for_route(client, "/lobby", "Lobby")
 
