@@ -20,14 +20,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest master
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Apply and verify blocker typing
+
+      - name: Apply, format, and verify blocker typing
         shell: bash
         run: |
           set -euo pipefail
@@ -39,34 +43,30 @@ jobs:
 
           path = Path("src/screens/NpcProfilesScreen.tsx")
           text = path.read_text(encoding="utf-8")
-          old = '''      ({ currentLocation, nextLocation }) =>
-        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
-'''
-          new = '''      ({
-        currentLocation,
-        nextLocation,
-      }: {
-        currentLocation: { pathname: string };
-        nextLocation: { pathname: string };
-      }) =>
-        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
-'''
-          old_count = text.count(old)
-          new_count = text.count(new)
-          if old_count == 1 and new_count == 0:
+          old = """      ({ currentLocation, nextLocation }) =>
+                  hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+          """
+          new = """      ({
+                  currentLocation,
+                  nextLocation,
+                }: {
+                  currentLocation: { pathname: string };
+                  nextLocation: { pathname: string };
+                }) =>
+                  hasUnsavedChanges &&
+                  currentLocation.pathname !== nextLocation.pathname,
+          """
+          if old in text:
               text = text.replace(old, new, 1)
-          elif old_count == 0 and new_count == 1:
-              pass
-          else:
-              raise SystemExit(
-                  f"unexpected blocker type state: old={old_count}, new={new_count}"
-              )
+          elif new not in text:
+              raise SystemExit("NPC profile blocker callback was not in an expected state")
           path.write_text(text, encoding="utf-8")
           PY
 
           npm ci
           npm run format
           npm run lint
+          npm run test -- --run src/screens/NpcProfilesScreen.test.tsx
           npm run build
 
           rm .github/workflows/patch-npc-blocker-types.yml
