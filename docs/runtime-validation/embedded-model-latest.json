@@ -1,12 +1,12 @@
 {
-  "checksumOutcome": "skipped",
+  "checksumOutcome": "success",
   "evidenceArtifact": "embedded-tiny-model-npc-evidence",
-  "inferenceOutcome": "skipped",
+  "inferenceOutcome": "success",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-28T10:08:04.657292+00:00",
-  "result": "FAIL",
-  "validatedCommit": "1f467e38224b1a139bee126e42e6a40d922d93c3",
+  "recordedAtUtc": "2026-07-28T10:14:44.695401+00:00",
+  "result": "PASS",
+  "validatedCommit": "1a640dddad72bc4c0d2b4466cb67f1912fdba0f4",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30349483225"
+  "workflowRunId": "30349896273"
 }
