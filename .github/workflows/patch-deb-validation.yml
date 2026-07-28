@@ -1,0 +1,72 @@
+name: Patch Debian packaging validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-deb-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add the missing desktop launcher dependency
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B deb-packaging-fix origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/workflows/runtime-installed-deb-validation.yml")
+          text = path.read_text(encoding="utf-8")
+
+          old_packages = """            desktop-file-utils \\
+            wmctrl
+"""
+          new_packages = """            desktop-file-utils \\
+            libgtk-3-bin \\
+            wmctrl
+"""
+          if old_packages not in text:
+              raise SystemExit("Debian dependency block did not match expected source")
+          text = text.replace(old_packages, new_packages, 1)
+
+          old_evidence = """          : > \"$evidence_dir/steps.tsv\"
+          : > \"$evidence_dir/metadata.env\"
+"""
+          new_evidence = """          : > \"$evidence_dir/steps.tsv\"
+          : > \"$evidence_dir/metadata.env\"
+          command -v gtk-launch | tee \"$evidence_dir/gtk-launch-path.txt\"
+"""
+          if old_evidence not in text:
+              raise SystemExit("Debian evidence initialization did not match expected source")
+          text = text.replace(old_evidence, new_evidence, 1)
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          rm .github/workflows/patch-deb-validation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: install gtk-launch for Debian package validation"
+          git pull --rebase origin master
+          git push origin HEAD:master
+
+          gh workflow run runtime-installed-deb-validation.yml --ref master
