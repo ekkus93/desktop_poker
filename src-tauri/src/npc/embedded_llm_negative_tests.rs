@@ -5,7 +5,10 @@ fn rejects_relative_model_path_with_actionable_error() {
     let error = validate_model_path("models/player.gguf")
         .expect_err("relative embedded model path must fail");
     let message = error.to_string();
-    assert!(message.contains("must be absolute"), "unexpected error: {message}");
+    assert!(
+        message.contains("must be absolute"),
+        "unexpected error: {message}"
+    );
     assert!(message.contains("models/player.gguf"));
 }
 
