@@ -37,6 +37,8 @@ const DEFAULT_MODELS: Record<LlmProviderType, string> = {
   embeddedLocal: "/absolute/path/to/Qwen3-0.6B-Q4_0.gguf",
 };
 
+type LocalSetupConfirmation = "resetHostDraft" | "clearRecentInvites";
+
 function requiresApiKey(provider: LlmProviderType) {
   return provider === "anthropic" || provider === "openAi";
 }
@@ -51,8 +53,8 @@ export function DeviceSettingsScreen() {
     clearRecentJoinPayloads,
   } = useDesktopShell();
   const navigate = useNavigate();
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
+  const [localSetupConfirmation, setLocalSetupConfirmation] =
+    useState<LocalSetupConfirmation | null>(null);
   const [clearSuccess, setClearSuccess] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
 
@@ -362,13 +364,13 @@ export function DeviceSettingsScreen() {
           className="support-card device-settings-card"
         >
           <div className="button-row">
-            {confirmReset ? (
+            {localSetupConfirmation === "resetHostDraft" ? (
               <>
                 <button
                   className="primary-button"
                   onClick={() => {
                     resetHostDraft();
-                    setConfirmReset(false);
+                    setLocalSetupConfirmation(null);
                     setResetSuccess(true);
                   }}
                   type="button"
@@ -377,7 +379,7 @@ export function DeviceSettingsScreen() {
                 </button>
                 <button
                   className="secondary-button"
-                  onClick={() => setConfirmReset(false)}
+                  onClick={() => setLocalSetupConfirmation(null)}
                   type="button"
                 >
                   Cancel
@@ -386,8 +388,9 @@ export function DeviceSettingsScreen() {
             ) : (
               <button
                 className="secondary-button"
+                disabled={localSetupConfirmation !== null}
                 onClick={() => {
-                  setConfirmReset(true);
+                  setLocalSetupConfirmation("resetHostDraft");
                   setResetSuccess(false);
                 }}
                 type="button"
@@ -395,13 +398,13 @@ export function DeviceSettingsScreen() {
                 Reset host setup
               </button>
             )}
-            {confirmClear ? (
+            {localSetupConfirmation === "clearRecentInvites" ? (
               <>
                 <button
                   className="primary-button"
                   onClick={() => {
                     clearRecentJoinPayloads();
-                    setConfirmClear(false);
+                    setLocalSetupConfirmation(null);
                     setClearSuccess(true);
                   }}
                   type="button"
@@ -410,7 +413,7 @@ export function DeviceSettingsScreen() {
                 </button>
                 <button
                   className="secondary-button"
-                  onClick={() => setConfirmClear(false)}
+                  onClick={() => setLocalSetupConfirmation(null)}
                   type="button"
                 >
                   Cancel
@@ -419,8 +422,9 @@ export function DeviceSettingsScreen() {
             ) : (
               <button
                 className="secondary-button"
+                disabled={localSetupConfirmation !== null}
                 onClick={() => {
-                  setConfirmClear(true);
+                  setLocalSetupConfirmation("clearRecentInvites");
                   setClearSuccess(false);
                 }}
                 type="button"
