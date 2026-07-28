@@ -1,0 +1,422 @@
+name: Linux Debian package validation v2
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-debian-package-validation-v2.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-debian-package-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  debian-package:
+    name: Build, install, launch, and purge Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build and desktop runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11 \
+            desktop-file-utils \
+            libgtk-3-bin \
+            xdotool
+          command -v gtk-launch
+          command -v xdotool
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build Debian package
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --bundles deb 2>&1 | tee debian-package-v2-build.log
+
+      - name: Validate installed package
+        id: validation
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="$PWD/debian-package-v2-evidence"
+          mkdir -p "$evidence_dir"
+          : > "$evidence_dir/steps.tsv"
+          : > "$evidence_dir/metadata.env"
+          command -v gtk-launch | tee "$evidence_dir/gtk-launch-path.txt"
+          command -v xdotool | tee "$evidence_dir/xdotool-path.txt"
+
+          record() {
+            printf 'PASS\t%s\n' "$1" | tee -a "$evidence_dir/steps.tsv"
+          }
+
+          package_name=""
+          cleanup() {
+            status=$?
+            pkill -f '^/usr/bin/desktop-poker' 2>/dev/null || true
+            if [[ -n "$package_name" ]] && dpkg-query -W "$package_name" >/dev/null 2>&1; then
+              sudo apt-get purge -y "$package_name" \
+                >"$evidence_dir/emergency-purge.log" 2>&1 || true
+            fi
+            if [[ $status -ne 0 ]]; then
+              printf 'FAIL\tvalidation command failed with status %s near line %s\n' \
+                "$status" "${BASH_LINENO[0]:-unknown}" >> "$evidence_dir/steps.tsv"
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          deb="$(find target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print -quit)"
+          test -n "$deb"
+          deb="$(realpath "$deb")"
+          package_name="$(dpkg-deb -f "$deb" Package)"
+          package_version="$(dpkg-deb -f "$deb" Version)"
+          package_arch="$(dpkg-deb -f "$deb" Architecture)"
+          deb_sha256="$(sha256sum "$deb" | awk '{print $1}')"
+          record "Debian package was produced"
+
+          dpkg-deb --info "$deb" | tee "$evidence_dir/deb-info.txt"
+          dpkg-deb --contents "$deb" | tee "$evidence_dir/deb-contents.txt"
+          file "$deb" | tee "$evidence_dir/deb-file.txt"
+          sha256sum "$deb" | tee "$evidence_dir/deb-sha256.txt"
+
+          sudo apt-get install -y "$deb" 2>&1 | tee "$evidence_dir/deb-install.log"
+          dpkg-query -W -f='${Status}\n' "$package_name" | grep -Fx 'install ok installed'
+          record "Debian package installed through apt"
+
+          dpkg-query -L "$package_name" | sort | tee "$evidence_dir/installed-files.txt"
+          installed_binary="$(dpkg-query -L "$package_name" | awk '/^\/usr\/bin\// { print; exit }')"
+          desktop_file="$(dpkg-query -L "$package_name" | awk '/^\/usr\/share\/applications\/.*\.desktop$/ { print; exit }')"
+          mapfile -t icon_files < <(
+            dpkg-query -L "$package_name" | awk '/^\/usr\/share\/(icons|pixmaps)\// { print }'
+          )
+          test -x "$installed_binary"
+          test -f "$desktop_file"
+          test "${#icon_files[@]}" -gt 0
+          desktop-file-validate "$desktop_file" 2>&1 | tee "$evidence_dir/desktop-file-validate.log"
+          grep -E '^Exec=' "$desktop_file" | tee "$evidence_dir/desktop-exec.txt"
+          grep -E '^Icon=' "$desktop_file" | tee "$evidence_dir/desktop-icon.txt"
+          record "Package owns a valid executable, desktop entry, and icons"
+
+          installed_sha256="$(sha256sum "$installed_binary" | awk '{print $1}')"
+          desktop_id="$(basename "$desktop_file" .desktop)"
+          {
+            printf 'deb=%s\n' "$deb"
+            printf 'packageName=%s\n' "$package_name"
+            printf 'packageVersion=%s\n' "$package_version"
+            printf 'packageArchitecture=%s\n' "$package_arch"
+            printf 'debSha256=%s\n' "$deb_sha256"
+            printf 'installedBinary=%s\n' "$installed_binary"
+            printf 'installedBinarySha256=%s\n' "$installed_sha256"
+            printf 'desktopFile=%s\n' "$desktop_file"
+            printf 'desktopId=%s\n' "$desktop_id"
+            printf 'iconCount=%s\n' "${#icon_files[@]}"
+          } >> "$evidence_dir/metadata.env"
+
+          export INSTALLED_BINARY="$installed_binary"
+          export DESKTOP_ID="$desktop_id"
+          export DESKTOP_POKER_BINARY_SHA256="$installed_sha256"
+          export DESKTOP_POKER_INSTANCE_ID="installed-deb-v2-webdriver-${GITHUB_RUN_ID}"
+          export DEBIAN_PACKAGE_EVIDENCE_DIR="$evidence_dir"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+
+          tauri-driver --port 4604 --native-port 4605 \
+            >"$DEBIAN_PACKAGE_EVIDENCE_DIR/tauri-driver.log" 2>&1 &
+          driver_pid=$!
+          cleanup_runtime() {
+            pkill -f "^${INSTALLED_BINARY}" 2>/dev/null || true
+            kill "$driver_pid" 2>/dev/null || true
+            wait "$driver_pid" 2>/dev/null || true
+          }
+          trap cleanup_runtime EXIT
+
+          python3 scripts/runtime_webdriver_smoke.py \
+            --application "$INSTALLED_BINARY" \
+            --driver-url http://127.0.0.1:4604 \
+            --evidence-dir "$DEBIAN_PACKAGE_EVIDENCE_DIR"
+          mv \
+            "$DEBIAN_PACKAGE_EVIDENCE_DIR/release-runtime-result.json" \
+            "$DEBIAN_PACKAGE_EVIDENCE_DIR/installed-runtime-result.json"
+
+          pkill -f "^${INSTALLED_BINARY}" 2>/dev/null || true
+          for _ in $(seq 1 40); do
+            pgrep -f "^${INSTALLED_BINARY}" >/dev/null 2>&1 || break
+            sleep 0.25
+          done
+          ! pgrep -f "^${INSTALLED_BINARY}" >/dev/null 2>&1
+
+          update-desktop-database /usr/share/applications
+          DESKTOP_POKER_INSTANCE_ID="installed-deb-v2-desktop-${GITHUB_RUN_ID}" \
+            gtk-launch "$DESKTOP_ID" \
+            >"$DEBIAN_PACKAGE_EVIDENCE_DIR/desktop-entry-launch.log" 2>&1 &
+          launcher_pid=$!
+
+          process_found=false
+          window_found=false
+          : > "$DEBIAN_PACKAGE_EVIDENCE_DIR/window-ids.txt"
+          for _ in $(seq 1 80); do
+            if pgrep -f "^${INSTALLED_BINARY}" >/dev/null 2>&1; then
+              process_found=true
+            fi
+            if xdotool search --name 'Desktop Poker' \
+              >"$DEBIAN_PACKAGE_EVIDENCE_DIR/window-ids.txt" 2>&1; then
+              window_found=true
+            fi
+            if [[ "$process_found" = true && "$window_found" = true ]]; then
+              break
+            fi
+            if ! kill -0 "$launcher_pid" 2>/dev/null \
+              && ! pgrep -f "^${INSTALLED_BINARY}" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 0.25
+          done
+          test "$process_found" = true
+          test "$window_found" = true
+          pgrep -af "^${INSTALLED_BINARY}" \
+            | tee "$DEBIAN_PACKAGE_EVIDENCE_DIR/desktop-entry-processes.txt"
+          while read -r window_id; do
+            xdotool getwindowname "$window_id"
+          done < "$DEBIAN_PACKAGE_EVIDENCE_DIR/window-ids.txt" \
+            | tee "$DEBIAN_PACKAGE_EVIDENCE_DIR/window-titles.txt"
+          pkill -f "^${INSTALLED_BINARY}" 2>/dev/null || true
+          RUNTIME
+          record "Installed executable passed the production WebDriver smoke"
+          record "Installed desktop entry launched the packaged process and X11 window"
+
+          sudo apt-get purge -y "$package_name" 2>&1 | tee "$evidence_dir/deb-purge.log"
+          ! dpkg-query -W "$package_name" >/dev/null 2>&1
+          test ! -e "$installed_binary"
+          test ! -e "$desktop_file"
+          for icon_file in "${icon_files[@]}"; do
+            test ! -e "$icon_file"
+          done
+          record "Package purge removed the executable, desktop entry, and icons"
+          package_name=""
+
+      - name: Assemble Debian package result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("debian-package-v2-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+          metadata: dict[str, str] = {}
+          if (evidence / "metadata.env").is_file():
+              for line in (evidence / "metadata.env").read_text(encoding="utf-8").splitlines():
+                  key, separator, value = line.partition("=")
+                  if separator:
+                      metadata[key] = value
+          steps: list[dict[str, str]] = []
+          if (evidence / "steps.tsv").is_file():
+              for line in (evidence / "steps.tsv").read_text(encoding="utf-8").splitlines():
+                  result, separator, name = line.partition("\t")
+                  if separator:
+                      steps.append({"name": name, "result": result})
+          runtime: dict[str, object] = {
+              "result": "FAIL",
+              "error": "Installed runtime result was not produced.",
+              "steps": [],
+          }
+          runtime_path = evidence / "installed-runtime-result.json"
+          if runtime_path.is_file():
+              try:
+                  parsed = json.loads(runtime_path.read_text(encoding="utf-8"))
+                  if isinstance(parsed, dict):
+                      runtime = parsed
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime["error"] = str(error)
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          validation = os.environ.get("VALIDATION_OUTCOME", "not-run")
+          result = "PASS" if build == "success" and validation == "success" and runtime.get("result") == "PASS" else "FAIL"
+          payload = {
+              "result": result,
+              "buildOutcome": build,
+              "validationOutcome": validation,
+              "package": metadata,
+              "runtime": runtime,
+              "steps": steps,
+          }
+          (evidence / "debian-package-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory Debian package evidence
+        if: always()
+        run: |
+          find debian-package-v2-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort | tee debian-package-v2-evidence/inventory.txt
+          cat debian-package-v2-evidence/debian-package-result.json || true
+          cat debian-package-v2-evidence/desktop-entry-launch.log || true
+          cat debian-package-v2-evidence/window-titles.txt || true
+
+      - name: Upload Debian package evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debian-package-v2-evidence
+          path: |
+            debian-package-v2-build.log
+            debian-package-v2-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable Debian package result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("debian-package-v2-evidence/debian-package-result.json")
+          if source.is_file():
+              try:
+                  installed = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  installed = {"result": "FAIL", "error": str(error), "steps": []}
+          else:
+              installed = {"result": "FAIL", "error": "Debian result missing.", "steps": []}
+          payload = {
+              "result": installed.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "validationOutcome": os.environ.get("VALIDATION_OUTCOME", "not-run"),
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "evidenceArtifact": "linux-debian-package-v2-evidence",
+              "installedDeb": installed,
+          }
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          (output_dir / "deb-install-latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          lines = [
+              "# Latest Installed Debian Package Validation",
+              "",
+              f"- Overall result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Build outcome: `{payload['buildOutcome']}`",
+              f"- Validation outcome: `{payload['validationOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          for step in installed.get("steps", []):
+              if isinstance(step, dict):
+                  lines.append(f"- **{step.get('result', 'UNKNOWN')}** — {step.get('name', 'unnamed check')}")
+          package = installed.get("package")
+          if isinstance(package, dict) and package:
+              lines.extend([
+                  "", "## Package", "",
+                  f"- Name: `{package.get('packageName', '')}`",
+                  f"- Version: `{package.get('packageVersion', '')}`",
+                  f"- Architecture: `{package.get('packageArchitecture', '')}`",
+                  f"- Debian SHA-256: `{package.get('debSha256', '')}`",
+                  f"- Installed binary: `{package.get('installedBinary', '')}`",
+                  f"- Desktop file: `{package.get('desktopFile', '')}`",
+                  f"- Installed icon count: `{package.get('iconCount', '')}`",
+              ])
+          (output_dir / "deb-install-latest.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          subprocess.run([
+              "bash", "scripts/push_runtime_evidence.sh",
+              "docs: record installed Debian package result",
+              "docs/runtime-validation/deb-install-latest.json",
+              "docs/runtime-validation/deb-install-latest.md",
+          ], check=True)
+          PY
+
+      - name: Enforce Debian package result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$VALIDATION_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("debian-package-v2-evidence/debian-package-result.json"))["result"])')" = "PASS"
