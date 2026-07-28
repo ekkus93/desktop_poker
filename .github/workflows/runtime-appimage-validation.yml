@@ -1,0 +1,348 @@
+name: Linux AppImage runtime validation
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-appimage-validation.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-appimage-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  appimage:
+    name: Build and launch AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Linux build and runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Build AppImage
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --bundles appimage 2>&1 | tee appimage-build.log
+
+      - name: Exercise AppImage through production WebDriver
+        id: validation
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="$PWD/appimage-evidence"
+          mkdir -p "$evidence_dir"
+          : > "$evidence_dir/steps.tsv"
+          : > "$evidence_dir/metadata.env"
+
+          record() {
+            printf 'PASS\t%s\n' "$1" | tee -a "$evidence_dir/steps.tsv"
+          }
+
+          appimage="$(find target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$appimage"
+          appimage="$(realpath "$appimage")"
+          chmod a+x "$appimage"
+          test -x "$appimage"
+          appimage_sha256="$(sha256sum "$appimage" | awk '{print $1}')"
+          record "AppImage was produced and is executable"
+
+          file "$appimage" | tee "$evidence_dir/appimage-file.txt"
+          sha256sum "$appimage" | tee "$evidence_dir/appimage-sha256.txt"
+          ls -lh "$appimage" | tee "$evidence_dir/appimage-ls.txt"
+          {
+            printf 'appImage=%s\n' "$appimage"
+            printf 'appImageSha256=%s\n' "$appimage_sha256"
+            printf 'appImageSizeBytes=%s\n' "$(stat -c %s "$appimage")"
+          } >> "$evidence_dir/metadata.env"
+
+          export APPIMAGE="$appimage"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          export DESKTOP_POKER_BINARY_SHA256="$appimage_sha256"
+          export DESKTOP_POKER_INSTANCE_ID="appimage-webdriver-${GITHUB_RUN_ID}"
+          export APPIMAGE_EVIDENCE_DIR="$evidence_dir"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+          export APPIMAGE_EXTRACT_AND_RUN=1
+
+          tauri-driver --port 4584 --native-port 4585 \
+            >"$APPIMAGE_EVIDENCE_DIR/tauri-driver.log" 2>&1 &
+          driver_pid=$!
+          cleanup_runtime() {
+            kill "$driver_pid" 2>/dev/null || true
+            wait "$driver_pid" 2>/dev/null || true
+          }
+          trap cleanup_runtime EXIT
+
+          python3 scripts/runtime_webdriver_smoke.py \
+            --application "$APPIMAGE" \
+            --driver-url http://127.0.0.1:4584 \
+            --evidence-dir "$APPIMAGE_EVIDENCE_DIR"
+          mv \
+            "$APPIMAGE_EVIDENCE_DIR/release-runtime-result.json" \
+            "$APPIMAGE_EVIDENCE_DIR/appimage-runtime-result.json"
+          RUNTIME
+          record "AppImage passed the production WebDriver smoke"
+
+      - name: Assemble AppImage result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("appimage-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+
+          metadata: dict[str, str] = {}
+          metadata_path = evidence / "metadata.env"
+          if metadata_path.is_file():
+              for line in metadata_path.read_text(encoding="utf-8").splitlines():
+                  key, separator, value = line.partition("=")
+                  if separator:
+                      metadata[key] = value
+
+          steps: list[dict[str, str]] = []
+          steps_path = evidence / "steps.tsv"
+          if steps_path.is_file():
+              for line in steps_path.read_text(encoding="utf-8").splitlines():
+                  result, separator, name = line.partition("\t")
+                  if separator:
+                      steps.append({"name": name, "result": result})
+
+          runtime_result: dict[str, object] = {
+              "result": "FAIL",
+              "error": "AppImage runtime result was not produced.",
+              "steps": [],
+          }
+          runtime_path = evidence / "appimage-runtime-result.json"
+          if runtime_path.is_file():
+              try:
+                  value = json.loads(runtime_path.read_text(encoding="utf-8"))
+                  if isinstance(value, dict):
+                      runtime_result = value
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime_result["error"] = f"AppImage runtime result was unreadable: {error}"
+
+          build_outcome = os.environ.get("BUILD_OUTCOME", "not-run")
+          validation_outcome = os.environ.get("VALIDATION_OUTCOME", "not-run")
+          overall = (
+              "PASS"
+              if build_outcome == "success"
+              and validation_outcome == "success"
+              and runtime_result.get("result") == "PASS"
+              else "FAIL"
+          )
+          result = {
+              "result": overall,
+              "buildOutcome": build_outcome,
+              "validationOutcome": validation_outcome,
+              "appImage": metadata,
+              "runtime": runtime_result,
+              "steps": steps,
+          }
+          (evidence / "appimage-result.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory AppImage evidence
+        if: always()
+        run: |
+          find appimage-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort \
+            | tee appimage-evidence/inventory.txt
+          cat appimage-evidence/appimage-result.json || true
+          cat appimage-evidence/tauri-driver.log || true
+
+      - name: Upload AppImage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage-evidence
+          path: |
+            appimage-build.log
+            appimage-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable AppImage result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("appimage-evidence/appimage-result.json")
+          if source.is_file():
+              try:
+                  appimage = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  appimage = {"result": "FAIL", "error": str(error), "steps": []}
+          else:
+              appimage = {
+                  "result": "FAIL",
+                  "error": "AppImage result was not produced.",
+                  "steps": [],
+              }
+
+          payload = {
+              "result": appimage.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "validationOutcome": os.environ.get("VALIDATION_OUTCOME", "not-run"),
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "evidenceArtifact": "linux-appimage-evidence",
+              "appImageValidation": appimage,
+          }
+
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          (output_dir / "appimage-latest.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest AppImage Validation",
+              "",
+              f"- Overall result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Build outcome: `{payload['buildOutcome']}`",
+              f"- Validation outcome: `{payload['validationOutcome']}`",
+              f"- Recorded at: `{payload['recordedAtUtc']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          if appimage.get("error"):
+              lines.extend([f"Failure: {appimage['error']}", ""])
+          for step in appimage.get("steps", []):
+              if isinstance(step, dict):
+                  lines.append(
+                      f"- **{step.get('result', 'UNKNOWN')}** — "
+                      f"{step.get('name', 'unnamed check')}"
+                  )
+          metadata = appimage.get("appImage")
+          if isinstance(metadata, dict) and metadata:
+              lines.extend(
+                  [
+                      "",
+                      "## AppImage",
+                      "",
+                      f"- Path: `{metadata.get('appImage', '')}`",
+                      f"- SHA-256: `{metadata.get('appImageSha256', '')}`",
+                      f"- Size in bytes: `{metadata.get('appImageSizeBytes', '')}`",
+                  ]
+              )
+          (output_dir / "appimage-latest.md").write_text(
+              "\n".join(lines) + "\n", encoding="utf-8"
+          )
+
+          subprocess.run(
+              [
+                  "bash",
+                  "scripts/push_runtime_evidence.sh",
+                  "docs: record AppImage validation result",
+                  "docs/runtime-validation/appimage-latest.json",
+                  "docs/runtime-validation/appimage-latest.md",
+              ],
+              check=True,
+          )
+          PY
+
+      - name: Enforce AppImage result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$VALIDATION_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("appimage-evidence/appimage-result.json"))["result"])')" = "PASS"
