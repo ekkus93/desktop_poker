@@ -1,11 +1,11 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **FAIL**
-- Validated commit: `aed5215efa654eecb6e5db6d734f923bd00b43bd`
-- GitHub Actions run: `30329177934`
+- Validated commit: `1c0546e23ede69c4539bbaad9f58abac999d1a26`
+- GitHub Actions run: `30330631038`
 - Build outcome: `success`
 - Gameplay outcome: `failure`
-- Recorded at: `2026-07-28T04:39:21.929655+00:00`
+- Recorded at: `2026-07-28T05:10:32.709773+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Failure
@@ -17,11 +17,10 @@ AssertionError: Timed out waiting for completed hand history to persist before l
 - **PASS** — two isolated release instances completed host/join/seat/ready/start
 - **PASS** — initial running-hand public state is synchronized
 - **PASS** — exactly one action tray is visible; initial actor is host
-- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/b224bf16-0845-4b4b-ba20-ef779b6bcd96/execute/async error raise exceeds remaining stack: None
+- **PASS** — out-of-bounds raise was rejected without advancing state: WebDriver POST /session/4bb7a140-85d4-444b-9580-6a2adb1d0cbd/execute/async error raise exceeds remaining stack: None
 - **PASS** — quick-size Min updates the legal raise amount without submitting
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
 - **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
 - **PASS** — all-in showdown attempt 2 settled with 3 synchronized hands
-- **PASS** — all-in showdown attempt 3 settled with 4 synchronized hands
 - **PASS** — tournament completed with matching standings and one eliminated observer
 - **FAIL** — full-game runtime smoke
