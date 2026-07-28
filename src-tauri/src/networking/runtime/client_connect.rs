@@ -81,6 +81,7 @@ pub(crate) fn connect_and_join(
     Ok((stream, snapshot))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn reconnect_after_disconnect(
     crypto_provider: &impl ProtocolCryptoProvider,
     join_payload: &JoinPayload,
