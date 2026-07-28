@@ -12,7 +12,6 @@ from typing import Any
 
 EVIDENCE_DIR = Path("runtime-validation-evidence")
 OUTPUT_DIR = Path("docs/runtime-validation")
-HARDENING_TODO = Path("docs/DESKTOP_POKER_RUNTIME_HARDENING_CODE_REVIEW_TODO.md")
 NON_RESULTS = {"cancelled", "skipped"}
 
 
@@ -57,42 +56,14 @@ def render_section(heading: str, result: dict[str, Any]) -> list[str]:
     return lines
 
 
-def reconcile_hardening_todo() -> None:
-    text = HARDENING_TODO.read_text(encoding="utf-8")
-    scope = "Scope: follow-up work from a source-inspection code review of the Desktop Poker MVP."
-    status = (
-        "Status: **COMPLETE — reconciled against committed source, tests, CI, "
-        "and runtime evidence on 2026-07-28.**"
-    )
-    if status not in text:
-        text = text.replace(scope, f"{scope}\n{status}", 1)
-    text = text.replace("- [ ]", "- [x]")
-    footer = """
-
----
-
-# Completion reconciliation — 2026-07-28
-
-All checklist items above were reconciled against committed implementation, focused tests, general CI run `30403803338`, release-runtime run `30403803495`, and retained gameplay, reconnect, and NPC evidence under `docs/runtime-validation/`.
-
-The detailed evidence map is committed at `docs/runtime-validation/runtime-hardening-reconciliation-2026-07-28.md`.
-
-The separately tracked two-physical-machine LAN release gate remains explicitly deferred in `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`; it is not part of this completed code-review hardening checklist.
-"""
-    if "# Completion reconciliation — 2026-07-28" not in text:
-        text = text.rstrip() + footer + "\n"
-    HARDENING_TODO.write_text(text, encoding="utf-8")
-
-
 def publish_evidence() -> None:
     subprocess.run(
         [
             "bash",
             "scripts/push_runtime_evidence.sh",
-            "docs: record Linux runtime validation result and hardening reconciliation",
+            "docs: record Linux runtime validation result",
             "docs/runtime-validation/latest.json",
             "docs/runtime-validation/latest.md",
-            str(HARDENING_TODO),
         ],
         check=True,
     )
@@ -163,8 +134,6 @@ def main() -> None:
     lines.extend(render_section("Single-instance release smoke", single))
     lines.extend(render_section("Live multi-instance release smoke", multi))
     (OUTPUT_DIR / "latest.md").write_text("\n".join(lines), encoding="utf-8")
-    if overall == "PASS":
-        reconcile_hardening_todo()
     publish_evidence()
 
 
