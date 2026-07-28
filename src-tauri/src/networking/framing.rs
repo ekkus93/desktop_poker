@@ -5,6 +5,12 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use super::NetworkingError;
 
+/// Maximum accepted JSON frame payload size.
+///
+/// The length prefix is controlled by the remote peer, so this limit must be
+/// checked before allocating the body buffer.
+pub const MAX_FRAME_PAYLOAD_BYTES: usize = 1_048_576;
+
 pub fn write_json_frame<T: Serialize>(
     stream: &mut TcpStream,
     payload: &T,
@@ -56,6 +62,12 @@ fn read_json_frame_from_reader<T: DeserializeOwned, R: Read>(
         .map_err(|error| NetworkingError::new(format!("failed to read frame length: {error}")))?;
     let length = u32::from_be_bytes(length_bytes) as usize;
 
+    if length > MAX_FRAME_PAYLOAD_BYTES {
+        return Err(NetworkingError::new(format!(
+            "frame payload exceeds maximum allowed size: {length} > {MAX_FRAME_PAYLOAD_BYTES}"
+        )));
+    }
+
     let mut payload_bytes = vec![0_u8; length];
     reader
         .read_exact(&mut payload_bytes)
@@ -72,7 +84,10 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use serde_json::json;
 
-    use super::{read_json_frame_from_reader, write_frame_bytes, write_json_frame_to_writer};
+    use super::{
+        read_json_frame_from_reader, write_frame_bytes, write_json_frame_to_writer,
+        MAX_FRAME_PAYLOAD_BYTES,
+    };
 
     #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
     struct SamplePayload {
@@ -167,6 +182,25 @@ mod tests {
             read_json_frame_from_reader(&mut Cursor::new(writer)).expect("frame should decode");
 
         assert_eq!(decoded, payload);
+    }
+
+    #[test]
+    fn read_json_frame_rejects_payload_larger_than_max_before_allocation() {
+        let advertised_length = u32::try_from(MAX_FRAME_PAYLOAD_BYTES + 1)
+            .expect("configured frame limit should fit in u32");
+        let bytes = advertised_length.to_be_bytes().to_vec();
+
+        let error = read_json_frame_from_reader::<SamplePayload, _>(&mut Cursor::new(bytes))
+            .expect_err("oversized frame should fail before reading a body");
+
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "frame payload exceeds maximum allowed size: {} > {}",
+                MAX_FRAME_PAYLOAD_BYTES + 1,
+                MAX_FRAME_PAYLOAD_BYTES
+            )
+        );
     }
 
     #[test]
