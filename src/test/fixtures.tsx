@@ -1,6 +1,10 @@
 import type { ReactElement } from "react";
 import { render } from "@testing-library/react";
-import { MemoryRouter, type MemoryRouterProps } from "react-router";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  type MemoryRouterProps,
+} from "react-router";
 import type { DesktopBootstrapState } from "../api/desktop";
 import { DesktopShellProvider } from "../app/DesktopShellProvider";
 
@@ -46,9 +50,19 @@ export function renderWithProviders(
     initialEntries?: MemoryRouterProps["initialEntries"];
   } = {},
 ) {
-  return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <DesktopShellProvider bootstrap={bootstrap}>{ui}</DesktopShellProvider>
-    </MemoryRouter>,
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <DesktopShellProvider bootstrap={bootstrap}>
+            {ui}
+          </DesktopShellProvider>
+        ),
+      },
+    ],
+    { initialEntries: [...(initialEntries ?? ["/"])] },
   );
+
+  return render(<RouterProvider router={router} />);
 }
