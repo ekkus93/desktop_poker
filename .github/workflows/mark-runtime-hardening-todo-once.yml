@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Rebase onto current master
+        run: git pull --rebase origin master
       - name: Mark reconciled checklist complete
         shell: bash
         run: |
@@ -37,7 +39,7 @@ jobs:
 
 # Completion reconciliation — 2026-07-28
 
-All checklist items above were reconciled against committed implementation, focused tests, the passing general CI run `30403803338`, the passing release-runtime run `30403803495`, and the retained gameplay/reconnect/NPC evidence under `docs/runtime-validation/`.
+All checklist items above were reconciled against committed implementation, focused tests, the passing general CI run `30403803338`, the passing release-runtime run `30403803495`, and retained gameplay/reconnect/NPC evidence under `docs/runtime-validation/`.
 
 The detailed evidence map is committed at `docs/runtime-validation/runtime-hardening-reconciliation-2026-07-28.md`.
 
@@ -56,11 +58,12 @@ The separate two-physical-machine LAN release gate remains explicitly deferred i
           rm -f .github/workflows/mark-runtime-hardening-todo-once.yml
           rm -f .github/mark-runtime-hardening-todo-once-trigger
           rm -f .github/ci-hardening-recheck-trigger
-          git add \
-            docs/DESKTOP_POKER_RUNTIME_HARDENING_CODE_REVIEW_TODO.md \
-            .github/workflows/mark-runtime-hardening-todo-once.yml \
-            .github/mark-runtime-hardening-todo-once-trigger \
-            .github/ci-hardening-recheck-trigger
+          git add -A
           git commit -m "docs: mark runtime hardening TODO complete [skip ci]"
-          git pull --rebase origin master
-          git push origin HEAD:master
+          for attempt in 1 2 3; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+          done
+          exit 1
