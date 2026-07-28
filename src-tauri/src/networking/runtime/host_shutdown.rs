@@ -34,21 +34,16 @@ impl HostServer {
         // otherwise a client's automatic reconnect could race back into a host
         // that is in the process of shutting down.
         let deadline = Instant::now() + Duration::from_millis(500);
-        loop {
-            match TcpStream::connect(self.listener_addr) {
-                Ok(stream) => {
-                    drop(stream);
-                    if Instant::now() >= deadline {
-                        eprintln!(
-                            "[host-shutdown] listener {} remained reachable during shutdown",
-                            self.listener_addr
-                        );
-                        break;
-                    }
-                    thread::sleep(Duration::from_millis(5));
-                }
-                Err(_) => break,
+        while let Ok(stream) = TcpStream::connect(self.listener_addr) {
+            drop(stream);
+            if Instant::now() >= deadline {
+                eprintln!(
+                    "[host-shutdown] listener {} remained reachable during shutdown",
+                    self.listener_addr
+                );
+                break;
             }
+            thread::sleep(Duration::from_millis(5));
         }
 
         // Drain before locking individual streams. Detached session threads
