@@ -248,10 +248,12 @@ impl ClientRuntime {
         &self,
         timeout: Duration,
     ) -> Result<ClientRuntimeEvent, ClientRuntimePollError> {
-        self.incoming.recv_timeout(timeout).map_err(|error| match error {
-            RecvTimeoutError::Timeout => ClientRuntimePollError::Timeout,
-            RecvTimeoutError::Disconnected => ClientRuntimePollError::Disconnected,
-        })
+        self.incoming
+            .recv_timeout(timeout)
+            .map_err(|error| match error {
+                RecvTimeoutError::Timeout => ClientRuntimePollError::Timeout,
+                RecvTimeoutError::Disconnected => ClientRuntimePollError::Disconnected,
+            })
     }
 }
 
