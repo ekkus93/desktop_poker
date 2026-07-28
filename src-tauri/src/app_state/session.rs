@@ -4,6 +4,12 @@ use crate::{domain, networking};
 
 use super::*;
 
+const CLIENT_EVENT_DRAIN_POLL_TIMEOUT: Duration = Duration::from_millis(1);
+const CLIENT_EVENT_WAIT_POLL_TIMEOUT: Duration = Duration::from_millis(50);
+const CLIENT_ACTION_ACK_TIMEOUT: Duration = Duration::from_secs(5);
+const CLIENT_LOBBY_ACK_TIMEOUT: Duration = Duration::from_secs(5);
+const READY_CHECK_TABLE_START_POLL_TIMEOUT: Duration = Duration::from_millis(250);
+
 impl DesktopHostSession {
     pub(crate) fn status(&self) -> Result<HostSessionStatus, String> {
         let authoritative_state = self
@@ -142,10 +148,17 @@ impl DesktopClientSession {
 
         if self.latest_snapshot.state.phase == domain::TournamentPhase::ReadyCheck {
             // Best-effort: wait for the table to start or an error; timeout is not an error here.
-            let _ = self.await_condition(Duration::from_millis(250), |session| {
+            let _ = self.await_condition(READY_CHECK_TABLE_START_POLL_TIMEOUT, |session| {
                 session.last_error.is_some()
                     || session.latest_snapshot.state.phase != domain::TournamentPhase::ReadyCheck
             });
+        }
+
+        if self.terminated {
+            return Err(self
+                .last_error
+                .clone()
+                .unwrap_or_else(|| "Disconnected from host".to_string()));
         }
 
         let session_connection = if self.reconnecting {
@@ -206,7 +219,7 @@ impl DesktopClientSession {
                 action_amount,
             )
             .map_err(|error| error.to_string())?;
-        let observed = self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(CLIENT_ACTION_ACK_TIMEOUT, |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -229,9 +242,10 @@ impl DesktopClientSession {
             return Err(error);
         }
         if !observed {
-            return Err(
-                "table action timed out: host did not acknowledge within 1 second".to_string(),
-            );
+            return Err(format!(
+                "table action timed out: host did not acknowledge within {} seconds",
+                CLIENT_ACTION_ACK_TIMEOUT.as_secs()
+            ));
         }
 
         self.table_view(viewer_mode)
@@ -239,13 +253,14 @@ impl DesktopClientSession {
 
     pub(crate) fn refresh(&mut self) {
         loop {
-            let next_event = self.runtime.next_event(Duration::from_millis(1));
-            let event = match next_event {
-                Ok(event) => event,
-                Err(_) => break,
-            };
-
-            self.apply_event(event);
+            match self.runtime.poll_event(CLIENT_EVENT_DRAIN_POLL_TIMEOUT) {
+                Ok(event) => self.apply_event(event),
+                Err(networking::ClientRuntimePollError::Timeout) => break,
+                Err(networking::ClientRuntimePollError::Disconnected) => {
+                    self.mark_runtime_channel_disconnected();
+                    break;
+                }
+            }
         }
     }
 
@@ -312,7 +327,7 @@ impl DesktopClientSession {
         self.runtime
             .claim_seat(request.seat_index)
             .map_err(|error| error.to_string())?;
-        let observed = self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(CLIENT_LOBBY_ACK_TIMEOUT, |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -327,7 +342,10 @@ impl DesktopClientSession {
             return Err(error);
         }
         if !observed {
-            return Err("seat claim timed out: host did not confirm within 1 second".to_string());
+            return Err(format!(
+                "seat claim timed out: host did not confirm within {} seconds",
+                CLIENT_LOBBY_ACK_TIMEOUT.as_secs()
+            ));
         }
 
         Ok(self.status())
@@ -341,7 +359,7 @@ impl DesktopClientSession {
         self.runtime
             .set_ready_state(request.is_ready)
             .map_err(|error| error.to_string())?;
-        let observed = self.await_condition(Duration::from_secs(1), |session| {
+        let observed = self.await_condition(CLIENT_LOBBY_ACK_TIMEOUT, |session| {
             session.last_error.is_some()
                 || session
                     .latest_snapshot
@@ -364,9 +382,10 @@ impl DesktopClientSession {
             return Err(error);
         }
         if !observed {
-            return Err(
-                "ready-state toggle timed out: host did not confirm within 1 second".to_string(),
-            );
+            return Err(format!(
+                "ready-state toggle timed out: host did not confirm within {} seconds",
+                CLIENT_LOBBY_ACK_TIMEOUT.as_secs()
+            ));
         }
 
         Ok(self.status())
@@ -375,7 +394,8 @@ impl DesktopClientSession {
     /// Poll until `predicate` returns true or the timeout expires.
     ///
     /// Returns `true` if the condition was observed, `false` if the timeout
-    /// elapsed without the predicate being satisfied.
+    /// elapsed without the predicate being satisfied. A disconnected runtime
+    /// channel terminates the session and exits immediately.
     pub(crate) fn await_condition(
         &mut self,
         timeout: Duration,
@@ -388,8 +408,13 @@ impl DesktopClientSession {
                 return true;
             }
 
-            if let Ok(event) = self.runtime.next_event(Duration::from_millis(50)) {
-                self.apply_event(event);
+            match self.runtime.poll_event(CLIENT_EVENT_WAIT_POLL_TIMEOUT) {
+                Ok(event) => self.apply_event(event),
+                Err(networking::ClientRuntimePollError::Timeout) => {}
+                Err(networking::ClientRuntimePollError::Disconnected) => {
+                    self.mark_runtime_channel_disconnected();
+                    return predicate(self);
+                }
             }
 
             if predicate(self) {
@@ -397,5 +422,13 @@ impl DesktopClientSession {
             }
         }
         false
+    }
+
+    fn mark_runtime_channel_disconnected(&mut self) {
+        self.reconnecting = false;
+        self.terminated = true;
+        if self.last_error.is_none() {
+            self.last_error = Some("Client runtime stopped unexpectedly".to_string());
+        }
     }
 }
