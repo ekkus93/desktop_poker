@@ -11,6 +11,8 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
 import type { ScreenProps } from "./types";
 
+const HISTORY_PAGE_SIZE = 100;
+
 export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   const [tableView, setTableView] = useState<TableViewSnapshot | null>(null);
   const [persistedHistory, setPersistedHistory] =
@@ -18,9 +20,21 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
       readPersistedHandHistory(bootstrap.storageNamespace),
     );
   const [error, setError] = useState<string | null>(null);
+  const [visibleHistoryCount, setVisibleHistoryCount] =
+    useState(HISTORY_PAGE_SIZE);
   const historyEntries = tableView?.handHistory.length
     ? tableView.handHistory
     : (persistedHistory?.entries ?? []);
+  const firstVisibleHistoryIndex = Math.max(
+    0,
+    historyEntries.length - visibleHistoryCount,
+  );
+  const visibleHistoryEntries = historyEntries.slice(firstVisibleHistoryIndex);
+  const hiddenHistoryCount = firstVisibleHistoryIndex;
+  const nextHistoryBatchSize = Math.min(
+    HISTORY_PAGE_SIZE,
+    hiddenHistoryCount,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -74,13 +88,19 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
           title="Recent hands"
           className="support-card history-primary-card"
         >
-          {error ? <p>{error}</p> : null}
+          {error ? <p role="alert">{error}</p> : null}
           {!tableView?.handHistory.length && historyEntries.length ? (
             <p className="field-hint">Saved on this device.</p>
           ) : null}
+          {historyEntries.length ? (
+            <p aria-live="polite" className="field-hint" role="status">
+              Showing {visibleHistoryEntries.length} of {historyEntries.length}{" "}
+              settled hands, newest first in the retained range.
+            </p>
+          ) : null}
           <div className="stacked-list scroll-list">
-            {historyEntries.length ? (
-              historyEntries.map((entry) => (
+            {visibleHistoryEntries.length ? (
+              visibleHistoryEntries.map((entry) => (
                 <article
                   key={entry.handNumber}
                   className="list-panel history-row"
@@ -88,7 +108,11 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
                   <div>
                     <strong>
                       <span className="button-content">
-                        <Trophy className="button-icon" strokeWidth={1.9} />
+                        <Trophy
+                          aria-hidden="true"
+                          className="button-icon"
+                          strokeWidth={1.9}
+                        />
                         <span>{entry.summary}</span>
                       </span>
                     </strong>
@@ -108,10 +132,30 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
               <p className="field-hint">No settled hands yet.</p>
             )}
           </div>
+          {hiddenHistoryCount > 0 ? (
+            <div className="button-row">
+              <button
+                className="secondary-button compact-button"
+                onClick={() => {
+                  setVisibleHistoryCount(
+                    (current) => current + HISTORY_PAGE_SIZE,
+                  );
+                }}
+                type="button"
+              >
+                Show {nextHistoryBatchSize} older hand
+                {nextHistoryBatchSize === 1 ? "" : "s"}
+              </button>
+            </div>
+          ) : null}
           <div className="button-row">
             <Link className="secondary-button compact-button" to="/table">
               <span className="button-content">
-                <History className="button-icon" strokeWidth={1.9} />
+                <History
+                  aria-hidden="true"
+                  className="button-icon"
+                  strokeWidth={1.9}
+                />
                 <span>Table</span>
               </span>
             </Link>
