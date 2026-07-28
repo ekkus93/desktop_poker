@@ -1,11 +1,11 @@
 {
   "buildOutcome": "success",
-  "evidenceArtifact": "linux-debian-package-evidence",
+  "evidenceArtifact": "linux-debian-package-v2-evidence",
   "installedDeb": {
     "buildOutcome": "success",
     "package": {
       "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
-      "debSha256": "697b85035fe3373dcd676d238c664995656a5a8ab6866252d647a41933780185",
+      "debSha256": "0c7599c58eb8eee63a9ff1cfba0b298cb41bb1dff48c937c81e9ba710f90aa73",
       "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
       "desktopId": "Desktop Poker",
       "iconCount": "10",
@@ -19,7 +19,7 @@
     "runtime": {
       "application": "/usr/bin/desktop-poker",
       "applicationSha256": "c68c915d52786784fbf45df155b8d8e15cd3756ae444ff6365a29e75c31cecf4",
-      "instanceId": "installed-deb-webdriver-30324567761",
+      "instanceId": "installed-deb-v2-webdriver-30325479550",
       "result": "PASS",
       "steps": [
         {
@@ -90,16 +90,24 @@
         "result": "PASS"
       },
       {
+        "name": "Installed executable passed the production WebDriver smoke",
+        "result": "PASS"
+      },
+      {
+        "name": "Installed desktop entry launched the packaged process and X11 window",
+        "result": "PASS"
+      },
+      {
         "name": "validation command failed with status 1 near line 1",
         "result": "FAIL"
       }
     ],
     "validationOutcome": "failure"
   },
-  "recordedAtUtc": "2026-07-28T03:05:01.117052+00:00",
+  "recordedAtUtc": "2026-07-28T03:25:34.043942+00:00",
   "result": "FAIL",
-  "validatedCommit": "991a680a0d581d542d3161dd5c6c8fbbebab55d1",
+  "validatedCommit": "7bd7257b3806bb57e468b23f977cededcb997fcf",
   "validationOutcome": "failure",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30324567761"
+  "workflowRunId": "30325479550"
 }
