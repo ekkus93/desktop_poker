@@ -1,11 +1,11 @@
 # Latest Linux Release Keychain Validation
 
-- Result: **FAIL**
-- Validated commit: `88c1b86e02adea8e450b55bb24d894467a1b4237`
-- GitHub Actions run: `30330069272`
+- Result: **PASS**
+- Validated commit: `e24983d4f262da2fce4db6307cc78bb9afd1123d`
+- GitHub Actions run: `30330945443`
 - Release build: `success`
 - Secret Service persistence path: `success`
-- Unavailable-keychain path: `failure`
+- Unavailable-keychain path: `success`
 - Evidence artifact: `linux-release-keychain-evidence`
 
 ## Persistence and clear
@@ -19,6 +19,7 @@
 
 ## Failure behavior
 
-WebDriverError: WebDriver POST /session/64f839bb-0340-4a31-af2f-5e4d58b3d325/execute/async error could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory: None
-- **FAIL** — release keychain failure path
+could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory
+- **PASS** — unavailable keychain produced an explicit release error
+- **PASS** — failed keychain write created no provider state or plaintext fallback
 
