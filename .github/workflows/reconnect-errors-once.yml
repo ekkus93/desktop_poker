@@ -1,0 +1,263 @@
+name: Apply reconnect error patch once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/reconnect-errors-once-trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-commit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust formatter
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Apply coded reconnect errors
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}: {old[:100]!r}")
+              file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "src-tauri/src/networking/runtime/mod.rs",
+              '''pub struct NetworkingError {
+              message: String,
+          }
+
+          impl NetworkingError {
+              #[must_use]
+              pub fn new(message: impl Into<String>) -> Self {
+                  Self {
+                      message: message.into(),
+                  }
+              }
+          }''',
+              '''pub struct NetworkingError {
+              code: Option<String>,
+              message: String,
+          }
+
+          impl NetworkingError {
+              #[must_use]
+              pub fn new(message: impl Into<String>) -> Self {
+                  Self {
+                      code: None,
+                      message: message.into(),
+                  }
+              }
+
+              #[must_use]
+              pub fn with_code(code: impl Into<String>, message: impl Into<String>) -> Self {
+                  Self {
+                      code: Some(code.into()),
+                      message: message.into(),
+                  }
+              }
+
+              #[must_use]
+              pub fn code(&self) -> Option<&str> {
+                  self.code.as_deref()
+              }
+          }''',
+          )
+
+          replace_once(
+              "src-tauri/src/networking/runtime/handlers.rs",
+              '''            return Err(NetworkingError::new("participant is already connected"));''',
+              '''            return Err(NetworkingError::with_code(
+                          crate::protocol::ERROR_CODE_RECONNECT_ALREADY_CONNECTED,
+                          "participant is already connected",
+                      ));''',
+          )
+
+          replace_once(
+              "src-tauri/src/networking/runtime/host.rs",
+              '''                                            "JOIN_REJECTED",
+                                                      error.to_string(),''',
+              '''                                            error
+                                                          .code()
+                                                          .unwrap_or(crate::protocol::ERROR_CODE_JOIN_REJECTED),
+                                                      error.to_string(),''',
+          )
+
+          client_connect = Path("src-tauri/src/networking/runtime/client_connect.rs")
+          text = client_connect.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  '''    sync::{Arc, Mutex},''',
+                  '''    sync::{
+                      atomic::{AtomicBool, Ordering},
+                      Arc, Mutex,
+                  },''',
+              ),
+              (
+                  '''        ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, SnapshotEvent, PROTOCOL_VERSION,
+              },''',
+                  '''        ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, SnapshotEvent,
+                      ERROR_CODE_RECONNECT_ALREADY_CONNECTED, PROTOCOL_VERSION,
+                  },''',
+              ),
+              (
+                  '''    last_known_server_sequence: u64,
+              next_counter: &mut u64,
+          ) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {''',
+                  '''    last_known_server_sequence: u64,
+              next_counter: &mut u64,
+              stop_signal: &AtomicBool,
+          ) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {''',
+              ),
+              (
+                  '''    for attempt in 0..=MAX_ALREADY_CONNECTED_RETRIES {
+              let mut stream = connect_to_host(join_payload)?;''',
+                  '''    for attempt in 0..=MAX_ALREADY_CONNECTED_RETRIES {
+              ensure_reconnect_not_stopped(stop_signal)?;
+              let mut stream = connect_to_host(join_payload)?;''',
+              ),
+              (
+                  '''            Err(error)
+                  if error
+                      .to_string()
+                      .contains("participant is already connected") =>
+              {
+                  if attempt == MAX_ALREADY_CONNECTED_RETRIES {
+                      break;
+                  }
+                  thread::sleep(Duration::from_millis(20));
+              }''',
+                  '''            Err(error) if is_already_connected_rejection(&error) => {
+                  if attempt == MAX_ALREADY_CONNECTED_RETRIES {
+                      break;
+                  }
+                  sleep_before_reconnect_retry(stop_signal)?;
+              }''',
+              ),
+              (
+                  '''    Err(NetworkingError::new(envelope.payload.message))
+          }''',
+                  '''    Err(NetworkingError::with_code(
+              envelope.payload.code,
+              envelope.payload.message,
+          ))
+          }
+
+          fn is_already_connected_rejection(error: &NetworkingError) -> bool {
+              error.code() == Some(ERROR_CODE_RECONNECT_ALREADY_CONNECTED)
+          }
+
+          fn ensure_reconnect_not_stopped(stop_signal: &AtomicBool) -> Result<(), NetworkingError> {
+              if stop_signal.load(Ordering::SeqCst) {
+                  return Err(NetworkingError::new("client runtime shutdown requested"));
+              }
+              Ok(())
+          }
+
+          fn sleep_before_reconnect_retry(stop_signal: &AtomicBool) -> Result<(), NetworkingError> {
+              for _ in 0..20 {
+                  ensure_reconnect_not_stopped(stop_signal)?;
+                  thread::sleep(Duration::from_millis(1));
+              }
+              Ok(())
+          }
+
+          #[cfg(test)]
+          mod tests {
+              use super::*;
+
+              #[test]
+              fn reconnect_retry_depends_on_stable_code_not_message() {
+                  let error = NetworkingError::with_code(
+                      ERROR_CODE_RECONNECT_ALREADY_CONNECTED,
+                      "wording can change without changing behavior",
+                  );
+                  assert!(is_already_connected_rejection(&error));
+              }
+
+              #[test]
+              fn unrelated_rejection_code_is_not_retried() {
+                  let error = NetworkingError::with_code(
+                      crate::protocol::ERROR_CODE_RECONNECT_REJECTED,
+                      "participant is already connected",
+                  );
+                  assert!(!is_already_connected_rejection(&error));
+              }
+
+              #[test]
+              fn reconnect_retry_wait_stops_immediately_on_shutdown() {
+                  let stop_signal = AtomicBool::new(true);
+                  let error = sleep_before_reconnect_retry(&stop_signal)
+                      .expect_err("shutdown should abort reconnect retry wait");
+                  assert_eq!(error.to_string(), "client runtime shutdown requested");
+              }
+          }''',
+              ),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"client_connect.rs: expected one match, found {count}: {old[:100]!r}"
+                  )
+              text = text.replace(old, new, 1)
+          client_connect.write_text(text, encoding="utf-8")
+
+          replace_once(
+              "src-tauri/src/networking/runtime/client.rs",
+              '''                            &mut next_counter,
+                                      ) {''',
+              '''                            &mut next_counter,
+                                          &stop_signal_for_thread,
+                                      ) {''',
+          )
+
+          replace_once(
+              "src-tauri/src/networking/runtime/client.rs",
+              '''                            Err(error) => {
+                                          // Best-effort reconnect cleanup: failure to acquire this lock only''',
+              '''                            Err(error) => {
+                                          if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                              break;
+                                          }
+
+                                          // Best-effort reconnect cleanup: failure to acquire this lock only''',
+          )
+          PY
+
+      - name: Format Rust
+        run: cargo fmt
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src-tauri/src/networking/runtime/mod.rs \
+            src-tauri/src/networking/runtime/handlers.rs \
+            src-tauri/src/networking/runtime/host.rs \
+            src-tauri/src/networking/runtime/client_connect.rs \
+            src-tauri/src/networking/runtime/client.rs
+          git commit -m "Use typed reconnect rejection codes"
+          git pull --rebase origin master
+          git push origin HEAD:master
