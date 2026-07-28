@@ -4,7 +4,7 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
-    "error": "AssertionError: Timed out waiting for completed hand history to persist before leaving the table; last error: None",
+    "error": "AssertionError: Tournament did not complete after 6 all-in showdowns",
     "result": "FAIL",
     "steps": [
       {
@@ -20,7 +20,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/777c897a-8581-4451-b187-20e061c784dd/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/f0faabfc-c4d1-4da9-9945-88963a3b35ba/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -52,7 +52,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed with matching standings and one eliminated observer",
+        "name": "all-in showdown attempt 6 settled with 7 synchronized hands",
         "result": "PASS"
       },
       {
@@ -62,9 +62,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T02:55:16.127653+00:00",
+  "recordedAtUtc": "2026-07-28T03:03:32.960998+00:00",
   "result": "FAIL",
-  "validatedCommit": "db68202c02a5294eb0a0a3c6d77a8a9ebeff1af2",
+  "validatedCommit": "991a680a0d581d542d3161dd5c6c8fbbebab55d1",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30324215120"
+  "workflowRunId": "30324567730"
 }
