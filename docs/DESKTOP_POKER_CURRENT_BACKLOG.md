@@ -14,18 +14,19 @@ Current evidence is recorded in:
 - `docs/MANUAL_QA_CHECKLIST.md`
 - `docs/runtime-validation/latest.json`
 - `docs/runtime-validation/gameplay-latest.json`
+- `docs/runtime-validation/appimage-latest.json`
+- `docs/runtime-validation/deb-install-latest.json`
 - `docs/runtime-validation/embedded-model-latest.json`
 - `docs/runtime-validation/embedded-tournament-latest.json`
 
 ## Current release position
 
-The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. A complete release-mode tournament with two profile-backed in-process GGUF NPCs is also proven through two settled hands, ten committed model-selected actions, elimination, and final standings without an NPC-runner diagnostic.
+The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. The Linux AppImage builds and passes the production WebDriver smoke. The Debian package builds, installs through `apt`, passes the production WebDriver smoke, launches through its desktop entry with an X11 window, owns valid icon files, and purges without leaving its executable, desktop entry, or icon files. A complete release-mode tournament with two profile-backed in-process GGUF NPCs is also proven through two settled hands, ten committed model-selected actions, elimination, and final standings without an NPC-runner diagnostic.
 
-A release tag is still blocked by installed-package/AppImage, physical-LAN, reconnect, keychain, and live rule-based NPC evidence.
+A release tag is still blocked by physical-LAN, reconnect, keychain, and live rule-based NPC evidence.
 
 Open release blockers:
 
-- `DP-RR-P0-002` — installed package/AppImage completion only;
 - `DP-RR-P0-004` — physical two-machine LAN;
 - `DP-RR-P0-005` — remaining reconnect/failure matrix;
 - `DP-RR-P0-006` — release secret-storage proof;
@@ -47,16 +48,11 @@ Open release blockers:
 
 - **Priority:** P0
 - **Category:** Packaging / release runtime
-- **Current behavior:** Direct release binary build, static inspection, and graphical launch pass. Home, Host, Join, Settings, Help, guarded routes, debug isolation, browser-mock isolation, complete gameplay, and restart history restoration pass in real Tauri/WebKit sessions. Debian package build and metadata inspection pass.
-- **Evidence:** Runtime run `30289835791`; full-game run `30289835913`; `docs/runtime-validation/latest.json`; `docs/runtime-validation/gameplay-latest.json`; release-readiness report.
-- **Remaining required behavior:**
-  - install the `.deb` in a disposable or safe Linux environment;
-  - launch the installed application;
-  - verify desktop entry/icon integration and uninstall cleanup;
-  - build and launch AppImage, or explicitly decide it is not a release target.
+- **Current behavior:** Direct release binary build, static inspection, and graphical launch pass. Home, Host, Join, Settings, Help, guarded routes, debug isolation, browser-mock isolation, complete gameplay, and restart history restoration pass in real Tauri/WebKit sessions. The AppImage builds, is executable, and passes the production WebDriver smoke. The Debian package builds and installs through `apt`; its installed executable passes the production WebDriver smoke; its desktop entry launches the packaged process and an X11 window; package-owned desktop and icon files are validated; and purge removes the executable, desktop entry, and icon files.
+- **Evidence:** Runtime run `30289835791`; full-game run `30289835913`; Debian package run `30327500950`; `docs/runtime-validation/latest.json`; `docs/runtime-validation/gameplay-latest.json`; `docs/runtime-validation/appimage-latest.json`; `docs/runtime-validation/deb-install-latest.json`; `.github/workflows/runtime-appimage-validation.yml`; `.github/workflows/runtime-debian-package-validation-v3.yml`; release-readiness report.
 - **Acceptance criteria:** Every claimed distribution artifact launches and corresponds to the tested source revision.
-- **Desktop release blocker:** Yes.
-- **Status:** **Partially complete.** Direct binary runtime and full tournament PASS; installed package and AppImage remain open.
+- **Desktop release blocker:** No longer open.
+- **Status:** **Completed.** Direct binary, AppImage, installed Debian runtime, desktop integration, and purge cleanup all pass.
 
 ### DP-RR-P0-003 — Two-local-instance full tournament and isolation
 
