@@ -9,6 +9,56 @@ if (( $# == 0 )); then
   exit 2
 fi
 
+# A cancelled workflow is not a product failure and must never overwrite the
+# last completed result. Likewise, a payload whose execution-status fields are
+# all skipped/not-run contains no validation evidence. Actual build or test
+# failures remain publishable so defects are still visible.
+publish_decision="$({ python3 - "$@" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+NON_EXECUTED = {"cancelled", "canceled", "skipped", "not-run"}
+
+for raw_path in sys.argv[1:]:
+    path = Path(raw_path)
+    if path.suffix.lower() != ".json" or not path.is_file():
+        continue
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        # Malformed evidence is a real publisher failure; let the normal git
+        # path expose it rather than silently discarding the generated file.
+        continue
+    if not isinstance(payload, dict):
+        continue
+
+    execution_statuses = [
+        value.strip().lower()
+        for key, value in payload.items()
+        if isinstance(value, str)
+        and key != "result"
+        and (key.lower().endswith("outcome") or key.lower().endswith("result"))
+    ]
+
+    if any(status in {"cancelled", "canceled"} for status in execution_statuses):
+        print(f"skip:{path}:cancelled")
+        raise SystemExit(0)
+    if execution_statuses and all(status in NON_EXECUTED for status in execution_statuses):
+        print(f"skip:{path}:not-executed")
+        raise SystemExit(0)
+
+print("publish")
+PY
+} 2>&1)"
+
+if [[ "$publish_decision" != "publish" ]]; then
+  echo "Runtime evidence was not published because the workflow did not complete: $publish_decision"
+  exit 0
+fi
+
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add -- "$@"
@@ -18,6 +68,11 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
+# Evidence-only commits must not recursively start every push workflow. GitHub
+# Actions recognizes the skip directive for push-triggered workflows.
+if [[ "$commit_message" != *"[skip ci]"* ]]; then
+  commit_message="$commit_message [skip ci]"
+fi
 git commit -m "$commit_message"
 
 max_attempts=5
