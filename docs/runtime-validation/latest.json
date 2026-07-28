@@ -3,16 +3,16 @@
   "evidenceArtifact": "linux-release-runtime-evidence",
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "70d5e38de5aa8bed967b004ed19a7f8c308da3b9c64b509e8d11346a795eadf2",
-    "clientInstanceId": "runtime-client-30356142977",
-    "clientTableId": "table-runtime-host-30356142977-1785239370147",
-    "conflictInstanceId": "runtime-conflict-30356142977",
-    "hostInstanceId": "runtime-host-30356142977",
+    "applicationSha256": "77ad67e5431b0851927272ce3e3c0214153cc600c45aa7bf8eba749e67de1308",
+    "clientInstanceId": "runtime-client-30356552723",
+    "clientTableId": "table-runtime-host-30356552723-1785239691745",
+    "conflictInstanceId": "runtime-conflict-30356552723",
+    "hostInstanceId": "runtime-host-30356552723",
     "hostPort": 43818,
     "profileDirectories": [
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30356142977",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30356142977",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30356142977"
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30356552723",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30356552723",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30356552723"
     ],
     "recoveryPort": 43819,
     "result": "PASS",
@@ -78,15 +78,15 @@
         "result": "PASS"
       }
     ],
-    "tableId": "table-runtime-host-30356142977-1785239370147"
+    "tableId": "table-runtime-host-30356552723-1785239691745"
   },
   "multiInstanceOutcome": "success",
-  "recordedAtUtc": "2026-07-28T11:49:44.232711+00:00",
+  "recordedAtUtc": "2026-07-28T11:55:04.978348+00:00",
   "result": "PASS",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "70d5e38de5aa8bed967b004ed19a7f8c308da3b9c64b509e8d11346a795eadf2",
-    "instanceId": "runtime-smoke-30356142977",
+    "applicationSha256": "77ad67e5431b0851927272ce3e3c0214153cc600c45aa7bf8eba749e67de1308",
+    "instanceId": "runtime-smoke-30356552723",
     "result": "PASS",
     "steps": [
       {
@@ -144,7 +144,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "c44268ffddd77b7ed9185a7e07ea4626f5d80895",
+  "validatedCommit": "fc1975f904f535ee23906a98c108cd1ac733dc89",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30356142977"
+  "workflowRunId": "30356552723"
 }
