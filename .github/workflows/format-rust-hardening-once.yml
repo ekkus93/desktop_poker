@@ -1,0 +1,36 @@
+name: Format Rust hardening once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/format-rust-hardening-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Format Rust source
+        run: cargo fmt
+      - name: Commit formatter output
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "cargo fmt produced no changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- ':(glob)**/*.rs'
+          git commit -m "Format runtime hardening changes"
+          git pull --rebase origin master
+          git push origin HEAD:master
