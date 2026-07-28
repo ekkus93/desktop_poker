@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   ChevronLeft,
   CircleHelp,
@@ -47,6 +47,8 @@ export function AppFrame({
 }) {
   const { displayName } = useDesktopShell();
   const location = useLocation();
+  const mainContentRef = useRef<HTMLElement>(null);
+  const previousPathRef = useRef(location.pathname);
   const inTournament = ["/lobby", "/table", "/complete"].includes(
     location.pathname,
   );
@@ -66,12 +68,26 @@ export function AppFrame({
     (item) => item.to === "/host" && item.to !== location.pathname,
   );
 
+  useEffect(() => {
+    if (previousPathRef.current === location.pathname) {
+      return;
+    }
+    previousPathRef.current = location.pathname;
+    const animationFrame = window.requestAnimationFrame(() => {
+      mainContentRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [location.pathname]);
+
   if (!inTournament) {
     return (
       <div
         className="app-frame landing-frame"
         style={{ height: "100dvh", overflow: "hidden" }}
       >
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
         <header className="topbar">
           <div className="topbar-brand">
             <p className="kicker">Desktop Poker</p>
@@ -84,7 +100,11 @@ export function AppFrame({
             <nav aria-label="Desktop poker navigation" className="topbar-nav">
               <NavLink className="nav-link topbar-link" to="/">
                 <span className="button-content">
-                  <ChevronLeft className="button-icon" strokeWidth={1.8} />
+                  <ChevronLeft
+                    aria-hidden="true"
+                    className="button-icon"
+                    strokeWidth={1.8}
+                  />
                   <span>Back home</span>
                 </span>
               </NavLink>
@@ -98,7 +118,11 @@ export function AppFrame({
                     {(() => {
                       const Icon = getNavigationIcon(item.label);
                       return Icon ? (
-                        <Icon className="button-icon" strokeWidth={1.8} />
+                        <Icon
+                          aria-hidden="true"
+                          className="button-icon"
+                          strokeWidth={1.8}
+                        />
                       ) : null;
                     })()}
                     <span>{item.label}</span>
@@ -110,7 +134,11 @@ export function AppFrame({
                   {(() => {
                     const Icon = getNavigationIcon(currentSurfaceRoute.label);
                     return Icon ? (
-                      <Icon className="button-icon" strokeWidth={1.8} />
+                      <Icon
+                        aria-hidden="true"
+                        className="button-icon"
+                        strokeWidth={1.8}
+                      />
                     ) : null;
                   })()}
                   <span>{currentSurfaceRoute.label}</span>
@@ -126,7 +154,10 @@ export function AppFrame({
 
         <main
           className="content"
+          id="main-content"
+          ref={mainContentRef}
           style={{ height: "100%", overflow: "hidden" }}
+          tabIndex={-1}
         >
           {children}
         </main>
@@ -139,6 +170,9 @@ export function AppFrame({
       className="app-frame tournament-frame"
       style={{ height: "100dvh", overflow: "hidden" }}
     >
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
       <header className="topbar tournament-topbar">
         <div className="topbar-brand">
           <p className="kicker">Desktop Poker</p>
@@ -163,7 +197,11 @@ export function AppFrame({
                 {(() => {
                   const Icon = getNavigationIcon(item.label);
                   return Icon ? (
-                    <Icon className="button-icon" strokeWidth={1.8} />
+                    <Icon
+                      aria-hidden="true"
+                      className="button-icon"
+                      strokeWidth={1.8}
+                    />
                   ) : null;
                 })()}
                 <span>{item.label}</span>
@@ -191,7 +229,11 @@ export function AppFrame({
                   {(() => {
                     const Icon = getNavigationIcon(item.label);
                     return Icon ? (
-                      <Icon className="button-icon" strokeWidth={1.8} />
+                      <Icon
+                        aria-hidden="true"
+                        className="button-icon"
+                        strokeWidth={1.8}
+                      />
                     ) : null;
                   })()}
                   <span>{item.label}</span>
@@ -203,7 +245,13 @@ export function AppFrame({
         </div>
       </header>
 
-      <main className="content" style={{ height: "100%", overflow: "hidden" }}>
+      <main
+        className="content"
+        id="main-content"
+        ref={mainContentRef}
+        style={{ height: "100%", overflow: "hidden" }}
+        tabIndex={-1}
+      >
         {children}
       </main>
     </div>
