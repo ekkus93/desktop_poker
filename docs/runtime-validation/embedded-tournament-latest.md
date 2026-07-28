@@ -1,8 +1,8 @@
 # Full release embedded-NPC tournament
 
 - Result: **FAIL**
-- Validated commit: `795c1a5b96619657675a4ceadaf9330f48760ea4`
-- Workflow run: `30353034093`
+- Validated commit: `3ef5b1cdaaef6996bfff064f49e699aaf0a944ee`
+- Workflow run: `30353389606`
 - Model: `SmolLM2-135M-Instruct-Q3_K_M.gguf`
 - Release build: `failure`
 - Tournament: `skipped`
