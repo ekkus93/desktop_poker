@@ -4,12 +4,15 @@ import {
   readStoredValue,
   readStoredValueWithStatus,
   storageKey,
+  writeStoredValueWithStatus,
 } from "./shell";
 
 export type PersistedHandHistory = {
   updatedAtMs: number;
   entries: TableHistoryEntryView[];
 };
+
+export type PersistenceWriteFailureHandler = (message: string) => void;
 
 type PersistedWindowState = {
   width: number;
@@ -116,6 +119,19 @@ function normalizePersistedWindowState(
   };
 }
 
+function reportPersistenceWriteFailure(
+  context: string,
+  error: string,
+  onWriteFailure?: PersistenceWriteFailureHandler,
+) {
+  const message = `Failed to persist ${context}: ${error}`;
+  if (onWriteFailure) {
+    onWriteFailure(message);
+  } else {
+    console.error(message);
+  }
+}
+
 export function readPersistedHandHistory(storageNamespace: string) {
   return readPersistedHandHistoryWithStatus(storageNamespace).history;
 }
@@ -138,16 +154,24 @@ function writePersistedHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
   updatedAtMs = Date.now(),
+  onWriteFailure?: PersistenceWriteFailureHandler,
 ): PersistedHandHistory {
   const history = {
     updatedAtMs,
     entries: normalizeHandHistoryEntries(entries),
   } satisfies PersistedHandHistory;
 
-  localStorage.setItem(
+  const result = writeStoredValueWithStatus(
     storageKey(storageNamespace, HAND_HISTORY_STORAGE_SUFFIX),
-    JSON.stringify(history),
+    history,
   );
+  if (!result.ok) {
+    reportPersistenceWriteFailure(
+      "cached hand history",
+      result.error,
+      onWriteFailure,
+    );
+  }
 
   return history;
 }
@@ -155,28 +179,42 @@ function writePersistedHandHistory(
 export function persistHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
+  onWriteFailure?: PersistenceWriteFailureHandler,
 ) {
-  writePersistedHandHistory(storageNamespace, entries);
+  writePersistedHandHistory(
+    storageNamespace,
+    entries,
+    Date.now(),
+    onWriteFailure,
+  );
 }
 
 export function mergePersistedHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
+  onWriteFailure?: PersistenceWriteFailureHandler,
 ) {
   const existingEntries =
     readPersistedHandHistory(storageNamespace)?.entries ?? [];
 
-  return writePersistedHandHistory(storageNamespace, [
-    ...existingEntries,
-    ...entries,
-  ]);
+  return writePersistedHandHistory(
+    storageNamespace,
+    [...existingEntries, ...entries],
+    Date.now(),
+    onWriteFailure,
+  );
 }
 
 export async function mergeDurableHandHistory(
   storageNamespace: string,
   entries: TableHistoryEntryView[],
+  onWriteFailure?: PersistenceWriteFailureHandler,
 ): Promise<PersistedHandHistory> {
-  const cachedHistory = mergePersistedHandHistory(storageNamespace, entries);
+  const cachedHistory = mergePersistedHandHistory(
+    storageNamespace,
+    entries,
+    onWriteFailure,
+  );
   if (!hasUsableTauriWindowRuntime()) {
     return cachedHistory;
   }
@@ -189,11 +227,13 @@ export async function mergeDurableHandHistory(
     storageNamespace,
     durableHistory.entries,
     durableHistory.updatedAtMs,
+    onWriteFailure,
   );
 }
 
 export async function readDurableHandHistory(
   storageNamespace: string,
+  onWriteFailure?: PersistenceWriteFailureHandler,
 ): Promise<PersistedHandHistory | null> {
   const cachedHistory = readPersistedHandHistory(storageNamespace);
   if (!hasUsableTauriWindowRuntime()) {
@@ -219,6 +259,7 @@ export async function readDurableHandHistory(
     storageNamespace,
     mergedHistory.entries,
     mergedHistory.updatedAtMs,
+    onWriteFailure,
   );
 }
 
@@ -233,7 +274,10 @@ function hasUsableTauriWindowRuntime(): boolean {
   return Boolean(w.__TAURI_INTERNALS__ || w.__TAURI__);
 }
 
-export function initializeWindowStatePersistence(storageNamespace: string) {
+export function initializeWindowStatePersistence(
+  storageNamespace: string,
+  onWriteFailure?: PersistenceWriteFailureHandler,
+) {
   if (!hasUsableTauriWindowRuntime()) {
     return () => {};
   }
@@ -250,10 +294,17 @@ export function initializeWindowStatePersistence(storageNamespace: string) {
   );
 
   const persistWindowState = (nextState: PersistedWindowState) => {
-    localStorage.setItem(
+    const result = writeStoredValueWithStatus(
       storageKey(storageNamespace, WINDOW_STATE_STORAGE_SUFFIX),
-      JSON.stringify(nextState),
+      nextState,
     );
+    if (!result.ok) {
+      reportPersistenceWriteFailure(
+        "window state",
+        result.error,
+        onWriteFailure,
+      );
+    }
   };
 
   void import("@tauri-apps/api/window")
