@@ -1,16 +1,21 @@
-import { HashRouter } from "react-router";
+import { createHashRouter, RouterProvider } from "react-router";
 import "./App.css";
 import { AppShell } from "./app/AppShell";
 import { DesktopBootstrapProvider } from "./app/DesktopBootstrapProvider";
 
-function App() {
-  return (
-    <HashRouter>
+const router = createHashRouter([
+  {
+    path: "*",
+    element: (
       <DesktopBootstrapProvider>
         <AppShell />
       </DesktopBootstrapProvider>
-    </HashRouter>
-  );
+    ),
+  },
+]);
+
+function App() {
+  return <RouterProvider router={router} />;
 }
 
 export default App;
