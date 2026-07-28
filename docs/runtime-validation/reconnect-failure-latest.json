@@ -1,15 +1,506 @@
 {
-  "buildOutcome": "failure",
+  "buildOutcome": "success",
   "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
-  "protocolOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T15:50:02.681810+00:00",
-  "releaseRuntimeOutcome": "skipped",
-  "result": "FAIL",
+  "protocolOutcome": "success",
+  "recordedAtUtc": "2026-07-28T16:14:03.220648+00:00",
+  "releaseRuntimeOutcome": "success",
+  "result": "PASS",
   "runtime": {
-    "error": "Release reconnect result was not produced.",
-    "result": "FAIL"
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "d1ccaf699cc657e054a2bdcfedf47e7ac5d595d61a7a7ac463b7c7cb47a2adb8",
+    "result": "PASS",
+    "scenarios": {
+      "activeHandHostLoss": {
+        "actionError": "action tray is disabled until the local player owns the turn",
+        "status": {
+          "activeSeatCount": 2,
+          "hostAddress": "10.1.0.27",
+          "hostPort": 43859,
+          "lastError": "Disconnected from host",
+          "localPlayerId": "player-reconnect-client-30377064876",
+          "openSeatCount": 0,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "player-reconnect-client-30377064876",
+              "seatIndex": 1
+            }
+          ],
+          "phase": "running",
+          "reconnecting": false,
+          "sessionEpoch": 1785255240598,
+          "tableId": "table-reconnect-host-30377064876-1785255240598",
+          "tableName": "Main Table",
+          "terminated": true,
+          "tournamentName": "Successful Reconnect Scenario"
+        },
+        "tableError": "Disconnected from host"
+      },
+      "activeHandReconnect": {
+        "afterSockets": [
+          "0      0               10.1.0.27:48290               10.1.0.27:43859"
+        ],
+        "beforeSockets": [
+          "0      0               10.1.0.27:48276               10.1.0.27:43859"
+        ],
+        "clientStatus": {
+          "activeSeatCount": 2,
+          "hostAddress": "10.1.0.27",
+          "hostPort": 43859,
+          "lastError": null,
+          "localPlayerId": "player-reconnect-client-30377064876",
+          "openSeatCount": 0,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": true,
+              "participantState": "active",
+              "playerId": "player-reconnect-client-30377064876",
+              "seatIndex": 1
+            }
+          ],
+          "phase": "running",
+          "reconnecting": false,
+          "sessionEpoch": 1785255240598,
+          "tableId": "table-reconnect-host-30377064876-1785255240598",
+          "tableName": "Main Table",
+          "terminated": false,
+          "tournamentName": "Successful Reconnect Scenario"
+        },
+        "hostParticipant": {
+          "connectionState": "connected",
+          "displayName": "Failure Matrix Client",
+          "isHost": false,
+          "isReady": true,
+          "participantState": "active",
+          "playerId": "player-reconnect-client-30377064876",
+          "seatIndex": 1
+        },
+        "postReconnectAction": {
+          "action": "checkOrCall",
+          "duplicateError": "action tray is disabled until the local player owns the turn",
+          "eventFeedSizeBefore": 7,
+          "handNumberBefore": 2,
+          "tableAfter": {
+            "actionOwnerLabel": "Failure Matrix Host",
+            "actionTray": null,
+            "blindLevelLabel": "Level 1",
+            "boardCards": [],
+            "currentHandNumber": 2,
+            "eliminationSummary": "Failure Matrix Client won 30 chip(s).",
+            "eventFeed": [
+              {
+                "kind": "Action window",
+                "message": "Failure Matrix Host to act.",
+                "sequence": 17
+              },
+              {
+                "kind": "Player action",
+                "message": "Failure Matrix Client Call.",
+                "sequence": 16
+              },
+              {
+                "kind": "Action window",
+                "message": "Failure Matrix Client to act.",
+                "sequence": 15
+              },
+              {
+                "kind": "Hand start",
+                "message": "Hand 2 started.",
+                "sequence": 13
+              },
+              {
+                "kind": "Hand result",
+                "message": "Hand 1 settled: Failure Matrix Client collected the pot.",
+                "sequence": 12
+              },
+              {
+                "kind": "Player action",
+                "message": "Failure Matrix Host Fold.",
+                "sequence": 11
+              },
+              {
+                "kind": "Action window",
+                "message": "Failure Matrix Host to act.",
+                "sequence": 9
+              },
+              {
+                "kind": "Hand start",
+                "message": "Hand 1 started.",
+                "sequence": 7
+              },
+              {
+                "kind": "Tournament start",
+                "message": "Successful Reconnect Scenario is live with 2 seated players.",
+                "sequence": 6
+              }
+            ],
+            "handHistory": [
+              {
+                "boardCards": [],
+                "eliminatedPlayers": [],
+                "handNumber": 1,
+                "potTotal": 30,
+                "summary": "Failure Matrix Client won 30 chip(s).",
+                "winningPlayers": [
+                  "Failure Matrix Client"
+                ]
+              }
+            ],
+            "observerBanner": null,
+            "phaseLabel": "Running",
+            "potTotal": 40,
+            "seats": [
+              {
+                "cardsHidden": true,
+                "chipCount": 970,
+                "contribution": 20,
+                "detailLines": [
+                  "Connection: Connected",
+                  "Seat state: Active",
+                  "Contribution: 20"
+                ],
+                "displayName": "Failure Matrix Host",
+                "holeCards": [],
+                "isActing": true,
+                "isCompact": true,
+                "isEliminated": false,
+                "isLocal": false,
+                "isObserver": false,
+                "markerLabel": "Big blind",
+                "seatIndex": 1,
+                "statusLabel": "Active"
+              },
+              {
+                "cardsHidden": false,
+                "chipCount": 990,
+                "contribution": 20,
+                "detailLines": [
+                  "Connection: Connected",
+                  "Seat state: Active",
+                  "Contribution: 20"
+                ],
+                "displayName": "Failure Matrix Client",
+                "holeCards": [
+                  {
+                    "compactLabel": "4\u2660",
+                    "label": "Four of Spades",
+                    "suitSymbol": "\u2660",
+                    "tone": "dark"
+                  },
+                  {
+                    "compactLabel": "2\u2666",
+                    "label": "Two of Diamonds",
+                    "suitSymbol": "\u2666",
+                    "tone": "red"
+                  }
+                ],
+                "isActing": false,
+                "isCompact": false,
+                "isEliminated": false,
+                "isLocal": true,
+                "isObserver": false,
+                "markerLabel": "Dealer",
+                "seatIndex": 2,
+                "statusLabel": "Active"
+              }
+            ],
+            "sessionConnection": "normal",
+            "standings": [
+              {
+                "chipCount": 990,
+                "displayName": "Failure Matrix Client",
+                "isLocal": true,
+                "isObserver": false,
+                "note": "Dealer",
+                "rank": 1,
+                "statusLabel": "Active"
+              },
+              {
+                "chipCount": 970,
+                "displayName": "Failure Matrix Host",
+                "isLocal": false,
+                "isObserver": false,
+                "note": "Big blind",
+                "rank": 2,
+                "statusLabel": "Active"
+              }
+            ],
+            "streetLabel": "Preflop",
+            "tableId": "table-reconnect-host-30377064876-1785255240598",
+            "tableName": "Main Table",
+            "tournamentName": "Successful Reconnect Scenario",
+            "tournamentPhase": "running",
+            "viewerMode": "local"
+          }
+        },
+        "tableAfterReconnect": {
+          "actionOwnerLabel": "Failure Matrix Host",
+          "actionTray": null,
+          "blindLevelLabel": "Level 1",
+          "boardCards": [],
+          "currentHandNumber": 1,
+          "eliminationSummary": "Table state is live.",
+          "eventFeed": [
+            {
+              "kind": "Action window",
+              "message": "Failure Matrix Host to act.",
+              "sequence": 9
+            },
+            {
+              "kind": "Hand start",
+              "message": "Hand 1 started.",
+              "sequence": 7
+            },
+            {
+              "kind": "Tournament start",
+              "message": "Successful Reconnect Scenario is live with 2 seated players.",
+              "sequence": 6
+            }
+          ],
+          "handHistory": [],
+          "observerBanner": null,
+          "phaseLabel": "Running",
+          "potTotal": 30,
+          "seats": [
+            {
+              "cardsHidden": true,
+              "chipCount": 990,
+              "contribution": 10,
+              "detailLines": [
+                "Connection: Connected",
+                "Seat state: Active",
+                "Contribution: 10"
+              ],
+              "displayName": "Failure Matrix Host",
+              "holeCards": [],
+              "isActing": true,
+              "isCompact": true,
+              "isEliminated": false,
+              "isLocal": false,
+              "isObserver": false,
+              "markerLabel": "Small blind",
+              "seatIndex": 1,
+              "statusLabel": "Active"
+            },
+            {
+              "cardsHidden": false,
+              "chipCount": 980,
+              "contribution": 20,
+              "detailLines": [
+                "Connection: Connected",
+                "Seat state: Active",
+                "Contribution: 20"
+              ],
+              "displayName": "Failure Matrix Client",
+              "holeCards": [
+                {
+                  "compactLabel": "J\u2660",
+                  "label": "Jack of Spades",
+                  "suitSymbol": "\u2660",
+                  "tone": "dark"
+                },
+                {
+                  "compactLabel": "7\u2666",
+                  "label": "Seven of Diamonds",
+                  "suitSymbol": "\u2666",
+                  "tone": "red"
+                }
+              ],
+              "isActing": false,
+              "isCompact": false,
+              "isEliminated": false,
+              "isLocal": true,
+              "isObserver": false,
+              "markerLabel": "Big blind",
+              "seatIndex": 2,
+              "statusLabel": "Active"
+            }
+          ],
+          "sessionConnection": "normal",
+          "standings": [
+            {
+              "chipCount": 990,
+              "displayName": "Failure Matrix Host",
+              "isLocal": false,
+              "isObserver": false,
+              "note": "Small blind",
+              "rank": 1,
+              "statusLabel": "Active"
+            },
+            {
+              "chipCount": 980,
+              "displayName": "Failure Matrix Client",
+              "isLocal": true,
+              "isObserver": false,
+              "note": "Big blind",
+              "rank": 2,
+              "statusLabel": "Active"
+            }
+          ],
+          "streetLabel": "Preflop",
+          "tableId": "table-reconnect-host-30377064876-1785255240598",
+          "tableName": "Main Table",
+          "tournamentName": "Successful Reconnect Scenario",
+          "tournamentPhase": "running",
+          "viewerMode": "local"
+        }
+      },
+      "lobbyHostLoss": {
+        "actionError": "no open action window",
+        "status": {
+          "activeSeatCount": 1,
+          "hostAddress": "10.1.0.27",
+          "hostPort": 43860,
+          "lastError": "Disconnected from host",
+          "localPlayerId": "player-reconnect-client-30377064876",
+          "openSeatCount": 1,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": false,
+              "participantState": "seated",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": false,
+              "participantState": "admitted",
+              "playerId": "player-reconnect-client-30377064876",
+              "seatIndex": null
+            }
+          ],
+          "phase": "waitingForPlayers",
+          "reconnecting": false,
+          "sessionEpoch": 1785255242330,
+          "tableId": "table-reconnect-host-30377064876-1785255242330",
+          "tableName": "Main Table",
+          "terminated": true,
+          "tournamentName": "Lobby Host Loss Scenario"
+        },
+        "tableError": "Disconnected from host"
+      },
+      "lobbyReconnect": {
+        "afterSockets": [
+          "0      0               10.1.0.27:48276               10.1.0.27:43859"
+        ],
+        "beforeSockets": [
+          "0      0               10.1.0.27:48270               10.1.0.27:43859"
+        ],
+        "clientStatus": {
+          "activeSeatCount": 1,
+          "hostAddress": "10.1.0.27",
+          "hostPort": 43859,
+          "lastError": null,
+          "localPlayerId": "player-reconnect-client-30377064876",
+          "openSeatCount": 1,
+          "participants": [
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Host",
+              "isHost": true,
+              "isReady": false,
+              "participantState": "seated",
+              "playerId": "local-player",
+              "seatIndex": 0
+            },
+            {
+              "connectionState": "connected",
+              "displayName": "Failure Matrix Client",
+              "isHost": false,
+              "isReady": false,
+              "participantState": "admitted",
+              "playerId": "player-reconnect-client-30377064876",
+              "seatIndex": null
+            }
+          ],
+          "phase": "waitingForPlayers",
+          "reconnecting": false,
+          "sessionEpoch": 1785255240598,
+          "tableId": "table-reconnect-host-30377064876-1785255240598",
+          "tableName": "Main Table",
+          "terminated": false,
+          "tournamentName": "Successful Reconnect Scenario"
+        },
+        "hostParticipant": {
+          "connectionState": "connected",
+          "displayName": "Failure Matrix Client",
+          "isHost": false,
+          "isReady": false,
+          "participantState": "admitted",
+          "playerId": "player-reconnect-client-30377064876",
+          "seatIndex": null
+        }
+      },
+      "unreachableHostJoin": {
+        "error": "failed to connect to host: Connection refused (os error 111)"
+      }
+    },
+    "steps": [
+      {
+        "name": "host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "client release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "unreachable-host join failed explicitly without retaining a client session",
+        "result": "PASS"
+      },
+      {
+        "name": "lobby reconnect replaced the TCP tuple and restored a usable client session",
+        "result": "PASS"
+      },
+      {
+        "name": "active-hand reconnect restored the same hand on a new TCP tuple",
+        "result": "PASS"
+      },
+      {
+        "name": "post-reconnect client action succeeded and immediate duplicate was rejected",
+        "result": "PASS"
+      },
+      {
+        "name": "active-hand host loss became terminal and rejected stale table/action access",
+        "result": "PASS"
+      },
+      {
+        "name": "lobby host loss became terminal and rejected stale table/action access",
+        "result": "PASS"
+      }
+    ]
   },
-  "validatedCommit": "e823286558193d945792689c321910e8d1dddade",
+  "validatedCommit": "f7ff87e1552dcc531366c1d616a4db1aa61c0c78",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30375158494"
+  "workflowRunId": "30377064876"
 }
