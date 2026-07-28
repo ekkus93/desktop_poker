@@ -69,7 +69,6 @@ jobs:
                   raise SystemExit(f"{path_name}: regex replacement count was {count}")
               path.write_text(updated, encoding="utf-8")
 
-          # Lobby: explicit connection announcements and accessible leave/close dialog.
           replace_once(
               "src/screens/TournamentLobbyScreen.tsx",
               'import { useDesktopShell } from "../app/useDesktopShell";\n',
@@ -103,37 +102,17 @@ jobs:
               ) : null}''',
               '''{clientTerminated ? (
                 <div className="inline-banner error" role="alert">
-                  <WifiOff
-                    aria-hidden="true"
-                    className="button-icon"
-                    strokeWidth={1.9}
-                  />
+                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
                   Disconnected from host — session could not be recovered.
                 </div>
               ) : clientReconnecting ? (
-                <div
-                  aria-live="polite"
-                  className="inline-banner info"
-                  role="status"
-                >
-                  <WifiOff
-                    aria-hidden="true"
-                    className="button-icon"
-                    strokeWidth={1.9}
-                  />
+                <div aria-live="polite" className="inline-banner info" role="status">
+                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
                   Reconnecting to host…
                 </div>
               ) : connectionSlow ? (
-                <div
-                  aria-live="polite"
-                  className="inline-banner info"
-                  role="status"
-                >
-                  <WifiOff
-                    aria-hidden="true"
-                    className="button-icon"
-                    strokeWidth={1.9}
-                  />
+                <div aria-live="polite" className="inline-banner info" role="status">
+                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
                   Connection slow — retrying…
                 </div>
               ) : null}''',
@@ -141,9 +120,7 @@ jobs:
           replace_all(
               "src/screens/TournamentLobbyScreen.tsx",
               '<p className="inline-banner error">{lobbyError}</p>',
-              '<p className="inline-banner error" role="alert">\n'
-              '                  {lobbyError}\n'
-              '                </p>',
+              '<p className="inline-banner error" role="alert">{lobbyError}</p>',
               2,
           )
           sub_once(
@@ -157,26 +134,13 @@ jobs:
           titleId="leave-table-title"
         >
           {lobbyError ? (
-            <p className="inline-banner error" role="alert">
-              {lobbyError}
-            </p>
+            <p className="inline-banner error" role="alert">{lobbyError}</p>
           ) : null}
           <div className="button-row">
-            <button
-              className="primary-button"
-              disabled={submitting}
-              onClick={() => {
-                void leaveLiveSession();
-              }}
-              type="button"
-            >
+            <button className="primary-button" disabled={submitting} onClick={() => void leaveLiveSession()} type="button">
               {leaveActionLabel}
             </button>
-            <button
-              className="secondary-button"
-              onClick={() => setShowLeaveFlow(false)}
-              type="button"
-            >
+            <button className="secondary-button" onClick={() => setShowLeaveFlow(false)} type="button">
               Stay here
             </button>
           </div>
@@ -184,7 +148,6 @@ jobs:
       ) : null}''',
           )
 
-          # NPC profiles: focus-managed unsaved-change confirmation and live errors.
           replace_once(
               "src/screens/NpcProfilesScreen.tsx",
               'import { SectionCard } from "../components/shared/SectionCard";\n',
@@ -203,18 +166,10 @@ jobs:
           titleId="unsaved-profile-title"
         >
           <div className="button-row">
-            <button
-              className="primary-button"
-              onClick={discardChanges}
-              type="button"
-            >
+            <button className="primary-button" onClick={discardChanges} type="button">
               Discard changes
             </button>
-            <button
-              className="secondary-button"
-              onClick={keepEditing}
-              type="button"
-            >
+            <button className="secondary-button" onClick={keepEditing} type="button">
               Keep editing
             </button>
           </div>
@@ -230,12 +185,9 @@ jobs:
           replace_once(
               "src/screens/NpcProfilesScreen.tsx",
               '<p className="inline-banner success">Profile saved.</p>',
-              '<p className="inline-banner success" role="status">\n'
-              '                Profile saved.\n'
-              '              </p>',
+              '<p className="inline-banner success" role="status">Profile saved.</p>',
           )
 
-          # Settings: keep launch actions visible and place confirmation in a modal.
           replace_once(
               "src/screens/DeviceSettingsScreen.tsx",
               'import { SectionCard } from "../components/shared/SectionCard";\n',
@@ -300,15 +252,9 @@ jobs:
                   }}
                   type="button"
                 >
-                  {localSetupConfirmation === "resetHostDraft"
-                    ? "Confirm reset"
-                    : "Confirm clear"}
+                  {localSetupConfirmation === "resetHostDraft" ? "Confirm reset" : "Confirm clear"}
                 </button>
-                <button
-                  className="secondary-button"
-                  onClick={() => setLocalSetupConfirmation(null)}
-                  type="button"
-                >
+                <button className="secondary-button" onClick={() => setLocalSetupConfirmation(null)} type="button">
                   Cancel
                 </button>
               </div>
@@ -325,26 +271,19 @@ jobs:
           replace_once(
               "src/screens/DeviceSettingsScreen.tsx",
               '<p className="inline-banner success">{providerStatus}</p>',
-              '<p className="inline-banner success" role="status">\n'
-              '              {providerStatus}\n'
-              '            </p>',
+              '<p className="inline-banner success" role="status">{providerStatus}</p>',
           )
           replace_once(
               "src/screens/DeviceSettingsScreen.tsx",
               '<p className="inline-banner success">Host setup reset.</p>',
-              '<p className="inline-banner success" role="status">\n'
-              '              Host setup reset.\n'
-              '            </p>',
+              '<p className="inline-banner success" role="status">Host setup reset.</p>',
           )
           replace_once(
               "src/screens/DeviceSettingsScreen.tsx",
               '<p className="inline-banner success">Saved invites cleared.</p>',
-              '<p className="inline-banner success" role="status">\n'
-              '              Saved invites cleared.\n'
-              '            </p>',
+              '<p className="inline-banner success" role="status">Saved invites cleared.</p>',
           )
 
-          # Main table: announce connection/action changes and focus all-in confirmation.
           replace_once(
               "src/screens/MainTableScreen.tsx",
               'import { SectionCard } from "../components/shared/SectionCard";\n',
@@ -377,20 +316,12 @@ jobs:
         ) : null}''',
               '''{tableView?.sessionConnection === "reconnecting" ? (
           <div aria-live="polite" className="inline-banner info" role="status">
-            <WifiOff
-              aria-hidden="true"
-              className="button-icon"
-              strokeWidth={1.9}
-            />
+            <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
             Reconnecting to host…
           </div>
         ) : connectionSlow ? (
           <div aria-live="polite" className="inline-banner info" role="status">
-            <WifiOff
-              aria-hidden="true"
-              className="button-icon"
-              strokeWidth={1.9}
-            />
+            <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
             Connection slow — retrying…
           </div>
         ) : null}''',
@@ -408,11 +339,7 @@ jobs:
                     </div>
                   ) : null}''',
               '''{submitting ? (
-                    <div
-                      aria-live="polite"
-                      className="inline-banner info"
-                      role="status"
-                    >
+                    <div aria-live="polite" className="inline-banner info" role="status">
                       Sending your action to the host…
                     </div>
                   ) : null}''',
@@ -483,9 +410,7 @@ jobs:
           replace_once(
               "src/screens/MainTableScreen.tsx",
               '<div className="inline-banner error">{actionError}</div>',
-              '<div className="inline-banner error" role="alert">\n'
-              '                      {actionError}\n'
-              '                    </div>',
+              '<div className="inline-banner error" role="alert">{actionError}</div>',
           )
           PY
 
@@ -509,3 +434,6 @@ jobs:
             sleep 3
           done
           exit 1
+
+      - name: Confirm migration completion
+        run: echo "Accessible dialog migration applied and self-removal committed."
