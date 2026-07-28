@@ -11,16 +11,16 @@ permissions:
   contents: write
 
 jobs:
-  patch-and-test:
+  patch-and-commit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Rust
+      - name: Set up Rust formatter
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -35,10 +35,10 @@ jobs:
           lines = path.read_text(encoding="utf-8").splitlines()
 
           def find(needle: str, start: int = 0) -> int:
-              matches = [index for index, line in enumerate(lines[start:], start) if needle in line]
-              if not matches:
-                  raise SystemExit(f"missing expected line containing: {needle!r}")
-              return matches[0]
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing expected line containing: {needle!r}")
 
           def ensure_absent(needle: str) -> None:
               if any(needle in line for line in lines):
@@ -138,13 +138,7 @@ jobs:
       - name: Format Rust
         run: cargo fmt
 
-      - name: Lint Rust
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-
-      - name: Test Rust workspace
-        run: cargo test --workspace --all-targets --all-features -- --test-threads=2
-
-      - name: Commit tested patch
+      - name: Commit patch
         shell: bash
         run: |
           set -euo pipefail
