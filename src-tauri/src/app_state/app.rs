@@ -12,6 +12,8 @@ use crate::{
 
 use super::*;
 
+const INITIAL_JOIN_SNAPSHOT_TIMEOUT: Duration = Duration::from_secs(5);
+
 impl DesktopAppState {
     #[must_use]
     pub fn detect() -> Self {
@@ -516,7 +518,7 @@ impl DesktopAppState {
         })
         .map_err(|error| error.to_string())?;
 
-        let latest_snapshot = match runtime.next_event(Duration::from_secs(1)) {
+        let latest_snapshot = match runtime.poll_event(INITIAL_JOIN_SNAPSHOT_TIMEOUT) {
             Ok(networking::ClientRuntimeEvent::Snapshot(snapshot)) => {
                 client_snapshot_state_from_event(&snapshot)
             }
@@ -525,7 +527,18 @@ impl DesktopAppState {
                     "expected an initial snapshot event after join, got {other:?}"
                 ));
             }
-            Err(error) => return Err(error.to_string()),
+            Err(networking::ClientRuntimePollError::Timeout) => {
+                return Err(format!(
+                    "initial join timed out: host snapshot was not available within {} seconds",
+                    INITIAL_JOIN_SNAPSHOT_TIMEOUT.as_secs()
+                ));
+            }
+            Err(networking::ClientRuntimePollError::Disconnected) => {
+                return Err(
+                    "client runtime disconnected before the initial snapshot was available"
+                        .to_string(),
+                );
+            }
         };
 
         let mut client_session = self
