@@ -77,12 +77,14 @@ pub(crate) fn spawn_host_client_session(
     host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
     public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
     runtime_health: Arc<Mutex<HostRuntimeHealth>>,
+    active_client_slot_guard: ActiveClientSlotGuard,
 ) {
     let runtime_health_for_error = Arc::clone(&runtime_health);
     let player_id_for_error = player_id.clone();
     if let Err(error) = thread::Builder::new()
         .name(format!("host-client-{player_id}"))
         .spawn(move || {
+            let _active_client_slot_guard = active_client_slot_guard;
             let crypto_provider = DefaultCryptoProvider;
 
             loop {

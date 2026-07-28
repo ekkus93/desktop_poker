@@ -66,6 +66,9 @@ impl HostServer {
         let runtime_health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
         let pending_initial_joins =
             Arc::new(PendingInitialJoinTracker::new(MAX_PENDING_INITIAL_JOINS));
+        let max_active_clients =
+            usize::from(config.snapshot_state.config.max_players).saturating_add(1);
+        let active_client_slots = Arc::new(ActiveClientSlotTracker::new(max_active_clients));
 
         let accept_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
@@ -80,6 +83,7 @@ impl HostServer {
             let join_payload = join_payload.clone();
             let runtime_health = Arc::clone(&runtime_health);
             let pending_initial_joins = Arc::clone(&pending_initial_joins);
+            let active_client_slots = Arc::clone(&active_client_slots);
 
             thread::Builder::new()
                 .name("desktop-poker-host".to_string())
@@ -122,6 +126,7 @@ impl HostServer {
                         let public_events = Arc::clone(&public_events);
                         let join_payload = join_payload.clone();
                         let runtime_health_conn = Arc::clone(&runtime_health);
+                        let active_client_slots = Arc::clone(&active_client_slots);
 
                         if let Err(e) = stream.set_read_timeout(Some(Duration::from_secs(5))) {
                             update_health(&runtime_health_conn, |h| {
@@ -164,6 +169,35 @@ impl HostServer {
                                         snapshot_envelope,
                                         encryption_public_key,
                                     }) => {
+                                        let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {
+                                            update_health(&runtime_health_conn2, |health| {
+                                                health.connected_client_limit_rejection_count += 1;
+                                                health.record_error(format!(
+                                                    "active client connection limit reached ({max_active_clients})",
+                                                ));
+                                            });
+                                            if let Err(mark_error) = mark_participant_reconnect_eligible(
+                                                &authoritative_state,
+                                                &player_id,
+                                            ) {
+                                                update_health(&runtime_health_conn2, |health| {
+                                                    health.record_reconnect_mark_error(&player_id, mark_error);
+                                                });
+                                            }
+                                            if let Ok(envelope) = build_protocol_error_envelope(
+                                                &crypto_provider,
+                                                &join_payload,
+                                                &server_sequence,
+                                                &host_signing_keys,
+                                                crate::protocol::ERROR_CODE_CONNECTED_CLIENT_LIMIT,
+                                                "host active client connection limit reached".to_string(),
+                                                None,
+                                            ) {
+                                                let _ = write_json_frame(&mut stream, &envelope);
+                                            }
+                                            return;
+                                        };
+
                                         if write_json_frame(&mut stream, &snapshot_envelope).is_ok()
                                         {
                                             if let Err(error) = clear_established_read_timeout(
@@ -223,6 +257,7 @@ impl HostServer {
                                                 host_encryption_keys,
                                                 public_events,
                                                 Arc::clone(&runtime_health_conn2),
+                                                active_client_slot_guard,
                                             );
                                         }
                                     }

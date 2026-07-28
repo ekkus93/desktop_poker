@@ -156,6 +156,8 @@ pub struct HostRuntimeHealth {
     pub snapshot_sync_error_count: u64,
     /// Incremented when the host rejects a connection before spawning an initial-join handler.
     pub pending_join_limit_rejection_count: u64,
+    /// Incremented when a validated client cannot reserve a bounded active-session slot.
+    pub connected_client_limit_rejection_count: u64,
     pub last_error: Option<String>,
     pub last_successful_tick_ms: Option<u64>,
     pub last_successful_publish_ms: Option<u64>,
@@ -258,6 +260,51 @@ impl Drop for PendingInitialJoinGuard {
     fn drop(&mut self) {
         let previous = self.tracker.in_flight.fetch_sub(1, Ordering::SeqCst);
         debug_assert!(previous > 0, "pending initial join counter underflow");
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ActiveClientSlotTracker {
+    in_use: AtomicUsize,
+    maximum: usize,
+}
+
+impl ActiveClientSlotTracker {
+    pub(crate) fn new(maximum: usize) -> Self {
+        Self {
+            in_use: AtomicUsize::new(0),
+            maximum,
+        }
+    }
+
+    pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<ActiveClientSlotGuard> {
+        let acquired = self
+            .in_use
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                (current < self.maximum).then_some(current + 1)
+            })
+            .is_ok();
+
+        acquired.then(|| ActiveClientSlotGuard {
+            tracker: Arc::clone(self),
+        })
+    }
+
+    #[cfg(test)]
+    fn in_use(&self) -> usize {
+        self.in_use.load(Ordering::SeqCst)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ActiveClientSlotGuard {
+    tracker: Arc<ActiveClientSlotTracker>,
+}
+
+impl Drop for ActiveClientSlotGuard {
+    fn drop(&mut self) {
+        let previous = self.tracker.in_use.fetch_sub(1, Ordering::SeqCst);
+        debug_assert!(previous > 0, "active client slot counter underflow");
     }
 }
 
@@ -589,6 +636,18 @@ mod admission_tests {
         drop(second);
         drop(replacement);
         assert_eq!(tracker.in_flight(), 0);
+    }
+
+    #[test]
+    fn active_client_slots_are_atomic_and_release_on_session_end() {
+        let tracker = Arc::new(ActiveClientSlotTracker::new(1));
+        let slot = tracker.try_acquire().expect("active client slot");
+        assert!(tracker.try_acquire().is_none());
+        assert_eq!(tracker.in_use(), 1);
+
+        drop(slot);
+        assert_eq!(tracker.in_use(), 0);
+        assert!(tracker.try_acquire().is_some());
     }
 }
 
