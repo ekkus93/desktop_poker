@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: patch-debian-icon-cleanup
+  cancel-in-progress: false
+
 jobs:
   patch:
     runs-on: ubuntu-24.04
@@ -31,31 +35,37 @@ jobs:
           from pathlib import Path
 
           path = Path(".github/workflows/runtime-debian-package-validation-v2.yml")
-          lines = path.read_text(encoding="utf-8").splitlines()
+          text = path.read_text(encoding="utf-8")
           old = "            dpkg-query -L \"$package_name\" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\// { print }'"
           new = "            dpkg-query -L \"$package_name\" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\/.*\\.(png|svg|xpm)$/ { print }'"
-          matches = [index for index, line in enumerate(lines) if line == old]
-          if len(matches) != 1:
-              raise SystemExit(f"Expected one broad icon query; got {matches}")
-          lines[matches[0]] = new
-          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          old_count = text.count(old)
+          new_count = text.count(new)
+          if old_count == 1 and new_count == 0:
+              text = text.replace(old, new, 1)
+          elif old_count == 0 and new_count == 1:
+              pass
+          else:
+              raise SystemExit(
+                  f"Unexpected icon-query state: old={old_count}, new={new_count}"
+              )
+          path.write_text(text, encoding="utf-8")
           PY
 
           grep -F '(png|svg|xpm)' .github/workflows/runtime-debian-package-validation-v2.yml
-          git diff --check
           rm .github/workflows/patch-debian-icon-cleanup.yml
+          git diff --check
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: validate removal of package icon files only"
 
-          for attempt in 1 2 3 4 5 6; do
+          for attempt in $(seq 1 30); do
             git fetch origin master
-            git rebase origin/master
-            if git push origin HEAD:master; then
+            if git rebase origin/master && git push origin HEAD:master; then
               exit 0
             fi
+            git rebase --abort 2>/dev/null || true
             sleep 3
           done
           exit 1
