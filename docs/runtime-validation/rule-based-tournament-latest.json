@@ -1,763 +1,59 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-07-28T19:49:14.189442+00:00",
-  "result": "FAIL",
+  "recordedAtUtc": "2026-07-28T19:55:50.507270+00:00",
+  "result": "PASS",
   "ruleBasedTournament": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "bc2b6c4344b79c5835e438714547d00ff97cd54ef955af1b7073f076341b84d0",
-    "error": "AssertionError: NPC runner emitted an error or fallback diagnostic: [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-1: submit_action rejected (window=aw-34, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] action window expired for player npc-seat-1 (window=aw-34)",
+    "applicationSha256": "6b00d0090365dfd1986f09a0b99343163ac687a80d738b122f27788016b9cb17",
+    "completedHands": 17,
+    "finalStandings": [
+      {
+        "chipCount": 300,
+        "displayName": "CI Human Host",
+        "isLocal": true,
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Rule Bot Alpha",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Rule Bot Beta",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 3,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
     "hostActions": [
       "hand 1: fold",
+      "hand 2: allIn",
       "hand 3: allIn",
       "hand 4: allIn",
       "hand 6: allIn",
       "hand 7: allIn",
       "hand 9: allIn",
-      "hand 10: allIn",
-      "hand 12: allIn",
+      "hand 11: allIn",
       "hand 13: allIn",
       "hand 15: allIn",
-      "hand 17: allIn",
-      "hand 18: allIn",
-      "hand 19: allIn",
-      "hand 21: allIn",
-      "hand 22: allIn",
-      "hand 23: allIn",
-      "hand 25: allIn",
-      "hand 26: allIn"
+      "hand 17: allIn"
     ],
-    "lastTableView": {
-      "actionOwnerLabel": "Waiting for settlement",
-      "actionTray": null,
-      "blindLevelLabel": "Level 1",
-      "boardCards": [],
-      "currentHandNumber": null,
-      "eliminationSummary": "CI Human Host won 300 chip(s).",
-      "eventFeed": [
-        {
-          "kind": "Tournament complete",
-          "message": "CI Human Host won the tournament.",
-          "sequence": 156
-        },
-        {
-          "kind": "Elimination",
-          "message": "Rule Bot Alpha finished in place 2.",
-          "sequence": 155
-        },
-        {
-          "kind": "Hand result",
-          "message": "Hand 26 settled: CI Human Host collected the pot.",
-          "sequence": 154
-        },
-        {
-          "kind": "Action window",
-          "message": "CI Human Host to act.",
-          "sequence": 153
-        },
-        {
-          "kind": "Hand start",
-          "message": "Hand 26 started.",
-          "sequence": 152
-        },
-        {
-          "kind": "Hand result",
-          "message": "Hand 25 settled: CI Human Host collected the pot.",
-          "sequence": 151
-        },
-        {
-          "kind": "Player action",
-          "message": "Rule Bot Alpha Fold.",
-          "sequence": 150
-        },
-        {
-          "kind": "Action window",
-          "message": "Rule Bot Alpha to act.",
-          "sequence": 149
-        },
-        {
-          "kind": "Player action",
-          "message": "CI Human Host All-in to 270.",
-          "sequence": 148
-        },
-        {
-          "kind": "Action window",
-          "message": "CI Human Host to act.",
-          "sequence": 147
-        },
-        {
-          "kind": "Hand start",
-          "message": "Hand 25 started.",
-          "sequence": 146
-        },
-        {
-          "kind": "Hand result",
-          "message": "Hand 24 settled: CI Human Host collected the pot.",
-          "sequence": 145
-        },
-        {
-          "kind": "Player action",
-          "message": "Rule Bot Alpha Fold.",
-          "sequence": 144
-        },
-        {
-          "kind": "Action window",
-          "message": "Rule Bot Alpha to act.",
-          "sequence": 143
-        },
-        {
-          "kind": "Hand start",
-          "message": "Hand 24 started.",
-          "sequence": 142
-        },
-        {
-          "kind": "Hand result",
-          "message": "Hand 23 settled: CI Human Host, Rule Bot Alpha collected the pot.",
-          "sequence": 141
-        },
-        {
-          "kind": "Street reveal",
-          "message": "Showdown revealed.",
-          "sequence": 140
-        },
-        {
-          "kind": "Player action",
-          "message": "CI Human Host All-in to 280.",
-          "sequence": 139
-        },
-        {
-          "kind": "Action window",
-          "message": "CI Human Host to act.",
-          "sequence": 138
-        },
-        {
-          "kind": "Hand start",
-          "message": "Hand 23 started.",
-          "sequence": 137
-        }
-      ],
-      "handHistory": [
-        {
-          "boardCards": [
-            {
-              "compactLabel": "5\u2660",
-              "label": "Five of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "Q\u2665",
-              "label": "Queen of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "6\u2660",
-              "label": "Six of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "A\u2666",
-              "label": "Ace of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "3\u2663",
-              "label": "Three of Clubs",
-              "suitSymbol": "\u2663",
-              "tone": "dark"
-            }
-          ],
-          "eliminatedPlayers": [
-            "Rule Bot Alpha"
-          ],
-          "handNumber": 26,
-          "potTotal": 300,
-          "summary": "CI Human Host won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 25,
-          "potTotal": 290,
-          "summary": "CI Human Host won 290 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 24,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "2\u2660",
-              "label": "Two of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "9\u2660",
-              "label": "Nine of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "9\u2666",
-              "label": "Nine of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "5\u2665",
-              "label": "Five of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "2\u2663",
-              "label": "Two of Clubs",
-              "suitSymbol": "\u2663",
-              "tone": "dark"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 23,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "A\u2665",
-              "label": "Ace of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "Q\u2666",
-              "label": "Queen of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "3\u2660",
-              "label": "Three of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "6\u2663",
-              "label": "Six of Clubs",
-              "suitSymbol": "\u2663",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "4\u2666",
-              "label": "Four of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 22,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 21,
-          "potTotal": 290,
-          "summary": "CI Human Host won 290 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 20,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "Q\u2666",
-              "label": "Queen of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "Q\u2665",
-              "label": "Queen of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "3\u2660",
-              "label": "Three of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "8\u2660",
-              "label": "Eight of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "10\u2666",
-              "label": "Ten of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 19,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "8\u2660",
-              "label": "Eight of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "J\u2663",
-              "label": "Jack of Clubs",
-              "suitSymbol": "\u2663",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "J\u2666",
-              "label": "Jack of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "5\u2665",
-              "label": "Five of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "2\u2665",
-              "label": "Two of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 18,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 17,
-          "potTotal": 290,
-          "summary": "CI Human Host won 290 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 16,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "4\u2660",
-              "label": "Four of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "6\u2665",
-              "label": "Six of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "8\u2666",
-              "label": "Eight of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "6\u2660",
-              "label": "Six of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "J\u2660",
-              "label": "Jack of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 15,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 14,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "A\u2666",
-              "label": "Ace of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "7\u2666",
-              "label": "Seven of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "3\u2660",
-              "label": "Three of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "7\u2665",
-              "label": "Seven of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "10\u2666",
-              "label": "Ten of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            }
-          ],
-          "eliminatedPlayers": [
-            "Rule Bot Beta"
-          ],
-          "handNumber": 13,
-          "potTotal": 300,
-          "summary": "CI Human Host, Rule Bot Alpha won 300 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 12,
-          "potTotal": 280,
-          "summary": "CI Human Host won 280 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 11,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [
-            {
-              "compactLabel": "2\u2666",
-              "label": "Two of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "5\u2660",
-              "label": "Five of Spades",
-              "suitSymbol": "\u2660",
-              "tone": "dark"
-            },
-            {
-              "compactLabel": "7\u2665",
-              "label": "Seven of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "2\u2665",
-              "label": "Two of Hearts",
-              "suitSymbol": "\u2665",
-              "tone": "red"
-            },
-            {
-              "compactLabel": "7\u2666",
-              "label": "Seven of Diamonds",
-              "suitSymbol": "\u2666",
-              "tone": "red"
-            }
-          ],
-          "eliminatedPlayers": [],
-          "handNumber": 10,
-          "potTotal": 280,
-          "summary": "CI Human Host, Rule Bot Alpha won 280 chip(s).",
-          "winningPlayers": [
-            "CI Human Host",
-            "Rule Bot Alpha"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 9,
-          "potTotal": 250,
-          "summary": "CI Human Host won 250 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 8,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 7,
-          "potTotal": 220,
-          "summary": "CI Human Host won 220 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 6,
-          "potTotal": 190,
-          "summary": "CI Human Host won 190 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 5,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 4,
-          "potTotal": 160,
-          "summary": "CI Human Host won 160 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 3,
-          "potTotal": 130,
-          "summary": "CI Human Host won 130 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 2,
-          "potTotal": 30,
-          "summary": "CI Human Host won 30 chip(s).",
-          "winningPlayers": [
-            "CI Human Host"
-          ]
-        },
-        {
-          "boardCards": [],
-          "eliminatedPlayers": [],
-          "handNumber": 1,
-          "potTotal": 30,
-          "summary": "Rule Bot Beta won 30 chip(s).",
-          "winningPlayers": [
-            "Rule Bot Beta"
-          ]
-        }
-      ],
-      "observerBanner": null,
-      "phaseLabel": "Complete",
-      "potTotal": 0,
-      "seats": [
-        {
-          "cardsHidden": true,
-          "chipCount": 300,
-          "contribution": 0,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Active",
-            "Contribution: 0"
-          ],
-          "displayName": "CI Human Host",
-          "holeCards": [],
-          "isActing": false,
-          "isCompact": false,
-          "isEliminated": false,
-          "isLocal": true,
-          "isObserver": false,
-          "markerLabel": "Dealer",
-          "seatIndex": 1,
-          "statusLabel": "Active"
-        },
-        {
-          "cardsHidden": true,
-          "chipCount": 0,
-          "contribution": 0,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Eliminated observer",
-            "Contribution: 0"
-          ],
-          "displayName": "Rule Bot Alpha",
-          "holeCards": [],
-          "isActing": false,
-          "isCompact": true,
-          "isEliminated": true,
-          "isLocal": false,
-          "isObserver": true,
-          "markerLabel": null,
-          "seatIndex": 2,
-          "statusLabel": "Eliminated observer"
-        },
-        {
-          "cardsHidden": true,
-          "chipCount": 0,
-          "contribution": 0,
-          "detailLines": [
-            "Connection: Connected",
-            "Seat state: Eliminated observer",
-            "Contribution: 0"
-          ],
-          "displayName": "Rule Bot Beta",
-          "holeCards": [],
-          "isActing": false,
-          "isCompact": true,
-          "isEliminated": true,
-          "isLocal": false,
-          "isObserver": true,
-          "markerLabel": null,
-          "seatIndex": 3,
-          "statusLabel": "Eliminated observer"
-        }
-      ],
-      "sessionConnection": "normal",
-      "standings": [
-        {
-          "chipCount": 300,
-          "displayName": "CI Human Host",
-          "isLocal": true,
-          "isObserver": false,
-          "note": "Dealer",
-          "rank": 1,
-          "statusLabel": "Active"
-        },
-        {
-          "chipCount": 0,
-          "displayName": "Rule Bot Alpha",
-          "isLocal": false,
-          "isObserver": true,
-          "note": null,
-          "rank": 2,
-          "statusLabel": "Eliminated observer"
-        },
-        {
-          "chipCount": 0,
-          "displayName": "Rule Bot Beta",
-          "isLocal": false,
-          "isObserver": true,
-          "note": null,
-          "rank": 3,
-          "statusLabel": "Eliminated observer"
-        }
-      ],
-      "streetLabel": "Waiting",
-      "tableId": "table-rule-based-npc-30393331242-1785268090814",
-      "tableName": "Main Table",
-      "tournamentName": "Rule-Based NPC CI Tournament",
-      "tournamentPhase": "complete",
-      "viewerMode": "local"
+    "instanceId": "rule-based-npc-30393847330",
+    "npcActionCount": 18,
+    "npcActionCounts": {
+      "Rule Bot Alpha": 6,
+      "Rule Bot Beta": 12
     },
     "npcActions": [
       {
@@ -769,7 +65,7 @@
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 2,
-        "message": "Rule Bot Alpha Fold.",
+        "message": "Rule Bot Alpha Raise to 60.",
         "sequence": 10
       },
       {
@@ -779,163 +75,99 @@
         "sequence": 12
       },
       {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 3,
-        "message": "Rule Bot Beta Fold.",
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 2,
+        "message": "Rule Bot Alpha Fold.",
         "sequence": 16
       },
       {
-        "displayName": "Rule Bot Alpha",
+        "displayName": "Rule Bot Beta",
         "handNumber": 3,
-        "message": "Rule Bot Alpha Fold.",
+        "message": "Rule Bot Beta Fold.",
         "sequence": 20
       },
       {
         "displayName": "Rule Bot Alpha",
-        "handNumber": 4,
+        "handNumber": 3,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 26
+        "sequence": 24
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 4,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 28
+        "sequence": 30
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 5,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 32
+        "sequence": 35
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 5,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 34
+        "sequence": 37
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 6,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 38
+        "sequence": 41
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 6,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 42
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 7,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 48
+        "sequence": 45
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 7,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 50
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 8,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 54
+        "sequence": 51
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 8,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 56
+        "sequence": 57
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 9,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 60
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 9,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 64
+        "sequence": 63
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 10,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 70
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 11,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 75
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 11,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 77
+        "sequence": 67
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 12,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 81
+        "sequence": 76
       },
       {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 12,
-        "message": "Rule Bot Alpha Fold.",
+        "displayName": "Rule Bot Beta",
+        "handNumber": 14,
+        "message": "Rule Bot Beta Fold.",
         "sequence": 85
       },
       {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 14,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 95
-      },
-      {
-        "displayName": "Rule Bot Alpha",
+        "displayName": "Rule Bot Beta",
         "handNumber": 16,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 104
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 17,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 110
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 20,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 124
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 21,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 130
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 24,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 144
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 25,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 150
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 94
       }
     ],
-    "result": "FAIL",
+    "npcDiagnosticCount": 0,
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30393847330",
+    "result": "PASS",
     "steps": [
       {
         "name": "tauri-driver became ready",
@@ -954,13 +186,25 @@
         "result": "PASS"
       },
       {
-        "name": "rule-based NPC tournament",
-        "result": "FAIL"
+        "name": "tournament completed across 17 hands with 18 committed rule-based NPC actions",
+        "result": "PASS"
+      },
+      {
+        "name": "both rule-based NPC identities produced live accepted actions",
+        "result": "PASS"
+      },
+      {
+        "name": "production runtime log contained no NPC error or fallback diagnostic",
+        "result": "PASS"
+      },
+      {
+        "name": "final standings contain the human host and both rule-based NPC players",
+        "result": "PASS"
       }
     ]
   },
-  "tournamentOutcome": "failure",
-  "validatedCommit": "d02b69924f33d62e6f8ab4a7db31acb4f15fd5d2",
+  "tournamentOutcome": "success",
+  "validatedCommit": "6b3a8d0a2fe52a33009e0697c58e3bd730532f25",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30393331242"
+  "workflowRunId": "30393847330"
 }
