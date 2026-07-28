@@ -1,0 +1,103 @@
+name: Patch CI evidence integrity
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-ci-evidence-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-ci-evidence-integrity
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stop evidence recursion and cancelled-result publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B ci-evidence-integrity-fix origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/workflows/ci.yml")
+          text = path.read_text(encoding="utf-8")
+
+          old_trigger = '''  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+'''
+          new_trigger = '''  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+    paths-ignore:
+      - "docs/runtime-validation/**"
+'''
+          old_publish = "    if: always() && github.ref == 'refs/heads/master'"
+          new_publish = "    if: always() && !cancelled() && github.ref == 'refs/heads/master'"
+
+          old_trigger_count = text.count(old_trigger)
+          new_trigger_count = text.count(new_trigger)
+          if old_trigger_count == 1 and new_trigger_count == 0:
+              text = text.replace(old_trigger, new_trigger, 1)
+          elif old_trigger_count == 0 and new_trigger_count == 1:
+              pass
+          else:
+              raise SystemExit(
+                  f"Unexpected CI push trigger state: old={old_trigger_count}, "
+                  f"new={new_trigger_count}"
+              )
+
+          old_publish_count = text.count(old_publish)
+          new_publish_count = text.count(new_publish)
+          if old_publish_count == 1 and new_publish_count == 0:
+              text = text.replace(old_publish, new_publish, 1)
+          elif old_publish_count == 0 and new_publish_count == 1:
+              pass
+          else:
+              raise SystemExit(
+                  f"Unexpected CI publisher state: old={old_publish_count}, "
+                  f"new={new_publish_count}"
+              )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+          grep -A2 -F 'paths-ignore:' .github/workflows/ci.yml
+          grep -F "if: always() && !cancelled() && github.ref == 'refs/heads/master'" \
+            .github/workflows/ci.yml
+          rm .github/workflows/patch-ci-evidence-integrity.yml
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "ci: prevent recursive and cancelled CI evidence"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
