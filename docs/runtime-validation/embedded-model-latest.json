@@ -4,9 +4,9 @@
   "inferenceOutcome": "skipped",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-28T11:51:05.089214+00:00",
+  "recordedAtUtc": "2026-07-28T12:00:05.869299+00:00",
   "result": "FAIL",
-  "validatedCommit": "1c65a9572f78e3858ed00506df3ad2d362b91498",
+  "validatedCommit": "9a0373cd3de70c838d32b8db6715b531057ca8b1",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30356406431"
+  "workflowRunId": "30357023772"
 }
