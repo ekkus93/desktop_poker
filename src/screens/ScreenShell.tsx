@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RuntimeWarningBanners } from "../components/shared/RuntimeWarningBanners";
 import { StatusBadge } from "../components/shared/StatusBadge";
 
 export function ScreenShell({
@@ -30,6 +31,7 @@ export function ScreenShell({
           ))}
         </div>
       </header>
+      <RuntimeWarningBanners />
       {children}
     </section>
   );
