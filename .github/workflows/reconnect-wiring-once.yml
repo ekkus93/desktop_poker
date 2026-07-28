@@ -1,0 +1,89 @@
+name: Wire typed reconnect errors once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/reconnect-wiring-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Wire reconnect codes and stop signal
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8").splitlines()
+
+          def write(path, lines):
+              Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+          def find(lines, needle, start=0):
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing {needle!r}")
+
+          path = "src-tauri/src/networking/runtime/handlers.rs"
+          lines = read(path)
+          target = find(lines, 'return Err(NetworkingError::new("participant is already connected"));')
+          indent = lines[target][: len(lines[target]) - len(lines[target].lstrip())]
+          lines[target:target + 1] = [
+              f"{indent}return Err(NetworkingError::with_code(",
+              f"{indent}    crate::protocol::ERROR_CODE_RECONNECT_ALREADY_CONNECTED,",
+              f'{indent}    "participant is already connected",',
+              f"{indent}));",
+          ]
+          write(path, lines)
+
+          path = "src-tauri/src/networking/runtime/host.rs"
+          lines = read(path)
+          target = find(lines, '"JOIN_REJECTED",')
+          indent = lines[target][: len(lines[target]) - len(lines[target].lstrip())]
+          lines[target:target + 1] = [
+              f"{indent}error",
+              f"{indent}    .code()",
+              f"{indent}    .unwrap_or(crate::protocol::ERROR_CODE_JOIN_REJECTED),",
+          ]
+          write(path, lines)
+
+          path = "src-tauri/src/networking/runtime/client.rs"
+          lines = read(path)
+          reconnect_call = find(lines, "match reconnect_after_disconnect(")
+          counter_arg = find(lines, "&mut next_counter,", reconnect_call)
+          if "stop_signal_for_thread" not in lines[counter_arg + 1]:
+              lines.insert(counter_arg + 1, "                            &stop_signal_for_thread,")
+          cleanup_comment = find(lines, "Best-effort reconnect cleanup", reconnect_call)
+          reconnect_error = cleanup_comment - 1
+          if "Err(error) =>" not in lines[reconnect_error]:
+              raise SystemExit("could not locate reconnect error branch")
+          if "stop_signal_for_thread" not in "\n".join(lines[reconnect_error + 1:cleanup_comment]):
+              indent = lines[reconnect_error][: len(lines[reconnect_error]) - len(lines[reconnect_error].lstrip())] + "    "
+              lines[reconnect_error + 1:reconnect_error + 1] = [
+                  f"{indent}if stop_signal_for_thread.load(Ordering::SeqCst) {{",
+                  f"{indent}    break;",
+                  f"{indent}}}",
+                  "",
+              ]
+          write(path, lines)
+          PY
+      - name: Commit wiring
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src-tauri/src/networking/runtime/handlers.rs \
+            src-tauri/src/networking/runtime/host.rs \
+            src-tauri/src/networking/runtime/client.rs
+          git commit -m "Wire typed reconnect errors"
+          git pull --rebase origin master
+          git push origin HEAD:master
