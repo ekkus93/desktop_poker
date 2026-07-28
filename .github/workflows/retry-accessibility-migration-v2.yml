@@ -57,6 +57,28 @@ jobs:
           PY
 
           python3 /tmp/accessibility-migrate.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/screens/NpcProfilesScreen.tsx")
+          text = path.read_text(encoding="utf-8")
+          old = '''      ({ currentLocation, nextLocation }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+'''
+          new = '''      ({
+        currentLocation,
+        nextLocation,
+      }: {
+        currentLocation: { pathname: string };
+        nextLocation: { pathname: string };
+      }) =>
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
+'''
+          if old not in text:
+              raise SystemExit("untyped blocker callback anchor not found")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
           npm ci
           npm run format
           npx vitest run \
@@ -77,6 +99,7 @@ jobs:
             docs/runtime-validation/accessibility-migration-test-diagnostic.txt \
             docs/runtime-validation/accessibility-migration-test-diagnostic-v2.txt \
             docs/runtime-validation/accessibility-migration-test-diagnostic-v3.txt \
+            docs/runtime-validation/accessibility-migration-test-diagnostic-v4.txt \
             docs/runtime-validation/npc-blocked-navigation-diagnostic.txt
           npm run format:check
           git diff --check
