@@ -1,0 +1,14 @@
+{
+  "buildOutcome": "cancelled",
+  "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
+  "recordedAtUtc": "2026-07-28T04:02:40.697536+00:00",
+  "result": "FAIL",
+  "ruleBasedTournament": {
+    "error": "Rule-based tournament result was not produced.",
+    "result": "FAIL"
+  },
+  "tournamentOutcome": "skipped",
+  "validatedCommit": "d6b1764264a16dd7c8e94b798f0bd6865646baaf",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30327354833"
+}
