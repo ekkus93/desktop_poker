@@ -1,4 +1,4 @@
-name: Retry corrected accessibility migration
+name: Finish verified accessibility migration
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: retry-accessibility-migration-v2
+  group: finish-accessibility-migration
   cancel-in-progress: false
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin master
-          git checkout -B retry-accessibility-migration-v2 origin/master
+          git checkout -B finish-accessibility-migration origin/master
 
           python3 - <<'PY'
           from pathlib import Path
@@ -46,6 +46,8 @@ jobs:
           ).read_text(encoding="utf-8")
           start_marker = "          python3 - <<'PY'\n"
           end_marker = "\n          PY\n\n          npm ci"
+          if start_marker not in workflow or end_marker not in workflow:
+              raise SystemExit("accessibility migration script markers are missing")
           script = workflow.split(start_marker, 1)[1].split(end_marker, 1)[0]
           lines = [
               line[10:] if line.startswith("          ") else line
@@ -57,28 +59,6 @@ jobs:
           PY
 
           python3 /tmp/accessibility-migrate.py
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("src/screens/NpcProfilesScreen.tsx")
-          text = path.read_text(encoding="utf-8")
-          old = '''      ({ currentLocation, nextLocation }) =>
-        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
-'''
-          new = '''      ({
-        currentLocation,
-        nextLocation,
-      }: {
-        currentLocation: { pathname: string };
-        nextLocation: { pathname: string };
-      }) =>
-        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
-'''
-          if old not in text:
-              raise SystemExit("untyped blocker callback anchor not found")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
-          PY
-
           npm ci
           npm run format
           npx vitest run \
@@ -100,7 +80,13 @@ jobs:
             docs/runtime-validation/accessibility-migration-test-diagnostic-v2.txt \
             docs/runtime-validation/accessibility-migration-test-diagnostic-v3.txt \
             docs/runtime-validation/accessibility-migration-test-diagnostic-v4.txt \
-            docs/runtime-validation/npc-blocked-navigation-diagnostic.txt
+            docs/runtime-validation/accessibility-migration-test-diagnostic-v5.txt \
+            docs/runtime-validation/accessibility-verification-diagnostic.txt \
+            docs/runtime-validation/corrected-accessibility-diagnostic.txt \
+            docs/runtime-validation/final-accessibility-diagnostic.txt \
+            docs/runtime-validation/npc-blocked-navigation-diagnostic.txt \
+            docs/runtime-validation/request-shim-accessibility-diagnostic.txt \
+            docs/runtime-validation/typed-accessibility-diagnostic.txt
           npm run format:check
           git diff --check
 
@@ -118,6 +104,3 @@ jobs:
             sleep 3
           done
           exit 1
-
-      - name: Confirm verified migration
-        run: echo "Accessibility migration verified and published."
