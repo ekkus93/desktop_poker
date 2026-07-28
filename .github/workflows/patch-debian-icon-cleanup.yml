@@ -31,22 +31,17 @@ jobs:
           from pathlib import Path
 
           path = Path(".github/workflows/runtime-debian-package-validation-v2.yml")
-          text = path.read_text(encoding="utf-8")
-          old = """          mapfile -t icon_files < <(
-            dpkg-query -L "$package_name" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\// { print }'
-          )
-"""
-          new = """          mapfile -t icon_files < <(
-            dpkg-query -L "$package_name" \
-              | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\/.*\\.(png|svg|xpm)$/ { print }'
-          )
-"""
-          if text.count(old) != 1:
-              raise SystemExit(f"Expected one broad icon query; found {text.count(old)}")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          old = "            dpkg-query -L \"$package_name\" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\// { print }'"
+          new = "            dpkg-query -L \"$package_name\" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\/.*\\.(png|svg|xpm)$/ { print }'"
+          matches = [index for index, line in enumerate(lines) if line == old]
+          if len(matches) != 1:
+              raise SystemExit(f"Expected one broad icon query; got {matches}")
+          lines[matches[0]] = new
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
-          grep -F "(png|svg|xpm)" .github/workflows/runtime-debian-package-validation-v2.yml
+          grep -F '(png|svg|xpm)' .github/workflows/runtime-debian-package-validation-v2.yml
           git diff --check
           rm .github/workflows/patch-debian-icon-cleanup.yml
 
