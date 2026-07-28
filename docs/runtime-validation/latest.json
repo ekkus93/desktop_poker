@@ -4,8 +4,18 @@
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "a22b2952c4c024b484cb9258443662eec612cf328a509d0c243886500cebae47",
-    "error": "AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None",
-    "result": "FAIL",
+    "clientInstanceId": "runtime-client-30401423159",
+    "clientTableId": "table-runtime-host-30401423159-1785274820467",
+    "conflictInstanceId": "runtime-conflict-30401423159",
+    "hostInstanceId": "runtime-host-30401423159",
+    "hostPort": 43818,
+    "profileDirectories": [
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30401423159",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30401423159",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30401423159"
+    ],
+    "recoveryPort": 43819,
+    "result": "PASS",
     "steps": [
       {
         "name": "host release instance launched",
@@ -32,18 +42,51 @@
         "result": "PASS"
       },
       {
-        "name": "multi-instance runtime smoke",
-        "result": "FAIL"
+        "name": "client joined the live host over real TCP with matching seat indexes",
+        "result": "PASS"
+      },
+      {
+        "name": "host began the lobby in its authoritative occupied seat",
+        "result": "PASS"
+      },
+      {
+        "name": "client claimed the remaining open seat through the release UI",
+        "result": "PASS"
+      },
+      {
+        "name": "host and client agree on distinct authoritative seat assignments",
+        "result": "PASS"
+      },
+      {
+        "name": "ready state propagated to both release instances",
+        "result": "PASS"
+      },
+      {
+        "name": "both instances entered Main Table after authoritative start",
+        "result": "PASS"
+      },
+      {
+        "name": "private cards are isolated and public table state is synchronized",
+        "result": "PASS"
+      },
+      {
+        "name": "same-port host failed explicitly: Unable to start hosting on TCP port 43818. Unable to start hosting.",
+        "result": "PASS"
+      },
+      {
+        "name": "conflicting host recovered successfully on port 43819",
+        "result": "PASS"
       }
-    ]
+    ],
+    "tableId": "table-runtime-host-30401423159-1785274820467"
   },
-  "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T20:10:46.368304+00:00",
-  "result": "FAIL",
+  "multiInstanceOutcome": "success",
+  "recordedAtUtc": "2026-07-28T21:40:33.638320+00:00",
+  "result": "PASS",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "a22b2952c4c024b484cb9258443662eec612cf328a509d0c243886500cebae47",
-    "instanceId": "runtime-smoke-30394963650",
+    "instanceId": "runtime-smoke-30401423159",
     "result": "PASS",
     "steps": [
       {
@@ -101,7 +144,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "fe19ff0db9baaf36d5217fb8b2691eee3620b26e",
+  "validatedCommit": "5cb9ceb9ed9a12c2730862657ba754406b56a29b",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30394963650"
+  "workflowRunId": "30401423159"
 }
