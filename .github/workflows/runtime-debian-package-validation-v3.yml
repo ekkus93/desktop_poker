@@ -1,0 +1,292 @@
+name: Linux Debian package validation v3
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-debian-package-validation-v3.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "crates/**"
+      - "scripts/runtime_debian_package_validation.sh"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-debian-package-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+
+jobs:
+  debian-package:
+    name: Build, install, launch, and purge Debian package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build and desktop runtime dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11 \
+            desktop-file-utils \
+            libgtk-3-bin \
+            xdotool
+          command -v gtk-launch
+          command -v xdotool
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Validate Debian package harness syntax
+        run: bash -n scripts/runtime_debian_package_validation.sh
+
+      - name: Build Debian package
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --bundles deb 2>&1 | tee debian-package-v3-build.log
+
+      - name: Validate installed package
+        id: validation
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        env:
+          DEBIAN_PACKAGE_EVIDENCE_DIR: ${{ github.workspace }}/debian-package-v3-evidence
+          DEBIAN_PACKAGE_DRIVER_PORT: "4614"
+          DEBIAN_PACKAGE_NATIVE_PORT: "4615"
+        run: bash scripts/runtime_debian_package_validation.sh
+
+      - name: Assemble Debian package result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("debian-package-v3-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+          metadata: dict[str, str] = {}
+          metadata_path = evidence / "metadata.env"
+          if metadata_path.is_file():
+              for line in metadata_path.read_text(encoding="utf-8").splitlines():
+                  key, separator, value = line.partition("=")
+                  if separator:
+                      metadata[key] = value
+
+          steps: list[dict[str, str]] = []
+          steps_path = evidence / "steps.tsv"
+          if steps_path.is_file():
+              for line in steps_path.read_text(encoding="utf-8").splitlines():
+                  result, separator, name = line.partition("\t")
+                  if separator:
+                      steps.append({"name": name, "result": result})
+
+          runtime: dict[str, object] = {
+              "result": "FAIL",
+              "error": "Installed runtime result was not produced.",
+              "steps": [],
+          }
+          runtime_path = evidence / "installed-runtime-result.json"
+          if runtime_path.is_file():
+              try:
+                  parsed = json.loads(runtime_path.read_text(encoding="utf-8"))
+                  if isinstance(parsed, dict):
+                      runtime = parsed
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime["error"] = str(error)
+
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          validation = os.environ.get("VALIDATION_OUTCOME", "not-run")
+          result = (
+              "PASS"
+              if build == "success"
+              and validation == "success"
+              and runtime.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": result,
+              "buildOutcome": build,
+              "validationOutcome": validation,
+              "package": metadata,
+              "runtime": runtime,
+              "steps": steps,
+          }
+          (evidence / "debian-package-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory Debian package evidence
+        if: always()
+        run: |
+          find debian-package-v3-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort | tee debian-package-v3-evidence/inventory.txt
+          cat debian-package-v3-evidence/debian-package-result.json || true
+          cat debian-package-v3-evidence/desktop-entry-launch.log || true
+          cat debian-package-v3-evidence/window-titles.txt || true
+
+      - name: Upload Debian package evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debian-package-v3-evidence
+          path: |
+            debian-package-v3-build.log
+            debian-package-v3-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable Debian package result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("debian-package-v3-evidence/debian-package-result.json")
+          if source.is_file():
+              try:
+                  installed = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  installed = {"result": "FAIL", "error": str(error), "steps": []}
+          else:
+              installed = {
+                  "result": "FAIL",
+                  "error": "Debian result missing.",
+                  "steps": [],
+              }
+
+          payload = {
+              "result": installed.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "validationOutcome": os.environ.get("VALIDATION_OUTCOME", "not-run"),
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "evidenceArtifact": "linux-debian-package-v3-evidence",
+              "installedDeb": installed,
+          }
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          json_path = output_dir / "deb-install-latest.json"
+          md_path = output_dir / "deb-install-latest.md"
+          json_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Installed Debian Package Validation",
+              "",
+              f"- Overall result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Build outcome: `{payload['buildOutcome']}`",
+              f"- Validation outcome: `{payload['validationOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          for step in installed.get("steps", []):
+              if isinstance(step, dict):
+                  lines.append(
+                      f"- **{step.get('result', 'UNKNOWN')}** — "
+                      f"{step.get('name', 'unnamed check')}"
+                  )
+          package = installed.get("package")
+          if isinstance(package, dict) and package:
+              lines.extend([
+                  "",
+                  "## Package",
+                  "",
+                  f"- Name: `{package.get('packageName', '')}`",
+                  f"- Version: `{package.get('packageVersion', '')}`",
+                  f"- Architecture: `{package.get('packageArchitecture', '')}`",
+                  f"- Debian SHA-256: `{package.get('debSha256', '')}`",
+                  f"- Installed binary: `{package.get('installedBinary', '')}`",
+                  f"- Desktop file: `{package.get('desktopFile', '')}`",
+                  f"- Installed icon count: `{package.get('iconCount', '')}`",
+              ])
+          md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record installed Debian package result" \
+            docs/runtime-validation/deb-install-latest.json \
+            docs/runtime-validation/deb-install-latest.md
+
+      - name: Enforce Debian package result
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          test "$BUILD_OUTCOME" = "success"
+          test "$VALIDATION_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("debian-package-v3-evidence/debian-package-result.json"))["result"])')" = "PASS"
