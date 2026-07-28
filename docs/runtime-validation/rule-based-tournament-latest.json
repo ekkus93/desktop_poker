@@ -1,17 +1,17 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-07-28T04:58:13.719199+00:00",
+  "recordedAtUtc": "2026-07-28T05:17:47.498476+00:00",
   "result": "PASS",
   "ruleBasedTournament": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "65f10574533deae420ee03ddb3a421010c2a9500156492784ba697779e9c6d54",
-    "completedHands": 14,
+    "completedHands": 104,
     "finalStandings": [
       {
         "chipCount": 300,
-        "displayName": "CI Human Host",
-        "isLocal": true,
+        "displayName": "Rule Bot Alpha",
+        "isLocal": false,
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -19,8 +19,8 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Rule Bot Alpha",
-        "isLocal": false,
+        "displayName": "CI Human Host",
+        "isLocal": true,
         "isObserver": true,
         "note": null,
         "rank": 2,
@@ -38,22 +38,13 @@
     ],
     "hostActions": [
       "hand 1: fold",
-      "hand 3: allIn",
-      "hand 4: allIn",
-      "hand 5: allIn",
-      "hand 6: allIn",
-      "hand 7: allIn",
-      "hand 9: allIn",
-      "hand 10: allIn",
-      "hand 11: allIn",
-      "hand 12: allIn",
-      "hand 14: allIn"
+      "hand 2: allIn"
     ],
-    "instanceId": "rule-based-npc-30330069297",
-    "npcActionCount": 23,
+    "instanceId": "rule-based-npc-30330945439",
+    "npcActionCount": 119,
     "npcActionCounts": {
-      "Rule Bot Alpha": 9,
-      "Rule Bot Beta": 14
+      "Rule Bot Alpha": 57,
+      "Rule Bot Beta": 62
     },
     "npcActions": [
       {
@@ -71,25 +62,25 @@
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 2,
-        "message": "Rule Bot Beta Fold.",
+        "message": "Rule Bot Beta Raise to 40.",
         "sequence": 12
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 2,
+        "message": "Rule Bot Beta Call.",
+        "sequence": 16
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 3,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 16
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 3,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 20
+        "sequence": 22
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 4,
-        "message": "Rule Bot Alpha Fold.",
+        "message": "Rule Bot Alpha Raise to 40.",
         "sequence": 26
       },
       {
@@ -99,104 +90,680 @@
         "sequence": 28
       },
       {
-        "displayName": "Rule Bot Alpha",
+        "displayName": "Rule Bot Beta",
         "handNumber": 5,
-        "message": "Rule Bot Alpha Fold.",
+        "message": "Rule Bot Beta Fold.",
         "sequence": 32
       },
       {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 5,
-        "message": "Rule Bot Beta Call.",
-        "sequence": 34
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 5,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 38
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 6,
-        "message": "Rule Bot Beta All-in to 60.",
-        "sequence": 42
-      },
-      {
         "displayName": "Rule Bot Alpha",
         "handNumber": 6,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 46
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 7,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 53
+        "sequence": 36
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 7,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 55
+        "sequence": 40
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 8,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 59
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 8,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 61
+        "sequence": 44
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 9,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 65
+        "sequence": 48
       },
       {
         "displayName": "Rule Bot Alpha",
-        "handNumber": 9,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 69
-      },
-      {
-        "displayName": "Rule Bot Beta",
         "handNumber": 10,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 75
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 11,
-        "message": "Rule Bot Beta Raise to 40.",
-        "sequence": 81
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 52
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 11,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 85
+        "sequence": 56
       },
       {
-        "displayName": "Rule Bot Beta",
+        "displayName": "Rule Bot Alpha",
         "handNumber": 12,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 91
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 60
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 13,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 95
+        "sequence": 64
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 14,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 68
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 15,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 72
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 16,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 76
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 17,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 80
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 18,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 84
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 19,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 88
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 20,
+        "message": "Rule Bot Alpha Raise to 40.",
+        "sequence": 92
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 20,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 94
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 21,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 98
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 22,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 102
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 23,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 106
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 24,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 110
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 25,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 114
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 26,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 118
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 27,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 122
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 28,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 126
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 29,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 130
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 30,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 134
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 31,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 138
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 32,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 142
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 33,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 146
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 34,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 150
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 35,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 154
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 36,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 158
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 37,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 162
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 38,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 166
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 39,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 170
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 40,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 174
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 41,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 178
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 42,
+        "message": "Rule Bot Alpha Raise to 40.",
+        "sequence": 182
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 42,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 184
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 43,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 188
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 44,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 192
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 45,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 196
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 46,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 200
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 47,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 204
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 48,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 208
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 49,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 212
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 50,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 216
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 51,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 220
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 52,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 224
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 53,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 228
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 54,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 232
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 55,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 236
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 56,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 240
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 57,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 244
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 58,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 248
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 59,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 252
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 60,
+        "message": "Rule Bot Alpha Raise to 40.",
+        "sequence": 256
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 60,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 258
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 61,
+        "message": "Rule Bot Beta Raise to 40.",
+        "sequence": 262
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 61,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 264
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 62,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 268
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 63,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 272
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 64,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 276
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 65,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 280
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 66,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 284
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 67,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 288
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 68,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 292
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 69,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 296
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 70,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 300
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 71,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 304
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 72,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 308
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 73,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 312
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 74,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 316
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 75,
+        "message": "Rule Bot Beta Raise to 40.",
+        "sequence": 320
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 75,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 322
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 76,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 326
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 77,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 330
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 78,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 334
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 79,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 338
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 80,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 342
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 81,
+        "message": "Rule Bot Beta Raise to 40.",
+        "sequence": 346
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 81,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 348
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 82,
+        "message": "Rule Bot Alpha Raise to 40.",
+        "sequence": 352
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 82,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 354
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 83,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 358
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 84,
+        "message": "Rule Bot Alpha Raise to 40.",
+        "sequence": 362
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 84,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 364
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 85,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 368
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 86,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 372
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 87,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 376
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 88,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 380
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 89,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 384
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 90,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 388
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 91,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 392
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 92,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 396
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 93,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 400
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 94,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 404
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 95,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 408
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 96,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 412
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 97,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 416
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 98,
+        "message": "Rule Bot Alpha Raise to 60.",
+        "sequence": 420
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 98,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 422
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 99,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 426
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 100,
+        "message": "Rule Bot Alpha Fold.",
+        "sequence": 430
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 101,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 434
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 102,
+        "message": "Rule Bot Alpha Raise to 60.",
+        "sequence": 438
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 102,
+        "message": "Rule Bot Beta Call.",
+        "sequence": 440
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 102,
+        "message": "Rule Bot Beta Check.",
+        "sequence": 443
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 102,
+        "message": "Rule Bot Alpha Bet to 138.",
+        "sequence": 445
+      },
+      {
+        "displayName": "Rule Bot Beta",
+        "handNumber": 102,
+        "message": "Rule Bot Beta Fold.",
+        "sequence": 447
+      },
+      {
+        "displayName": "Rule Bot Alpha",
+        "handNumber": 103,
+        "message": "Rule Bot Alpha Check.",
+        "sequence": 451
       }
     ],
     "npcDiagnosticCount": 0,
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30330069297",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30330945439",
     "result": "PASS",
     "steps": [
       {
@@ -216,7 +783,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed across 14 hands with 23 committed rule-based NPC actions",
+        "name": "tournament completed across 104 hands with 119 committed rule-based NPC actions",
         "result": "PASS"
       },
       {
@@ -234,7 +801,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "88c1b86e02adea8e450b55bb24d894467a1b4237",
+  "validatedCommit": "e24983d4f262da2fce4db6307cc78bb9afd1123d",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30330069297"
+  "workflowRunId": "30330945439"
 }
