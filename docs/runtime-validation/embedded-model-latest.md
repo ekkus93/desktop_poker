@@ -1,9 +1,9 @@
 # Embedded tiny-model NPC validation
 
-- Result: **PASS**
-- Validated commit: `eba10cb1960a4848873b9831848a899e73174c8e`
-- Workflow run: `30353925739`
+- Result: **FAIL**
+- Validated commit: `1c65a9572f78e3858ed00506df3ad2d362b91498`
+- Workflow run: `30356406431`
 - Model: `SmolLM2-135M-Instruct-Q3_K_M.gguf`
 - SHA-256: `3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95`
-- Checksum: `success`
-- Real inference: `success`
+- Checksum: `skipped`
+- Real inference: `skipped`
