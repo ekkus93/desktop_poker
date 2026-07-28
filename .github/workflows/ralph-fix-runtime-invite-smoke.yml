@@ -1,0 +1,72 @@
+name: Ralph fix runtime invite smoke
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/ralph-fix-runtime-invite-smoke.trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Replace copy-dependent invite assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/runtime_multi_instance_smoke.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''        wait_for_source(client, "Invite looks good", timeout=30.0)
+          click_first_enabled_text(client, "Continue to lobby")
+          '''
+          new = '''        wait_for(
+              "validated invite with enabled Continue to lobby",
+              lambda: client.execute(
+                  """
+          const control = Array.from(document.querySelectorAll('button, a')).find(
+            (candidate) => (candidate.textContent || '').trim() === 'Continue to lobby'
+          );
+          return Boolean(control && !(control instanceof HTMLButtonElement && control.disabled));
+          """
+              ),
+              timeout=30.0,
+          )
+          click_first_enabled_text(client, "Continue to lobby")
+          '''
+          if old not in text:
+              raise SystemExit("stale invite assertion was not found exactly once")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python3 -m py_compile scripts/runtime_multi_instance_smoke.py
+
+      - name: Remove one-shot files and publish patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/ralph-fix-runtime-invite-smoke.yml \
+            .github/ralph-fix-runtime-invite-smoke.trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/runtime_multi_instance_smoke.py \
+            .github/workflows/ralph-fix-runtime-invite-smoke.yml \
+            .github/ralph-fix-runtime-invite-smoke.trigger
+          git commit -m "Fix stale multi-instance invite smoke assertion"
+          for attempt in 1 2 3 4 5; do
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            echo "Patch push attempt ${attempt}/5 failed; rebasing and retrying."
+            git pull --rebase origin master
+          done
+          exit 1
