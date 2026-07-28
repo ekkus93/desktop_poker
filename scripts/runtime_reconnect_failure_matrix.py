@@ -347,9 +347,17 @@ def submit_client_action_after_reconnect(
         client_tray = client_view.get("actionTray")
         if isinstance(client_tray, dict):
             legal = client_tray.get("legalActions")
-            if not isinstance(legal, list) or "checkOrCall" not in legal:
+            if not isinstance(legal, list):
                 raise AssertionError(
-                    f"post-reconnect client action tray lacks checkOrCall: {client_tray!r}"
+                    f"post-reconnect client action tray has no legalActions: {client_tray!r}"
+                )
+            legal_tokens = {
+                str(action).strip().lower().replace("-", "").replace(" ", "")
+                for action in legal
+            }
+            if "call" not in legal_tokens and "check" not in legal_tokens:
+                raise AssertionError(
+                    f"post-reconnect client action tray lacks Call/Check: {client_tray!r}"
                 )
             payload = {
                 "viewerMode": "local",
