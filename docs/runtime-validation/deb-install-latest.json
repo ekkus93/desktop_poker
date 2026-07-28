@@ -1,22 +1,113 @@
 {
-  "buildOutcome": "failure",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-debian-package-v3-evidence",
   "installedDeb": {
-    "buildOutcome": "failure",
-    "package": {},
-    "result": "FAIL",
-    "runtime": {
-      "error": "Installed runtime result was not produced.",
-      "result": "FAIL",
-      "steps": []
+    "buildOutcome": "success",
+    "package": {
+      "deb": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/deb/Desktop Poker_0.1.0_amd64.deb",
+      "debSha256": "8cb115806bea19ebc1967ab5613756fcca4a00fd8fa893887ccea5751d606b0a",
+      "desktopFile": "/usr/share/applications/Desktop Poker.desktop",
+      "desktopId": "Desktop Poker",
+      "iconCount": "3",
+      "installedBinary": "/usr/bin/desktop-poker",
+      "installedBinarySha256": "be2a5591e815aeab59ce7fb462fbcc0085e511e864bc0d6c4f327c2474a7e917",
+      "packageArchitecture": "amd64",
+      "packageName": "desktop-poker",
+      "packageVersion": "0.1.0"
     },
-    "steps": [],
-    "validationOutcome": "skipped"
+    "result": "PASS",
+    "runtime": {
+      "application": "/usr/bin/desktop-poker",
+      "applicationSha256": "be2a5591e815aeab59ce7fb462fbcc0085e511e864bc0d6c4f327c2474a7e917",
+      "instanceId": "installed-deb-webdriver-30378674174",
+      "result": "PASS",
+      "steps": [
+        {
+          "name": "tauri-driver became ready",
+          "result": "PASS"
+        },
+        {
+          "name": "release binary created a WebDriver session",
+          "result": "PASS"
+        },
+        {
+          "name": "Home rendered through the real Tauri backend",
+          "result": "PASS"
+        },
+        {
+          "name": "browser mocks are unavailable in release mode",
+          "result": "PASS"
+        },
+        {
+          "name": "Host route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "Join route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "invalid invite failed explicitly: The invite could not be checked.",
+          "result": "PASS"
+        },
+        {
+          "name": "/settings route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "/rules route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /lobby without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /table without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "release /debug route is not reachable",
+          "result": "PASS"
+        },
+        {
+          "name": "runtime screenshot and final page source captured",
+          "result": "PASS"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "name": "Debian package was produced",
+        "result": "PASS"
+      },
+      {
+        "name": "Debian package installed through apt",
+        "result": "PASS"
+      },
+      {
+        "name": "Package owns a valid executable, desktop entry, and icon files",
+        "result": "PASS"
+      },
+      {
+        "name": "Installed executable passed the production WebDriver smoke",
+        "result": "PASS"
+      },
+      {
+        "name": "Installed desktop entry launched the packaged process and X11 window",
+        "result": "PASS"
+      },
+      {
+        "name": "Package purge removed the executable, desktop entry, and icon files",
+        "result": "PASS"
+      }
+    ],
+    "validationOutcome": "success"
   },
-  "recordedAtUtc": "2026-07-28T16:26:34.280410+00:00",
-  "result": "FAIL",
-  "validatedCommit": "d95ef20c6968f57b53790ac7a755faf09b7a963a",
-  "validationOutcome": "skipped",
+  "recordedAtUtc": "2026-07-28T16:34:16.533471+00:00",
+  "result": "PASS",
+  "validatedCommit": "9d31efcd8f4aac47a2128fbf93c252889590753b",
+  "validationOutcome": "success",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30378185320"
+  "workflowRunId": "30378674174"
 }
