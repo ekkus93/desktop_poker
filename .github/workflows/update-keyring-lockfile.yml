@@ -1,0 +1,56 @@
+name: Refresh keyring lockfile
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/update-keyring-lockfile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-keyring-lockfile
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Refresh and publish Cargo.lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B keyring-lockfile-refresh origin/master
+
+          cargo generate-lockfile
+          grep -F 'name = "dbus-secret-service"' Cargo.lock
+          grep -F 'name = "keyring"' Cargo.lock
+          rm .github/workflows/update-keyring-lockfile.yml
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock .github/workflows/update-keyring-lockfile.yml
+          git commit -m "build: lock Linux Secret Service dependencies"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
