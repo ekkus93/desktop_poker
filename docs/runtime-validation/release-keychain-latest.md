@@ -1,21 +1,18 @@
 # Latest Linux Release Keychain Validation
 
 - Result: **FAIL**
-- Validated commit: `34508dfb62b239a012489004397548580dd24698`
-- GitHub Actions run: `30328090726`
-- Release build: `success`
-- Secret Service persistence path: `failure`
-- Unavailable-keychain path: `failure`
+- Validated commit: `b4ad2227fa595fa28897bdb8d1bcb2c49dcc5062`
+- GitHub Actions run: `30328832539`
+- Release build: `cancelled`
+- Secret Service persistence path: `skipped`
+- Unavailable-keychain path: `skipped`
 - Evidence artifact: `linux-release-keychain-evidence`
 
 ## Persistence and clear
 
-AssertionError: profile directory does not exist: /home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30328090726
-- **PASS** — fresh release profile started without a configured provider
-- **FAIL** — release keychain persistence
+success path result was not produced.
 
 ## Failure behavior
 
-AssertionError: 'set_llm_api_key' unexpectedly succeeded
-- **FAIL** — release keychain failure path
+failure path result was not produced.
 

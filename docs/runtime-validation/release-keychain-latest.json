@@ -1,37 +1,19 @@
 {
-  "buildOutcome": "success",
+  "buildOutcome": "cancelled",
   "evidenceArtifact": "linux-release-keychain-evidence",
   "failurePath": {
-    "error": "AssertionError: 'set_llm_api_key' unexpectedly succeeded",
-    "mode": "failure",
-    "result": "FAIL",
-    "steps": [
-      {
-        "name": "release keychain failure path",
-        "result": "FAIL"
-      }
-    ]
+    "error": "failure path result was not produced.",
+    "result": "FAIL"
   },
-  "failurePathOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T04:21:12.952460+00:00",
+  "failurePathOutcome": "skipped",
+  "recordedAtUtc": "2026-07-28T04:31:19.447439+00:00",
   "result": "FAIL",
   "successPath": {
-    "error": "AssertionError: profile directory does not exist: /home/runner/.local/share/desktop-poker/profiles/release-keychain-success-30328090726",
-    "mode": "success",
-    "result": "FAIL",
-    "steps": [
-      {
-        "name": "fresh release profile started without a configured provider",
-        "result": "PASS"
-      },
-      {
-        "name": "release keychain persistence",
-        "result": "FAIL"
-      }
-    ]
+    "error": "success path result was not produced.",
+    "result": "FAIL"
   },
-  "successPathOutcome": "failure",
-  "validatedCommit": "34508dfb62b239a012489004397548580dd24698",
+  "successPathOutcome": "skipped",
+  "validatedCommit": "b4ad2227fa595fa28897bdb8d1bcb2c49dcc5062",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30328090726"
+  "workflowRunId": "30328832539"
 }
