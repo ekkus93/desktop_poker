@@ -1,0 +1,32 @@
+{
+  "buildOutcome": "success",
+  "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
+  "protocolOutcome": "success",
+  "recordedAtUtc": "2026-07-28T04:21:04.410946+00:00",
+  "releaseRuntimeOutcome": "failure",
+  "result": "FAIL",
+  "runtime": {
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
+    "error": "WebDriverError: WebDriver POST /session/24561606-6a98-47fa-a920-cf95f00c31ea/execute/async error failed to connect to host: Connection refused (os error 111): None",
+    "result": "FAIL",
+    "scenarios": {},
+    "steps": [
+      {
+        "name": "host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "client release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "release reconnect failure matrix",
+        "result": "FAIL"
+      }
+    ]
+  },
+  "validatedCommit": "e406a068794be70bab1d9bce1a854bb848a17b75",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30327867869"
+}
