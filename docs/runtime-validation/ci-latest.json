@@ -3,11 +3,11 @@
     "validation-evidence",
     "browser-geometry-evidence"
   ],
-  "geometryResult": "success",
-  "recordedAtUtc": "2026-07-28T04:42:15.618674+00:00",
-  "result": "PASS",
-  "validatedCommit": "14c8dc4d0615effe0f37f472c015058d92133bb1",
-  "verifyResult": "success",
+  "geometryResult": "cancelled",
+  "recordedAtUtc": "2026-07-28T04:44:14.737255+00:00",
+  "result": "FAIL",
+  "validatedCommit": "f650a2689164db3c05c814ab824ac34c5418a3e0",
+  "verifyResult": "cancelled",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30329296737"
+  "workflowRunId": "30329536029"
 }
