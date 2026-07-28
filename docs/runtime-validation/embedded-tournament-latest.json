@@ -4,127 +4,17 @@
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-27T22:55:47.267817+00:00",
-  "result": "PASS",
+  "recordedAtUtc": "2026-07-28T05:22:22.651880+00:00",
+  "result": "FAIL",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
-    "completedHands": 2,
-    "finalStandings": [
-      {
-        "chipCount": 300,
-        "displayName": "Bot Alpha",
-        "isLocal": false,
-        "isObserver": false,
-        "note": "Dealer",
-        "rank": 1,
-        "statusLabel": "Active"
-      },
-      {
-        "chipCount": 0,
-        "displayName": "Bot Beta",
-        "isLocal": false,
-        "isObserver": true,
-        "note": null,
-        "rank": 2,
-        "statusLabel": "Eliminated observer"
-      },
-      {
-        "chipCount": 0,
-        "displayName": "CI Human Host",
-        "isLocal": true,
-        "isObserver": true,
-        "note": null,
-        "rank": 3,
-        "statusLabel": "Eliminated observer"
-      }
-    ],
-    "hostActions": [
-      "hand 1: fold",
-      "hand 2: allIn"
-    ],
-    "instanceId": "embedded-npc-tournament-30312220821",
+    "applicationSha256": "65f10574533deae420ee03ddb3a421010c2a9500156492784ba697779e9c6d54",
+    "error": "AssertionError: Tauri command 'set_llm_provider_config' failed: could not delete provider key for embeddedLocal: keychain delete failed: Platform secure storage failure: DBus error: The name org.freedesktop.secrets was not provided by any .service files",
+    "evidenceCaptureError": "Tauri command 'get_table_view' failed: no active live session is available for the table view",
+    "hostActions": [],
     "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
-    "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-    "npcActionCount": 10,
-    "npcActionCounts": {
-      "Bot Alpha": 6,
-      "Bot Beta": 4
-    },
-    "npcActions": [
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 1,
-        "message": "Bot Alpha Call.",
-        "profileId": "aggressive-alice",
-        "sequence": 6
-      },
-      {
-        "displayName": "Bot Beta",
-        "handNumber": 1,
-        "message": "Bot Beta Raise to 40.",
-        "profileId": "balanced-sam",
-        "sequence": 8
-      },
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 1,
-        "message": "Bot Alpha Call.",
-        "profileId": "aggressive-alice",
-        "sequence": 10
-      },
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 1,
-        "message": "Bot Alpha Bet to 60.",
-        "profileId": "aggressive-alice",
-        "sequence": 13
-      },
-      {
-        "displayName": "Bot Beta",
-        "handNumber": 1,
-        "message": "Bot Beta Call.",
-        "profileId": "balanced-sam",
-        "sequence": 15
-      },
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 1,
-        "message": "Bot Alpha Bet to 80.",
-        "profileId": "aggressive-alice",
-        "sequence": 18
-      },
-      {
-        "displayName": "Bot Beta",
-        "handNumber": 1,
-        "message": "Bot Beta Call.",
-        "profileId": "balanced-sam",
-        "sequence": 20
-      },
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 1,
-        "message": "Bot Alpha All-in to 100.",
-        "profileId": "aggressive-alice",
-        "sequence": 23
-      },
-      {
-        "displayName": "Bot Beta",
-        "handNumber": 1,
-        "message": "Bot Beta All-in to 100.",
-        "profileId": "balanced-sam",
-        "sequence": 25
-      },
-      {
-        "displayName": "Bot Alpha",
-        "handNumber": 2,
-        "message": "Bot Alpha Call.",
-        "profileId": "aggressive-alice",
-        "sequence": 30
-      }
-    ],
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-30312220821",
-    "result": "PASS",
+    "npcActions": [],
+    "result": "FAIL",
     "steps": [
       {
         "name": "tauri-driver became ready",
@@ -135,29 +25,13 @@
         "result": "PASS"
       },
       {
-        "name": "embedded provider loaded and two profile-backed NPCs were seated ready",
-        "result": "PASS"
-      },
-      {
-        "name": "release table entered hand 1 with the production NPC runner active",
-        "result": "PASS"
-      },
-      {
-        "name": "tournament completed across 2 hands with 10 committed embedded NPC actions",
-        "result": "PASS"
-      },
-      {
-        "name": "both embedded NPC identities and profile assignments produced live actions",
-        "result": "PASS"
-      },
-      {
-        "name": "final standings contain the human host and both embedded NPC players",
-        "result": "PASS"
+        "name": "embedded NPC tournament",
+        "result": "FAIL"
       }
     ]
   },
-  "tournamentOutcome": "success",
-  "validatedCommit": "3b5a042ef65da75f9c0eefec9e32e392f6371ab8",
+  "tournamentOutcome": "failure",
+  "validatedCommit": "e24983d4f262da2fce4db6307cc78bb9afd1123d",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30312220821"
+  "workflowRunId": "30330945445"
 }
