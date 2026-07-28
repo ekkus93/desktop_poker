@@ -56,7 +56,10 @@ impl HostServer {
         // failure; holding the registry lock while closing streams would risk a
         // lock-order deadlock.
         let connected_clients = match self.clients.lock() {
-            Ok(mut clients) => clients.drain().map(|(_, client)| client).collect::<Vec<_>>(),
+            Ok(mut clients) => clients
+                .drain()
+                .map(|(_, client)| client)
+                .collect::<Vec<_>>(),
             Err(poisoned) => {
                 eprintln!(
                     "[host-shutdown] connected-client registry lock was poisoned; recovering"
