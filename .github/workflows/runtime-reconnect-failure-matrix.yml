@@ -1,0 +1,327 @@
+name: Reconnect protocol and release failure matrix
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/runtime-reconnect-failure-matrix.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "crates/**"
+      - "scripts/runtime_reconnect_failure_matrix.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-reconnect-failure-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+  RUST_BACKTRACE: "1"
+
+jobs:
+  reconnect-failure-matrix:
+    name: Reconnect tests and release host-loss scenarios
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install native build and WebDriver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Run focused reconnect protocol tests
+        id: protocol
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace reconnect -- --nocapture \
+            2>&1 | tee reconnect-protocol-tests.log
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --no-bundle \
+            2>&1 | tee reconnect-release-build.log
+
+      - name: Run release unreachable-host and host-loss matrix
+        id: runtime
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$GITHUB_WORKSPACE/reconnect-failure-evidence"
+          binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          mkdir -p "$evidence_dir"
+          test -x "$binary"
+          file "$binary" | tee "$evidence_dir/release-binary.file.txt"
+          sha256sum "$binary" | tee "$evidence_dir/release-binary.sha256"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+          export RECONNECT_FAILURE_BINARY="$binary"
+          export RECONNECT_FAILURE_EVIDENCE="$evidence_dir"
+
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+
+          DESKTOP_POKER_INSTANCE_ID="reconnect-host-${GITHUB_RUN_ID}" \
+            tauri-driver --port 4624 --native-port 4625 \
+            >"$RECONNECT_FAILURE_EVIDENCE/host-tauri-driver.log" 2>&1 &
+          host_driver_pid=$!
+          DESKTOP_POKER_INSTANCE_ID="reconnect-client-${GITHUB_RUN_ID}" \
+            tauri-driver --port 4634 --native-port 4635 \
+            >"$RECONNECT_FAILURE_EVIDENCE/client-tauri-driver.log" 2>&1 &
+          client_driver_pid=$!
+
+          cleanup() {
+            kill "$client_driver_pid" "$host_driver_pid" 2>/dev/null || true
+            wait "$client_driver_pid" 2>/dev/null || true
+            wait "$host_driver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 scripts/runtime_reconnect_failure_matrix.py \
+            --application "$RECONNECT_FAILURE_BINARY" \
+            --host-driver-url http://127.0.0.1:4624 \
+            --client-driver-url http://127.0.0.1:4634 \
+            --evidence-dir "$RECONNECT_FAILURE_EVIDENCE"
+          RUNTIME
+
+      - name: Assemble reconnect validation result
+        if: always()
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("reconnect-failure-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+          runtime_path = evidence / "release-reconnect-failure-result.json"
+          runtime: dict[str, object] = {
+              "result": "FAIL",
+              "error": "Release reconnect failure result was not produced.",
+          }
+          if runtime_path.is_file():
+              try:
+                  parsed = json.loads(runtime_path.read_text(encoding="utf-8"))
+                  if isinstance(parsed, dict):
+                      runtime = parsed
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime["error"] = f"Release reconnect result was unreadable: {error}"
+
+          protocol = os.environ.get("PROTOCOL_OUTCOME", "not-run")
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          release_runtime = os.environ.get("RUNTIME_OUTCOME", "not-run")
+          result = (
+              "PASS"
+              if protocol == "success"
+              and build == "success"
+              and release_runtime == "success"
+              and runtime.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": result,
+              "protocolOutcome": protocol,
+              "buildOutcome": build,
+              "releaseRuntimeOutcome": release_runtime,
+              "runtime": runtime,
+          }
+          (evidence / "reconnect-workflow-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Inventory reconnect evidence
+        if: always()
+        run: |
+          find reconnect-failure-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort | tee reconnect-failure-evidence/inventory.txt
+          cat reconnect-failure-evidence/reconnect-workflow-result.json || true
+          echo '--- host tauri-driver ---'
+          cat reconnect-failure-evidence/host-tauri-driver.log || true
+          echo '--- client tauri-driver ---'
+          cat reconnect-failure-evidence/client-tauri-driver.log || true
+
+      - name: Upload reconnect evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconnect-protocol-and-release-failure-evidence
+          path: |
+            reconnect-protocol-tests.log
+            reconnect-release-build.log
+            reconnect-failure-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish durable reconnect result on master
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("reconnect-failure-evidence/reconnect-workflow-result.json")
+          if source.is_file():
+              try:
+                  workflow = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  workflow = {
+                      "result": "FAIL",
+                      "runtime": {"result": "FAIL", "error": str(error)},
+                  }
+          else:
+              workflow = {
+                  "result": "FAIL",
+                  "runtime": {"result": "FAIL", "error": "Workflow result missing."},
+              }
+
+          runtime = workflow.get("runtime")
+          if not isinstance(runtime, dict):
+              runtime = {"result": "FAIL", "error": "Runtime payload was not an object."}
+
+          payload = {
+              "result": workflow.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "protocolOutcome": os.environ.get("PROTOCOL_OUTCOME", "not-run"),
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "releaseRuntimeOutcome": os.environ.get("RUNTIME_OUTCOME", "not-run"),
+              "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
+              "runtime": runtime,
+          }
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          json_path = output_dir / "reconnect-failure-latest.json"
+          md_path = output_dir / "reconnect-failure-latest.md"
+          json_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Reconnect Protocol and Release Failure Validation",
+              "",
+              f"- Result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Protocol tests: `{payload['protocolOutcome']}`",
+              f"- Release build: `{payload['buildOutcome']}`",
+              f"- Release failure matrix: `{payload['releaseRuntimeOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          error = runtime.get("error")
+          if error:
+              lines.extend(["## Failure", "", str(error), ""])
+          steps = runtime.get("steps")
+          if isinstance(steps, list):
+              lines.extend(["## Executed checks", ""])
+              for step in steps:
+                  if isinstance(step, dict):
+                      lines.append(
+                          f"- **{step.get('result', 'UNKNOWN')}** — "
+                          f"{step.get('name', 'unnamed check')}"
+                      )
+          md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record reconnect failure matrix result" \
+            docs/runtime-validation/reconnect-failure-latest.json \
+            docs/runtime-validation/reconnect-failure-latest.md
+
+      - name: Enforce reconnect validation result
+        if: always()
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        run: |
+          test "$PROTOCOL_OUTCOME" = "success"
+          test "$BUILD_OUTCOME" = "success"
+          test "$RUNTIME_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("reconnect-failure-evidence/reconnect-workflow-result.json"))["result"])')" = "PASS"
