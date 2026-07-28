@@ -75,7 +75,9 @@ jobs:
             .github/workflows/retry-accessibility-migration-v2.yml \
             docs/runtime-validation/accessibility-migration-diagnostic.txt \
             docs/runtime-validation/accessibility-migration-test-diagnostic.txt \
-            docs/runtime-validation/accessibility-migration-test-diagnostic-v2.txt
+            docs/runtime-validation/accessibility-migration-test-diagnostic-v2.txt \
+            docs/runtime-validation/accessibility-migration-test-diagnostic-v3.txt \
+            docs/runtime-validation/npc-blocked-navigation-diagnostic.txt
           npm run format:check
           git diff --check
 
@@ -93,3 +95,6 @@ jobs:
             sleep 3
           done
           exit 1
+
+      - name: Confirm verified migration
+        run: echo "Accessibility migration verified and published."
