@@ -1,6 +1,9 @@
 use std::{
     net::TcpStream,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     thread::{self},
     time::Duration,
 };
@@ -13,7 +16,8 @@ use crate::{
     networking::{read_json_frame, write_json_frame},
     protocol::{
         join_request_envelope, JoinTournamentRequest, ProtocolErrorMessage, ProtocolMessageType,
-        ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, SnapshotEvent, PROTOCOL_VERSION,
+        ReconnectTournamentRequest, ResyncRequest, SignedEnvelope, SnapshotEvent,
+        ERROR_CODE_RECONNECT_ALREADY_CONNECTED, PROTOCOL_VERSION,
     },
 };
 
@@ -85,7 +89,9 @@ pub(crate) fn reconnect_after_disconnect(
     reconnect_token: Option<&str>,
     last_known_server_sequence: u64,
     next_counter: &mut u64,
+    stop_signal: &AtomicBool,
 ) -> Result<(TcpStream, SignedEnvelope<SnapshotEvent>), NetworkingError> {
+    ensure_reconnect_not_stopped(stop_signal)?;
     let reconnect_token = reconnect_token
         .ok_or_else(|| NetworkingError::new("reconnect token is unavailable for this session"))?;
     let identity = reconnect_identity
@@ -121,6 +127,7 @@ pub(crate) fn reconnect_after_disconnect(
     const MAX_ALREADY_CONNECTED_RETRIES: u8 = 10;
 
     for attempt in 0..=MAX_ALREADY_CONNECTED_RETRIES {
+        ensure_reconnect_not_stopped(stop_signal)?;
         let mut stream = connect_to_host(join_payload)?;
         write_json_frame(&mut stream, &reconnect_envelope)?;
 
@@ -129,15 +136,11 @@ pub(crate) fn reconnect_after_disconnect(
                 clear_established_read_timeout(&stream, "reconnected client session")?;
                 return Ok((stream, snapshot));
             }
-            Err(error)
-                if error
-                    .to_string()
-                    .contains("participant is already connected") =>
-            {
+            Err(error) if is_already_connected_rejection(&error) => {
                 if attempt == MAX_ALREADY_CONNECTED_RETRIES {
                     break;
                 }
-                thread::sleep(Duration::from_millis(20));
+                sleep_before_reconnect_retry(stop_signal)?;
             }
             Err(error) => return Err(error),
         }
@@ -221,5 +224,58 @@ pub(crate) fn read_snapshot_response(
     envelope
         .verify(crypto_provider, &join_payload.host_signing_public_key)
         .map_err(|error| NetworkingError::new(error.to_string()))?;
-    Err(NetworkingError::new(envelope.payload.message))
+    Err(NetworkingError::with_code(
+        envelope.payload.code,
+        envelope.payload.message,
+    ))
+}
+
+fn is_already_connected_rejection(error: &NetworkingError) -> bool {
+    error.code() == Some(ERROR_CODE_RECONNECT_ALREADY_CONNECTED)
+}
+
+fn ensure_reconnect_not_stopped(stop_signal: &AtomicBool) -> Result<(), NetworkingError> {
+    if stop_signal.load(Ordering::SeqCst) {
+        return Err(NetworkingError::new("client runtime shutdown requested"));
+    }
+    Ok(())
+}
+
+fn sleep_before_reconnect_retry(stop_signal: &AtomicBool) -> Result<(), NetworkingError> {
+    for _ in 0..20 {
+        ensure_reconnect_not_stopped(stop_signal)?;
+        thread::sleep(Duration::from_millis(1));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reconnect_retry_depends_on_stable_code_not_message() {
+        let error = NetworkingError::with_code(
+            ERROR_CODE_RECONNECT_ALREADY_CONNECTED,
+            "wording can change without changing behavior",
+        );
+        assert!(is_already_connected_rejection(&error));
+    }
+
+    #[test]
+    fn unrelated_rejection_code_is_not_retried() {
+        let error = NetworkingError::with_code(
+            crate::protocol::ERROR_CODE_RECONNECT_REJECTED,
+            "participant is already connected",
+        );
+        assert!(!is_already_connected_rejection(&error));
+    }
+
+    #[test]
+    fn reconnect_retry_wait_stops_immediately_on_shutdown() {
+        let stop_signal = AtomicBool::new(true);
+        let error = sleep_before_reconnect_retry(&stop_signal)
+            .expect_err("shutdown should abort reconnect retry wait");
+        assert_eq!(error.to_string(), "client runtime shutdown requested");
+    }
 }
