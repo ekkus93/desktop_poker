@@ -1,2 +1,2 @@
-replace stale Invite looks good assertion with enabled-control readiness check
-retry after workflow registration
+replace stale Invite looks good assertion with Invite decoded assertion
+retry with exact one-line replacement
