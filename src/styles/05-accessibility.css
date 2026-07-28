@@ -1,0 +1,40 @@
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1000;
+  padding: 0.65rem 0.9rem;
+  border: 2px solid var(--color-gold-200);
+  border-radius: 0.65rem;
+  background: var(--color-wood-950);
+  color: var(--color-ivory-50);
+  font-weight: 700;
+  transform: translateY(-200%);
+  transition: transform 120ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+:where(
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 3px solid var(--color-gold-200);
+  outline-offset: 3px;
+}
+
+main[tabindex="-1"]:focus {
+  outline: none;
+}
+
+[role="dialog"][aria-modal="true"] {
+  position: relative;
+  z-index: 20;
+}
