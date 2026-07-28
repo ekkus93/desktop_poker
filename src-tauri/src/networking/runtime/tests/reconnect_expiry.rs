@@ -70,11 +70,11 @@ fn reconnect_rejects_expired_authority_without_restoring_participant_state() {
         .get("player-expired")
         .expect("expired participant should remain registered");
     assert_eq!(participant.state, ParticipantState::Reconnecting);
+    assert_eq!(participant.connection_state, ConnectionState::Reconnecting);
     assert_eq!(
-        participant.connection_state,
-        ConnectionState::Reconnecting
+        participant.reconnect_token.as_deref(),
+        Some("expected-token")
     );
-    assert_eq!(participant.reconnect_token.as_deref(), Some("expected-token"));
     assert_eq!(participant.reconnect_expiry_ms, Some(0));
     assert_eq!(server_sequence.load(std::sync::atomic::Ordering::SeqCst), 0);
 }
