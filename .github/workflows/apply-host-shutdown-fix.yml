@@ -1,5 +1,6 @@
 name: Apply host socket shutdown fix
 
+# Existing workflow update intentionally triggers this one-time source patch.
 on:
   push:
     branches:
@@ -137,7 +138,7 @@ use super::support::*;
 use crate::{crypto::DefaultCryptoProvider, networking::ClientRuntimeEvent};
 
 #[test]
-fn dropping_host_closes_client_socket_and_emits_terminal_events() {
+fn dropping_host_closes_client_socket_and_reconnect_failure_becomes_terminal() {
     let provider = DefaultCryptoProvider;
     let host = bind_test_host(&provider, "table-host-shutdown", 141);
     let client = connect_test_client(&provider, &host, "player-shutdown", "Shutdown");
