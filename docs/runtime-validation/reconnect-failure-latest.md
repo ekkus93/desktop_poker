@@ -1,8 +1,8 @@
 # Latest Reconnect Protocol and Release Validation
 
 - Result: **PASS**
-- Validated commit: `f35d8552648091211ed05c99ac8474ae07541be6`
-- GitHub Actions run: `30335336702`
+- Validated commit: `6e730992a0f19b9f0d7f7486dd500e6e01d8b491`
+- GitHub Actions run: `30349276304`
 - Protocol tests: `success`
 - Release build: `success`
 - Release reconnect matrix: `success`
