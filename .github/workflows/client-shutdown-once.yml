@@ -32,145 +32,114 @@ jobs:
           from pathlib import Path
 
           path = Path("src-tauri/src/networking/runtime/client.rs")
-          text = path.read_text(encoding="utf-8")
+          lines = path.read_text(encoding="utf-8").splitlines()
 
-          def replace_once(old: str, new: str) -> None:
-              global text
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"expected exactly one match, found {count}: {old[:120]!r}")
-              text = text.replace(old, new, 1)
+          def find(needle: str, start: int = 0) -> int:
+              matches = [index for index, line in enumerate(lines[start:], start) if needle in line]
+              if not matches:
+                  raise SystemExit(f"missing expected line containing: {needle!r}")
+              return matches[0]
 
-          replace_once(
-              '''    sync::{
-                  mpsc::{self},
-                  Arc, Mutex,
-              },''',
-              '''    sync::{
-                  atomic::{AtomicBool, Ordering},
-                  mpsc::{self},
-                  Arc, Mutex,
-              },''',
+          def ensure_absent(needle: str) -> None:
+              if any(needle in line for line in lines):
+                  raise SystemExit(f"patch appears already applied: {needle!r}")
+
+          ensure_absent("atomic::{AtomicBool, Ordering}")
+          ensure_absent("let stop_signal = Arc::new(AtomicBool::new(false));")
+          ensure_absent("runtime_thread: Some(runtime_thread)")
+
+          mpsc_import = find("mpsc::{self},")
+          lines.insert(mpsc_import, "        atomic::{AtomicBool, Ordering},")
+
+          channel_line = find("let (sender, receiver) = mpsc::channel();")
+          channel_indent = lines[channel_line][: len(lines[channel_line]) - len(lines[channel_line].lstrip())]
+          lines.insert(channel_line, f"{channel_indent}let stop_signal = Arc::new(AtomicBool::new(false));")
+
+          command_clone = find("let command_connection_for_thread = Arc::clone(&command_connection);")
+          clone_indent = lines[command_clone][: len(lines[command_clone]) - len(lines[command_clone].lstrip())]
+          lines.insert(command_clone + 1, f"{clone_indent}let stop_signal_for_thread = Arc::clone(&stop_signal);")
+
+          detached_comment = find("The client runtime thread is intentionally detached")
+          if detached_comment + 1 < len(lines) and "by the stop flag and stream lifecycle" in lines[detached_comment + 1]:
+              del lines[detached_comment : detached_comment + 2]
+          else:
+              del lines[detached_comment]
+
+          builder_line = find("thread::Builder::new()", command_clone)
+          builder_indent = lines[builder_line][: len(lines[builder_line]) - len(lines[builder_line].lstrip())]
+          lines[builder_line] = f"{builder_indent}let runtime_thread = thread::Builder::new()"
+
+          loop_line = find("loop {", builder_line)
+          loop_indent = lines[loop_line][: len(lines[loop_line]) - len(lines[loop_line].lstrip())]
+          body_indent = loop_indent + "    "
+          lines[loop_line + 1 : loop_line + 1] = [
+              f"{body_indent}if stop_signal_for_thread.load(Ordering::SeqCst) {{",
+              f"{body_indent}    break;",
+              f"{body_indent}}}",
+              "",
+          ]
+
+          read_match = find("let frame_value = match read_json_frame::<Value>(&mut stream)", loop_line)
+          read_error = find("Err(_) => {", read_match)
+          error_indent = lines[read_error][: len(lines[read_error]) - len(lines[read_error].lstrip())]
+          error_body_indent = error_indent + "    "
+          lines[read_error + 1 : read_error + 1] = [
+              f"{error_body_indent}if stop_signal_for_thread.load(Ordering::SeqCst) {{",
+              f"{error_body_indent}    break;",
+              f"{error_body_indent}}}",
+              "",
+          ]
+
+          reconnect_match = find("match reconnect_after_disconnect(", read_error)
+          reconnect_ok = find("Ok((reconnected_stream, snapshot_envelope)) => {", reconnect_match)
+          ok_indent = lines[reconnect_ok][: len(lines[reconnect_ok]) - len(lines[reconnect_ok].lstrip())] + "    "
+          lines[reconnect_ok + 1 : reconnect_ok + 1] = [
+              f"{ok_indent}if stop_signal_for_thread.load(Ordering::SeqCst) {{",
+              f"{ok_indent}    drop(reconnected_stream);",
+              f"{ok_indent}    break;",
+              f"{ok_indent}}}",
+              "",
+          ]
+
+          reconnect_error = find("Err(error) => {", reconnect_ok + 1)
+          reconnect_error_indent = lines[reconnect_error][: len(lines[reconnect_error]) - len(lines[reconnect_error].lstrip())] + "    "
+          lines[reconnect_error + 1 : reconnect_error + 1] = [
+              f"{reconnect_error_indent}if stop_signal_for_thread.load(Ordering::SeqCst) {{",
+              f"{reconnect_error_indent}    break;",
+              f"{reconnect_error_indent}}}",
+              "",
+          ]
+
+          disconnected = find(
+              "send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Disconnected { player_id });",
+              reconnect_error,
           )
+          disconnected_indent = lines[disconnected][: len(lines[disconnected]) - len(lines[disconnected].lstrip())]
+          lines[disconnected : disconnected + 1] = [
+              f"{disconnected_indent}if !stop_signal_for_thread.load(Ordering::SeqCst) {{",
+              f"{disconnected_indent}    send_runtime_event_best_effort(",
+              f"{disconnected_indent}        &sender,",
+              f"{disconnected_indent}        ClientRuntimeEvent::Disconnected {{ player_id }},",
+              f"{disconnected_indent}    );",
+              f"{disconnected_indent}}}",
+          ]
 
-          replace_once(
-              '''        let (sender, receiver) = mpsc::channel();''',
-              '''        let stop_signal = Arc::new(AtomicBool::new(false));
-                  let (sender, receiver) = mpsc::channel();''',
-          )
+          self_start = find("Ok(Self {", disconnected)
+          command_field = find("command_connection,", self_start)
+          field_indent = lines[command_field][: len(lines[command_field]) - len(lines[command_field].lstrip())]
+          lines[command_field + 1 : command_field + 1] = [
+              f"{field_indent}stop_signal,",
+              f"{field_indent}runtime_thread: Some(runtime_thread),",
+          ]
 
-          replace_once(
-              '''        let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
-                  let command_connection_for_thread = Arc::clone(&command_connection);
-
-                  // The client runtime thread is intentionally detached; shutdown is coordinated
-                  // by the stop flag and stream lifecycle.
-                  thread::Builder::new()''',
-              '''        let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
-                  let command_connection_for_thread = Arc::clone(&command_connection);
-                  let stop_signal_for_thread = Arc::clone(&stop_signal);
-
-                  let runtime_thread = thread::Builder::new()''',
-          )
-
-          replace_once(
-              '''            let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
-                          std::collections::BTreeMap::new();
-                      loop {
-                          let frame_value = match read_json_frame::<Value>(&mut stream) {''',
-              '''            let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
-                          std::collections::BTreeMap::new();
-                      loop {
-                          if stop_signal_for_thread.load(Ordering::SeqCst) {
-                              break;
-                          }
-
-                          let frame_value = match read_json_frame::<Value>(&mut stream) {''',
-          )
-
-          replace_once(
-              '''                    Err(_) => {
-                                      // Best-effort cleanup: if this lock is poisoned, command submission is''',
-              '''                    Err(_) => {
-                                      if stop_signal_for_thread.load(Ordering::SeqCst) {
-                                          break;
-                                      }
-
-                                      // Best-effort cleanup: if this lock is poisoned, command submission is''',
-          )
-
-          replace_once(
-              '''                            Ok((reconnected_stream, snapshot_envelope)) => {
-                                                  // Accept the new stream for reading, but do not install the
-                                                  // cloned command stream until all snapshot validation passes.
-                                                  // This prevents a malformed reconnect snapshot from leaving
-                                                  // a stale stream handle in command_connection.
-                                                  stream = reconnected_stream;''',
-              '''                            Ok((reconnected_stream, snapshot_envelope)) => {
-                                                  if stop_signal_for_thread.load(Ordering::SeqCst) {
-                                                      drop(reconnected_stream);
-                                                      break;
-                                                  }
-
-                                                  // Accept the new stream for reading, but do not install the
-                                                  // cloned command stream until all snapshot validation passes.
-                                                  // This prevents a malformed reconnect snapshot from leaving
-                                                  // a stale stream handle in command_connection.
-                                                  stream = reconnected_stream;''',
-          )
-
-          replace_once(
-              '''                            Err(error) => {
-                                                  // Best-effort reconnect cleanup: failure to acquire this lock only''',
-              '''                            Err(error) => {
-                                                  if stop_signal_for_thread.load(Ordering::SeqCst) {
-                                                      break;
-                                                  }
-
-                                                  // Best-effort reconnect cleanup: failure to acquire this lock only''',
-          )
-
-          replace_once(
-              '''            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Disconnected { player_id });
-                  })
-                  .map_err(|error| {
-                      NetworkingError::new(format!(
-                          "failed to spawn client runtime thread: {error}"
-                      ))
-                  })?;
-
-                  Ok(Self {
-                      incoming: receiver,
-                      reconnect_identity,
-                      command_connection,
-                  })''',
-              '''            if !stop_signal_for_thread.load(Ordering::SeqCst) {
-                          send_runtime_event_best_effort(
-                              &sender,
-                              ClientRuntimeEvent::Disconnected { player_id },
-                          );
-                      }
-                  })
-                  .map_err(|error| {
-                      NetworkingError::new(format!(
-                          "failed to spawn client runtime thread: {error}"
-                      ))
-                  })?;
-
-                  Ok(Self {
-                      incoming: receiver,
-                      reconnect_identity,
-                      command_connection,
-                      stop_signal,
-                      runtime_thread: Some(runtime_thread),
-                  })''',
-          )
-
-          path.write_text(text, encoding="utf-8")
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
       - name: Format Rust
         run: cargo fmt
+
+      - name: Lint Rust
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test Rust workspace
         run: cargo test --workspace --all-targets --all-features -- --test-threads=2
