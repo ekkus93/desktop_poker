@@ -16,21 +16,21 @@ Current evidence is recorded in:
 - `docs/runtime-validation/gameplay-latest.json`
 - `docs/runtime-validation/appimage-latest.json`
 - `docs/runtime-validation/deb-install-latest.json`
+- `docs/runtime-validation/rule-based-tournament-latest.json`
 - `docs/runtime-validation/embedded-model-latest.json`
 - `docs/runtime-validation/embedded-tournament-latest.json`
 
 ## Current release position
 
-The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. The Linux AppImage builds and passes the production WebDriver smoke. The Debian package builds, installs through `apt`, passes the production WebDriver smoke, launches through its desktop entry with an X11 window, owns valid icon files, and purges without leaving its executable, desktop entry, or icon files. A complete release-mode tournament with two profile-backed in-process GGUF NPCs is also proven through two settled hands, ten committed model-selected actions, elimination, and final standings without an NPC-runner diagnostic.
+The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and a complete real-TCP two-player release tournament is proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. The Linux AppImage builds and passes the production WebDriver smoke. The Debian package builds, installs through `apt`, passes the production WebDriver smoke, launches through its desktop entry with an X11 window, owns valid icon files, and purges without leaving its executable, desktop entry, or icon files. A complete release-mode tournament with two unprofiled rule-based NPCs is proven across 13 hands and 18 committed NPC actions, with both NPC identities participating, final elimination/standings, and no NPC-runner or fallback diagnostic. A complete release-mode tournament with two profile-backed in-process GGUF NPCs is also proven through two settled hands, ten committed model-selected actions, elimination, and final standings without an NPC-runner diagnostic.
 
-A release tag is still blocked by physical-LAN, reconnect, keychain, and live rule-based NPC evidence.
+A release tag is still blocked by physical-LAN, reconnect, and keychain evidence.
 
 Open release blockers:
 
 - `DP-RR-P0-004` — physical two-machine LAN;
 - `DP-RR-P0-005` — remaining reconnect/failure matrix;
-- `DP-RR-P0-006` — release secret-storage proof;
-- `DP-RR-P1-001` — live rule-based NPC tournament.
+- `DP-RR-P0-006` — release secret-storage proof.
 
 ---
 
@@ -100,21 +100,21 @@ Open release blockers:
 
 - **Priority:** P0
 - **Category:** Security / credentials
-- **Current behavior:** Production route behavior and isolated profile directories are available for inspection, but no real keychain test credential has been exercised.
+- **Current behavior:** Production route behavior and isolated profile directories are available for inspection, but no complete real keychain result has passed yet.
 - **Required behavior:** Release API key is stored only in OS keychain; non-secret JSON excludes it; logs/snapshots/debug output redact it; clear removes it; keychain failure is visible and never falls back to plaintext.
 - **Acceptance criteria:** A low-privilege test key survives restart through the keychain, is absent from files/logs, is removed through UI, and forced keychain failure is explicit.
 - **Desktop release blocker:** Yes.
-- **Status:** **Blocked** by absence of a real test Secret Service/keychain session and credential.
+- **Status:** **In validation.** A real Secret Service persistence/failure workflow now exists; final passing evidence remains required.
 
 ### DP-RR-P1-001 — Live rule-based NPC tournament
 
 - **Priority:** P1
 - **Category:** NPC runtime
-- **Current behavior:** Automated NPC logic coverage exists; no live release tournament has been recorded.
-- **Required behavior:** At least one release tournament with seated rule-based NPCs runs through multiple hands and completion; identities/profiles remain correct; no seated NPC lacks a runner; failures are visible.
+- **Current behavior:** A release binary seated two unprofiled rule-based NPCs and completed a 13-hand tournament. The NPCs committed 18 accepted actions in total (`Rule Bot Alpha`: 12; `Rule Bot Beta`: 6), both identities appeared in final standings as eliminated observers, and the production runtime log contained no NPC error or fallback diagnostic.
+- **Evidence:** Workflow run `30328400404`; `scripts/runtime_rule_based_npc_tournament.py`; `.github/workflows/runtime-rule-based-npc-validation.yml`; `docs/runtime-validation/rule-based-tournament-latest.json`; artifact `linux-rule-based-npc-tournament-evidence`.
 - **Acceptance criteria:** Legal NPC actions, history, elimination, and standings complete without manual injection.
-- **Desktop release blocker:** Yes.
-- **Status:** Open.
+- **Desktop release blocker:** No longer open.
+- **Status:** **Completed.**
 
 ### DP-RR-P1-002 — Live LLM provider scenarios
 
