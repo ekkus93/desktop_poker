@@ -1,24 +1,13 @@
 # Latest Rule-Based NPC Tournament Validation
 
-- Result: **PASS**
-- Validated commit: `81331d0bc1a6aa999d45119e4fa23674e25a6be4`
-- GitHub Actions run: `30374924353`
+- Result: **FAIL**
+- Validated commit: `e823286558193d945792689c321910e8d1dddade`
+- GitHub Actions run: `30375158732`
 - Build outcome: `success`
-- Tournament outcome: `success`
+- Tournament outcome: `failure`
 - Evidence artifact: `linux-rule-based-npc-tournament-evidence`
 
-## Result summary
+## Failure
 
-- Completed hands: `13`
-- Rule-based NPC actions: `22`
+Rule-based tournament result was not produced.
 
-## Executed checks
-
-- **PASS** — tauri-driver became ready
-- **PASS** — release binary created a real Tauri/WebKit session
-- **PASS** — two unprofiled rule-based NPCs were seated and ready
-- **PASS** — release table entered hand 1 with the production NPC runner active
-- **PASS** — tournament completed across 13 hands with 22 committed rule-based NPC actions
-- **PASS** — both rule-based NPC identities produced live accepted actions
-- **PASS** — production runtime log contained no NPC error or fallback diagnostic
-- **PASS** — final standings contain the human host and both rule-based NPC players
