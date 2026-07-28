@@ -177,12 +177,15 @@ export function DesktopShellProvider({
   );
   const [runtimeWarnings, setRuntimeWarnings] = useState<string[]>([]);
 
-  const recordPersistenceFailure = useCallback((_message: string) => {
-    setRuntimeWarnings((currentWarnings) =>
-      currentWarnings.includes(LOCAL_PERSISTENCE_WARNING)
-        ? currentWarnings
-        : [...currentWarnings, LOCAL_PERSISTENCE_WARNING],
-    );
+  const recordPersistenceFailure = useCallback((message: string) => {
+    void message;
+    queueMicrotask(() => {
+      setRuntimeWarnings((currentWarnings) =>
+        currentWarnings.includes(LOCAL_PERSISTENCE_WARNING)
+          ? currentWarnings
+          : [...currentWarnings, LOCAL_PERSISTENCE_WARNING],
+      );
+    });
   }, []);
 
   const persistShellValue = useCallback(
