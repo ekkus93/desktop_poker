@@ -6,6 +6,7 @@ pub mod interop;
 pub mod networking;
 pub mod npc;
 pub mod protocol;
+pub mod runtime_commands;
 pub mod storage;
 
 pub use poker_core::domain;
@@ -24,6 +25,7 @@ use commands::{
     start_host_session, stop_host_session, submit_table_action, validate_join_payload_input,
 };
 use history_storage::{merge_persisted_hand_history, read_persisted_hand_history};
+use runtime_commands::get_runtime_warnings;
 use tauri::Emitter;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -56,6 +58,7 @@ pub fn run() {
             resolve_host_lan_address,
             get_table_view,
             submit_table_action,
+            get_runtime_warnings,
             get_debug_state,
             launch_additional_client_instance,
             add_npc_players,
