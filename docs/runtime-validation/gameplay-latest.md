@@ -1,16 +1,17 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **FAIL**
-- Validated commit: `0101e78e8cb751f6b22516bf1b01ac611c7f97ca`
-- GitHub Actions run: `30376464225`
+- Validated commit: `addb9528dac1e22ee41d69e982077cc86e629234`
+- GitHub Actions run: `30377450087`
 - Build outcome: `success`
 - Gameplay outcome: `failure`
-- Recorded at: `2026-07-28T16:05:45.299498+00:00`
+- Recorded at: `2026-07-28T16:19:24.985788+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Failure
 
-Full-game result file was not produced.
+AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None
 
 ## Executed checks
 
+- **FAIL** — full-game runtime smoke
