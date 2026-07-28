@@ -64,7 +64,11 @@ class WebDriverClient:
             return None
         decoded = json.loads(raw)
         value = decoded.get("value")
-        if isinstance(value, dict) and value.get("error"):
+        if (
+            isinstance(value, dict)
+            and value.get("error")
+            and not isinstance(value.get("ok"), bool)
+        ):
             raise WebDriverError(
                 f"WebDriver {method} {path} error {value.get('error')}: "
                 f"{value.get('message')}"
