@@ -39,6 +39,16 @@ function normaliseError(error: unknown) {
     : "The invite could not be checked.";
 }
 
+function describeJoinFailure(
+  error: unknown,
+  payload: JoinPayload | null | undefined,
+) {
+  const endpoint = payload
+    ? `${payload.hostAddress}:${payload.hostPort}`
+    : "the advertised host";
+  return `Unable to connect to ${endpoint}. ${normaliseError(error)} The invite can be valid even when the host is offline or blocked by a firewall.`;
+}
+
 export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const {
     displayName,
@@ -187,7 +197,9 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
           return;
         }
 
-        setJoinError(normaliseError(error));
+        setJoinError(
+          describeJoinFailure(error, bootstrap.parsedLaunchJoinPayload),
+        );
         setInviteBanner("Invite already attached to this launch.");
       })
       .finally(() => {
@@ -264,7 +276,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       rememberJoinPayload(compactInvite ?? trimmedPayload);
       setJoinError(null);
       setInviteBanner(
-        `Ready: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`,
+        `Invite decoded: ${parsedPayload.hostAddress}:${parsedPayload.hostPort}`,
       );
       return parsedPayload;
     } catch (error) {
@@ -293,7 +305,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
   const continueHint = canContinueToLobby
     ? joining
       ? "Joining the live host session..."
-      : "Invite checked. Join when ready."
+      : "Invite decoded. Connecting is the host reachability check."
     : validationState.status === "validating"
       ? "Continue unlocks after the invite check finishes."
       : validationState.status === "invalid"
@@ -315,7 +327,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
       });
       navigate("/lobby");
     } catch (error) {
-      setJoinError(normaliseError(error));
+      setJoinError(describeJoinFailure(error, validationState.payload));
     } finally {
       setJoining(false);
     }
@@ -398,7 +410,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
               <p className="field-hint">{continueHint}</p>
               {validationState.status === "validating" ? (
                 <p className="inline-banner info">
-                  Checking the invite and host details…
+                  Checking the invite format and signed host details…
                 </p>
               ) : null}
               {validationState.status === "invalid" ? (
@@ -462,7 +474,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                   aria-label="Invite preview"
                   className="invite-card compact-invite-card"
                 >
-                  <p className="kicker">Invite looks good</p>
+                  <p className="kicker">Invite decoded</p>
                   <h4>{previewTableName}</h4>
                   <div className="invite-stat-grid compact-invite-stat-grid">
                     <div>
@@ -481,7 +493,7 @@ export function JoinTournamentScreen({ bootstrap }: ScreenProps) {
                     </div>
                     <div>
                       <span className="invite-stat-label">Status</span>
-                      <strong>Lobby ready</strong>
+                      <strong>Reachability not checked</strong>
                     </div>
                   </div>
                 </section>

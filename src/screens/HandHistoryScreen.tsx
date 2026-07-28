@@ -31,10 +31,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   );
   const visibleHistoryEntries = historyEntries.slice(firstVisibleHistoryIndex);
   const hiddenHistoryCount = firstVisibleHistoryIndex;
-  const nextHistoryBatchSize = Math.min(
-    HISTORY_PAGE_SIZE,
-    hiddenHistoryCount,
-  );
+  const nextHistoryBatchSize = Math.min(HISTORY_PAGE_SIZE, hiddenHistoryCount);
 
   useEffect(() => {
     let cancelled = false;

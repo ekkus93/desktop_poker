@@ -170,11 +170,14 @@ describe("JoinTournamentScreen", () => {
 
     expect(await screen.findByLabelText("Invite preview")).toBeTruthy();
     expect(screen.getAllByText("Friday Night").length).toBeGreaterThan(0);
-    expect(screen.getByText("Ready: 192.168.1.10:43818")).toBeTruthy();
+    expect(screen.getByText("Invite decoded: 192.168.1.10:43818")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Continue to lobby" }),
     ).toBeTruthy();
-    expect(screen.getByText(/invite checked\. join when ready/i)).toBeTruthy();
+    expect(
+      screen.getByText(/connecting is the host reachability check/i),
+    ).toBeTruthy();
+    expect(screen.getByText(/reachability not checked/i)).toBeTruthy();
   });
 
   it("joins the live host session before navigating to the lobby", async () => {
@@ -331,7 +334,11 @@ describe("JoinTournamentScreen", () => {
     });
     fireEvent.click(continueButton);
 
-    expect(await screen.findByText(/connection refused/i)).toBeTruthy();
+    expect(
+      await screen.findByText(
+        /unable to connect to 192\.168\.1\.10:43818.*connection refused.*offline or blocked by a firewall/i,
+      ),
+    ).toBeTruthy();
     // The user should be able to retry: invite field and check button still visible.
     expect(screen.getByRole("button", { name: "Check invite" })).toBeTruthy();
   });

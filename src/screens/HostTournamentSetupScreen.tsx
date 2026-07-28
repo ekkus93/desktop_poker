@@ -56,6 +56,24 @@ function clampPort(value: string, fallbackPort: number) {
   return Math.max(1, Math.min(65535, parsedValue));
 }
 
+function describeHostStartError(error: unknown, hostPort: number) {
+  const message =
+    error instanceof Error ? error.message.trim() : "Unable to start hosting.";
+  const normalized = message.toLowerCase();
+  const portIsBusy =
+    normalized.includes("address already in use") ||
+    normalized.includes("port is already in use") ||
+    normalized.includes("os error 98") ||
+    normalized.includes("os error 48") ||
+    normalized.includes("wsaeaddrinuse");
+
+  if (portIsBusy) {
+    return `Unable to start hosting on TCP port ${hostPort} because that port is already in use. Choose a different port and try again.`;
+  }
+
+  return `Unable to start hosting on TCP port ${hostPort}. ${message}`;
+}
+
 export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
   const { displayName, hostDraft, setWasHost, updateHostDraft } =
     useDesktopShell();
@@ -242,9 +260,7 @@ export function HostTournamentSetupScreen({ bootstrap }: ScreenProps) {
         setHostSession(status);
       }
     } catch (error) {
-      setHostError(
-        error instanceof Error ? error.message : "Unable to start hosting.",
-      );
+      setHostError(describeHostStartError(error, hostDraft.hostPort));
       setHostSession(null);
     } finally {
       setStarting(false);

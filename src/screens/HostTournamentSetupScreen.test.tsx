@@ -263,7 +263,11 @@ describe("HostTournamentSetupScreen", () => {
       await screen.findByRole("button", { name: /start hosting/i }),
     );
 
-    expect(await screen.findByText("Address already in use")).toBeTruthy();
+    expect(
+      await screen.findByText(
+        /unable to start hosting on tcp port 43818 because that port is already in use.*choose a different port/i,
+      ),
+    ).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: /continue to lobby/i }),
     ).toBeNull();
@@ -272,6 +276,28 @@ describe("HostTournamentSetupScreen", () => {
         .getByRole("button", { name: /continue to lobby/i })
         .hasAttribute("disabled"),
     ).toBe(true);
+  });
+
+  it("includes the attempted port for other safe host-start failures", async () => {
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    mockedStartHostSession.mockRejectedValueOnce(
+      new Error("Permission denied"),
+    );
+
+    renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/host"],
+    });
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: /start hosting/i }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Unable to start hosting on TCP port 43818. Permission denied",
+      ),
+    ).toBeTruthy();
   });
 
   it("keeps critical setup options visible for legacy persisted host drafts", async () => {
