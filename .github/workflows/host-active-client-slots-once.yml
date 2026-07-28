@@ -1,0 +1,214 @@
+name: Add active client slots once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/host-active-client-slots-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Add active client session slots
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8").splitlines()
+
+          def write(path, lines):
+              Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+          def find(lines, needle, start=0):
+              for index, line in enumerate(lines[start:], start):
+                  if needle in line:
+                      return index
+              raise SystemExit(f"missing {needle!r}")
+
+          path = "src-tauri/src/networking/runtime/mod.rs"
+          lines = read(path)
+          if any("ActiveClientSlotTracker" in line for line in lines):
+              raise SystemExit("active client slot tracker already exists")
+
+          pending_health = find(lines, "pub pending_join_limit_rejection_count: u64,")
+          lines[pending_health + 1:pending_health + 1] = [
+              "    /// Incremented when a validated client cannot reserve a bounded active-session slot.",
+              "    pub connected_client_limit_rejection_count: u64,",
+          ]
+
+          host_server = find(lines, "pub struct HostServer {")
+          slot_block = [
+              "#[derive(Debug)]",
+              "pub(crate) struct ActiveClientSlotTracker {",
+              "    in_use: AtomicUsize,",
+              "    maximum: usize,",
+              "}",
+              "",
+              "impl ActiveClientSlotTracker {",
+              "    pub(crate) fn new(maximum: usize) -> Self {",
+              "        Self {",
+              "            in_use: AtomicUsize::new(0),",
+              "            maximum,",
+              "        }",
+              "    }",
+              "",
+              "    pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<ActiveClientSlotGuard> {",
+              "        let acquired = self",
+              "            .in_use",
+              "            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {",
+              "                (current < self.maximum).then_some(current + 1)",
+              "            })",
+              "            .is_ok();",
+              "",
+              "        acquired.then(|| ActiveClientSlotGuard {",
+              "            tracker: Arc::clone(self),",
+              "        })",
+              "    }",
+              "",
+              "    #[cfg(test)]",
+              "    fn in_use(&self) -> usize {",
+              "        self.in_use.load(Ordering::SeqCst)",
+              "    }",
+              "}",
+              "",
+              "#[derive(Debug)]",
+              "pub(crate) struct ActiveClientSlotGuard {",
+              "    tracker: Arc<ActiveClientSlotTracker>,",
+              "}",
+              "",
+              "impl Drop for ActiveClientSlotGuard {",
+              "    fn drop(&mut self) {",
+              "        let previous = self.tracker.in_use.fetch_sub(1, Ordering::SeqCst);",
+              "        debug_assert!(previous > 0, \"active client slot counter underflow\");",
+              "    }",
+              "}",
+              "",
+          ]
+          lines[host_server:host_server] = slot_block
+
+          admission_module = find(lines, "mod admission_tests {")
+          final_runtime_tests = None
+          for index in range(admission_module, len(lines) - 1):
+              if lines[index] == "#[cfg(test)]" and lines[index + 1] == "mod tests;":
+                  final_runtime_tests = index
+                  break
+          if final_runtime_tests is None:
+              raise SystemExit("missing final runtime tests declaration")
+          admission_close = final_runtime_tests - 2
+          if lines[admission_close].strip() != "}":
+              raise SystemExit(f"unexpected admission module close: {lines[admission_close]!r}")
+          lines[admission_close:admission_close] = [
+              "",
+              "    #[test]",
+              "    fn active_client_slots_are_atomic_and_release_on_session_end() {",
+              "        let tracker = Arc::new(ActiveClientSlotTracker::new(1));",
+              "        let slot = tracker.try_acquire().expect(\"active client slot\");",
+              "        assert!(tracker.try_acquire().is_none());",
+              "        assert_eq!(tracker.in_use(), 1);",
+              "",
+              "        drop(slot);",
+              "        assert_eq!(tracker.in_use(), 0);",
+              "        assert!(tracker.try_acquire().is_some());",
+              "    }",
+          ]
+          write(path, lines)
+
+          path = "src-tauri/src/networking/runtime/host.rs"
+          lines = read(path)
+          pending_init = find(lines, "Arc::new(PendingInitialJoinTracker::new(MAX_PENDING_INITIAL_JOINS));")
+          lines[pending_init + 1:pending_init + 1] = [
+              "        let max_active_clients =",
+              "            usize::from(config.snapshot_state.config.max_players).saturating_add(1);",
+              "        let active_client_slots =",
+              "            Arc::new(ActiveClientSlotTracker::new(max_active_clients));",
+          ]
+
+          pending_clone = find(lines, "let pending_initial_joins = Arc::clone(&pending_initial_joins);")
+          lines.insert(
+              pending_clone + 1,
+              "            let active_client_slots = Arc::clone(&active_client_slots);",
+          )
+
+          health_conn = find(lines, "let runtime_health_conn = Arc::clone(&runtime_health);")
+          lines.insert(
+              health_conn + 1,
+              "                        let active_client_slots = Arc::clone(&active_client_slots);",
+          )
+
+          acceptance = find(lines, "Ok(InitialRequestAcceptance {")
+          acceptance_close = find(lines, "}) => {", acceptance)
+          indent = lines[acceptance_close][: len(lines[acceptance_close]) - len(lines[acceptance_close].lstrip())] + "    "
+          slot_admission = [
+              f"{indent}let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {{",
+              f"{indent}    update_health(&runtime_health_conn2, |health| {{",
+              f"{indent}        health.connected_client_limit_rejection_count += 1;",
+              f"{indent}        health.record_error(format!(",
+              f'{indent}            "active client connection limit reached ({{max_active_clients}})",',
+              f"{indent}        ));",
+              f"{indent}    }});",
+              f"{indent}    if let Err(mark_error) = mark_participant_reconnect_eligible(",
+              f"{indent}        &authoritative_state,",
+              f"{indent}        &player_id,",
+              f"{indent}    ) {{",
+              f"{indent}        update_health(&runtime_health_conn2, |health| {{",
+              f"{indent}            health.record_reconnect_mark_error(&player_id, mark_error);",
+              f"{indent}        }});",
+              f"{indent}    }}",
+              f"{indent}    if let Ok(envelope) = build_protocol_error_envelope(",
+              f"{indent}        &crypto_provider,",
+              f"{indent}        &join_payload,",
+              f"{indent}        &server_sequence,",
+              f"{indent}        &host_signing_keys,",
+              f"{indent}        crate::protocol::ERROR_CODE_CONNECTED_CLIENT_LIMIT,",
+              f'{indent}        "host active client connection limit reached".to_string(),',
+              f"{indent}        None,",
+              f"{indent}    ) {{",
+              f"{indent}        let _ = write_json_frame(&mut stream, &envelope);",
+              f"{indent}    }}",
+              f"{indent}    return;",
+              f"{indent}}};",
+              "",
+          ]
+          lines[acceptance_close + 1:acceptance_close + 1] = slot_admission
+
+          spawn_call = find(lines, "spawn_host_client_session(", acceptance_close)
+          health_arg = find(lines, "Arc::clone(&runtime_health_conn2),", spawn_call)
+          lines.insert(health_arg + 1, "                                                active_client_slot_guard,")
+          write(path, lines)
+
+          path = "src-tauri/src/networking/runtime/host_session.rs"
+          lines = read(path)
+          health_parameter = find(lines, "runtime_health: Arc<Mutex<HostRuntimeHealth>>,")
+          lines.insert(health_parameter + 1, "    active_client_slot_guard: ActiveClientSlotGuard,")
+          spawn_closure = find(lines, ".spawn(move || {", health_parameter)
+          closure_indent = lines[spawn_closure][: len(lines[spawn_closure]) - len(lines[spawn_closure].lstrip())] + "    "
+          lines.insert(
+              spawn_closure + 1,
+              f"{closure_indent}let _active_client_slot_guard = active_client_slot_guard;",
+          )
+          write(path, lines)
+          PY
+      - name: Format Rust
+        run: cargo fmt
+      - name: Commit active client slots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src-tauri/src/networking/runtime/mod.rs \
+            src-tauri/src/networking/runtime/host.rs \
+            src-tauri/src/networking/runtime/host_session.rs
+          git commit -m "Bound active host client sessions"
+          git pull --rebase origin master
+          git push origin HEAD:master
