@@ -1,14 +1,19 @@
-# Latest Reconnect Protocol and Release Failure Validation
+# Latest Reconnect Protocol and Release Validation
 
 - Result: **FAIL**
-- Validated commit: `2bb89f85130f4295f9c3ed08013bb0cb0e3a425b`
-- GitHub Actions run: `30328662832`
-- Protocol tests: `skipped`
-- Release build: `skipped`
-- Release failure matrix: `skipped`
+- Validated commit: `88c1b86e02adea8e450b55bb24d894467a1b4237`
+- GitHub Actions run: `30330069273`
+- Protocol tests: `success`
+- Release build: `success`
+- Release reconnect matrix: `failure`
 - Evidence artifact: `reconnect-protocol-and-release-failure-evidence`
 
 ## Failure
 
-Release reconnect failure result was not produced.
+WebDriverError: WebDriver POST /session/27d173b6-41f3-4d8d-a1a0-654422ee56f0/execute/async error failed to connect to host: Connection refused (os error 111): None
 
+## Executed checks
+
+- **PASS** — host release instance launched
+- **PASS** — client release instance launched
+- **FAIL** — release reconnect matrix
