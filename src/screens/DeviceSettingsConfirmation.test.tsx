@@ -42,56 +42,72 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     mockedSaveNonSecretProviderSettings.mockResolvedValue(undefined);
   });
 
-  it("shows only reset confirmation and disables clear while reset is pending", () => {
+  it("opens one modal reset confirmation and disables both launch actions", () => {
     renderSettings();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset host setup" }));
-
-    expect(screen.getByRole("button", { name: "Confirm reset" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Confirm clear" })).toBeNull();
-    const clearButton = screen.getByRole("button", {
-      name: /clear saved invites/i,
-    }) as HTMLButtonElement;
-    expect(clearButton.disabled).toBe(true);
-  });
-
-  it("shows only clear confirmation and disables reset while clear is pending", () => {
-    renderSettings();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /clear saved invites/i }),
-    );
-
-    expect(screen.getByRole("button", { name: "Confirm clear" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Confirm reset" })).toBeNull();
     const resetButton = screen.getByRole("button", {
       name: "Reset host setup",
-    }) as HTMLButtonElement;
-    expect(resetButton.disabled).toBe(true);
+    });
+    fireEvent.click(resetButton);
+
+    expect(
+      screen.getByRole("dialog", { name: "Reset saved host setup?" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirm reset" })).toBe(
+      document.activeElement,
+    );
+    expect((resetButton as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", {
+        name: /clear saved invites/i,
+      }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      screen.queryByRole("dialog", { name: "Clear saved invitations?" }),
+    ).toBeNull();
   });
 
-  it("cancel closes the active confirmation and re-enables both actions", () => {
+  it("opens one modal clear confirmation and disables both launch actions", () => {
     renderSettings();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset host setup" }));
+    const clearButton = screen.getByRole("button", {
+      name: /clear saved invites/i,
+    });
+    fireEvent.click(clearButton);
+
+    expect(
+      screen.getByRole("dialog", { name: "Clear saved invitations?" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirm clear" })).toBe(
+      document.activeElement,
+    );
+    expect((clearButton as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", {
+        name: "Reset host setup",
+      }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      screen.queryByRole("dialog", { name: "Reset saved host setup?" }),
+    ).toBeNull();
+  });
+
+  it("cancel closes the confirmation, re-enables actions, and restores focus", () => {
+    renderSettings();
+
+    const resetButton = screen.getByRole("button", {
+      name: "Reset host setup",
+    });
+    fireEvent.click(resetButton);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByRole("button", { name: "Confirm reset" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect((resetButton as HTMLButtonElement).disabled).toBe(false);
     expect(
-      (
-        screen.getByRole("button", {
-          name: "Reset host setup",
-        }) as HTMLButtonElement
-      ).disabled,
+      (screen.getByRole("button", {
+        name: /clear saved invites/i,
+      }) as HTMLButtonElement).disabled,
     ).toBe(false);
-    expect(
-      (
-        screen.getByRole("button", {
-          name: /clear saved invites/i,
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(false);
+    expect(document.activeElement).toBe(resetButton);
   });
 });
