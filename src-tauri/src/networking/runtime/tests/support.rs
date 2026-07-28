@@ -8,8 +8,8 @@ use std::{
 
 use base64::Engine as _;
 
-pub(super) use super::super::ConnectedClient;
 use super::super::now_epoch_ms;
+pub(super) use super::super::ConnectedClient;
 use crate::{
     crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider},
     domain::{
