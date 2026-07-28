@@ -48,6 +48,7 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     const resetButton = screen.getByRole("button", {
       name: "Reset host setup",
     });
+    resetButton.focus();
     fireEvent.click(resetButton);
 
     expect(
@@ -73,6 +74,7 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     const clearButton = screen.getByRole("button", {
       name: /clear saved invites/i,
     });
+    clearButton.focus();
     fireEvent.click(clearButton);
 
     expect(
@@ -98,6 +100,7 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
     const resetButton = screen.getByRole("button", {
       name: "Reset host setup",
     });
+    resetButton.focus();
     fireEvent.click(resetButton);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
