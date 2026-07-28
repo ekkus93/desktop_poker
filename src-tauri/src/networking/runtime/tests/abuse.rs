@@ -38,12 +38,7 @@ fn host_accept_loop_survives_oversized_truncated_and_malformed_join_frames() {
 
     thread::sleep(Duration::from_millis(100));
 
-    let client = connect_test_client(
-        &provider,
-        &host,
-        "player-after-bad-peers",
-        "Healthy Client",
-    );
+    let client = connect_test_client(&provider, &host, "player-after-bad-peers", "Healthy Client");
     assert!(matches!(
         client
             .next_event(Duration::from_secs(2))
