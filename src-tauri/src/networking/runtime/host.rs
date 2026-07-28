@@ -64,6 +64,8 @@ impl HostServer {
         let server_sequence = Arc::new(AtomicU64::new(0));
         let public_events = Arc::new(Mutex::new(Vec::new()));
         let runtime_health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
+        let pending_initial_joins =
+            Arc::new(PendingInitialJoinTracker::new(MAX_PENDING_INITIAL_JOINS));
 
         let accept_thread = {
             let authoritative_state = Arc::clone(&authoritative_state);
@@ -77,6 +79,7 @@ impl HostServer {
             let public_events = Arc::clone(&public_events);
             let join_payload = join_payload.clone();
             let runtime_health = Arc::clone(&runtime_health);
+            let pending_initial_joins = Arc::clone(&pending_initial_joins);
 
             thread::Builder::new()
                 .name("desktop-poker-host".to_string())
@@ -97,6 +100,16 @@ impl HostServer {
                                 });
                                 continue;
                             }
+                        };
+
+                        let Some(pending_join_guard) = pending_initial_joins.try_acquire() else {
+                            update_health(&runtime_health, |health| {
+                                health.pending_join_limit_rejection_count += 1;
+                                health.record_error(format!(
+                                    "pending initial join limit reached ({MAX_PENDING_INITIAL_JOINS})"
+                                ));
+                            });
+                            continue;
                         };
 
                         let clients = Arc::clone(&clients);
@@ -127,6 +140,7 @@ impl HostServer {
                         if let Err(error) = thread::Builder::new()
                             .name("host-initial-join".to_string())
                             .spawn(move || {
+                                let _pending_join_guard = pending_join_guard;
                                 let crypto_provider = DefaultCryptoProvider;
                                 let initial_request =
                                     read_json_frame::<JsonSignedEnvelope>(&mut stream);

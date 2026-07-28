@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, Shutdown, SocketAddr, TcpStream},
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc::{Receiver, RecvTimeoutError},
         Arc, Mutex,
     },
@@ -154,6 +154,8 @@ pub struct HostRuntimeHealth {
     /// snapshot to connected clients failed.  The authoritative state is valid;
     /// affected clients may need a manual resync.
     pub snapshot_sync_error_count: u64,
+    /// Incremented when the host rejects a connection before spawning an initial-join handler.
+    pub pending_join_limit_rejection_count: u64,
     pub last_error: Option<String>,
     pub last_successful_tick_ms: Option<u64>,
     pub last_successful_publish_ms: Option<u64>,
@@ -210,6 +212,53 @@ pub struct NpcSeatAssignment {
     pub player_id: String,
     pub display_name: String,
     pub seat_index: u8,
+}
+
+pub(crate) const MAX_PENDING_INITIAL_JOINS: usize = 16;
+
+#[derive(Debug)]
+pub(crate) struct PendingInitialJoinTracker {
+    in_flight: AtomicUsize,
+    maximum: usize,
+}
+
+impl PendingInitialJoinTracker {
+    pub(crate) fn new(maximum: usize) -> Self {
+        Self {
+            in_flight: AtomicUsize::new(0),
+            maximum,
+        }
+    }
+
+    pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<PendingInitialJoinGuard> {
+        let acquired = self
+            .in_flight
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                (current < self.maximum).then_some(current + 1)
+            })
+            .is_ok();
+
+        acquired.then(|| PendingInitialJoinGuard {
+            tracker: Arc::clone(self),
+        })
+    }
+
+    #[cfg(test)]
+    fn in_flight(&self) -> usize {
+        self.in_flight.load(Ordering::SeqCst)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct PendingInitialJoinGuard {
+    tracker: Arc<PendingInitialJoinTracker>,
+}
+
+impl Drop for PendingInitialJoinGuard {
+    fn drop(&mut self) {
+        let previous = self.tracker.in_flight.fetch_sub(1, Ordering::SeqCst);
+        debug_assert!(previous > 0, "pending initial join counter underflow");
+    }
 }
 
 pub struct HostServer {
@@ -517,6 +566,29 @@ mod poll_tests {
 
         assert!(stop_signal.load(Ordering::SeqCst));
         assert!(worker_exited.load(Ordering::SeqCst));
+    }
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::*;
+
+    #[test]
+    fn pending_join_tracker_enforces_limit_and_releases_slots_on_drop() {
+        let tracker = Arc::new(PendingInitialJoinTracker::new(2));
+        let first = tracker.try_acquire().expect("first slot");
+        let second = tracker.try_acquire().expect("second slot");
+        assert!(tracker.try_acquire().is_none());
+        assert_eq!(tracker.in_flight(), 2);
+
+        drop(first);
+        assert_eq!(tracker.in_flight(), 1);
+        let replacement = tracker.try_acquire().expect("released slot");
+        assert_eq!(tracker.in_flight(), 2);
+
+        drop(second);
+        drop(replacement);
+        assert_eq!(tracker.in_flight(), 0);
     }
 }
 
