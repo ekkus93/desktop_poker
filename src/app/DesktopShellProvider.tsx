@@ -57,7 +57,7 @@ const DesktopShellContext = createContext<DesktopShellContextValue | undefined>(
 );
 
 const LOCAL_PERSISTENCE_WARNING =
-  "Local preferences could not be saved. Changes will remain available only for this session.";
+  "Local data could not be saved. Changes will remain available only for this session.";
 
 export function DesktopShellProvider({
   bootstrap,
@@ -177,6 +177,14 @@ export function DesktopShellProvider({
   );
   const [runtimeWarnings, setRuntimeWarnings] = useState<string[]>([]);
 
+  const recordPersistenceFailure = useCallback((_message: string) => {
+    setRuntimeWarnings((currentWarnings) =>
+      currentWarnings.includes(LOCAL_PERSISTENCE_WARNING)
+        ? currentWarnings
+        : [...currentWarnings, LOCAL_PERSISTENCE_WARNING],
+    );
+  }, []);
+
   const persistShellValue = useCallback(
     (suffix: string, value: unknown) => {
       const result = writeStoredValueWithStatus(
@@ -184,15 +192,11 @@ export function DesktopShellProvider({
         value,
       );
       if (!result.ok) {
-        setRuntimeWarnings((currentWarnings) =>
-          currentWarnings.includes(LOCAL_PERSISTENCE_WARNING)
-            ? currentWarnings
-            : [...currentWarnings, LOCAL_PERSISTENCE_WARNING],
-        );
+        recordPersistenceFailure(result.error);
       }
       return result;
     },
-    [bootstrap.storageNamespace],
+    [bootstrap.storageNamespace, recordPersistenceFailure],
   );
 
   const startupWarnings = useMemo(
@@ -201,8 +205,12 @@ export function DesktopShellProvider({
   );
 
   useEffect(
-    () => initializeWindowStatePersistence(bootstrap.storageNamespace),
-    [bootstrap.storageNamespace],
+    () =>
+      initializeWindowStatePersistence(
+        bootstrap.storageNamespace,
+        recordPersistenceFailure,
+      ),
+    [bootstrap.storageNamespace, recordPersistenceFailure],
   );
 
   useEffect(() => {
@@ -266,6 +274,7 @@ export function DesktopShellProvider({
         const mergedHistory = mergePersistedHandHistory(
           bootstrap.storageNamespace,
           entries,
+          recordPersistenceFailure,
         );
         setPersistedHandHistoryCount(mergedHistory.entries.length);
       },
@@ -280,6 +289,7 @@ export function DesktopShellProvider({
       persistShellValue,
       persistedHandHistoryCount,
       recentJoinPayloads,
+      recordPersistenceFailure,
       startupWarnings,
       tableSidePanelOpen,
       wasHost,
