@@ -1,5 +1,6 @@
 use std::{
     sync::{
+        atomic::{AtomicBool, Ordering},
         mpsc::{self},
         Arc, Mutex,
     },
@@ -59,6 +60,7 @@ impl ClientRuntime {
             stream: Some(Arc::clone(&stream_handle)),
         }));
 
+        let stop_signal = Arc::new(AtomicBool::new(false));
         let (sender, receiver) = mpsc::channel();
         sender
             .send(ClientRuntimeEvent::Snapshot(Box::new(snapshot_event)))
@@ -75,18 +77,25 @@ impl ClientRuntime {
         let mut next_counter = 2;
         let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
         let command_connection_for_thread = Arc::clone(&command_connection);
+        let stop_signal_for_thread = Arc::clone(&stop_signal);
 
-        // The client runtime thread is intentionally detached; shutdown is coordinated
-        // by the stop flag and stream lifecycle.
-        thread::Builder::new()
+        let runtime_thread = thread::Builder::new()
             .name(format!("desktop-poker-client-runtime-{player_id}"))
             .spawn(move || {
             let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
                 std::collections::BTreeMap::new();
             loop {
+                if stop_signal_for_thread.load(Ordering::SeqCst) {
+                    break;
+                }
+
                 let frame_value = match read_json_frame::<Value>(&mut stream) {
                     Ok(frame_value) => frame_value,
                     Err(_) => {
+                        if stop_signal_for_thread.load(Ordering::SeqCst) {
+                            break;
+                        }
+
                         // Best-effort cleanup: if this lock is poisoned, command submission is
                         // already unusable and the runtime is about to attempt reconnect.
                         if let Ok(mut connection) = command_connection_for_thread.lock() {
@@ -106,6 +115,11 @@ impl ClientRuntime {
                             &mut next_counter,
                         ) {
                             Ok((reconnected_stream, snapshot_envelope)) => {
+                                if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                    drop(reconnected_stream);
+                                    break;
+                                }
+
                                 // Accept the new stream for reading, but do not install the
                                 // cloned command stream until all snapshot validation passes.
                                 // This prevents a malformed reconnect snapshot from leaving
@@ -145,6 +159,10 @@ impl ClientRuntime {
                                 let cloned_stream = match stream.try_clone() {
                                     Ok(cloned_stream) => cloned_stream,
                                     Err(error) => {
+                                        if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                            break;
+                                        }
+
                                         send_runtime_event_best_effort(&sender, ClientRuntimeEvent::SafeError {
                                             player_id: player_id.clone(),
                                             message: format!(
@@ -559,7 +577,12 @@ impl ClientRuntime {
                 }
             }
 
-            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Disconnected { player_id });
+            if !stop_signal_for_thread.load(Ordering::SeqCst) {
+                send_runtime_event_best_effort(
+                    &sender,
+                    ClientRuntimeEvent::Disconnected { player_id },
+                );
+            }
         })
         .map_err(|error| {
             NetworkingError::new(format!(
@@ -571,6 +594,8 @@ impl ClientRuntime {
             incoming: receiver,
             reconnect_identity,
             command_connection,
+            stop_signal,
+            runtime_thread: Some(runtime_thread),
         })
     }
 
