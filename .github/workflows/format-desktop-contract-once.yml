@@ -1,0 +1,37 @@
+name: Format desktop contract once
+
+on:
+  push:
+    branches: [master]
+    paths: [".github/format-desktop-contract-once-trigger"]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format contract test
+        run: npx prettier --write src/api/desktop.contract.test.ts
+      - name: Commit formatter output and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/format-desktop-contract-once.yml
+          rm -f .github/format-desktop-contract-once-trigger
+          git add src/api/desktop.contract.test.ts .github/workflows/format-desktop-contract-once.yml .github/format-desktop-contract-once-trigger
+          git commit -m "Format desktop contract test"
+          git pull --rebase origin master
+          git push origin HEAD:master
