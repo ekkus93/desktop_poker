@@ -2,11 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use desktop_poker_lib::{
     app_state::{
-        ClientSessionStatus, DebugInspectorState, DesktopBootstrapState, HostSessionParticipantView,
-        HostSessionStatus, ModuleDescriptor, ScreenDescriptor, TableViewSnapshot, TableViewerMode,
+        ClientSessionStatus, DebugInspectorState, DesktopBootstrapState,
+        HostSessionParticipantView, HostSessionStatus, ModuleDescriptor, ScreenDescriptor,
+        TableViewSnapshot, TableViewerMode,
     },
     npc::{
-        profile_store::NpcProfileListResult, LlmProviderConfig, LlmProviderSettings, LlmProviderType,
+        profile_store::NpcProfileListResult, LlmProviderConfig, LlmProviderSettings,
+        LlmProviderType,
     },
 };
 use serde::Serialize;
@@ -29,7 +31,11 @@ fn assert_contract_keys(name: &str, value: &impl Serialize) {
         .as_array()
         .expect("contract entry must be a key array")
         .iter()
-        .map(|key| key.as_str().expect("contract key must be a string").to_string())
+        .map(|key| {
+            key.as_str()
+                .expect("contract key must be a string")
+                .to_string()
+        })
         .collect::<BTreeSet<_>>();
 
     assert_eq!(actual, expected, "serialized key drift for {name}");
