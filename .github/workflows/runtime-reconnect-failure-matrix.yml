@@ -1,4 +1,4 @@
-name: Apply reconnect host-shutdown fix
+name: Reconnect protocol and release matrix
 
 on:
   push:
@@ -6,206 +6,325 @@ on:
       - master
     paths:
       - ".github/workflows/runtime-reconnect-failure-matrix.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src/**"
+      - "src-tauri/**"
+      - "crates/**"
+      - "scripts/runtime_reconnect_failure_matrix.py"
+      - "scripts/runtime_embedded_npc_tournament.py"
+      - "scripts/runtime_multi_instance_smoke.py"
+      - "scripts/runtime_webdriver_smoke.py"
+      - "scripts/push_runtime_evidence.sh"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: apply-reconnect-host-shutdown-fix
-  cancel-in-progress: false
+  group: runtime-reconnect-failure-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
+  RUST_BACKTRACE: "1"
 
 jobs:
-  patch:
+  reconnect-failure-matrix:
+    name: Reconnect tests and release interruption scenarios
     runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
     steps:
-      - name: Checkout latest master
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Rust formatter
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+      - name: Install native build, socket, and WebDriver dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            libclang-dev \
+            cmake \
+            curl \
+            wget \
+            file \
+            iproute2 \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
+            xauth \
+            dbus-x11
+          command -v ss
 
-      - name: Apply fix and restore validation workflow
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+
+      - name: Run focused reconnect protocol tests
+        id: protocol
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace reconnect -- --nocapture \
+            2>&1 | tee reconnect-protocol-tests.log
+
+      - name: Build release binary without bundling
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run tauri build -- --no-bundle \
+            2>&1 | tee reconnect-release-build.log
+
+      - name: Run release reconnect and host-loss matrix
+        id: runtime
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin master
-          git checkout -B reconnect-host-shutdown-fix origin/master
+          evidence_dir="$GITHUB_WORKSPACE/reconnect-failure-evidence"
+          binary="$GITHUB_WORKSPACE/target/release/desktop-poker"
+          mkdir -p "$evidence_dir"
+          test -x "$binary"
+          file "$binary" | tee "$evidence_dir/release-binary.file.txt"
+          sha256sum "$binary" | tee "$evidence_dir/release-binary.sha256"
+          export DESKTOP_POKER_BINARY_SHA256="$(sha256sum "$binary" | awk '{print $1}')"
+          export RECONNECT_FAILURE_BINARY="$binary"
+          export RECONNECT_FAILURE_EVIDENCE="$evidence_dir"
 
+          xvfb-run -a --server-args="-screen 0 1440x960x24" \
+            dbus-run-session -- bash -s <<'RUNTIME'
+          set -Eeuo pipefail
+          export NO_AT_BRIDGE=1
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export GDK_BACKEND=x11
+
+          DESKTOP_POKER_INSTANCE_ID="reconnect-host-${GITHUB_RUN_ID}" \
+            tauri-driver --port 4624 --native-port 4625 \
+            >"$RECONNECT_FAILURE_EVIDENCE/host-tauri-driver.log" 2>&1 &
+          host_driver_pid=$!
+          DESKTOP_POKER_INSTANCE_ID="reconnect-client-${GITHUB_RUN_ID}" \
+            tauri-driver --port 4634 --native-port 4635 \
+            >"$RECONNECT_FAILURE_EVIDENCE/client-tauri-driver.log" 2>&1 &
+          client_driver_pid=$!
+
+          cleanup() {
+            kill "$client_driver_pid" "$host_driver_pid" 2>/dev/null || true
+            wait "$client_driver_pid" 2>/dev/null || true
+            wait "$host_driver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          python3 scripts/runtime_reconnect_failure_matrix.py \
+            --application "$RECONNECT_FAILURE_BINARY" \
+            --host-driver-url http://127.0.0.1:4624 \
+            --client-driver-url http://127.0.0.1:4634 \
+            --evidence-dir "$RECONNECT_FAILURE_EVIDENCE"
+          RUNTIME
+
+      - name: Assemble reconnect validation result
+        if: always()
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        shell: bash
+        run: |
           python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
           from pathlib import Path
 
-          host_path = Path("src-tauri/src/networking/runtime/host.rs")
-          host = host_path.read_text(encoding="utf-8")
+          evidence = Path("reconnect-failure-evidence")
+          evidence.mkdir(parents=True, exist_ok=True)
+          runtime_path = evidence / "release-reconnect-failure-result.json"
+          runtime: dict[str, object] = {
+              "result": "FAIL",
+              "error": "Release reconnect result was not produced.",
+          }
+          if runtime_path.is_file():
+              try:
+                  parsed = json.loads(runtime_path.read_text(encoding="utf-8"))
+                  if isinstance(parsed, dict):
+                      runtime = parsed
+              except (json.JSONDecodeError, OSError) as error:
+                  runtime["error"] = f"Release reconnect result was unreadable: {error}"
 
-          old_import = "    net::{IpAddr, SocketAddr, TcpListener, TcpStream},"
-          new_import = "    net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream},"
-          if host.count(old_import) == 1 and new_import not in host:
-              host = host.replace(old_import, new_import, 1)
-          elif host.count(new_import) != 1:
-              raise SystemExit("unexpected host networking import state")
-
-          old_drop = '''impl Drop for HostServer {
-    fn drop(&mut self) {
-        self.stop_signal.store(true, Ordering::SeqCst);
-        // Best-effort shutdown wake-up: the listener may already be closed.
-        let _ = TcpStream::connect(self.listener_addr);
-
-        if let Some(join_handle) = self.accept_thread.take() {
-            // Best-effort join: dropping the server must not panic if the worker panicked.
-            let _ = join_handle.join();
-        }
-
-        if let Some(join_handle) = self.tick_thread.take() {
-            // Best-effort join: dropping the server must not panic if the worker panicked.
-            let _ = join_handle.join();
-        }
-    }
-}
-'''
-          new_drop = '''impl Drop for HostServer {
-    fn drop(&mut self) {
-        self.stop_signal.store(true, Ordering::SeqCst);
-        // Wake the blocking accept loop, then join it before closing client
-        // sockets. This prevents a disconnected client from reconnecting to a
-        // listener that is still in the process of shutting down.
-        let _ = TcpStream::connect(self.listener_addr);
-
-        if let Some(join_handle) = self.accept_thread.take() {
-            // Best-effort join: dropping the server must not panic if the worker panicked.
-            let _ = join_handle.join();
-        }
-
-        if let Some(join_handle) = self.tick_thread.take() {
-            // Best-effort join: dropping the server must not panic if the worker panicked.
-            let _ = join_handle.join();
-        }
-
-        // The per-client session threads are detached and own the original
-        // TcpStream. Shutting down every registered clone applies to the shared
-        // socket and wakes both the host-side and client-side blocking reads.
-        // Drain the registry first so session cleanup cannot deadlock while
-        // removing itself after the shutdown-induced read error.
-        let connected_clients = {
-            let mut clients = self
-                .clients
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            clients.drain().map(|(_, client)| client).collect::<Vec<_>>()
-        };
-        for client in connected_clients {
-            let stream = client
-                .stream
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
-            let _ = stream.shutdown(Shutdown::Both);
-        }
-    }
-}
-'''
-          old_count = host.count(old_drop)
-          new_count = host.count(new_drop)
-          if old_count == 1 and new_count == 0:
-              host = host.replace(old_drop, new_drop, 1)
-          elif old_count == 0 and new_count == 1:
-              pass
-          else:
-              raise SystemExit(
-                  f"unexpected HostServer Drop state: old={old_count}, new={new_count}"
-              )
-          host_path.write_text(host, encoding="utf-8")
-
-          mod_path = Path("src-tauri/src/networking/runtime/tests/mod.rs")
-          mod_text = mod_path.read_text(encoding="utf-8")
-          marker = "mod end_to_end;\n"
-          registration = "mod host_shutdown;\n"
-          if registration not in mod_text:
-              if mod_text.count(marker) != 1:
-                  raise SystemExit("runtime test module insertion marker missing")
-              mod_text = mod_text.replace(marker, marker + registration, 1)
-          mod_path.write_text(mod_text, encoding="utf-8")
-
-          Path("src-tauri/src/networking/runtime/tests/host_shutdown.rs").write_text(
-              '''use std::time::{Duration, Instant};
-
-use super::support::*;
-use crate::{crypto::DefaultCryptoProvider, networking::ClientRuntimeEvent};
-
-#[test]
-fn dropping_host_closes_client_socket_and_reconnect_failure_becomes_terminal() {
-    let provider = DefaultCryptoProvider;
-    let host = bind_test_host(&provider, "table-host-shutdown", 141);
-    let client = connect_test_client(&provider, &host, "player-shutdown", "Shutdown");
-    let _ = expect_snapshot_event(&client);
-
-    drop(host);
-
-    let deadline = Instant::now() + Duration::from_secs(5);
-    let mut saw_reconnecting = false;
-    let mut safe_error = None;
-    let mut saw_disconnected = false;
-
-    while Instant::now() < deadline && !saw_disconnected {
-        match client.next_event(Duration::from_millis(200)) {
-            Ok(ClientRuntimeEvent::Reconnecting { player_id }) => {
-                assert_eq!(player_id, "player-shutdown");
-                saw_reconnecting = true;
-            }
-            Ok(ClientRuntimeEvent::SafeError { player_id, message }) => {
-                assert_eq!(player_id, "player-shutdown");
-                safe_error = Some(message);
-            }
-            Ok(ClientRuntimeEvent::Disconnected { player_id }) => {
-                assert_eq!(player_id, "player-shutdown");
-                saw_disconnected = true;
-            }
-            Ok(other) => panic!("unexpected client event during host shutdown: {other:?}"),
-            Err(_) => {}
-        }
-    }
-
-    assert!(saw_reconnecting, "client must enter reconnecting after host shutdown");
-    let safe_error = safe_error.expect("failed reconnect must produce an explicit safe error");
-    assert!(
-        safe_error.contains("failed to connect to host"),
-        "unexpected reconnect failure: {safe_error}"
-    );
-    assert!(
-        saw_disconnected,
-        "client must receive a terminal disconnected event after reconnect fails"
-    );
-}
-''',
+          protocol = os.environ.get("PROTOCOL_OUTCOME", "not-run")
+          build = os.environ.get("BUILD_OUTCOME", "not-run")
+          release_runtime = os.environ.get("RUNTIME_OUTCOME", "not-run")
+          result = (
+              "PASS"
+              if protocol == "success"
+              and build == "success"
+              and release_runtime == "success"
+              and runtime.get("result") == "PASS"
+              else "FAIL"
+          )
+          payload = {
+              "result": result,
+              "protocolOutcome": protocol,
+              "buildOutcome": build,
+              "releaseRuntimeOutcome": release_runtime,
+              "runtime": runtime,
+          }
+          (evidence / "reconnect-workflow-result.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
+          print(json.dumps(payload, indent=2, sort_keys=True))
           PY
 
-          cargo fmt --all
-          cargo fmt --all -- --check
+      - name: Inventory reconnect evidence
+        if: always()
+        run: |
+          find reconnect-failure-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
+            | sort | tee reconnect-failure-evidence/inventory.txt
+          cat reconnect-failure-evidence/reconnect-workflow-result.json || true
+          echo '--- host tauri-driver ---'
+          cat reconnect-failure-evidence/host-tauri-driver.log || true
+          echo '--- client tauri-driver ---'
+          cat reconnect-failure-evidence/client-tauri-driver.log || true
 
-          # Restore the normal reconnect validation workflow from the last
-          # validated source commit. The resulting source-fix commit therefore
-          # immediately starts the real matrix rather than retaining a patch job.
-          git show 8f3f68af0dc76aaff22aaebb73c43a1432dfc941:.github/workflows/runtime-reconnect-failure-matrix.yml \
-            > .github/workflows/runtime-reconnect-failure-matrix.yml
-          rm -f .github/workflows/apply-host-shutdown-fix.yml
-          git diff --check
+      - name: Upload reconnect evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reconnect-protocol-and-release-failure-evidence
+          path: |
+            reconnect-protocol-tests.log
+            reconnect-release-build.log
+            reconnect-failure-evidence/
+          if-no-files-found: error
+          retention-days: 30
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: close client sockets when the host stops"
+      - name: Publish durable reconnect result on master
+        if: always() && !cancelled() && github.ref == 'refs/heads/master'
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
 
-          for attempt in $(seq 1 30); do
-            git fetch origin master
-            if git rebase origin/master && git push origin HEAD:master; then
-              exit 0
-            fi
-            git rebase --abort 2>/dev/null || true
-            sleep 3
-          done
-          exit 1
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          source = Path("reconnect-failure-evidence/reconnect-workflow-result.json")
+          if source.is_file():
+              try:
+                  workflow = json.loads(source.read_text(encoding="utf-8"))
+              except (json.JSONDecodeError, OSError) as error:
+                  workflow = {
+                      "result": "FAIL",
+                      "runtime": {"result": "FAIL", "error": str(error)},
+                  }
+          else:
+              workflow = {
+                  "result": "FAIL",
+                  "runtime": {"result": "FAIL", "error": "Workflow result missing."},
+              }
+
+          runtime = workflow.get("runtime")
+          if not isinstance(runtime, dict):
+              runtime = {"result": "FAIL", "error": "Runtime payload was not an object."}
+
+          payload = {
+              "result": workflow.get("result", "FAIL"),
+              "validatedCommit": os.environ["GITHUB_SHA"],
+              "workflowRunId": os.environ["GITHUB_RUN_ID"],
+              "workflowRunAttempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "recordedAtUtc": datetime.now(timezone.utc).isoformat(),
+              "protocolOutcome": os.environ.get("PROTOCOL_OUTCOME", "not-run"),
+              "buildOutcome": os.environ.get("BUILD_OUTCOME", "not-run"),
+              "releaseRuntimeOutcome": os.environ.get("RUNTIME_OUTCOME", "not-run"),
+              "evidenceArtifact": "reconnect-protocol-and-release-failure-evidence",
+              "runtime": runtime,
+          }
+          output_dir = Path("docs/runtime-validation")
+          output_dir.mkdir(parents=True, exist_ok=True)
+          json_path = output_dir / "reconnect-failure-latest.json"
+          md_path = output_dir / "reconnect-failure-latest.md"
+          json_path.write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# Latest Reconnect Protocol and Release Validation",
+              "",
+              f"- Result: **{payload['result']}**",
+              f"- Validated commit: `{payload['validatedCommit']}`",
+              f"- GitHub Actions run: `{payload['workflowRunId']}`",
+              f"- Protocol tests: `{payload['protocolOutcome']}`",
+              f"- Release build: `{payload['buildOutcome']}`",
+              f"- Release reconnect matrix: `{payload['releaseRuntimeOutcome']}`",
+              f"- Evidence artifact: `{payload['evidenceArtifact']}`",
+              "",
+          ]
+          error = runtime.get("error")
+          if error:
+              lines.extend(["## Failure", "", str(error), ""])
+          steps = runtime.get("steps")
+          if isinstance(steps, list):
+              lines.extend(["## Executed checks", ""])
+              for step in steps:
+                  if isinstance(step, dict):
+                      lines.append(
+                          f"- **{step.get('result', 'UNKNOWN')}** — "
+                          f"{step.get('name', 'unnamed check')}"
+                      )
+          md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record reconnect failure matrix result" \
+            docs/runtime-validation/reconnect-failure-latest.json \
+            docs/runtime-validation/reconnect-failure-latest.md
+
+      - name: Enforce reconnect validation result
+        if: always() && !cancelled()
+        env:
+          PROTOCOL_OUTCOME: ${{ steps.protocol.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          RUNTIME_OUTCOME: ${{ steps.runtime.outcome }}
+        run: |
+          test "$PROTOCOL_OUTCOME" = "success"
+          test "$BUILD_OUTCOME" = "success"
+          test "$RUNTIME_OUTCOME" = "success"
+          test "$(python3 -c 'import json; print(json.load(open("reconnect-failure-evidence/reconnect-workflow-result.json"))["result"])')" = "PASS"
