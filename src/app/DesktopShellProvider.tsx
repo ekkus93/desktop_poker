@@ -1,6 +1,7 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,6 +14,7 @@ import {
   normalizeHostDraft,
   readStoredValueWithStatus,
   storageKey,
+  writeStoredValueWithStatus,
 } from "./shell";
 import {
   initializeWindowStatePersistence,
@@ -53,6 +55,9 @@ type DesktopShellContextValue = {
 const DesktopShellContext = createContext<DesktopShellContextValue | undefined>(
   undefined,
 );
+
+const LOCAL_PERSISTENCE_WARNING =
+  "Local preferences could not be saved. Changes will remain available only for this session.";
 
 export function DesktopShellProvider({
   bootstrap,
@@ -124,7 +129,7 @@ export function DesktopShellProvider({
       ),
     [bootstrap.storageNamespace],
   );
-  const startupWarnings = useMemo(() => {
+  const initialStartupWarnings = useMemo(() => {
     const warnings = new Set<string>();
 
     if (
@@ -170,6 +175,30 @@ export function DesktopShellProvider({
   const [persistedHandHistoryCount, setPersistedHandHistoryCount] = useState(
     () => storedHandHistory.history?.entries.length ?? 0,
   );
+  const [runtimeWarnings, setRuntimeWarnings] = useState<string[]>([]);
+
+  const persistShellValue = useCallback(
+    (suffix: string, value: unknown) => {
+      const result = writeStoredValueWithStatus(
+        storageKey(bootstrap.storageNamespace, suffix),
+        value,
+      );
+      if (!result.ok) {
+        setRuntimeWarnings((currentWarnings) =>
+          currentWarnings.includes(LOCAL_PERSISTENCE_WARNING)
+            ? currentWarnings
+            : [...currentWarnings, LOCAL_PERSISTENCE_WARNING],
+        );
+      }
+      return result;
+    },
+    [bootstrap.storageNamespace],
+  );
+
+  const startupWarnings = useMemo(
+    () => [...new Set([...initialStartupWarnings, ...runtimeWarnings])],
+    [initialStartupWarnings, runtimeWarnings],
+  );
 
   useEffect(
     () => initializeWindowStatePersistence(bootstrap.storageNamespace),
@@ -177,32 +206,20 @@ export function DesktopShellProvider({
   );
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "display-name"),
-      JSON.stringify(displayName),
-    );
-  }, [bootstrap.storageNamespace, displayName]);
+    persistShellValue("display-name", displayName);
+  }, [displayName, persistShellValue]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "host-draft"),
-      JSON.stringify(hostDraft),
-    );
-  }, [bootstrap.storageNamespace, hostDraft]);
+    persistShellValue("host-draft", hostDraft);
+  }, [hostDraft, persistShellValue]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "join-draft"),
-      JSON.stringify(joinPayloadDraft),
-    );
-  }, [bootstrap.storageNamespace, joinPayloadDraft]);
+    persistShellValue("join-draft", joinPayloadDraft);
+  }, [joinPayloadDraft, persistShellValue]);
 
   useEffect(() => {
-    localStorage.setItem(
-      storageKey(bootstrap.storageNamespace, "recent-join-payloads"),
-      JSON.stringify(recentJoinPayloads),
-    );
-  }, [bootstrap.storageNamespace, recentJoinPayloads]);
+    persistShellValue("recent-join-payloads", recentJoinPayloads);
+  }, [persistShellValue, recentJoinPayloads]);
 
   const value = useMemo<DesktopShellContextValue>(
     () => ({
@@ -218,10 +235,7 @@ export function DesktopShellProvider({
       tableSidePanelOpen,
       setDisplayName,
       setLastEndedSession: (v) => {
-        localStorage.setItem(
-          storageKey(bootstrap.storageNamespace, "last-ended-session"),
-          JSON.stringify(v),
-        );
+        persistShellValue("last-ended-session", v);
         setLastEndedSessionState(v);
       },
       setWasHost,
@@ -263,6 +277,7 @@ export function DesktopShellProvider({
       hostDraft,
       joinPayloadDraft,
       lastEndedSession,
+      persistShellValue,
       persistedHandHistoryCount,
       recentJoinPayloads,
       startupWarnings,
