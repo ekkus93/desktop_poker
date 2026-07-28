@@ -1,0 +1,168 @@
+name: Apply actionable host bind errors
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/apply-host-bind-error-copy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-host-bind-error-copy
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply, verify, and publish error copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B actionable-host-bind-errors origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          screen = Path("src/screens/HostTournamentSetupScreen.tsx")
+          text = screen.read_text(encoding="utf-8")
+          anchor = """function clampPort(value: string, fallbackPort: number) {
+            const parsedValue = Number.parseInt(value, 10);
+            if (Number.isNaN(parsedValue)) {
+              return fallbackPort;
+            }
+
+            return Math.max(1, Math.min(65535, parsedValue));
+          }
+"""
+          helper = anchor + """
+
+          function describeHostStartError(error: unknown, hostPort: number) {
+            const message =
+              error instanceof Error ? error.message.trim() : "Unable to start hosting.";
+            const normalized = message.toLowerCase();
+            const portIsBusy =
+              normalized.includes("address already in use") ||
+              normalized.includes("port is already in use") ||
+              normalized.includes("os error 98") ||
+              normalized.includes("os error 48") ||
+              normalized.includes("wsaeaddrinuse");
+
+            if (portIsBusy) {
+              return `Unable to start hosting on TCP port ${hostPort} because that port is already in use. Choose a different port and try again.`;
+            }
+
+            return `Unable to start hosting on TCP port ${hostPort}. ${message}`;
+          }
+"""
+          if helper not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit("clampPort helper anchor was not unique")
+              text = text.replace(anchor, helper, 1)
+
+          old_catch = """    } catch (error) {
+              setHostError(
+                error instanceof Error ? error.message : "Unable to start hosting.",
+              );
+              setHostSession(null);
+"""
+          new_catch = """    } catch (error) {
+              setHostError(describeHostStartError(error, hostDraft.hostPort));
+              setHostSession(null);
+"""
+          if new_catch not in text:
+              if text.count(old_catch) != 1:
+                  raise SystemExit("host-start catch anchor was not unique")
+              text = text.replace(old_catch, new_catch, 1)
+          screen.write_text(text, encoding="utf-8")
+
+          tests = Path("src/screens/HostTournamentSetupScreen.test.tsx")
+          test_text = tests.read_text(encoding="utf-8")
+          old_assertion = 'expect(await screen.findByText("Address already in use")).toBeTruthy();'
+          new_assertion = """expect(
+              await screen.findByText(
+                /unable to start hosting on tcp port 43818 because that port is already in use.*choose a different port/i,
+              ),
+            ).toBeTruthy();"""
+          if new_assertion not in test_text:
+              if test_text.count(old_assertion) != 1:
+                  raise SystemExit("bind-error test assertion was not unique")
+              test_text = test_text.replace(old_assertion, new_assertion, 1)
+
+          insertion_anchor = """  it("keeps critical setup options visible for legacy persisted host drafts", async () => {
+"""
+          generic_test = """  it("includes the attempted port for other safe host-start failures", async () => {
+            const bootstrap = createBootstrap({ debugToolsEnabled: false });
+            mockedStartHostSession.mockRejectedValueOnce(
+              new Error("Permission denied"),
+            );
+
+            renderWithProviders(<HostTournamentSetupScreen bootstrap={bootstrap} />, {
+              bootstrap,
+              initialEntries: ["/host"],
+            });
+
+            fireEvent.click(
+              await screen.findByRole("button", { name: /start hosting/i }),
+            );
+
+            expect(
+              await screen.findByText(
+                "Unable to start hosting on TCP port 43818. Permission denied",
+              ),
+            ).toBeTruthy();
+          });
+
+"""
+          if generic_test not in test_text:
+              if test_text.count(insertion_anchor) != 1:
+                  raise SystemExit("generic-error test insertion anchor was not unique")
+              test_text = test_text.replace(
+                  insertion_anchor,
+                  generic_test + insertion_anchor,
+                  1,
+              )
+          tests.write_text(test_text, encoding="utf-8")
+          PY
+
+          npm ci
+          npm run format
+          npx vitest run src/screens/HostTournamentSetupScreen.test.tsx
+          npm run lint
+          npm run build
+
+          rm .github/workflows/apply-host-bind-error-copy.yml
+          npm run format:check
+          git diff --check
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: make host bind failures actionable"
+
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          exit 1
