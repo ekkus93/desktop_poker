@@ -49,8 +49,9 @@ Open **Settings → LLM provider** to choose a provider and enter the required c
 | OpenAI | Yes | `https://api.openai.com` | `gpt-4o-mini` |
 | Ollama | No | `http://localhost:11434` | `llama3.2:3b` |
 | llama-server | No | `http://localhost:8080` | *(loaded model)* |
+| Embedded local GGUF *(experimental)* | No | In-process (`llama-cpp-2`) | Absolute `.gguf` model path |
 
-All four providers use the same prompt format. Anthropic uses the `/v1/messages` API; the other three use the OpenAI-compatible `/v1/chat/completions` endpoint.
+The four HTTP providers use the same structured prompt format. Anthropic uses the `/v1/messages` API; OpenAI, Ollama, and llama-server use the OpenAI-compatible `/v1/chat/completions` endpoint. The experimental embedded-local provider consumes the same prompt in-process and requires an absolute path to a GGUF model instead of an endpoint or API key.
 
 You can override the endpoint URL and model name per-provider in the settings UI, or write the config file directly:
 
