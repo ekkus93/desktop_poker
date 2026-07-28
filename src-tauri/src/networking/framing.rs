@@ -171,6 +171,23 @@ mod tests {
     }
 
     #[test]
+    fn read_json_frame_accepts_payload_at_exact_maximum() {
+        const JSON_OVERHEAD_BYTES: usize = br#"{"value":""}"#.len();
+        let payload = SamplePayload {
+            value: "a".repeat(MAX_FRAME_PAYLOAD_BYTES - JSON_OVERHEAD_BYTES),
+        };
+        let body = serde_json::to_vec(&payload).expect("maximum payload bytes");
+        assert_eq!(body.len(), MAX_FRAME_PAYLOAD_BYTES);
+        let mut bytes = (body.len() as u32).to_be_bytes().to_vec();
+        bytes.extend_from_slice(&body);
+
+        let decoded: SamplePayload = read_json_frame_from_reader(&mut Cursor::new(bytes))
+            .expect("payload at the configured maximum should decode");
+
+        assert_eq!(decoded, payload);
+    }
+
+    #[test]
     fn frames_round_trip_through_write_then_read() {
         let payload = SamplePayload {
             value: "beta".to_string(),
