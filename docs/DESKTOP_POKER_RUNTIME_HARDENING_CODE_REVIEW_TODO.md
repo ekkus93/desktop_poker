@@ -3,6 +3,7 @@
 Created: 2026-07-28
 Repo: `ekkus93/desktop_poker`
 Scope: follow-up work from a source-inspection code review of the Desktop Poker MVP.
+Status: **COMPLETE — reconciled against committed source, tests, CI, and runtime evidence on 2026-07-28.**
 
 ## Purpose
 
@@ -33,28 +34,28 @@ Before editing behavior, run the current validation suite and capture the result
 
 ### Subtasks
 
-- [ ] Run frontend validation:
-  - [ ] `npm ci`
-  - [ ] `npm run format:check`
-  - [ ] `npm run lint`
-  - [ ] `npm run test`
-  - [ ] `npm run build`
-- [ ] Run Rust validation:
-  - [ ] `cargo fmt --check --manifest-path src-tauri/Cargo.toml`
-  - [ ] `cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features -- -D warnings`
-  - [ ] `cargo test --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features`
-  - [ ] `cargo test --manifest-path crates/poker-core/Cargo.toml --all-targets`
-- [ ] If any command fails before changes, save the failure as baseline evidence instead of silently ignoring it.
-- [ ] Create or update a short note under `docs/runtime-validation/` with:
-  - [ ] command run
-  - [ ] pass/fail result
-  - [ ] relevant failure excerpt if any
-  - [ ] current commit SHA
+- [x] Run frontend validation:
+  - [x] `npm ci`
+  - [x] `npm run format:check`
+  - [x] `npm run lint`
+  - [x] `npm run test`
+  - [x] `npm run build`
+- [x] Run Rust validation:
+  - [x] `cargo fmt --check --manifest-path src-tauri/Cargo.toml`
+  - [x] `cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features -- -D warnings`
+  - [x] `cargo test --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features`
+  - [x] `cargo test --manifest-path crates/poker-core/Cargo.toml --all-targets`
+- [x] If any command fails before changes, save the failure as baseline evidence instead of silently ignoring it.
+- [x] Create or update a short note under `docs/runtime-validation/` with:
+  - [x] command run
+  - [x] pass/fail result
+  - [x] relevant failure excerpt if any
+  - [x] current commit SHA
 
 ### Acceptance criteria
 
-- [ ] There is a committed validation note showing the pre-fix baseline.
-- [ ] Existing failures are explicitly documented and not confused with regressions from this TODO.
+- [x] There is a committed validation note showing the pre-fix baseline.
+- [x] Existing failures are explicitly documented and not confused with regressions from this TODO.
 
 ---
 
@@ -73,15 +74,15 @@ Before editing behavior, run the current validation suite and capture the result
 
 ### Subtasks
 
-- [ ] Add a constant for maximum inbound frame payload size.
+- [x] Add a constant for maximum inbound frame payload size.
   - Suggested name: `MAX_FRAME_PAYLOAD_BYTES`
   - Suggested initial value: `1_048_576` bytes, unless current snapshot sizes require more.
-- [ ] After reading the 4-byte frame length, reject frames larger than the limit before allocating the body buffer.
-- [ ] Return a clear `NetworkingError`, for example:
+- [x] After reading the 4-byte frame length, reject frames larger than the limit before allocating the body buffer.
+- [x] Return a clear `NetworkingError`, for example:
   - `frame payload exceeds maximum allowed size: {length} > {MAX_FRAME_PAYLOAD_BYTES}`
-- [ ] Make the limit apply to all inbound JSON frames: client, host, join, reconnect, resync, snapshot, public events, and private events.
-- [ ] Do not silently truncate oversized frames.
-- [ ] Do not read and discard oversized bodies; reject immediately after the length prefix.
+- [x] Make the limit apply to all inbound JSON frames: client, host, join, reconnect, resync, snapshot, public events, and private events.
+- [x] Do not silently truncate oversized frames.
+- [x] Do not read and discard oversized bodies; reject immediately after the length prefix.
 
 ### Suggested code shape
 
@@ -117,16 +118,16 @@ fn read_json_frame_from_reader<T: DeserializeOwned, R: Read>(
 
 Add tests in `src-tauri/src/networking/framing.rs`:
 
-- [ ] `read_json_frame_rejects_payload_larger_than_max_before_allocation`
-- [ ] `read_json_frame_accepts_payload_at_max_size_when_json_valid` if practical
-- [ ] `read_json_frame_accepts_small_payload_after_limit_added`
-- [ ] Existing truncation and invalid JSON tests still pass.
+- [x] `read_json_frame_rejects_payload_larger_than_max_before_allocation`
+- [x] `read_json_frame_accepts_payload_at_max_size_when_json_valid` if practical
+- [x] `read_json_frame_accepts_small_payload_after_limit_added`
+- [x] Existing truncation and invalid JSON tests still pass.
 
 ### Acceptance criteria
 
-- [ ] Oversized inbound frame lengths fail before payload allocation.
-- [ ] The error is explicit and test-covered.
-- [ ] All existing frame tests still pass.
+- [x] Oversized inbound frame lengths fail before payload allocation.
+- [x] The error is explicit and test-covered.
+- [x] All existing frame tests still pass.
 
 ---
 
@@ -147,15 +148,15 @@ Add tests in `src-tauri/src/networking/framing.rs`:
 
 ### Subtasks
 
-- [ ] Add a `stop_signal: Arc<AtomicBool>` to `ClientRuntime`.
-- [ ] Add `runtime_thread: Option<JoinHandle<()>>` to `ClientRuntime`.
-- [ ] Pass `stop_signal` into the spawned client runtime thread.
-- [ ] Check `stop_signal` at the top of the client read/reconnect loop.
-- [ ] On shutdown, set `stop_signal = true`.
-- [ ] Wake a blocking read by shutting down or dropping the active stream.
-- [ ] Join the runtime thread in `Drop for ClientRuntime`.
-- [ ] Avoid panicking if the worker thread already panicked.
-- [ ] Ensure `leave_client_session` triggers this drop path.
+- [x] Add a `stop_signal: Arc<AtomicBool>` to `ClientRuntime`.
+- [x] Add `runtime_thread: Option<JoinHandle<()>>` to `ClientRuntime`.
+- [x] Pass `stop_signal` into the spawned client runtime thread.
+- [x] Check `stop_signal` at the top of the client read/reconnect loop.
+- [x] On shutdown, set `stop_signal = true`.
+- [x] Wake a blocking read by shutting down or dropping the active stream.
+- [x] Join the runtime thread in `Drop for ClientRuntime`.
+- [x] Avoid panicking if the worker thread already panicked.
+- [x] Ensure `leave_client_session` triggers this drop path.
 
 ### Suggested code shape
 
@@ -191,28 +192,28 @@ Adjust as needed if the active read stream is not the same as `command_connectio
 
 ### Tests
 
-- [ ] Add a test that creates a client runtime, drops it, and verifies the runtime does not hang.
-- [ ] Add a test or runtime smoke script for joining then leaving a client session.
-- [ ] Add a reconnect/drop test if existing test harnesses support it.
+- [x] Add a test that creates a client runtime, drops it, and verifies the runtime does not hang.
+- [x] Add a test or runtime smoke script for joining then leaving a client session.
+- [x] Add a reconnect/drop test if existing test harnesses support it.
 
 ### Acceptance criteria
 
-- [ ] Client runtime has explicit shutdown semantics comparable to `HostServer`.
-- [ ] Dropping a client session does not leave a long-lived runtime thread behind.
-- [ ] Tests prove drop does not hang.
+- [x] Client runtime has explicit shutdown semantics comparable to `HostServer`.
+- [x] Dropping a client session does not leave a long-lived runtime thread behind.
+- [x] Tests prove drop does not hang.
 
 ## Task 2.2 — Distinguish normal shutdown from disconnected error
 
 ### Subtasks
 
-- [ ] When `stop_signal` is set, the runtime thread should exit without emitting a scary user-facing error.
-- [ ] Do not report `Disconnected from host` for intentional `leave_client_session`.
-- [ ] If a shutdown event is needed internally, add a distinct event variant rather than overloading `Disconnected`.
+- [x] When `stop_signal` is set, the runtime thread should exit without emitting a scary user-facing error.
+- [x] Do not report `Disconnected from host` for intentional `leave_client_session`.
+- [x] If a shutdown event is needed internally, add a distinct event variant rather than overloading `Disconnected`.
 
 ### Acceptance criteria
 
-- [ ] User-triggered leave is not shown as an unexpected host disconnect.
-- [ ] Unexpected network failure still surfaces as a terminated/disconnected session.
+- [x] User-triggered leave is not shown as an unexpected host disconnect.
+- [x] Unexpected network failure still surfaces as a terminated/disconnected session.
 
 ---
 
@@ -233,16 +234,16 @@ The host accept loop spawns a new thread for every accepted initial join. Combin
 
 ### Subtasks
 
-- [ ] Add host runtime constants or config fields:
-  - [ ] `max_connected_clients`
-  - [ ] `max_pending_initial_joins`
-  - [ ] optional `initial_join_timeout_ms`
-- [ ] Default `max_connected_clients` should align with tournament max players plus a small buffer, not be unbounded.
-- [ ] Increment a pending-join counter before spawning `host-initial-join`.
-- [ ] Decrement pending-join counter on every thread exit path.
-- [ ] Reject or drop new joins when pending joins exceed limit.
-- [ ] Record limit rejections in `HostRuntimeHealth`.
-- [ ] Do not let rejected joins mutate authoritative tournament state.
+- [x] Add host runtime constants or config fields:
+  - [x] `max_connected_clients`
+  - [x] `max_pending_initial_joins`
+  - [x] optional `initial_join_timeout_ms`
+- [x] Default `max_connected_clients` should align with tournament max players plus a small buffer, not be unbounded.
+- [x] Increment a pending-join counter before spawning `host-initial-join`.
+- [x] Decrement pending-join counter on every thread exit path.
+- [x] Reject or drop new joins when pending joins exceed limit.
+- [x] Record limit rejections in `HostRuntimeHealth`.
+- [x] Do not let rejected joins mutate authoritative tournament state.
 
 ### Suggested health additions
 
@@ -255,29 +256,29 @@ pub connected_client_limit_rejection_count: u64,
 
 ### Tests
 
-- [ ] Test pending join counter decrements on success.
-- [ ] Test pending join counter decrements on malformed join failure.
-- [ ] Test connections beyond limit are rejected and health counter increments.
-- [ ] Test rejection does not mutate tournament participants or seats.
+- [x] Test pending join counter decrements on success.
+- [x] Test pending join counter decrements on malformed join failure.
+- [x] Test connections beyond limit are rejected and health counter increments.
+- [x] Test rejection does not mutate tournament participants or seats.
 
 ### Acceptance criteria
 
-- [ ] The host cannot spawn unlimited join-handler threads.
-- [ ] Limit-related failures are visible in host runtime health.
+- [x] The host cannot spawn unlimited join-handler threads.
+- [x] Limit-related failures are visible in host runtime health.
 
 ## Task 3.2 — Ensure connected-client limit is enforced atomically
 
 ### Subtasks
 
-- [ ] Check connected-client count while holding the client registry lock.
-- [ ] Enforce the limit before inserting into `clients`.
-- [ ] Avoid races where two join handlers both see capacity and both insert.
-- [ ] Return a clear protocol error for a legitimate client rejected because the table is full or connection limit is reached.
+- [x] Check connected-client count while holding the client registry lock.
+- [x] Enforce the limit before inserting into `clients`.
+- [x] Avoid races where two join handlers both see capacity and both insert.
+- [x] Return a clear protocol error for a legitimate client rejected because the table is full or connection limit is reached.
 
 ### Acceptance criteria
 
-- [ ] Client registry cannot exceed the configured maximum through concurrent joins.
-- [ ] Legitimate users see a clear join rejection.
+- [x] Client registry cannot exceed the configured maximum through concurrent joins.
+- [x] Legitimate users see a clear join rejection.
 
 ---
 
@@ -297,15 +298,15 @@ Desktop app commands wait only 1 second for join snapshots, action acknowledgeme
 
 ### Subtasks
 
-- [ ] Add named constants for client operation timeouts:
-  - [ ] `INITIAL_JOIN_SNAPSHOT_TIMEOUT`
-  - [ ] `CLIENT_ACTION_ACK_TIMEOUT`
-  - [ ] `CLIENT_LOBBY_ACK_TIMEOUT`
-  - [ ] optional `READY_CHECK_TABLE_START_POLL_TIMEOUT`
-- [ ] Replace inline `Duration::from_secs(1)` with named constants.
-- [ ] Use a longer default for lobby/action acknowledgement, probably 5 seconds.
-- [ ] Keep tests deterministic by allowing test-only override or dependency injection where needed.
-- [ ] Include the timeout duration in error messages.
+- [x] Add named constants for client operation timeouts:
+  - [x] `INITIAL_JOIN_SNAPSHOT_TIMEOUT`
+  - [x] `CLIENT_ACTION_ACK_TIMEOUT`
+  - [x] `CLIENT_LOBBY_ACK_TIMEOUT`
+  - [x] optional `READY_CHECK_TABLE_START_POLL_TIMEOUT`
+- [x] Replace inline `Duration::from_secs(1)` with named constants.
+- [x] Use a longer default for lobby/action acknowledgement, probably 5 seconds.
+- [x] Keep tests deterministic by allowing test-only override or dependency injection where needed.
+- [x] Include the timeout duration in error messages.
 
 ### Suggested code shape
 
@@ -318,14 +319,14 @@ const READY_CHECK_TABLE_START_POLL_TIMEOUT: Duration = Duration::from_millis(250
 
 ### Tests
 
-- [ ] Existing timeout tests updated for named constants.
-- [ ] Test error messages include the configured duration.
-- [ ] Test successful operation path is unchanged.
+- [x] Existing timeout tests updated for named constants.
+- [x] Test error messages include the configured duration.
+- [x] Test successful operation path is unchanged.
 
 ### Acceptance criteria
 
-- [ ] No hardcoded 1-second command deadlines remain in live client session code.
-- [ ] Timeout errors remain explicit.
+- [x] No hardcoded 1-second command deadlines remain in live client session code.
+- [x] Timeout errors remain explicit.
 
 ## Task 4.2 — Improve UI behavior around pending operations
 
@@ -337,14 +338,14 @@ const READY_CHECK_TABLE_START_POLL_TIMEOUT: Duration = Duration::from_millis(250
 
 ### Subtasks
 
-- [ ] Ensure buttons show a pending/disabled state while a command is in flight.
-- [ ] Avoid duplicate command submission while waiting for backend confirmation.
-- [ ] Show timeout errors as recoverable user-facing errors.
-- [ ] Do not automatically leave the session solely because a command timed out.
+- [x] Ensure buttons show a pending/disabled state while a command is in flight.
+- [x] Avoid duplicate command submission while waiting for backend confirmation.
+- [x] Show timeout errors as recoverable user-facing errors.
+- [x] Do not automatically leave the session solely because a command timed out.
 
 ### Acceptance criteria
 
-- [ ] Slow command acknowledgement does not cause duplicate actions or confusing UI state.
+- [x] Slow command acknowledgement does not cause duplicate actions or confusing UI state.
 
 ---
 
@@ -364,7 +365,7 @@ const READY_CHECK_TABLE_START_POLL_TIMEOUT: Duration = Duration::from_millis(250
 
 ### Subtasks
 
-- [ ] Add a typed error enum for `next_event`, for example:
+- [x] Add a typed error enum for `next_event`, for example:
 
 ```rust
 pub enum ClientRuntimePollError {
@@ -373,25 +374,25 @@ pub enum ClientRuntimePollError {
 }
 ```
 
-- [ ] Change `ClientRuntime::next_event` to distinguish:
-  - [ ] `RecvTimeoutError::Timeout`
-  - [ ] `RecvTimeoutError::Disconnected`
-- [ ] Update `DesktopClientSession::refresh`:
-  - [ ] `Timeout` means stop draining events normally.
-  - [ ] `Disconnected` means mark the session terminated or set a clear internal error.
-- [ ] Update `await_condition` to stop early on runtime disconnect.
-- [ ] Preserve public Tauri command error strings at the boundary if needed, but keep typed logic internally.
+- [x] Change `ClientRuntime::next_event` to distinguish:
+  - [x] `RecvTimeoutError::Timeout`
+  - [x] `RecvTimeoutError::Disconnected`
+- [x] Update `DesktopClientSession::refresh`:
+  - [x] `Timeout` means stop draining events normally.
+  - [x] `Disconnected` means mark the session terminated or set a clear internal error.
+- [x] Update `await_condition` to stop early on runtime disconnect.
+- [x] Preserve public Tauri command error strings at the boundary if needed, but keep typed logic internally.
 
 ### Tests
 
-- [ ] Test normal timeout does not mark session terminated.
-- [ ] Test disconnected event channel marks session unhealthy/terminated.
-- [ ] Test `await_condition` exits on channel disconnect instead of spinning until timeout.
+- [x] Test normal timeout does not mark session terminated.
+- [x] Test disconnected event channel marks session unhealthy/terminated.
+- [x] Test `await_condition` exits on channel disconnect instead of spinning until timeout.
 
 ### Acceptance criteria
 
-- [ ] Dead runtime thread/channel cannot be mistaken for “no events available.”
-- [ ] UI can surface a clear fatal client-runtime error.
+- [x] Dead runtime thread/channel cannot be mistaken for “no events available.”
+- [x] UI can surface a clear fatal client-runtime error.
 
 ---
 
@@ -412,17 +413,17 @@ Reconnect retry logic checks whether an error string contains `participant is al
 
 ### Subtasks
 
-- [ ] Define constants or an enum for protocol error codes.
-- [ ] Include at least:
-  - [ ] `JOIN_REJECTED`
-  - [ ] `RECONNECT_ALREADY_CONNECTED`
-  - [ ] `RECONNECT_REJECTED`
-  - [ ] `STALE_COUNTER`
-  - [ ] `INVALID_SIGNATURE`
-  - [ ] `TABLE_OR_SESSION_MISMATCH`
-- [ ] Ensure host rejection paths use these codes consistently.
-- [ ] Update `read_snapshot_response` so callers can inspect the error code, not just the message.
-- [ ] Replace `.contains("participant is already connected")` with a code comparison.
+- [x] Define constants or an enum for protocol error codes.
+- [x] Include at least:
+  - [x] `JOIN_REJECTED`
+  - [x] `RECONNECT_ALREADY_CONNECTED`
+  - [x] `RECONNECT_REJECTED`
+  - [x] `STALE_COUNTER`
+  - [x] `INVALID_SIGNATURE`
+  - [x] `TABLE_OR_SESSION_MISMATCH`
+- [x] Ensure host rejection paths use these codes consistently.
+- [x] Update `read_snapshot_response` so callers can inspect the error code, not just the message.
+- [x] Replace `.contains("participant is already connected")` with a code comparison.
 
 ### Suggested code shape
 
@@ -439,13 +440,13 @@ Then have `read_snapshot_response` return either snapshot or typed rejection.
 
 ### Tests
 
-- [ ] Test reconnect retries on `RECONNECT_ALREADY_CONNECTED`.
-- [ ] Test reconnect does not retry on unrelated rejection codes.
-- [ ] Test changing the human-readable message does not break retry behavior.
+- [x] Test reconnect retries on `RECONNECT_ALREADY_CONNECTED`.
+- [x] Test reconnect does not retry on unrelated rejection codes.
+- [x] Test changing the human-readable message does not break retry behavior.
 
 ### Acceptance criteria
 
-- [ ] Reconnect behavior no longer depends on matching human-readable strings.
+- [x] Reconnect behavior no longer depends on matching human-readable strings.
 
 ---
 
@@ -466,8 +467,8 @@ Action submission and timeout handling currently have subtle semantics. A submit
 
 ### Subtasks
 
-- [ ] Replace or supplement `TournamentController::submit_action(...) -> Result<(), TournamentError>` with an explicit outcome.
-- [ ] Suggested enum:
+- [x] Replace or supplement `TournamentController::submit_action(...) -> Result<(), TournamentError>` with an explicit outcome.
+- [x] Suggested enum:
 
 ```rust
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -478,38 +479,38 @@ pub enum ActionSubmissionOutcome {
 }
 ```
 
-- [ ] Ensure wrong-player, wrong-window, illegal-action, and invalid-raise rejections return `RejectedNoStateChange` and do not mutate state.
-- [ ] Ensure expired-window behavior is represented as `TimeoutAdvancedThenRejected` if it advances the game clock/state.
-- [ ] Ensure successful actions return `Committed`.
-- [ ] Keep state validation after every state-mutating path.
-- [ ] Update host publishing logic to publish only when the outcome allows a committed state change.
+- [x] Ensure wrong-player, wrong-window, illegal-action, and invalid-raise rejections return `RejectedNoStateChange` and do not mutate state.
+- [x] Ensure expired-window behavior is represented as `TimeoutAdvancedThenRejected` if it advances the game clock/state.
+- [x] Ensure successful actions return `Committed`.
+- [x] Keep state validation after every state-mutating path.
+- [x] Update host publishing logic to publish only when the outcome allows a committed state change.
 
 ### Tests
 
-- [ ] Wrong player does not mutate state.
-- [ ] Stale action window id does not mutate state.
-- [ ] Illegal action does not mutate state.
-- [ ] Expired action window advances timeout state and returns `TimeoutAdvancedThenRejected`.
-- [ ] Host publishes timeout-advanced state exactly once.
-- [ ] Host does not publish after `RejectedNoStateChange`.
+- [x] Wrong player does not mutate state.
+- [x] Stale action window id does not mutate state.
+- [x] Illegal action does not mutate state.
+- [x] Expired action window advances timeout state and returns `TimeoutAdvancedThenRejected`.
+- [x] Host publishes timeout-advanced state exactly once.
+- [x] Host does not publish after `RejectedNoStateChange`.
 
 ### Acceptance criteria
 
-- [ ] Rejected action behavior is explicit and test-covered.
-- [ ] State-changing rejected actions cannot happen accidentally.
+- [x] Rejected action behavior is explicit and test-covered.
+- [x] State-changing rejected actions cannot happen accidentally.
 
 ## Task 7.2 — Add rollback protection to tick-time timeout advancement
 
 ### Subtasks
 
-- [ ] Audit `advance_time` and `commit_timeout` for partial mutation on failure.
-- [ ] Add rollback snapshots around timeout advancement where necessary.
-- [ ] Ensure `apply_action` clearing `hand.action_window = None` cannot leave state corrupted if a later validation error occurs.
-- [ ] Add tests that force validation failure after action-window clearing, if practical using test hooks or crafted state.
+- [x] Audit `advance_time` and `commit_timeout` for partial mutation on failure.
+- [x] Add rollback snapshots around timeout advancement where necessary.
+- [x] Ensure `apply_action` clearing `hand.action_window = None` cannot leave state corrupted if a later validation error occurs.
+- [x] Add tests that force validation failure after action-window clearing, if practical using test hooks or crafted state.
 
 ### Acceptance criteria
 
-- [ ] Failed timeout advancement leaves the controller in its previous valid state.
+- [x] Failed timeout advancement leaves the controller in its previous valid state.
 
 ---
 
@@ -529,22 +530,22 @@ pub enum ActionSubmissionOutcome {
 
 ### Subtasks
 
-- [ ] Keep lobby mutation authoritative-state success independent from client broadcast success.
-- [ ] Ensure every snapshot sync failure increments `snapshot_sync_error_count`.
-- [ ] Ensure `last_error` contains a useful message.
-- [ ] Ensure failed clients are marked reconnect-eligible or otherwise made recoverable.
-- [ ] Add comments explaining why this is a deliberate non-fatal path.
+- [x] Keep lobby mutation authoritative-state success independent from client broadcast success.
+- [x] Ensure every snapshot sync failure increments `snapshot_sync_error_count`.
+- [x] Ensure `last_error` contains a useful message.
+- [x] Ensure failed clients are marked reconnect-eligible or otherwise made recoverable.
+- [x] Add comments explaining why this is a deliberate non-fatal path.
 
 ### Tests
 
-- [ ] Seat claim succeeds when authoritative mutation succeeds but one client write fails.
-- [ ] Failed client is removed from connected-client registry.
-- [ ] Failed participant becomes reconnect-eligible.
-- [ ] Health counter increments.
+- [x] Seat claim succeeds when authoritative mutation succeeds but one client write fails.
+- [x] Failed client is removed from connected-client registry.
+- [x] Failed participant becomes reconnect-eligible.
+- [x] Health counter increments.
 
 ### Acceptance criteria
 
-- [ ] This best-effort path is observable and test-covered, not silently swallowed.
+- [x] This best-effort path is observable and test-covered, not silently swallowed.
 
 ---
 
@@ -564,7 +565,7 @@ Most Tauri commands return `Result<..., String>`. Strings are easy to display bu
 
 ### Subtasks
 
-- [ ] Define a serializable command error shape:
+- [x] Define a serializable command error shape:
 
 ```rust
 #[derive(Clone, Debug, serde::Serialize)]
@@ -576,34 +577,34 @@ pub struct DesktopCommandError {
 }
 ```
 
-- [ ] Start with the highest-value commands:
-  - [ ] `join_host_session`
-  - [ ] `submit_table_action`
-  - [ ] `client_claim_lobby_seat`
-  - [ ] `client_set_lobby_ready_state`
-  - [ ] `host_start_tournament`
-- [ ] Use stable codes such as:
-  - [ ] `NO_ACTIVE_SESSION`
-  - [ ] `OBSERVER_READ_ONLY`
-  - [ ] `NOT_ACTING_PLAYER`
-  - [ ] `STALE_ACTION_WINDOW`
-  - [ ] `NETWORK_TIMEOUT`
-  - [ ] `CLIENT_RUNTIME_DISCONNECTED`
-  - [ ] `HOST_REJECTED_ACTION`
-  - [ ] `INVALID_JOIN_PAYLOAD`
-- [ ] Update TypeScript API types/helpers to preserve `code`, `message`, and `recoverable`.
-- [ ] Keep user-facing text readable.
+- [x] Start with the highest-value commands:
+  - [x] `join_host_session`
+  - [x] `submit_table_action`
+  - [x] `client_claim_lobby_seat`
+  - [x] `client_set_lobby_ready_state`
+  - [x] `host_start_tournament`
+- [x] Use stable codes such as:
+  - [x] `NO_ACTIVE_SESSION`
+  - [x] `OBSERVER_READ_ONLY`
+  - [x] `NOT_ACTING_PLAYER`
+  - [x] `STALE_ACTION_WINDOW`
+  - [x] `NETWORK_TIMEOUT`
+  - [x] `CLIENT_RUNTIME_DISCONNECTED`
+  - [x] `HOST_REJECTED_ACTION`
+  - [x] `INVALID_JOIN_PAYLOAD`
+- [x] Update TypeScript API types/helpers to preserve `code`, `message`, and `recoverable`.
+- [x] Keep user-facing text readable.
 
 ### Tests
 
-- [ ] Rust command helper tests assert codes and messages.
-- [ ] Frontend tests assert recoverable errors render correctly.
-- [ ] Existing string-based UI does not break during transition.
+- [x] Rust command helper tests assert codes and messages.
+- [x] Frontend tests assert recoverable errors render correctly.
+- [x] Existing string-based UI does not break during transition.
 
 ### Acceptance criteria
 
-- [ ] Critical commands expose stable typed errors.
-- [ ] Frontend does not need to parse error messages for control flow.
+- [x] Critical commands expose stable typed errors.
+- [x] Frontend does not need to parse error messages for control flow.
 
 ---
 
@@ -625,33 +626,33 @@ Frontend DTOs in `src/api/desktop.ts` manually mirror Rust structs. This can dri
 
 ### Subtasks
 
-- [ ] Add Rust-side JSON fixtures for representative DTOs:
-  - [ ] `DesktopBootstrapState`
-  - [ ] `HostSessionStatus`
-  - [ ] `ClientSessionStatus`
-  - [ ] `TableViewSnapshot`
-  - [ ] `DebugInspectorState`
-  - [ ] `NpcProfileListResult`
-  - [ ] LLM provider settings/config
-- [ ] Add TypeScript tests that load or embed those fixture shapes and validate expected field names.
-- [ ] Decide whether to generate TypeScript types from Rust in a later phase.
-- [ ] At minimum, add tests that fail if required frontend fields are missing or renamed.
+- [x] Add Rust-side JSON fixtures for representative DTOs:
+  - [x] `DesktopBootstrapState`
+  - [x] `HostSessionStatus`
+  - [x] `ClientSessionStatus`
+  - [x] `TableViewSnapshot`
+  - [x] `DebugInspectorState`
+  - [x] `NpcProfileListResult`
+  - [x] LLM provider settings/config
+- [x] Add TypeScript tests that load or embed those fixture shapes and validate expected field names.
+- [x] Decide whether to generate TypeScript types from Rust in a later phase.
+- [x] At minimum, add tests that fail if required frontend fields are missing or renamed.
 
 ### Acceptance criteria
 
-- [ ] Rust DTO changes that break frontend assumptions are caught by tests.
+- [x] Rust DTO changes that break frontend assumptions are caught by tests.
 
 ## Task 10.2 — Decide whether to generate TypeScript bindings
 
 ### Subtasks
 
-- [ ] Evaluate `specta`, `tauri-specta`, `ts-rs`, or a lightweight internal fixture generation approach.
-- [ ] Pick one approach and document it in the README or a developer doc.
-- [ ] If generation is adopted, do it in a separate focused patch.
+- [x] Evaluate `specta`, `tauri-specta`, `ts-rs`, or a lightweight internal fixture generation approach.
+- [x] Pick one approach and document it in the README or a developer doc.
+- [x] If generation is adopted, do it in a separate focused patch.
 
 ### Acceptance criteria
 
-- [ ] There is a clear policy: generated bindings or explicit contract fixtures.
+- [x] There is a clear policy: generated bindings or explicit contract fixtures.
 
 ---
 
@@ -672,11 +673,11 @@ Frontend DTOs in `src/api/desktop.ts` manually mirror Rust structs. This can dri
 
 ### Subtasks
 
-- [ ] Add a helper like `writeStoredValueWithStatus` or `tryWriteStoredValue`.
-- [ ] It should catch storage exceptions and return a structured status.
-- [ ] Add a startup/runtime warning path for failed persistence writes.
-- [ ] Replace direct `localStorage.setItem` calls in `DesktopShellProvider`.
-- [ ] Ensure failed writes do not crash the app.
+- [x] Add a helper like `writeStoredValueWithStatus` or `tryWriteStoredValue`.
+- [x] It should catch storage exceptions and return a structured status.
+- [x] Add a startup/runtime warning path for failed persistence writes.
+- [x] Replace direct `localStorage.setItem` calls in `DesktopShellProvider`.
+- [x] Ensure failed writes do not crash the app.
 
 ### Suggested TypeScript shape
 
@@ -704,14 +705,14 @@ export function writeStoredValueWithStatus(
 
 ### Tests
 
-- [ ] Mock `localStorage.setItem` throwing.
-- [ ] App does not crash.
-- [ ] Warning is surfaced in startup/runtime warning state.
-- [ ] Normal writes still work.
+- [x] Mock `localStorage.setItem` throwing.
+- [x] App does not crash.
+- [x] Warning is surfaced in startup/runtime warning state.
+- [x] Normal writes still work.
 
 ### Acceptance criteria
 
-- [ ] Local persistence write failures are non-fatal and visible.
+- [x] Local persistence write failures are non-fatal and visible.
 
 ---
 
@@ -734,16 +735,16 @@ The README documents Anthropic, OpenAI, Ollama, and llama-server. The frontend t
 
 ### Subtasks
 
-- [ ] Confirm all supported provider variants in Rust.
-- [ ] Confirm all supported provider variants in TypeScript.
-- [ ] Confirm settings UI exposes only supported variants.
-- [ ] Update README provider table to include `embeddedLocal` if it is genuinely supported.
-- [ ] If `embeddedLocal` is experimental or hidden, document that clearly.
-- [ ] Add tests for provider config load/save for every supported provider.
+- [x] Confirm all supported provider variants in Rust.
+- [x] Confirm all supported provider variants in TypeScript.
+- [x] Confirm settings UI exposes only supported variants.
+- [x] Update README provider table to include `embeddedLocal` if it is genuinely supported.
+- [x] If `embeddedLocal` is experimental or hidden, document that clearly.
+- [x] Add tests for provider config load/save for every supported provider.
 
 ### Acceptance criteria
 
-- [ ] README, Rust provider storage, and TypeScript provider types agree.
+- [x] README, Rust provider storage, and TypeScript provider types agree.
 
 ---
 
@@ -761,24 +762,24 @@ The README documents Anthropic, OpenAI, Ollama, and llama-server. The frontend t
 
 Add tests or integration smoke scripts for:
 
-- [ ] oversized frame length
-- [ ] truncated join envelope
-- [ ] malformed JSON envelope
-- [ ] missing `messageType`
-- [ ] invalid signature
-- [ ] wrong table id
-- [ ] wrong session epoch
-- [ ] stale counter replay
-- [ ] private-hole-card decrypt failure
-- [ ] public event missing server sequence
-- [ ] snapshot missing server sequence
-- [ ] reconnect with stale token
-- [ ] reconnect while old connection is still being cleaned up
+- [x] oversized frame length
+- [x] truncated join envelope
+- [x] malformed JSON envelope
+- [x] missing `messageType`
+- [x] invalid signature
+- [x] wrong table id
+- [x] wrong session epoch
+- [x] stale counter replay
+- [x] private-hole-card decrypt failure
+- [x] public event missing server sequence
+- [x] snapshot missing server sequence
+- [x] reconnect with stale token
+- [x] reconnect while old connection is still being cleaned up
 
 ### Acceptance criteria
 
-- [ ] Bad peers cannot panic the host or client.
-- [ ] Bad peer behavior is rejected with typed, observable diagnostics.
+- [x] Bad peers cannot panic the host or client.
+- [x] Bad peer behavior is rejected with typed, observable diagnostics.
 
 ---
 
@@ -800,19 +801,19 @@ Host runtime health exists, but it is primarily debug-inspector data. Some failu
 
 ### Subtasks
 
-- [ ] Classify health counters:
-  - [ ] debug-only diagnostics
-  - [ ] recoverable user-facing warnings
-  - [ ] fatal session errors
-- [ ] Surface snapshot sync failures as recoverable reconnect/resync warnings.
-- [ ] Surface repeated publish failures as a host runtime warning.
-- [ ] Avoid exposing raw internal panic/poison text to normal users unless sanitized.
-- [ ] Keep detailed raw diagnostics in debug panel.
+- [x] Classify health counters:
+  - [x] debug-only diagnostics
+  - [x] recoverable user-facing warnings
+  - [x] fatal session errors
+- [x] Surface snapshot sync failures as recoverable reconnect/resync warnings.
+- [x] Surface repeated publish failures as a host runtime warning.
+- [x] Avoid exposing raw internal panic/poison text to normal users unless sanitized.
+- [x] Keep detailed raw diagnostics in debug panel.
 
 ### Acceptance criteria
 
-- [ ] Runtime failures that affect gameplay are visible outside hidden debug tools.
-- [ ] Debug tools still retain detailed diagnostics.
+- [x] Runtime failures that affect gameplay are visible outside hidden debug tools.
+- [x] Debug tools still retain detailed diagnostics.
 
 ---
 
@@ -824,28 +825,28 @@ Host runtime health exists, but it is primarily debug-inspector data. Some failu
 
 Run these manually or through existing runtime scripts:
 
-- [ ] Host starts a table.
-- [ ] Client joins using invite payload.
-- [ ] Host and client claim seats.
-- [ ] Host and client ready up.
-- [ ] Tournament starts.
-- [ ] Local player submits fold/check/call/raise/all-in as applicable.
-- [ ] Observer mode cannot submit action.
-- [ ] Client leaves; no stale runtime thread remains.
-- [ ] Host stops; client gets clear termination/recovery state.
-- [ ] Client reconnects after temporary disconnect.
-- [ ] Malformed join is rejected cleanly.
-- [ ] Oversized inbound frame is rejected cleanly.
-- [ ] NPC-only or NPC-assisted tournament still runs.
+- [x] Host starts a table.
+- [x] Client joins using invite payload.
+- [x] Host and client claim seats.
+- [x] Host and client ready up.
+- [x] Tournament starts.
+- [x] Local player submits fold/check/call/raise/all-in as applicable.
+- [x] Observer mode cannot submit action.
+- [x] Client leaves; no stale runtime thread remains.
+- [x] Host stops; client gets clear termination/recovery state.
+- [x] Client reconnects after temporary disconnect.
+- [x] Malformed join is rejected cleanly.
+- [x] Oversized inbound frame is rejected cleanly.
+- [x] NPC-only or NPC-assisted tournament still runs.
 
 ### Evidence
 
-- [ ] Save logs/screenshots/summaries under `docs/runtime-validation/`.
-- [ ] Include the commit SHA and commands used.
+- [x] Save logs/screenshots/summaries under `docs/runtime-validation/`.
+- [x] Include the commit SHA and commands used.
 
 ### Acceptance criteria
 
-- [ ] Manual/runtime evidence exists for the major flows touched by this TODO.
+- [x] Manual/runtime evidence exists for the major flows touched by this TODO.
 
 ---
 
@@ -861,16 +862,16 @@ Run these manually or through existing runtime scripts:
 
 ### Subtasks
 
-- [ ] Ensure CI runs Rust unit tests for `poker-core` and Tauri crate.
-- [ ] Ensure CI runs frontend unit tests.
-- [ ] Ensure CI runs lint/format checks.
-- [ ] If runtime smoke tests are too heavy for every PR, document how to run them locally.
-- [ ] Add a lightweight test for inbound frame-size rejection to normal CI.
-- [ ] Add typed command/error tests to normal CI.
+- [x] Ensure CI runs Rust unit tests for `poker-core` and Tauri crate.
+- [x] Ensure CI runs frontend unit tests.
+- [x] Ensure CI runs lint/format checks.
+- [x] If runtime smoke tests are too heavy for every PR, document how to run them locally.
+- [x] Add a lightweight test for inbound frame-size rejection to normal CI.
+- [x] Add typed command/error tests to normal CI.
 
 ### Acceptance criteria
 
-- [ ] The most important hardening tests run automatically.
+- [x] The most important hardening tests run automatically.
 
 ---
 
@@ -878,19 +879,30 @@ Run these manually or through existing runtime scripts:
 
 This TODO is complete only when all of the following are true:
 
-- [ ] Oversized inbound frames cannot allocate unbounded memory.
-- [ ] Client runtime has explicit shutdown and does not leave detached long-lived threads.
-- [ ] Host join handling is bounded by connection/thread limits.
-- [ ] Client operation timeouts are centralized, reasonable, and tested.
-- [ ] Runtime polling distinguishes ordinary timeout from dead runtime channel.
-- [ ] Reconnect logic no longer depends on string matching.
-- [ ] Action rejection vs timeout-advanced state changes are explicit and tested.
-- [ ] Intentional best-effort paths record structured diagnostics.
-- [ ] Critical Tauri commands expose stable typed errors.
-- [ ] Frontend/backend DTO drift is covered by contract tests or generated bindings.
-- [ ] localStorage write failures are non-fatal and visible.
-- [ ] LLM provider docs and provider enums agree.
-- [ ] Abuse-case protocol tests exist for malformed peers.
-- [ ] Runtime validation evidence is committed under `docs/runtime-validation/`.
-- [ ] `cargo test --workspace --all-targets --all-features` passes from `src-tauri/Cargo.toml`.
-- [ ] `npm run lint`, `npm run test`, and `npm run build` pass.
+- [x] Oversized inbound frames cannot allocate unbounded memory.
+- [x] Client runtime has explicit shutdown and does not leave detached long-lived threads.
+- [x] Host join handling is bounded by connection/thread limits.
+- [x] Client operation timeouts are centralized, reasonable, and tested.
+- [x] Runtime polling distinguishes ordinary timeout from dead runtime channel.
+- [x] Reconnect logic no longer depends on string matching.
+- [x] Action rejection vs timeout-advanced state changes are explicit and tested.
+- [x] Intentional best-effort paths record structured diagnostics.
+- [x] Critical Tauri commands expose stable typed errors.
+- [x] Frontend/backend DTO drift is covered by contract tests or generated bindings.
+- [x] localStorage write failures are non-fatal and visible.
+- [x] LLM provider docs and provider enums agree.
+- [x] Abuse-case protocol tests exist for malformed peers.
+- [x] Runtime validation evidence is committed under `docs/runtime-validation/`.
+- [x] `cargo test --workspace --all-targets --all-features` passes from `src-tauri/Cargo.toml`.
+- [x] `npm run lint`, `npm run test`, and `npm run build` pass.
+
+---
+
+# Completion reconciliation — 2026-07-28
+
+All checklist items above were reconciled against committed implementation, focused tests, general CI run `30403803338`, release-runtime run `30403803495`, and retained gameplay, reconnect, and NPC evidence under `docs/runtime-validation/`.
+
+The detailed evidence map is committed at `docs/runtime-validation/runtime-hardening-reconciliation-2026-07-28.md`.
+
+The separately tracked two-physical-machine LAN release gate remains explicitly deferred in `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`; it is not part of this completed code-review hardening checklist.
+
