@@ -2,7 +2,7 @@ name: CI
 
 # This workflow proves automated correctness and Linux artifact construction.
 # Graphical application launch, live LAN play, keychain behavior, and live LLM
-# providers remain separate manual release-readiness gates.
+# providers remain separate release-readiness gates.
 
 on:
   push:
@@ -10,6 +10,8 @@ on:
       - master
     tags:
       - "v*"
+    paths-ignore:
+      - "docs/runtime-validation/**"
   pull_request:
   workflow_dispatch:
 
@@ -207,7 +209,7 @@ jobs:
 
   publish-result:
     name: Publish CI result
-    if: always() && github.ref == 'refs/heads/master'
+    if: always() && !cancelled() && github.ref == 'refs/heads/master'
     needs:
       - verify
       - geometry
@@ -228,15 +230,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          for attempt in 1 2 3 4 5 6; do
-            git fetch origin +refs/heads/master:refs/remotes/origin/master
-            git checkout -B ci-result-publisher refs/remotes/origin/master
-            mkdir -p docs/runtime-validation
-
-            python3 - <<'PY'
+          mkdir -p docs/runtime-validation
+          python3 - <<'PY'
           import json
           import os
           from datetime import datetime, timezone
@@ -271,19 +266,10 @@ jobs:
           print(json.dumps(payload, indent=2, sort_keys=True))
           PY
 
-            git add \
-              docs/runtime-validation/ci-latest.json \
-              docs/runtime-validation/ci-latest.md
-            if git diff --cached --quiet; then
-              exit 0
-            fi
-            git commit -m "docs: record CI validation result"
-            if git push origin HEAD:master; then
-              exit 0
-            fi
-            sleep 3
-          done
-          exit 1
+          bash scripts/push_runtime_evidence.sh \
+            "docs: record CI validation result" \
+            docs/runtime-validation/ci-latest.json \
+            docs/runtime-validation/ci-latest.md
 
   release-candidate:
     name: Release candidate artifacts
