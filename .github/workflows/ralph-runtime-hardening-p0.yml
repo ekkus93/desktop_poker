@@ -1,0 +1,300 @@
+name: Ralph remote action hardening P0
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/ralph-runtime-hardening-p0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  harden-remote-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Patch remote action outcome semantics
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          handlers = Path('src-tauri/src/networking/runtime/handlers.rs')
+          text = handlers.read_text()
+          text = text.replace(
+              '    tournament::{ActionRequest, TournamentController},',
+              '    tournament::{ActionRequest, ActionSubmissionOutcome, TournamentController},',
+          )
+          marker = 'pub(crate) fn handle_action_submission_request('
+          start = text.index(marker)
+          replacement = r'''#[derive(Debug)]
+pub(crate) enum RemoteActionSubmissionOutcome {
+    Committed {
+        previous_state: TournamentState,
+        after_state: TournamentState,
+    },
+    RejectedNoStateChange {
+        error: NetworkingError,
+    },
+    TimeoutAdvancedThenRejected {
+        previous_state: TournamentState,
+        after_state: TournamentState,
+        error: NetworkingError,
+    },
+}
+
+pub(crate) fn handle_action_submission_request(
+    crypto_provider: &impl ProtocolCryptoProvider,
+    request_envelope: JsonSignedEnvelope,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    tournament_runtime: &Arc<Mutex<Option<TournamentController>>>,
+) -> Result<RemoteActionSubmissionOutcome, NetworkingError> {
+    let request: PlayerActionSubmission = serde_json::from_value(request_envelope.payload.clone())
+        .map_err(|error| {
+            NetworkingError::new(format!("invalid action submission payload: {error}"))
+        })?;
+    {
+        let state = authoritative_state
+            .lock()
+            .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
+        let participant = state
+            .participants
+            .get(&request_envelope.sender_id)
+            .ok_or_else(|| NetworkingError::new("action requester is not registered"))?;
+
+        request_envelope
+            .verify(crypto_provider, &participant.identity.signing_public_key)
+            .map_err(|error| NetworkingError::new(error.to_string()))?;
+    }
+
+    let before_state = authoritative_state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?
+        .clone();
+    let action_request = ActionRequest {
+        player_id: request_envelope.sender_id,
+        action_window_id: request.action_window_id,
+        action_type: request.action_type,
+        raise_to_amount: request.raise_to_amount,
+    };
+
+    let (next_state, action_outcome) = {
+        let mut runtime = tournament_runtime
+            .lock()
+            .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?;
+        let controller = runtime
+            .as_mut()
+            .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
+        if controller.state() != &before_state {
+            return Err(NetworkingError::new(
+                "tournament runtime diverged from authoritative state before remote action",
+            ));
+        }
+        let rollback_controller = controller.clone();
+        let action_outcome = match controller.submit_action_with_outcome(action_request, now_epoch_ms()) {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                *controller = rollback_controller;
+                return Err(NetworkingError::new(error.to_string()));
+            }
+        };
+        let next_state = controller.state().clone();
+
+        let invalid_transition = match &action_outcome {
+            ActionSubmissionOutcome::Committed => next_state == before_state,
+            ActionSubmissionOutcome::RejectedNoStateChange { .. } => next_state != before_state,
+            ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => next_state == before_state,
+        };
+        if invalid_transition {
+            *controller = rollback_controller;
+            return Err(NetworkingError::new(
+                "remote action outcome did not match its controller state transition; mutation was rolled back",
+            ));
+        }
+
+        (next_state, action_outcome)
+    };
+
+    match action_outcome {
+        ActionSubmissionOutcome::Committed => {
+            let (previous_state, after_state) =
+                commit_runtime_state(authoritative_state, next_state)?;
+            Ok(RemoteActionSubmissionOutcome::Committed {
+                previous_state,
+                after_state,
+            })
+        }
+        ActionSubmissionOutcome::RejectedNoStateChange { error } => {
+            Ok(RemoteActionSubmissionOutcome::RejectedNoStateChange {
+                error: NetworkingError::new(error.to_string()),
+            })
+        }
+        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { error } => {
+            let (previous_state, after_state) =
+                commit_runtime_state(authoritative_state, next_state)?;
+            Ok(RemoteActionSubmissionOutcome::TimeoutAdvancedThenRejected {
+                previous_state,
+                after_state,
+                error: NetworkingError::new(error.to_string()),
+            })
+        }
+    }
+}
+'''
+          handlers.write_text(text[:start] + replacement)
+
+          session = Path('src-tauri/src/networking/runtime/host_session.rs')
+          text = session.read_text()
+          helper_marker = '#[allow(clippy::too_many_arguments)]\npub(crate) fn spawn_host_client_session('
+          helper = r'''#[allow(clippy::too_many_arguments)]
+fn send_action_rejection_best_effort(
+    stream: &mut TcpStream,
+    crypto_provider: &DefaultCryptoProvider,
+    join_payload: &JoinPayload,
+    server_sequence: &Arc<AtomicU64>,
+    host_signing_keys: &SigningKeyMaterial,
+    rejected_message_id: String,
+    error: &NetworkingError,
+) {
+    if let Ok(envelope) = build_protocol_error_envelope(
+        crypto_provider,
+        join_payload,
+        server_sequence,
+        host_signing_keys,
+        "ACTION_SUBMISSION_REJECTED",
+        error.to_string(),
+        Some(rejected_message_id),
+    ) {
+        // Best-effort rejection reply. Authoritative state and transition
+        // publication have already been handled before this helper is called.
+        let _ = write_json_frame(stream, &envelope);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn spawn_host_client_session('''
+          if helper_marker not in text:
+              raise SystemExit('spawn helper marker not found')
+          text = text.replace(helper_marker, helper, 1)
+
+          branch_start = text.index('                    ProtocolMessageType::ActionSubmissionRequest => {')
+          branch_end = text.index('                    ProtocolMessageType::ResyncRequest => {', branch_start)
+          new_branch = r'''                    ProtocolMessageType::ActionSubmissionRequest => {
+                        let _transition_guard = match transition_lock.lock() {
+                            Ok(guard) => guard,
+                            Err(_) => {
+                                record_state_lock_error(
+                                    &runtime_health,
+                                    "host transition lock poisoned during remote action",
+                                );
+                                break;
+                            }
+                        };
+                        let rejected_message_id = request_envelope.message_id.clone();
+                        let response = handle_action_submission_request(
+                            &crypto_provider,
+                            request_envelope,
+                            &authoritative_state,
+                            &tournament_runtime,
+                        );
+
+                        match response {
+                            Ok(RemoteActionSubmissionOutcome::Committed {
+                                previous_state,
+                                after_state,
+                            }) => {
+                                if publish_runtime_transition(
+                                    &join_payload,
+                                    &authoritative_state,
+                                    &previous_state,
+                                    &after_state,
+                                    &clients,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    &host_encryption_keys,
+                                    &public_events,
+                                )
+                                .is_err()
+                                {
+                                    disconnect_client(
+                                        &clients,
+                                        &authoritative_state,
+                                        &runtime_health,
+                                        &player_id,
+                                    );
+                                    break;
+                                }
+                            }
+                            Ok(RemoteActionSubmissionOutcome::TimeoutAdvancedThenRejected {
+                                previous_state,
+                                after_state,
+                                error,
+                            }) => {
+                                if publish_runtime_transition(
+                                    &join_payload,
+                                    &authoritative_state,
+                                    &previous_state,
+                                    &after_state,
+                                    &clients,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    &host_encryption_keys,
+                                    &public_events,
+                                )
+                                .is_err()
+                                {
+                                    disconnect_client(
+                                        &clients,
+                                        &authoritative_state,
+                                        &runtime_health,
+                                        &player_id,
+                                    );
+                                    break;
+                                }
+                                send_action_rejection_best_effort(
+                                    &mut stream,
+                                    &crypto_provider,
+                                    &join_payload,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    rejected_message_id,
+                                    &error,
+                                );
+                            }
+                            Ok(RemoteActionSubmissionOutcome::RejectedNoStateChange { error })
+                            | Err(error) => {
+                                send_action_rejection_best_effort(
+                                    &mut stream,
+                                    &crypto_provider,
+                                    &join_payload,
+                                    &server_sequence,
+                                    &host_signing_keys,
+                                    rejected_message_id,
+                                    &error,
+                                );
+                            }
+                        }
+                    }
+'''
+          session.write_text(text[:branch_start] + new_branch + text[branch_end:])
+          PY
+      - name: Format and validate Rust workspace
+        shell: bash
+        run: |
+          cargo fmt --manifest-path src-tauri/Cargo.toml
+          cargo fmt --manifest-path crates/poker-core/Cargo.toml
+          cargo test --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features
+          cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets --all-features -- -D warnings
+      - name: Commit P0 fix and remove workflow
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/ralph-runtime-hardening-p0.yml
+          git add -A
+          git commit -m "Fix remote timeout action state publication"
+          git push origin HEAD:master
