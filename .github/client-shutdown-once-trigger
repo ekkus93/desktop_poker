@@ -1,1 +1,1 @@
-apply explicit client runtime shutdown retry 2
+apply explicit client runtime shutdown retry 3
