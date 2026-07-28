@@ -14,9 +14,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T23:39:19.766879+00:00",
+  "recordedAtUtc": "2026-07-28T23:43:03.137106+00:00",
   "result": "FAIL",
-  "validatedCommit": "e8538efd8dbc6b82cc06dc1a164f1f09235e9528",
+  "validatedCommit": "247756d9a816d7ffafe39273de8a6c05c1216225",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30408526034"
+  "workflowRunId": "30408699234"
 }
