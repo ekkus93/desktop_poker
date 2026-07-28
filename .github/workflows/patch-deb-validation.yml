@@ -20,52 +20,70 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Add the missing desktop launcher dependency
+      - name: Use direct X11 window discovery
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin master
-          git checkout -B deb-packaging-fix origin/master
+          git checkout -B debian-window-detection-fix origin/master
 
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path(".github/workflows/runtime-installed-deb-validation.yml")
+          path = Path(".github/workflows/runtime-debian-package-validation.yml")
           lines = path.read_text(encoding="utf-8").splitlines()
-          slash = chr(92)
 
-          package_line = "desktop-file-utils " + slash
-          launcher_package = "libgtk-3-bin " + slash
-          if not any(line.strip() == launcher_package for line in lines):
-              matches = [index for index, line in enumerate(lines) if line.strip() == package_line]
-              if len(matches) != 1:
-                  raise SystemExit(f"Expected one desktop-file-utils package line; got {matches}")
-              index = matches[0]
-              lines.insert(index + 1, "            " + launcher_package)
+          dependency_matches = [
+              index for index, line in enumerate(lines) if line.strip() == "wmctrl"
+          ]
+          if dependency_matches == []:
+              if not any(line.strip() == "xdotool" for line in lines):
+                  raise SystemExit("Neither wmctrl nor xdotool dependency was found")
+          elif len(dependency_matches) == 1:
+              lines[dependency_matches[0]] = "            xdotool"
+          else:
+              raise SystemExit(f"Expected one wmctrl dependency; got {dependency_matches}")
 
-          metadata_line = '          : > "$evidence_dir/metadata.env"'
-          launcher_check = (
-              '          command -v gtk-launch | tee '
-              '"$evidence_dir/gtk-launch-path.txt"'
-          )
-          if launcher_check not in lines:
-              matches = [index for index, line in enumerate(lines) if line == metadata_line]
+          wmctrl_matches = [
+              index for index, line in enumerate(lines) if "wmctrl -l" in line
+          ]
+          if wmctrl_matches:
+              if len(wmctrl_matches) != 1:
+                  raise SystemExit(f"Expected one wmctrl check; got {wmctrl_matches}")
+              index = wmctrl_matches[0]
+              if "if grep -F 'Desktop Poker'" not in lines[index + 1]:
+                  raise SystemExit("wmctrl result check did not match expected source")
+              evidence = '"$DEBIAN_PACKAGE_EVIDENCE_DIR/window-ids.txt"'
+              lines[index : index + 2] = [
+                  f"            : > {evidence}",
+                  f"            if xdotool search --name 'Desktop Poker' >{evidence} 2>&1; then",
+              ]
+
+          assertion = '          test "$window_found" = true'
+          titles = [
+              '          while read -r window_id; do',
+              '            xdotool getwindowname "$window_id"',
+              '          done < "$DEBIAN_PACKAGE_EVIDENCE_DIR/window-ids.txt" \',
+              '            | tee "$DEBIAN_PACKAGE_EVIDENCE_DIR/window-titles.txt"',
+          ]
+          if not any("window-titles.txt" in line for line in lines):
+              matches = [index for index, line in enumerate(lines) if line == assertion]
               if len(matches) != 1:
-                  raise SystemExit(f"Expected one metadata initialization line; got {matches}")
-              lines.insert(matches[0] + 1, launcher_check)
+                  raise SystemExit(f"Expected one window assertion; got {matches}")
+              lines[matches[0] + 1 : matches[0] + 1] = titles
 
           path.write_text("\n".join(lines) + "\n", encoding="utf-8")
           PY
 
-          grep -F 'libgtk-3-bin \' .github/workflows/runtime-installed-deb-validation.yml
-          grep -F 'command -v gtk-launch' .github/workflows/runtime-installed-deb-validation.yml
+          grep -F 'xdotool' .github/workflows/runtime-debian-package-validation.yml
+          ! grep -F 'wmctrl -l' .github/workflows/runtime-debian-package-validation.yml
           git diff --check
           rm .github/workflows/patch-deb-validation.yml
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix: install gtk-launch for Debian package validation"
+          git commit -m "fix: detect packaged window directly through X11"
 
           for attempt in 1 2 3 4 5 6; do
             git fetch origin master
