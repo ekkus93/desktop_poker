@@ -3,11 +3,11 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream},
     sync::{
         atomic::{AtomicBool, AtomicU64},
-        mpsc::Receiver,
+        mpsc::{Receiver, RecvTimeoutError},
         Arc, Mutex,
     },
     thread::JoinHandle,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use local_ip_address::list_afinet_netifas;
@@ -64,6 +64,23 @@ impl std::fmt::Display for NetworkingError {
 }
 
 impl std::error::Error for NetworkingError {}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClientRuntimePollError {
+    Timeout,
+    Disconnected,
+}
+
+impl std::fmt::Display for ClientRuntimePollError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Timeout => write!(f, "timed out waiting for client event"),
+            Self::Disconnected => write!(f, "client runtime event channel disconnected"),
+        }
+    }
+}
+
+impl std::error::Error for ClientRuntimePollError {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HostRuntimeMode {
@@ -226,6 +243,18 @@ pub struct ClientRuntime {
     command_connection: Arc<Mutex<ClientCommandConnection>>,
 }
 
+impl ClientRuntime {
+    pub fn poll_event(
+        &self,
+        timeout: Duration,
+    ) -> Result<ClientRuntimeEvent, ClientRuntimePollError> {
+        self.incoming.recv_timeout(timeout).map_err(|error| match error {
+            RecvTimeoutError::Timeout => ClientRuntimePollError::Timeout,
+            RecvTimeoutError::Disconnected => ClientRuntimePollError::Disconnected,
+        })
+    }
+}
+
 pub struct ClientRuntimeConfig {
     pub join_payload: String,
     pub player_id: String,
@@ -336,6 +365,72 @@ fn now_epoch_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis() as u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod poll_tests {
+    use std::sync::mpsc;
+
+    use super::*;
+
+    fn runtime_with_receiver(receiver: Receiver<ClientRuntimeEvent>) -> ClientRuntime {
+        ClientRuntime {
+            incoming: receiver,
+            reconnect_identity: Arc::new(Mutex::new(ClientReconnectIdentity {
+                signing_keys: None,
+                encryption_keys: None,
+            })),
+            command_connection: Arc::new(Mutex::new(ClientCommandConnection {
+                player_id: "player-1".to_string(),
+                table_id: "table-1".to_string(),
+                session_epoch: 1,
+                next_counter: 1,
+                stream: None,
+            })),
+        }
+    }
+
+    #[test]
+    fn poll_event_returns_queued_event() {
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send(ClientRuntimeEvent::Reconnecting {
+                player_id: "player-1".to_string(),
+            })
+            .expect("event should queue");
+        let runtime = runtime_with_receiver(receiver);
+
+        let event = runtime
+            .poll_event(Duration::from_millis(10))
+            .expect("queued event should be returned");
+
+        assert!(matches!(event, ClientRuntimeEvent::Reconnecting { .. }));
+    }
+
+    #[test]
+    fn poll_event_distinguishes_timeout() {
+        let (_sender, receiver) = mpsc::channel();
+        let runtime = runtime_with_receiver(receiver);
+
+        let error = runtime
+            .poll_event(Duration::from_millis(1))
+            .expect_err("empty live channel should time out");
+
+        assert_eq!(error, ClientRuntimePollError::Timeout);
+    }
+
+    #[test]
+    fn poll_event_distinguishes_disconnected_channel() {
+        let (sender, receiver) = mpsc::channel();
+        drop(sender);
+        let runtime = runtime_with_receiver(receiver);
+
+        let error = runtime
+            .poll_event(Duration::from_millis(1))
+            .expect_err("closed channel should report disconnect");
+
+        assert_eq!(error, ClientRuntimePollError::Disconnected);
+    }
 }
 
 #[cfg(test)]
