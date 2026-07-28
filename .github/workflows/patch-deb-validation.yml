@@ -34,39 +34,52 @@ jobs:
           from pathlib import Path
 
           path = Path(".github/workflows/runtime-installed-deb-validation.yml")
-          lines = path.read_text(encoding="utf-8").splitlines()
+          text = path.read_text(encoding="utf-8")
+          slash = chr(92)
 
-          package_indexes = [
-              index
-              for index, line in enumerate(lines)
-              if line.strip().startswith("desktop-file-utils")
-          ]
-          if package_indexes != [56]:
-              raise SystemExit(
-                  f"Expected one desktop-file-utils dependency at line index 56; got {package_indexes}"
-              )
-          package_index = package_indexes[0]
-          if not any(line.strip().startswith("libgtk-3-bin") for line in lines):
-              lines.insert(package_index + 1, f"            libgtk-3-bin {chr(92)}")
+          old_packages = (
+              "            desktop-file-utils " + slash + "\n"
+              "            wmctrl\n"
+          )
+          new_packages = (
+              "            desktop-file-utils " + slash + "\n"
+              "            libgtk-3-bin " + slash + "\n"
+              "            wmctrl\n"
+          )
+          if "libgtk-3-bin" not in text:
+              if old_packages not in text:
+                  raise SystemExit("Debian dependency block did not match expected source")
+              text = text.replace(old_packages, new_packages, 1)
 
-          evidence_line = '          : > "$evidence_dir/metadata.env"'
-          try:
-              evidence_index = lines.index(evidence_line)
-          except ValueError as error:
-              raise SystemExit("Debian evidence initialization did not match expected source") from error
-          launcher_check = '          command -v gtk-launch | tee "$evidence_dir/gtk-launch-path.txt"'
-          if launcher_check not in lines:
-              lines.insert(evidence_index + 1, launcher_check)
+          old_evidence = (
+              '          : > "$evidence_dir/steps.tsv"\n'
+              '          : > "$evidence_dir/metadata.env"\n'
+          )
+          new_evidence = old_evidence + (
+              '          command -v gtk-launch | tee '
+              '"$evidence_dir/gtk-launch-path.txt"\n'
+          )
+          if "gtk-launch-path.txt" not in text:
+              if old_evidence not in text:
+                  raise SystemExit("Debian evidence initialization did not match expected source")
+              text = text.replace(old_evidence, new_evidence, 1)
 
-          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          path.write_text(text, encoding="utf-8")
           PY
 
+          git diff --check
           rm .github/workflows/patch-deb-validation.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: install gtk-launch for Debian package validation"
-          git pull --rebase origin master
-          git push origin HEAD:master
 
-          gh workflow run runtime-installed-deb-validation.yml --ref master
+          for attempt in 1 2 3 4 5 6; do
+            git pull --rebase origin master
+            if git push origin HEAD:master; then
+              gh workflow run runtime-installed-deb-validation.yml --ref master
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
