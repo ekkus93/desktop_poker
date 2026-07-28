@@ -1,7 +1,8 @@
-import { act, screen, waitFor } from "@testing-library/react";
-import { Route, Routes } from "react-router";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBootstrap, renderWithProviders } from "../../test/fixtures";
+import { DesktopShellProvider } from "../../app/DesktopShellProvider";
+import { createBootstrap } from "../../test/fixtures";
 import { AppFrame, type NavigationItem } from "./AppFrame";
 
 const navigation: NavigationItem[] = [
@@ -13,16 +14,20 @@ const navigation: NavigationItem[] = [
   { to: "/settings", label: "Settings" },
 ];
 
-function FrameHarness() {
+function renderFrame(initialEntry: string) {
   const bootstrap = createBootstrap({ appName: "Desktop Poker Test" });
-  return (
-    <AppFrame bootstrap={bootstrap} navigation={navigation}>
-      <Routes>
-        <Route path="/" element={<h2>Home surface</h2>} />
-        <Route path="/join" element={<h2>Join surface</h2>} />
-        <Route path="/host" element={<h2>Host surface</h2>} />
-      </Routes>
-    </AppFrame>
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <DesktopShellProvider bootstrap={bootstrap}>
+        <AppFrame bootstrap={bootstrap} navigation={navigation}>
+          <Routes>
+            <Route path="/" element={<h2>Home surface</h2>} />
+            <Route path="/join" element={<h2>Join surface</h2>} />
+            <Route path="/host" element={<h2>Host surface</h2>} />
+          </Routes>
+        </AppFrame>
+      </DesktopShellProvider>
+    </MemoryRouter>,
   );
 }
 
@@ -43,7 +48,7 @@ describe("AppFrame accessibility navigation", () => {
   });
 
   it("provides a skip link targeting the main content region", () => {
-    renderWithProviders(<FrameHarness />, { initialEntries: ["/"] });
+    renderFrame("/");
 
     const skipLink = screen.getByRole("link", {
       name: "Skip to main content",
@@ -54,15 +59,11 @@ describe("AppFrame accessibility navigation", () => {
     expect(main.getAttribute("tabindex")).toBe("-1");
   });
 
-  it("moves focus to main content after a data-router navigation", async () => {
-    const { router } = renderWithProviders(<FrameHarness />, {
-      initialEntries: ["/join"],
-    });
+  it("moves focus to main content after an SPA route change", async () => {
+    renderFrame("/join");
 
     expect(screen.getByText("Join surface")).toBeTruthy();
-    await act(async () => {
-      await router.navigate("/host");
-    });
+    fireEvent.click(screen.getByRole("link", { name: "Host" }));
     expect(await screen.findByText("Host surface")).toBeTruthy();
 
     await waitFor(() => {
