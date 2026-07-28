@@ -16,6 +16,9 @@ pub mod session_history;
 pub mod strategy;
 pub mod tilt;
 
+#[cfg(test)]
+mod embedded_llm_negative_tests;
+
 pub use llm_strategy::LlmFallbackReason;
 pub use provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
 
