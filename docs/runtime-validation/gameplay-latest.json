@@ -4,23 +4,23 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "c7b2fa9e98b03a0cf294410eb3bf28511ea880eca4b47c509c4d289c010e1ef1",
-    "clientInstanceId": "full-game-client-30315871535",
-    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30315871535",
+    "clientInstanceId": "full-game-client-30316281970",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30316281970",
     "completedHands": 3,
     "finalHistory": [
       {
         "boardCards": [
           {
-            "compactLabel": "K\u2666",
-            "label": "King of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
+            "compactLabel": "3\u2660",
+            "label": "Three of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
           },
           {
-            "compactLabel": "9\u2666",
-            "label": "Nine of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
+            "compactLabel": "A\u2660",
+            "label": "Ace of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
           },
           {
             "compactLabel": "4\u2660",
@@ -29,26 +29,26 @@
             "tone": "dark"
           },
           {
-            "compactLabel": "2\u2666",
-            "label": "Two of Diamonds",
-            "suitSymbol": "\u2666",
+            "compactLabel": "7\u2665",
+            "label": "Seven of Hearts",
+            "suitSymbol": "\u2665",
             "tone": "red"
           },
           {
-            "compactLabel": "8\u2660",
-            "label": "Eight of Spades",
+            "compactLabel": "7\u2660",
+            "label": "Seven of Spades",
             "suitSymbol": "\u2660",
             "tone": "dark"
           }
         ],
         "eliminatedPlayers": [
-          "Player full-game-host-30315871535"
+          "Player full-game-host-30316281970"
         ],
         "handNumber": 3,
         "potTotal": 1940,
-        "summary": "Player full-game-client-30315871535 won 1940 chip(s).",
+        "summary": "Player full-game-client-30316281970 won 1940 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30315871535"
+          "Player full-game-client-30316281970"
         ]
       },
       {
@@ -56,9 +56,9 @@
         "eliminatedPlayers": [],
         "handNumber": 2,
         "potTotal": 1030,
-        "summary": "Player full-game-client-30315871535 won 1030 chip(s).",
+        "summary": "Player full-game-client-30316281970 won 1030 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30315871535"
+          "Player full-game-client-30316281970"
         ]
       },
       {
@@ -66,16 +66,16 @@
         "eliminatedPlayers": [],
         "handNumber": 1,
         "potTotal": 30,
-        "summary": "Player full-game-client-30315871535 won 30 chip(s).",
+        "summary": "Player full-game-client-30316281970 won 30 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30315871535"
+          "Player full-game-client-30316281970"
         ]
       }
     ],
     "finalStandings": [
       {
         "chipCount": 2000,
-        "displayName": "Player full-game-client-30315871535",
+        "displayName": "Player full-game-client-30316281970",
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -83,15 +83,15 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Player full-game-host-30315871535",
+        "displayName": "Player full-game-host-30316281970",
         "isObserver": true,
         "note": null,
         "rank": 2,
         "statusLabel": "Eliminated observer"
       }
     ],
-    "hostInstanceId": "full-game-host-30315871535",
-    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30315871535",
+    "hostInstanceId": "full-game-host-30316281970",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30316281970",
     "result": "PASS",
     "steps": [
       {
@@ -107,7 +107,7 @@
         "result": "PASS"
       },
       {
-        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/a455d162-bc62-45c7-9ffd-33cf8f6bb4ae/execute/async error raise exceeds remaining stack: None",
+        "name": "out-of-bounds raise was rejected without advancing state: WebDriver POST /session/a24a0e15-5ef0-4395-b806-290f9e87b3df/execute/async error raise exceeds remaining stack: None",
         "result": "PASS"
       },
       {
@@ -145,9 +145,9 @@
     ]
   },
   "gameplayOutcome": "success",
-  "recordedAtUtc": "2026-07-28T00:02:22.843084+00:00",
+  "recordedAtUtc": "2026-07-28T00:09:53.925064+00:00",
   "result": "PASS",
-  "validatedCommit": "599b7ce42e101bcda38f86ae9bae0e94337946e2",
+  "validatedCommit": "729183461abceb463c49d0735bd18d76bdb42294",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30315871535"
+  "workflowRunId": "30316281970"
 }
