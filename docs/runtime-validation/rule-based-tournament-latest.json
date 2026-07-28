@@ -1,11 +1,11 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-07-28T12:20:58.766372+00:00",
+  "recordedAtUtc": "2026-07-28T12:57:59.032816+00:00",
   "result": "PASS",
   "ruleBasedTournament": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "c39c4cf69ec7ee57829bcb32a086251a93ec8e25e9534e0f41dff6ce1df4f1bb",
+    "applicationSha256": "2bff6e6708b583515b32d06eb4cca780437068e7aff889ebbe97c4a2a6796858",
     "completedHands": 14,
     "finalStandings": [
       {
@@ -47,7 +47,7 @@
       "hand 12: allIn",
       "hand 14: allIn"
     ],
-    "instanceId": "rule-based-npc-30358343943",
+    "instanceId": "rule-based-npc-30361083030",
     "npcActionCount": 20,
     "npcActionCounts": {
       "Rule Bot Alpha": 9,
@@ -176,7 +176,7 @@
       }
     ],
     "npcDiagnosticCount": 0,
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30358343943",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-30361083030",
     "result": "PASS",
     "steps": [
       {
@@ -214,7 +214,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "5a52bfe9813cf74d562a5d72fdbe85713d0a0cda",
+  "validatedCommit": "ada05f0f0badab46056fa3d1b7485e621a35e881",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30358343943"
+  "workflowRunId": "30361083030"
 }
