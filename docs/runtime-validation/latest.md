@@ -1,12 +1,12 @@
 # Latest Linux Release Runtime Validation
 
-- Overall result: **PASS**
-- Validated commit: `17714ad7a5ad3620984729aa75f617c290c41870`
-- GitHub Actions run: `30360645621`
+- Overall result: **FAIL**
+- Validated commit: `ada05f0f0badab46056fa3d1b7485e621a35e881`
+- GitHub Actions run: `30361083115`
 - Build outcome: `success`
 - Single-instance outcome: `success`
-- Multi-instance outcome: `success`
-- Recorded at: `2026-07-28T12:51:46.164330+00:00`
+- Multi-instance outcome: `failure`
+- Recorded at: `2026-07-28T12:57:57.248519+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
@@ -29,7 +29,9 @@ Result: **PASS**
 
 ## Live multi-instance release smoke
 
-Result: **PASS**
+Result: **FAIL**
+
+Failure: AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None
 
 - **PASS** — host release instance launched
 - **PASS** — client release instance launched
@@ -37,12 +39,4 @@ Result: **PASS**
 - **PASS** — three instance IDs and profile directories are distinct
 - **PASS** — client host draft is independently namespaced before joining
 - **PASS** — host started a real TCP session and produced a pkr1_ invite
-- **PASS** — client joined the live host over real TCP with matching seat indexes
-- **PASS** — host began the lobby in its authoritative occupied seat
-- **PASS** — client claimed the remaining open seat through the release UI
-- **PASS** — host and client agree on distinct authoritative seat assignments
-- **PASS** — ready state propagated to both release instances
-- **PASS** — both instances entered Main Table after authoritative start
-- **PASS** — private cards are isolated and public table state is synchronized
-- **PASS** — same-port host failed explicitly: Unable to start hosting.
-- **PASS** — conflicting host recovered successfully on port 43819
+- **FAIL** — multi-instance runtime smoke
