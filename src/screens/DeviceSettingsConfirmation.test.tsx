@@ -80,14 +80,18 @@ describe("DeviceSettingsScreen destructive confirmation exclusivity", () => {
 
     expect(screen.queryByRole("button", { name: "Confirm reset" })).toBeNull();
     expect(
-      (screen.getByRole("button", {
-        name: "Reset host setup",
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: "Reset host setup",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
     expect(
-      (screen.getByRole("button", {
-        name: /clear saved invites/i,
-      }) as HTMLButtonElement).disabled,
+      (
+        screen.getByRole("button", {
+          name: /clear saved invites/i,
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
   });
 });

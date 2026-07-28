@@ -105,10 +105,7 @@ describe("NpcProfilesScreen integrity guards", () => {
         <Link to="/settings">Leave editor</Link>
         <Routes>
           <Route path="/npc-profiles" element={<NpcProfilesScreen />} />
-          <Route
-            path="/settings"
-            element={<h1>Settings destination</h1>}
-          />
+          <Route path="/settings" element={<h1>Settings destination</h1>} />
         </Routes>
       </>,
       {
@@ -153,9 +150,7 @@ describe("NpcProfilesScreen integrity guards", () => {
   it("rejects malformed profile IDs before calling the backend", async () => {
     renderProfiles();
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "New profile" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "New profile" }));
     fireEvent.change(screen.getByLabelText(/profile id/i), {
       target: { value: "../Escape_Profile" },
     });
@@ -175,9 +170,7 @@ describe("NpcProfilesScreen integrity guards", () => {
     mockedListNpcProfiles.mockResolvedValue(profileList([existing]));
     renderProfiles();
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "New profile" }),
-    );
+    fireEvent.click(await screen.findByRole("button", { name: "New profile" }));
     fireEvent.change(screen.getByLabelText(/profile id/i), {
       target: { value: "existing-player" },
     });
@@ -187,7 +180,9 @@ describe("NpcProfilesScreen integrity guards", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(
-      await screen.findByText("A profile with ID 'existing-player' already exists."),
+      await screen.findByText(
+        "A profile with ID 'existing-player' already exists.",
+      ),
     ).toBeTruthy();
     expect(mockedSaveNpcProfile).not.toHaveBeenCalled();
   });

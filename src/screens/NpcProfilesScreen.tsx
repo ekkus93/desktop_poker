@@ -16,8 +16,7 @@ const BUILTIN_PROFILE_IDS = [
   "balanced-sam",
 ];
 const PROFILE_ID_PATTERN = /^[a-z0-9-]{1,64}$/;
-const PROFILE_ID_HELP =
-  "Use 1–64 lowercase letters, numbers, or hyphens.";
+const PROFILE_ID_HELP = "Use 1–64 lowercase letters, numbers, or hyphens.";
 
 const FORMAT_HELP = `---
 name: My Player
@@ -78,8 +77,8 @@ export function NpcProfilesScreen() {
 
   const detailDirty = Boolean(
     detail &&
-      detailBaselineContent !== null &&
-      detail.content !== detailBaselineContent,
+    detailBaselineContent !== null &&
+    detail.content !== detailBaselineContent,
   );
   const newProfileDirty =
     newMode && (newId.length > 0 || newContent.length > 0);
@@ -88,8 +87,7 @@ export function NpcProfilesScreen() {
   const blocker = useBlocker(
     useCallback(
       ({ currentLocation, nextLocation }) =>
-        hasUnsavedChanges &&
-        currentLocation.pathname !== nextLocation.pathname,
+        hasUnsavedChanges && currentLocation.pathname !== nextLocation.pathname,
       [hasUnsavedChanges],
     ),
   );
@@ -342,7 +340,10 @@ export function NpcProfilesScreen() {
                   <button
                     className="secondary-button"
                     onClick={() =>
-                      requestEditorTransition({ kind: "openProfile", profile: p })
+                      requestEditorTransition({
+                        kind: "openProfile",
+                        profile: p,
+                      })
                     }
                     type="button"
                   >
@@ -559,9 +560,7 @@ export function NpcProfilesScreen() {
               </button>
               <button
                 className="secondary-button"
-                onClick={() =>
-                  requestEditorTransition({ kind: "cancelNew" })
-                }
+                onClick={() => requestEditorTransition({ kind: "cancelNew" })}
                 type="button"
               >
                 Cancel
@@ -582,9 +581,7 @@ export function NpcProfilesScreen() {
           role="dialog"
         >
           <p className="kicker">Unsaved changes</p>
-          <h3 id="unsaved-profile-title">
-            Discard unsaved profile changes?
-          </h3>
+          <h3 id="unsaved-profile-title">Discard unsaved profile changes?</h3>
           <p>
             Your latest profile edits have not been saved. Discarding them
             cannot be undone.

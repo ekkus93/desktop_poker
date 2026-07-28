@@ -21,8 +21,7 @@ const STARTER_PROFILES: &[(&str, &str)] = &[
 ];
 
 const PROFILE_ID_MAX_LEN: usize = 64;
-const PROFILE_ID_REQUIREMENT: &str =
-    "profile ID must match [a-z0-9-]{1,64}";
+const PROFILE_ID_REQUIREMENT: &str = "profile ID must match [a-z0-9-]{1,64}";
 
 /// Set of IDs that are built-in and cannot be deleted.
 pub const BUILTIN_PROFILE_IDS: &[&str] =
