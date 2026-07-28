@@ -52,8 +52,8 @@ pub struct NetworkingError {
 impl NetworkingError {
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
-            code: None,
         Self {
+            code: None,
             message: message.into(),
         }
     }
