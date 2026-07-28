@@ -1,0 +1,66 @@
+name: Patch Debian icon cleanup
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/patch-debian-icon-cleanup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restrict purge checks to package-owned icon files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B debian-icon-cleanup-fix origin/master
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/workflows/runtime-debian-package-validation-v2.yml")
+          text = path.read_text(encoding="utf-8")
+          old = """          mapfile -t icon_files < <(
+            dpkg-query -L "$package_name" | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\// { print }'
+          )
+"""
+          new = """          mapfile -t icon_files < <(
+            dpkg-query -L "$package_name" \
+              | awk '/^\\/usr\\/share\\/(icons|pixmaps)\\/.*\\.(png|svg|xpm)$/ { print }'
+          )
+"""
+          if text.count(old) != 1:
+              raise SystemExit(f"Expected one broad icon query; found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+          grep -F "(png|svg|xpm)" .github/workflows/runtime-debian-package-validation-v2.yml
+          git diff --check
+          rm .github/workflows/patch-debian-icon-cleanup.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: validate removal of package icon files only"
+
+          for attempt in 1 2 3 4 5 6; do
+            git fetch origin master
+            git rebase origin/master
+            if git push origin HEAD:master; then
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
