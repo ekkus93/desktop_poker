@@ -28,6 +28,7 @@ mod handlers;
 mod host;
 mod host_broadcast;
 mod host_session;
+mod host_shutdown;
 mod lobby;
 mod reconnect;
 mod snapshot;
