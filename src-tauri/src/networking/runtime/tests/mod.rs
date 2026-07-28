@@ -1,6 +1,7 @@
 mod support;
 
 mod abuse;
+mod action_outcomes;
 mod end_to_end;
 mod host_shutdown;
 mod join;
