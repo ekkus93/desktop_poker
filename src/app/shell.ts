@@ -25,6 +25,10 @@ export type StoredValueReadResult<T> = {
   hadParseError: boolean;
 };
 
+export type StoredValueWriteResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 export const BLIND_PRESETS: BlindPreset[] = [
   {
     id: "normal",
@@ -217,5 +221,20 @@ export function readStoredValueWithStatus<T>(
     };
   } catch {
     return { value: fallbackValue, hadParseError: true };
+  }
+}
+
+export function writeStoredValueWithStatus(
+  key: string,
+  value: unknown,
+): StoredValueWriteResult {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
