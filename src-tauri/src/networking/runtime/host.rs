@@ -150,25 +150,8 @@ impl HostServer {
                                 let initial_request =
                                     read_json_frame::<JsonSignedEnvelope>(&mut stream);
 
-                                let response = match initial_request {
-                                    Ok(request_envelope) => handle_initial_client_request(
-                                        &crypto_provider,
-                                        request_envelope,
-                                        &join_payload,
-                                        &authoritative_state,
-                                        &server_sequence,
-                                        &host_signing_keys,
-                                        &host_encryption_keys,
-                                    ),
-                                    Err(error) => Err(error),
-                                };
-
-                                match response {
-                                    Ok(InitialRequestAcceptance {
-                                        player_id,
-                                        snapshot_envelope,
-                                        encryption_public_key,
-                                    }) => {
+                                let (response, active_client_slot_guard) = match initial_request {
+                                    Ok(request_envelope) => {
                                         let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {
                                             update_health(&runtime_health_conn2, |health| {
                                                 health.connected_client_limit_rejection_count += 1;
@@ -176,14 +159,6 @@ impl HostServer {
                                                     "active client connection limit reached ({max_active_clients})",
                                                 ));
                                             });
-                                            if let Err(mark_error) = mark_participant_reconnect_eligible(
-                                                &authoritative_state,
-                                                &player_id,
-                                            ) {
-                                                update_health(&runtime_health_conn2, |health| {
-                                                    health.record_reconnect_mark_error(&player_id, mark_error);
-                                                });
-                                            }
                                             if let Ok(envelope) = build_protocol_error_envelope(
                                                 &crypto_provider,
                                                 &join_payload,
@@ -195,6 +170,35 @@ impl HostServer {
                                             ) {
                                                 let _ = write_json_frame(&mut stream, &envelope);
                                             }
+                                            return;
+                                        };
+                                        (
+                                            handle_initial_client_request(
+                                                &crypto_provider,
+                                                request_envelope,
+                                                &join_payload,
+                                                &authoritative_state,
+                                                &server_sequence,
+                                                &host_signing_keys,
+                                                &host_encryption_keys,
+                                            ),
+                                            Some(active_client_slot_guard),
+                                        )
+                                    }
+                                    Err(error) => (Err(error), None),
+                                };
+
+                                match response {
+                                    Ok(InitialRequestAcceptance {
+                                        player_id,
+                                        snapshot_envelope,
+                                        encryption_public_key,
+                                    }) => {
+                                        let Some(active_client_slot_guard) = active_client_slot_guard else {
+                                            update_health(&runtime_health_conn2, |health| {
+                                                health.state_lock_error_count += 1;
+                                                health.record_error("successful initial request lost its reserved client slot");
+                                            });
                                             return;
                                         };
 
