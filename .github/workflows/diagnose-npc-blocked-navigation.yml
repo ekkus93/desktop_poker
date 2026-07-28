@@ -1,0 +1,91 @@
+name: Diagnose NPC blocked navigation discard
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/diagnose-npc-blocked-navigation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Capture patch verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B diagnose-npc-navigation origin/master
+          base_sha=$(git rev-parse HEAD)
+          mkdir -p docs/runtime-validation
+
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path(
+              ".github/workflows/patch-npc-blocked-navigation-discard.yml"
+          ).read_text(encoding="utf-8")
+          script = workflow.split("          python3 - <<'PY'\n", 1)[1].split(
+              "\n          PY\n\n          npm ci", 1
+          )[0]
+          Path("/tmp/patch-npc.py").write_text(
+              "\n".join(
+                  line[10:] if line.startswith("          ") else line
+                  for line in script.splitlines()
+              ) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          set +e
+          {
+            python3 /tmp/patch-npc.py
+            npm ci
+            npm run format
+            npx vitest run src/screens/NpcProfilesIntegrity.test.tsx
+            npm run lint
+            npm run build
+          } > /tmp/npc-navigation-full.log 2>&1
+          status=$?
+          set -e
+
+          {
+            echo 'NPC blocked-navigation diagnostic'
+            echo "overall_status=$status"
+            echo "base_sha=$base_sha"
+            echo
+            tail -n 400 /tmp/npc-navigation-full.log
+          } > /tmp/npc-navigation-diagnostic.txt
+
+          git reset --hard "$base_sha"
+          cp /tmp/npc-navigation-diagnostic.txt \
+            docs/runtime-validation/npc-blocked-navigation-diagnostic.txt
+          rm .github/workflows/diagnose-npc-blocked-navigation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/npc-blocked-navigation-diagnostic.txt \
+            .github/workflows/diagnose-npc-blocked-navigation.yml
+          git commit -m "docs: record NPC blocked-navigation diagnostic [skip ci]"
+
+          for attempt in $(seq 1 20); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 2
+          done
+          exit 1
