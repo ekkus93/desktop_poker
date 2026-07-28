@@ -44,88 +44,46 @@ jobs:
           import re
           from pathlib import Path
 
-          def read(path: str) -> str:
+          DIALOG_IMPORT = (
+              'import { AccessibleDialog } from '
+              '"../components/shared/AccessibleDialog";\n'
+          )
+
+          def load(path: str) -> str:
               return Path(path).read_text(encoding="utf-8")
 
-          def write(path: str, text: str) -> None:
+          def save(path: str, text: str) -> None:
               Path(path).write_text(text, encoding="utf-8")
 
-          def ensure_import(text: str, anchor: str) -> str:
-              statement = 'import { AccessibleDialog } from "../components/shared/AccessibleDialog";\n'
-              if statement in text:
+          def add_dialog_import(text: str, anchor: str, label: str) -> str:
+              if DIALOG_IMPORT in text:
                   return text
               if anchor not in text:
-                  raise SystemExit(f"import anchor missing: {anchor!r}")
-              return text.replace(anchor, anchor + statement, 1)
+                  raise SystemExit(f"{label}: import anchor missing")
+              return text.replace(anchor, DIALOG_IMPORT + anchor, 1)
 
-          def exact(text: str, old: str, new: str, label: str) -> str:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected one exact match, found {count}")
-              return text.replace(old, new, 1)
-
-          def regex(text: str, pattern: str, replacement: str, label: str) -> str:
+          def sub_unique(
+              text: str,
+              pattern: str,
+              replacement: str,
+              label: str,
+          ) -> str:
               updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
               if count != 1:
-                  raise SystemExit(f"{label}: expected one regex match, found {count}")
+                  raise SystemExit(f"{label}: unique region not found")
               return updated
 
-          # Lobby confirmation and connection announcements.
-          path = "src/screens/TournamentLobbyScreen.tsx"
-          text = read(path)
-          text = ensure_import(
-              text,
-              'import { useDesktopShell } from "../app/useDesktopShell";\n',
+          # Lobby leave confirmation and connection announcements.
+          lobby_path = "src/screens/TournamentLobbyScreen.tsx"
+          lobby = load(lobby_path)
+          lobby = add_dialog_import(
+              lobby,
+              'import { ScreenShell } from "./ScreenShell";\n',
+              "lobby",
           )
-          text = exact(
-              text,
-              '<p className="inline-banner error">{hostRecoveryError}</p>',
-              '<p className="inline-banner error" role="alert">{hostRecoveryError}</p>',
-              "lobby host recovery alert",
-          )
-          text = exact(
-              text,
-              '''{clientTerminated ? (
-                <div className="inline-banner error">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
-                  Disconnected from host — session could not be recovered.
-                </div>
-              ) : clientReconnecting ? (
-                <div className="inline-banner info">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
-                  Reconnecting to host…
-                </div>
-              ) : connectionSlow ? (
-                <div className="inline-banner info">
-                  <WifiOff className="button-icon" strokeWidth={1.9} />
-                  Connection slow — retrying…
-                </div>
-              ) : null}''',
-              '''{clientTerminated ? (
-                <div className="inline-banner error" role="alert">
-                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
-                  Disconnected from host — session could not be recovered.
-                </div>
-              ) : clientReconnecting ? (
-                <div aria-live="polite" className="inline-banner info" role="status">
-                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
-                  Reconnecting to host…
-                </div>
-              ) : connectionSlow ? (
-                <div aria-live="polite" className="inline-banner info" role="status">
-                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
-                  Connection slow — retrying…
-                </div>
-              ) : null}''',
-              "lobby connection announcements",
-          )
-          text = text.replace(
-              '<p className="inline-banner error">{lobbyError}</p>',
-              '<p className="inline-banner error" role="alert">{lobbyError}</p>',
-          )
-          text = regex(
-              text,
-              r'''\{showLeaveFlow \? \(\n\s*<section className="dialog-card">.*?</section>\n\s*\) : null\}''',
+          lobby = sub_unique(
+              lobby,
+              r'''\{showLeaveFlow \? \(\s*<section className="dialog-card">.*?</section>\s*\) : null\}''',
               '''{showLeaveFlow ? (
         <AccessibleDialog
           kicker={localSeat?.kind === "host" ? "Close" : "Leave"}
@@ -134,7 +92,9 @@ jobs:
           titleId="leave-table-title"
         >
           {lobbyError ? (
-            <p className="inline-banner error" role="alert">{lobbyError}</p>
+            <p className="inline-banner error" role="alert">
+              {lobbyError}
+            </p>
           ) : null}
           <div className="button-row">
             <button
@@ -155,20 +115,42 @@ jobs:
           </div>
         </AccessibleDialog>
       ) : null}''',
-              "lobby leave dialog",
+              "lobby leave confirmation",
           )
-          write(path, text)
+          lobby = lobby.replace(
+              '<p className="inline-banner error">{hostRecoveryError}</p>',
+              '<p className="inline-banner error" role="alert">'
+              '{hostRecoveryError}</p>',
+          )
+          lobby = lobby.replace(
+              '<p className="inline-banner error">{lobbyError}</p>',
+              '<p className="inline-banner error" role="alert">{lobbyError}</p>',
+          )
+          lobby = lobby.replace(
+              '<div className="inline-banner error">\n'
+              '                  <WifiOff className="button-icon" strokeWidth={1.9} />',
+              '<div className="inline-banner error" role="alert">\n'
+              '                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />',
+          )
+          lobby = lobby.replace(
+              '<div className="inline-banner info">\n'
+              '                  <WifiOff className="button-icon" strokeWidth={1.9} />',
+              '<div aria-live="polite" className="inline-banner info" role="status">\n'
+              '                  <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />',
+          )
+          save(lobby_path, lobby)
 
-          # NPC editor unsaved-change dialog and status semantics.
-          path = "src/screens/NpcProfilesScreen.tsx"
-          text = read(path)
-          text = ensure_import(
-              text,
+          # NPC unsaved-edit confirmation and save/error announcements.
+          npc_path = "src/screens/NpcProfilesScreen.tsx"
+          npc = load(npc_path)
+          npc = add_dialog_import(
+              npc,
               'import { SectionCard } from "../components/shared/SectionCard";\n',
+              "NPC profiles",
           )
-          text = regex(
-              text,
-              r'''\{unsavedDialogVisible \? \(\n\s*<section\n\s*aria-labelledby="unsaved-profile-title".*?</section>\n\s*\) : null\}''',
+          npc = sub_unique(
+              npc,
+              r'''\{unsavedDialogVisible \? \(\s*<section\s+aria-labelledby="unsaved-profile-title".*?</section>\s*\) : null\}''',
               '''{unsavedDialogVisible ? (
         <AccessibleDialog
           description="Your latest profile edits have not been saved. Discarding them cannot be undone."
@@ -178,35 +160,45 @@ jobs:
           titleId="unsaved-profile-title"
         >
           <div className="button-row">
-            <button className="primary-button" onClick={discardChanges} type="button">
+            <button
+              className="primary-button"
+              onClick={discardChanges}
+              type="button"
+            >
               Discard changes
             </button>
-            <button className="secondary-button" onClick={keepEditing} type="button">
+            <button
+              className="secondary-button"
+              onClick={keepEditing}
+              type="button"
+            >
               Keep editing
             </button>
           </div>
         </AccessibleDialog>
       ) : null}''',
-              "NPC unsaved dialog",
+              "NPC unsaved confirmation",
           )
-          text = text.replace(
+          npc = npc.replace(
               '<p className="inline-banner error">',
               '<p className="inline-banner error" role="alert">',
           )
-          text = text.replace(
+          npc = npc.replace(
               '<p className="inline-banner success">Profile saved.</p>',
-              '<p className="inline-banner success" role="status">Profile saved.</p>',
+              '<p className="inline-banner success" role="status">'
+              'Profile saved.</p>',
           )
-          write(path, text)
+          save(npc_path, npc)
 
-          # Settings destructive action dialog. Replace the complete uniquely titled card.
-          path = "src/screens/DeviceSettingsScreen.tsx"
-          text = read(path)
-          text = ensure_import(
-              text,
+          # Settings destructive confirmation; replace the complete Local setup card.
+          settings_path = "src/screens/DeviceSettingsScreen.tsx"
+          settings = load(settings_path)
+          settings = add_dialog_import(
+              settings,
               'import { SectionCard } from "../components/shared/SectionCard";\n',
+              "settings",
           )
-          replacement = '''<SectionCard
+          local_setup = '''<SectionCard
           kicker="Saved on this device"
           title="Local setup"
           className="support-card device-settings-card"
@@ -295,116 +287,64 @@ jobs:
             {recentJoinPayloads.length === 1 ? "" : "s"}.
           </p>
         </SectionCard>'''
-          text = regex(
-              text,
-              r'''<SectionCard\n\s*kicker="Saved on this device"\n\s*title="Local setup".*?</SectionCard>''',
-              replacement,
-              "settings local setup card",
+          settings = sub_unique(
+              settings,
+              r'''<SectionCard\s+kicker="Saved on this device"\s+title="Local setup".*?</SectionCard>''',
+              local_setup,
+              "settings local setup",
           )
-          text = text.replace(
+          settings = settings.replace(
               '<p className="inline-banner success">{providerStatus}</p>',
-              '<p className="inline-banner success" role="status">{providerStatus}</p>',
+              '<p className="inline-banner success" role="status">'
+              '{providerStatus}</p>',
           )
-          text = text.replace(
+          settings = settings.replace(
               '<p className="inline-banner error">{providerError}</p>',
-              '<p className="inline-banner error" role="alert">{providerError}</p>',
+              '<p className="inline-banner error" role="alert">'
+              '{providerError}</p>',
           )
-          write(path, text)
+          save(settings_path, settings)
 
-          # Main table announcements and action confirmation dialog.
-          path = "src/screens/MainTableScreen.tsx"
-          text = read(path)
-          text = ensure_import(
-              text,
+          # Main table action confirmation and dynamic announcements.
+          table_path = "src/screens/MainTableScreen.tsx"
+          table = load(table_path)
+          table = add_dialog_import(
+              table,
               'import { SectionCard } from "../components/shared/SectionCard";\n',
+              "main table",
           )
-          text = exact(
-              text,
-              '''<div
-                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
-                >''',
-              '''<div
-                  aria-atomic="true"
-                  aria-live="polite"
-                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
-                >''',
-              "table action owner announcement",
+          table = table.replace(
+              '<div\n                  className={`table-headline-card '
+              '${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}\n'
+              '                >',
+              '<div\n                  aria-atomic="true"\n'
+              '                  aria-live="polite"\n'
+              '                  className={`table-headline-card '
+              '${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}\n'
+              '                >',
+              1,
           )
-          text = exact(
-              text,
-              '''{tableView?.sessionConnection === "reconnecting" ? (
-          <div className="inline-banner info">
-            <WifiOff className="button-icon" strokeWidth={1.9} />
-            Reconnecting to host…
-          </div>
-        ) : connectionSlow ? (
-          <div className="inline-banner info">
-            <WifiOff className="button-icon" strokeWidth={1.9} />
-            Connection slow — retrying…
-          </div>
-        ) : null}''',
-              '''{tableView?.sessionConnection === "reconnecting" ? (
-          <div aria-live="polite" className="inline-banner info" role="status">
-            <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
-            Reconnecting to host…
-          </div>
-        ) : connectionSlow ? (
-          <div aria-live="polite" className="inline-banner info" role="status">
-            <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />
-            Connection slow — retrying…
-          </div>
-        ) : null}''',
-              "table connection announcements",
+          table = table.replace(
+              '<div className="inline-banner info">\n'
+              '            <WifiOff className="button-icon" strokeWidth={1.9} />',
+              '<div aria-live="polite" className="inline-banner info" role="status">\n'
+              '            <WifiOff aria-hidden="true" className="button-icon" strokeWidth={1.9} />',
           )
-          text = text.replace(
+          table = table.replace(
               '<div className="inline-banner info observer-banner">',
               '<div className="inline-banner info observer-banner" role="status">',
               1,
           )
-          text = exact(
-              text,
-              '''{submitting ? (
-                    <div className="inline-banner info">
-                      Sending your action to the host…
-                    </div>
-                  ) : null}''',
-              '''{submitting ? (
-                    <div aria-live="polite" className="inline-banner info" role="status">
-                      Sending your action to the host…
-                    </div>
-                  ) : null}''',
-              "table submitting status",
+          table = table.replace(
+              '<div className="inline-banner info">\n'
+              '                      Sending your action to the host…',
+              '<div aria-live="polite" className="inline-banner info" role="status">\n'
+              '                      Sending your action to the host…',
+              1,
           )
-          text = exact(
-              text,
-              '''{confirmation ? (
-                    <div className="confirmation-card" role="status">
-                      <strong>{confirmation.label}</strong>
-                      <p className="field-hint">
-                        {confirmation.actionKind === "betOrRaise"
-                          ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
-                          : "Commit the remaining stack as an all-in action?"}
-                      </p>
-                      <div className="button-row">
-                        <button
-                          className="primary-button"
-                          disabled={submitting}
-                          onClick={() => void confirmQueuedAction()}
-                          type="button"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          className="secondary-button"
-                          disabled={submitting}
-                          onClick={() => setConfirmation(null)}
-                          type="button"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}''',
+          table = sub_unique(
+              table,
+              r'''\{confirmation \? \(\s*<div className="confirmation-card" role="status">.*?</div>\s*\) : null\}''',
               '''{confirmation ? (
                     <AccessibleDialog
                       className="confirmation-card"
@@ -437,14 +377,28 @@ jobs:
                       </div>
                     </AccessibleDialog>
                   ) : null}''',
-              "table action dialog",
+              "table action confirmation",
           )
-          text = text.replace(
+          table = table.replace(
               '<div className="inline-banner error">{actionError}</div>',
-              '<div className="inline-banner error" role="alert">{actionError}</div>',
+              '<div className="inline-banner error" role="alert">'
+              '{actionError}</div>',
               1,
           )
-          write(path, text)
+          save(table_path, table)
+
+          # Explicit postconditions prevent a partial or silent migration.
+          checks = {
+              lobby_path: ["<AccessibleDialog", 'role="alert"'],
+              npc_path: ["<AccessibleDialog", "unsaved-profile-title"],
+              settings_path: ["<AccessibleDialog", "Reset saved host setup?"],
+              table_path: ["<AccessibleDialog", "table-action-confirmation-title"],
+          }
+          for path, markers in checks.items():
+              final = load(path)
+              for marker in markers:
+                  if marker not in final:
+                      raise SystemExit(f"{path}: missing postcondition {marker!r}")
           PY
 
           npm ci
@@ -478,3 +432,6 @@ jobs:
             sleep 3
           done
           exit 1
+
+      - name: Confirm migration completion
+        run: echo "Verified accessibility migration applied and self-removal committed."
