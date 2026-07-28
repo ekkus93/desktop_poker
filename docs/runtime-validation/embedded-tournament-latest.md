@@ -1,10 +1,10 @@
 # Full release embedded-NPC tournament
 
 - Result: **FAIL**
-- Validated commit: `94c8afbdef7f2a3ee484479f01990f38c97d41cc`
-- Workflow run: `30392417982`
+- Validated commit: `6b3a8d0a2fe52a33009e0697c58e3bd730532f25`
+- Workflow run: `30393847228`
 - Model: `SmolLM2-135M-Instruct-Q3_K_M.gguf`
-- Release build: `skipped`
+- Release build: `cancelled`
 - Tournament: `skipped`
 - Completed hands: `unknown`
 - Embedded NPC actions: `unknown`

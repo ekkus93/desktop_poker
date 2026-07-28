@@ -1,17 +1,17 @@
 {
-  "buildOutcome": "skipped",
-  "checksumOutcome": "skipped",
+  "buildOutcome": "cancelled",
+  "checksumOutcome": "success",
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-28T19:35:43.094875+00:00",
+  "recordedAtUtc": "2026-07-28T19:59:40.135506+00:00",
   "result": "FAIL",
   "runtime": {
     "error": "Tournament result was not produced.",
     "result": "FAIL"
   },
   "tournamentOutcome": "skipped",
-  "validatedCommit": "94c8afbdef7f2a3ee484479f01990f38c97d41cc",
+  "validatedCommit": "6b3a8d0a2fe52a33009e0697c58e3bd730532f25",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30392417982"
+  "workflowRunId": "30393847228"
 }
