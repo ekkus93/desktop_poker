@@ -1,0 +1,404 @@
+NPC blocked-navigation diagnostic
+overall_status=2
+base_sha=7c323d06ae3c6535bb795d05d3077c7190676681
+
+          [36m</p>[39m
+          [36m<h2>[39m
+            [0mAI Profiles[0m
+          [36m</h2>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"badge-row"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"status-badge info"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-info badge-icon"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"12"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"12"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"12"[39m
+                [33mcy[39m=[32m"12"[39m
+                [33mr[39m=[32m"10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 16v-4"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 8h.01"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0mNPC configuration[0m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"help-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"section-card support-card"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"kicker"[39m
+          [36m>[39m
+            [0mProfiles[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mPlayer profiles[0m
+          [36m</h3>[39m
+          [36m<ul[39m
+            [33mstyle[39m=[32m"list-style: none; padding: 0px;"[39m
+          [36m>[39m
+            [36m<li[39m
+              [33mstyle[39m=[32m"margin-bottom: 0.5rem;"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"secondary-button"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mFirst Player[0m
+                [36m<span[39m
+                  [33mstyle[39m=[32m"margin-left: 0.5rem; opacity: 0.6; font-size: 0.85em;"[39m
+                [36m>[39m
+                  [0mbalanced[0m
+                  [0m · [0m
+                  [0mintermediate[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"primary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mNew profile[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"section-card support-card"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"kicker"[39m
+          [36m>[39m
+            [0mEditing[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mFirst Player[0m
+          [36m</h3>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"form-grid"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"field"[39m
+            [36m>[39m
+              [0mProfile content[0m
+              [36m<textarea[39m
+                [33mrows[39m=[32m"14"[39m
+              [36m>[39m
+                [0munsaved route change[0m
+              [36m</textarea>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"inline-banner info"[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mUnsaved profile changes.[0m
+          [36m</p>[39m
+          [36m<details[39m
+            [33mstyle[39m=[32m"margin-top: 0.75rem;"[39m
+          [36m>[39m
+            [36m<summary[39m
+              [33mstyle[39m=[32m"cursor: pointer; font-weight: 600; font-size: 0.9em;"[39m
+            [36m>[39m
+              [0mProfile format help[0m
+            [36m</summary>[39m
+            [36m<pre[39m
+              [33mstyle[39m=[32m"font-size: 0.78em; background: var(--surface-2, #f5f5f5); padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem; white-space: pre-wrap;"[39m
+            [36m>[39m
+              [0m---
+name: My Player
+style: loose-aggressive
+skill: intermediate
+---
+General strategy description here.
+
+## Opponent tendencies
+(Optional) How to adjust strategy based on observed opponent stats.
+
+## Tilt behaviour
+(Optional) How this player behaves after a losing streak.[0m
+            [36m</pre>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+            [33mstyle[39m=[32m"margin-top: 1rem;"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"primary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mSave[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"secondary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mDelete[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33mclass[39m=[32m"screen-shell support-screen-shell"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"screen-header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"screen-copy"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"kicker"[39m
+          [36m>[39m
+            [0mDesktop Poker[0m
+          [36m</p>[39m
+          [36m<h2>[39m
+            [0mAI Profiles[0m
+          [36m</h2>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"badge-row"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"status-badge info"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-info badge-icon"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"12"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"12"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"12"[39m
+                [33mcy[39m=[32m"12"[39m
+                [33mr[39m=[32m"10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 16v-4"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 8h.01"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0mNPC configuration[0m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"help-grid"[39m
+      [36m>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"section-card support-card"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"kicker"[39m
+          [36m>[39m
+            [0mProfiles[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mPlayer profiles[0m
+          [36m</h3>[39m
+          [36m<ul[39m
+            [33mstyle[39m=[32m"list-style: none; padding: 0px;"[39m
+          [36m>[39m
+            [36m<li[39m
+              [33mstyle[39m=[32m"margin-bottom: 0.5rem;"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"secondary-button"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mFirst Player[0m
+                [36m<span[39m
+                  [33mstyle[39m=[32m"margin-left: 0.5rem; opacity: 0.6; font-size: 0.85em;"[39m
+                [36m>[39m
+                  [0mbalanced[0m
+                  [0m · [0m
+                  [0mintermediate[0m
+                [36m</span>[39m
+              [36m</button>[39m
+            [36m</li>[39m
+          [36m</ul>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"primary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mNew profile[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</section>[39m
+        [36m<section[39m
+          [33mclass[39m=[32m"section-card support-card"[39m
+        [36m>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"kicker"[39m
+          [36m>[39m
+            [0mEditing[0m
+          [36m</p>[39m
+          [36m<h3>[39m
+            [0mFirst Player[0m
+          [36m</h3>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"form-grid"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"field"[39m
+            [36m>[39m
+              [0mProfile content[0m
+              [36m<textarea[39m
+                [33mrows[39m=[32m"14"[39m
+              [36m>[39m
+                [0munsaved route change[0m
+              [36m</textarea>[39m
+            [36m</label>[39m
+          [36m</div>[39m
+          [36m<p[39m
+            [33mclass[39m=[32m"inline-banner info"[39m
+            [33mrole[39m=[32m"status"[39m
+          [36m>[39m
+            [0mUnsaved profile changes.[0m
+          [36m</p>[39m
+          [36m<details[39m
+            [33mstyle[39m=[32m"margin-top: 0.75rem;"[39m
+          [36m>[39m
+            [36m<summary[39m
+              [33mstyle[39m=[32m"cursor: pointer; font-weight: 600; font-size: 0.9em;"[39m
+            [36m>[39m
+              [0mProfile format help[0m
+            [36m</summary>[39m
+            [36m<pre[39m
+              [33mstyle[39m=[32m"font-size: 0.78em; background: var(--surface-2, #f5f5f5); padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem; white-space: pre-wrap;"[39m
+            [36m>[39m
+              [0m---
+name: My Player
+style: loose-aggressive
+skill: intermediate
+---
+General strategy description here.
+
+## Opponent tendencies
+(Optional) How to adjust strategy based on observed opponent stats.
+
+## Tilt behaviour
+(Optional) How this player behaves after a losing streak.[0m
+            [36m</pre>[39m
+          [36m</details>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"button-row"[39m
+            [33mstyle[39m=[32m"margin-top: 1rem;"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"primary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mSave[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"secondary-button"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mDelete[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</section>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+[90m [2m❯[22m waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:[2m163:27[22m[39m
+[90m [2m❯[22m node_modules/@testing-library/dom/dist/query-helpers.js:[2m86:33[22m[39m
+[36m [2m❯[22m src/screens/NpcProfilesIntegrity.test.tsx:[2m133:25[22m[39m
+    [90m131| [39m      [35mawait[39m navigationPromise[33m;[39m
+    [90m132| [39m    })[33m;[39m
+    [90m133| [39m    expect(await screen.findByText("Settings destination")).toBeTruthy…
+    [90m   | [39m                        [31m^[39m
+    [90m134| [39m  })[33m;[39m
+    [90m135| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Unhandled Errors [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+[31m[1m
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.[22m[39m
+
+[31m⎯⎯⎯⎯[39m[1m[41m Unhandled Rejection [49m[22m[31m⎯⎯⎯⎯⎯[39m
+[31m[1mTypeError[22m: RequestInit: Expected signal ("AbortSignal {}") to be an instance of AbortSignal.[39m
+[90m [2m❯[22m Object.webidl.errors.exception node:internal/deps/undici/undici:[2m4852:14[22m[39m
+[90m [2m❯[22m Object.AbortSignal node:internal/deps/undici/undici:[2m5111:31[22m[39m
+[90m [2m❯[22m node:internal/deps/undici/undici:[2m12685:41[22m[39m
+[90m [2m❯[22m node:internal/deps/undici/undici:[2m5163:16[22m[39m
+[90m [2m❯[22m Object.RequestInit node:internal/deps/undici/undici:[2m5145:21[22m[39m
+[90m [2m❯[22m new Request node:internal/deps/undici/undici:[2m12047:34[22m[39m
+[90m [2m❯[22m createClientSideRequest node_modules/react-router/dist/development/lib/router/router.js:[2m2617:9[22m[39m
+[90m [2m❯[22m startNavigation node_modules/react-router/dist/development/lib/router/router.js:[2m525:17[22m[39m
+[90m [2m❯[22m navigate node_modules/react-router/dist/development/lib/router/router.js:[2m462:9[22m[39m
+[90m [2m❯[22m Object.proceed node_modules/react-router/dist/development/lib/router/router.js:[2m452:6[22m[39m
+
+[31mThis error originated in "[1msrc/screens/NpcProfilesIntegrity.test.tsx[22m" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.[39m
+[31mThe latest test that might've caused the error is "[1mblocks data-router navigation until the user explicitly discards changes[22m". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.[39m
+[31m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m5 passed[39m[22m[90m (6)[39m
+[2m     Errors [22m [1m[31m1 error[39m[22m
+[2m   Start at [22m 11:08:54
+[2m   Duration [22m 2.28s[2m (transform 191ms, setup 106ms, collect 274ms, tests 1.35s, environment 325ms, prepare 88ms)[22m
+
+
+::error file=/home/runner/work/desktop_poker/desktop_poker/src/screens/NpcProfilesIntegrity.test.tsx,title=src/screens/NpcProfilesIntegrity.test.tsx > NpcProfilesScreen integrity guards > blocks data-router navigation until the user explicitly discards changes,line=133,column=25::TestingLibraryElementError: Unable to find an element with the text: Settings destination. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <section%0A      class="screen-shell support-screen-shell"%0A    >%0A      <header%0A        class="screen-header"%0A      >%0A        <div%0A          class="screen-copy"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Desktop Poker%0A          </p>%0A          <h2>%0A            AI Profiles%0A          </h2>%0A        </div>%0A        <div%0A          class="badge-row"%0A        >%0A          <span%0A            class="status-badge info"%0A          >%0A            <svg%0A              aria-hidden="true"%0A              class="lucide lucide-info badge-icon"%0A              fill="none"%0A              height="12"%0A              stroke="currentColor"%0A              stroke-linecap="round"%0A              stroke-linejoin="round"%0A              stroke-width="2"%0A              viewBox="0 0 24 24"%0A              width="12"%0A              xmlns="http://www.w3.org/2000/svg"%0A            >%0A              <circle%0A                cx="12"%0A                cy="12"%0A                r="10"%0A              />%0A              <path%0A                d="M12 16v-4"%0A              />%0A              <path%0A                d="M12 8h.01"%0A              />%0A            </svg>%0A            NPC configuration%0A          </span>%0A        </div>%0A      </header>%0A      <div%0A        class="help-grid"%0A      >%0A        <section%0A          class="section-card support-card"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Profiles%0A          </p>%0A          <h3>%0A            Player profiles%0A          </h3>%0A          <ul%0A            style="list-style: none; padding: 0px;"%0A          >%0A            <li%0A              style="margin-bottom: 0.5rem;"%0A            >%0A              <button%0A                class="secondary-button"%0A                type="button"%0A              >%0A                First Player%0A                <span%0A                  style="margin-left: 0.5rem; opacity: 0.6; font-size: 0.85em;"%0A                >%0A                  balanced%0A                   · %0A                  intermediate%0A                </span>%0A              </button>%0A            </li>%0A          </ul>%0A          <div%0A            class="button-row"%0A          >%0A            <button%0A              class="primary-button"%0A              type="button"%0A            >%0A              New profile%0A            </button>%0A          </div>%0A        </section>%0A        <section%0A          class="section-card support-card"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Editing%0A          </p>%0A          <h3>%0A            First Player%0A          </h3>%0A          <div%0A            class="form-grid"%0A          >%0A            <label%0A              class="field"%0A            >%0A              Profile content%0A              <textarea%0A                rows="14"%0A              >%0A                unsaved route change%0A              </textarea>%0A            </label>%0A          </div>%0A          <p%0A            class="inline-banner info"%0A            role="status"%0A          >%0A            Unsaved profile changes.%0A          </p>%0A          <details%0A            style="margin-top: 0.75rem;"%0A          >%0A            <summary%0A              style="cursor: pointer; font-weight: 600; font-size: 0.9em;"%0A            >%0A              Profile format help%0A            </summary>%0A            <pre%0A              style="font-size: 0.78em; background: var(--surface-2, #f5f5f5); padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem; white-space: pre-wrap;"%0A            >%0A              ---%0Aname: My Player%0Astyle: loose-aggressive%0Askill: intermediate%0A---%0AGeneral strategy description here.%0A%0A## Opponent tendencies%0A(Optional) How to adjust strategy based on observed opponent stats.%0A%0A## Tilt behaviour%0A(Optional) How this player behaves after a losing streak.%0A            </pre>%0A          </details>%0A          <div%0A            class="button-row"%0A            style="margin-top: 1rem;"%0A          >%0A            <button%0A              class="primary-button"%0A              type="button"%0A            >%0A              Save%0A            </button>%0A            <button%0A              class="secondary-button"%0A              type="button"%0A            >%0A              Delete%0A            </button>%0A          </div>%0A        </section>%0A      </div>%0A    </section>%0A  </div>%0A</body>%0A%0AIgnored nodes: comments, script, style%0A<body>%0A  <div>%0A    <section%0A      class="screen-shell support-screen-shell"%0A    >%0A      <header%0A        class="screen-header"%0A      >%0A        <div%0A          class="screen-copy"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Desktop Poker%0A          </p>%0A          <h2>%0A            AI Profiles%0A          </h2>%0A        </div>%0A        <div%0A          class="badge-row"%0A        >%0A          <span%0A            class="status-badge info"%0A          >%0A            <svg%0A              aria-hidden="true"%0A              class="lucide lucide-info badge-icon"%0A              fill="none"%0A              height="12"%0A              stroke="currentColor"%0A              stroke-linecap="round"%0A              stroke-linejoin="round"%0A              stroke-width="2"%0A              viewBox="0 0 24 24"%0A              width="12"%0A              xmlns="http://www.w3.org/2000/svg"%0A            >%0A              <circle%0A                cx="12"%0A                cy="12"%0A                r="10"%0A              />%0A              <path%0A                d="M12 16v-4"%0A              />%0A              <path%0A                d="M12 8h.01"%0A              />%0A            </svg>%0A            NPC configuration%0A          </span>%0A        </div>%0A      </header>%0A      <div%0A        class="help-grid"%0A      >%0A        <section%0A          class="section-card support-card"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Profiles%0A          </p>%0A          <h3>%0A            Player profiles%0A          </h3>%0A          <ul%0A            style="list-style: none; padding: 0px;"%0A          >%0A            <li%0A              style="margin-bottom: 0.5rem;"%0A            >%0A              <button%0A                class="secondary-button"%0A                type="button"%0A              >%0A                First Player%0A                <span%0A                  style="margin-left: 0.5rem; opacity: 0.6; font-size: 0.85em;"%0A                >%0A                  balanced%0A                   · %0A                  intermediate%0A                </span>%0A              </button>%0A            </li>%0A          </ul>%0A          <div%0A            class="button-row"%0A          >%0A            <button%0A              class="primary-button"%0A              type="button"%0A            >%0A              New profile%0A            </button>%0A          </div>%0A        </section>%0A        <section%0A          class="section-card support-card"%0A        >%0A          <p%0A            class="kicker"%0A          >%0A            Editing%0A          </p>%0A          <h3>%0A            First Player%0A          </h3>%0A          <div%0A            class="form-grid"%0A          >%0A            <label%0A              class="field"%0A            >%0A              Profile content%0A              <textarea%0A                rows="14"%0A              >%0A                unsaved route change%0A              </textarea>%0A            </label>%0A          </div>%0A          <p%0A            class="inline-banner info"%0A            role="status"%0A          >%0A            Unsaved profile changes.%0A          </p>%0A          <details%0A            style="margin-top: 0.75rem;"%0A          >%0A            <summary%0A              style="cursor: pointer; font-weight: 600; font-size: 0.9em;"%0A            >%0A              Profile format help%0A            </summary>%0A            <pre%0A              style="font-size: 0.78em; background: var(--surface-2, #f5f5f5); padding: 0.75rem; border-radius: 4px; overflow-x: auto; margin-top: 0.5rem; white-space: pre-wrap;"%0A            >%0A              ---%0Aname: My Player%0Astyle: loose-aggressive%0Askill: intermediate%0A---%0AGeneral strategy description here.%0A%0A## Opponent tendencies%0A(Optional) How to adjust strategy based on observed opponent stats.%0A%0A## Tilt behaviour%0A(Optional) How this player behaves after a losing streak.%0A            </pre>%0A          </details>%0A          <div%0A            class="button-row"%0A            style="margin-top: 1rem;"%0A          >%0A            <button%0A              class="primary-button"%0A              type="button"%0A            >%0A              Save%0A            </button>%0A            <button%0A              class="secondary-button"%0A              type="button"%0A            >%0A              Delete%0A            </button>%0A          </div>%0A        </section>%0A      </div>%0A    </section>%0A  </div>%0A</body>%0A ❯ waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27%0A ❯ node_modules/@testing-library/dom/dist/query-helpers.js:86:33%0A ❯ src/screens/NpcProfilesIntegrity.test.tsx:133:25%0A%0A
+
+> desktop-poker@0.1.0 lint
+> eslint . --ext ts,tsx --max-warnings 0
+
+
+> desktop-poker@0.1.0 build
+> tsc && vite build
+
+src/screens/NpcProfilesScreen.tsx(89,10): error TS7031: Binding element 'currentLocation' implicitly has an 'any' type.
+src/screens/NpcProfilesScreen.tsx(89,27): error TS7031: Binding element 'nextLocation' implicitly has an 'any' type.
