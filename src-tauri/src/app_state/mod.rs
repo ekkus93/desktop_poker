@@ -15,6 +15,7 @@ mod app;
 mod app_npc;
 mod config;
 mod debug;
+mod host_shutdown;
 mod instance;
 mod live_events;
 mod projection;
