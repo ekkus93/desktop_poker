@@ -3,7 +3,7 @@
   "evidenceArtifact": "linux-release-runtime-evidence",
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "dcfc1364a663e0da30bd7df140248dcc8905345338056c7bd245c52a191c8a2f",
+    "applicationSha256": "cef266055c79b47da03949910268394d5ec966b59cbd725de60d3afc0a7b0804",
     "error": "AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None",
     "result": "FAIL",
     "steps": [
@@ -38,12 +38,12 @@
     ]
   },
   "multiInstanceOutcome": "failure",
-  "recordedAtUtc": "2026-07-28T15:14:50.634552+00:00",
+  "recordedAtUtc": "2026-07-28T15:48:05.530411+00:00",
   "result": "FAIL",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "dcfc1364a663e0da30bd7df140248dcc8905345338056c7bd245c52a191c8a2f",
-    "instanceId": "runtime-smoke-30372182769",
+    "applicationSha256": "cef266055c79b47da03949910268394d5ec966b59cbd725de60d3afc0a7b0804",
+    "instanceId": "runtime-smoke-30374923997",
     "result": "PASS",
     "steps": [
       {
@@ -101,7 +101,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "9cf9854cccecce34a5cc2135546a6fd1e98814f2",
+  "validatedCommit": "81331d0bc1a6aa999d45119e4fa23674e25a6be4",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30372182769"
+  "workflowRunId": "30374923997"
 }
