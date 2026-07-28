@@ -3,6 +3,8 @@ mod join_payload;
 mod models;
 mod replay;
 #[cfg(test)]
+mod test_compat;
+#[cfg(test)]
 pub(crate) mod test_support;
 
 use crate::app_state::ModuleDescriptor;
