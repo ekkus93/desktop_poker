@@ -1,7 +1,7 @@
 # CI validation
 
-- Result: **PASS**
-- Validated commit: `142d35433adbfbf8dcfaf5186921f8e173037e21`
-- Workflow run: `30336480698`
-- Verify: `success`
+- Result: **FAIL**
+- Validated commit: `70053e4af0a06c24810e6d07ece4669691ef1404`
+- Workflow run: `30349510456`
+- Verify: `failure`
 - Browser geometry: `success`
