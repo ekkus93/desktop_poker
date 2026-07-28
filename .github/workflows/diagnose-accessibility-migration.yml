@@ -1,0 +1,103 @@
+name: Diagnose accessibility migration
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/diagnose-accessibility-migration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: diagnose-accessibility-migration
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout latest master
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record semantic anchor counts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout -B diagnose-accessibility origin/master
+          mkdir -p docs/runtime-validation
+
+          python3 - <<'PY' > /tmp/accessibility-migration-diagnostic.txt
+          from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          checks = [
+              (
+                  "lobby-dialog",
+                  "src/screens/TournamentLobbyScreen.tsx",
+                  r'''\{showLeaveFlow \? \(\s*<section className="dialog-card">.*?</section>\s*\) : null\}''',
+              ),
+              (
+                  "npc-dialog",
+                  "src/screens/NpcProfilesScreen.tsx",
+                  r'''\{unsavedDialogVisible \? \(\s*<section\s+aria-labelledby="unsaved-profile-title".*?</section>\s*\) : null\}''',
+              ),
+              (
+                  "settings-card",
+                  "src/screens/DeviceSettingsScreen.tsx",
+                  r'''<SectionCard\s+kicker="Saved on this device"\s+title="Local setup".*?</SectionCard>''',
+              ),
+              (
+                  "table-confirmation",
+                  "src/screens/MainTableScreen.tsx",
+                  r'''\{confirmation \? \(\s*<div className="confirmation-card" role="status">.*?</div>\s*\) : null\}''',
+              ),
+          ]
+
+          print("Accessibility migration semantic-anchor diagnostic")
+          print()
+          all_unique = True
+          for label, path_name, pattern in checks:
+              text = Path(path_name).read_text(encoding="utf-8")
+              matches = list(re.finditer(pattern, text, flags=re.S))
+              print(f"{label}: {len(matches)}")
+              all_unique = all_unique and len(matches) == 1
+
+          print()
+          print(f"all_unique={str(all_unique).lower()}")
+          print("accessible_dialog_component=" + str(Path(
+              "src/components/shared/AccessibleDialog.tsx"
+          ).is_file()).lower())
+          print("settings_dialog_test=" + str(Path(
+              "src/screens/DeviceSettingsConfirmation.test.tsx"
+          ).is_file()).lower())
+          PY
+
+          cp /tmp/accessibility-migration-diagnostic.txt \
+            docs/runtime-validation/accessibility-migration-diagnostic.txt
+          cat docs/runtime-validation/accessibility-migration-diagnostic.txt
+
+          rm .github/workflows/diagnose-accessibility-migration.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/runtime-validation/accessibility-migration-diagnostic.txt \
+            .github/workflows/diagnose-accessibility-migration.yml
+          git commit -m "docs: record accessibility migration diagnostic [skip ci]"
+
+          for attempt in $(seq 1 20); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 2
+          done
+          exit 1
