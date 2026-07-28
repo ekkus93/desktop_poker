@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
 import { createBootstrap, renderWithProviders } from "../test/fixtures";
@@ -53,6 +53,17 @@ function createHistorySnapshot(
     actionTray: null,
     ...overrides,
   };
+}
+
+function createLongHistory(count: number) {
+  return Array.from({ length: count }, (_, index) => {
+    const handNumber = index + 1;
+    return createHistoryEntry({
+      handNumber,
+      summary: `Player won hand ${handNumber}`,
+      potTotal: handNumber * 10,
+    });
+  });
 }
 
 describe("HandHistoryScreen", () => {
@@ -134,5 +145,40 @@ describe("HandHistoryScreen", () => {
 
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(screen.getByText(/no settled hands yet\./i)).toBeTruthy();
+  });
+
+  it("bounds the initial render and exposes every older hand incrementally", async () => {
+    const bootstrap = createBootstrap();
+    mockedGetTableView.mockResolvedValue(
+      createHistorySnapshot({
+        currentHandNumber: 206,
+        handHistory: createLongHistory(205),
+      }),
+    );
+
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    expect(
+      await screen.findByText(/showing 100 of 205 settled hands/i),
+    ).toBeTruthy();
+    expect(screen.queryByText("Player won hand 105")).toBeNull();
+    expect(screen.getByText("Player won hand 106")).toBeTruthy();
+    expect(screen.getByText("Player won hand 205")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show 100 older hands" }),
+    );
+
+    expect(screen.getByText(/showing 200 of 205 settled hands/i)).toBeTruthy();
+    expect(screen.queryByText("Player won hand 5")).toBeNull();
+    expect(screen.getByText("Player won hand 6")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 5 older hands" }));
+
+    expect(screen.getByText(/showing 205 of 205 settled hands/i)).toBeTruthy();
+    expect(screen.getByText("Player won hand 1")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /older hands/i })).toBeNull();
   });
 });
