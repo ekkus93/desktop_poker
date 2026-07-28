@@ -1,0 +1,90 @@
+{
+  "appImageValidation": {
+    "appImage": {
+      "appImage": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
+      "appImageSha256": "1a8de6aaf155d12a1664de589253df254e9f56f81a0bb675da6e84b9a09f4f50",
+      "appImageSizeBytes": "82463224"
+    },
+    "buildOutcome": "success",
+    "result": "PASS",
+    "runtime": {
+      "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
+      "applicationSha256": "1a8de6aaf155d12a1664de589253df254e9f56f81a0bb675da6e84b9a09f4f50",
+      "instanceId": "appimage-webdriver-30323323804",
+      "result": "PASS",
+      "steps": [
+        {
+          "name": "tauri-driver became ready",
+          "result": "PASS"
+        },
+        {
+          "name": "release binary created a WebDriver session",
+          "result": "PASS"
+        },
+        {
+          "name": "Home rendered through the real Tauri backend",
+          "result": "PASS"
+        },
+        {
+          "name": "browser mocks are unavailable in release mode",
+          "result": "PASS"
+        },
+        {
+          "name": "Host route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "Join route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "invalid invite failed explicitly: The invite could not be checked.",
+          "result": "PASS"
+        },
+        {
+          "name": "/settings route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "/rules route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /lobby without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /table without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "release /debug route is not reachable",
+          "result": "PASS"
+        },
+        {
+          "name": "runtime screenshot and final page source captured",
+          "result": "PASS"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "name": "AppImage was produced and is executable",
+        "result": "PASS"
+      },
+      {
+        "name": "AppImage passed the production WebDriver smoke",
+        "result": "PASS"
+      }
+    ],
+    "validationOutcome": "success"
+  },
+  "buildOutcome": "success",
+  "evidenceArtifact": "linux-appimage-evidence",
+  "recordedAtUtc": "2026-07-28T02:40:55.046544+00:00",
+  "result": "PASS",
+  "validatedCommit": "9351857c8eaa38ffb9c73db4ddca04f53977bef6",
+  "validationOutcome": "success",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "30323323804"
+}
