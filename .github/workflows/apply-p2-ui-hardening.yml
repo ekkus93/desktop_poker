@@ -33,9 +33,12 @@ jobs:
           cache: npm
 
       - name: Apply and verify P2 UI hardening
+        id: harden
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
+          exec > >(tee "$RUNNER_TEMP/p2-ui-hardening.log") 2>&1
           git fetch origin master
           git checkout -B apply-p2-ui-hardening origin/master
 
@@ -51,9 +54,15 @@ jobs:
           npm run build
           git diff --check
 
+      - name: Publish verified hardening
+        if: steps.harden.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
           rm -f \
             .github/workflows/apply-p2-ui-hardening.yml \
-            scripts/apply_p2_ui_hardening.py
+            scripts/apply_p2_ui_hardening.py \
+            docs/runtime-validation/p2-ui-hardening-diagnostic.txt
           npm run format:check
           git diff --check
 
@@ -70,4 +79,37 @@ jobs:
             git rebase --abort 2>/dev/null || true
             sleep 3
           done
+          exit 1
+
+      - name: Publish hardening diagnostic
+        if: steps.harden.outcome != 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          {
+            echo "P2 UI hardening failed."
+            echo
+            tail -n 300 "$RUNNER_TEMP/p2-ui-hardening.log"
+          } > docs/runtime-validation/p2-ui-hardening-diagnostic.txt
+          rm -f \
+            .github/workflows/apply-p2-ui-hardening.yml \
+            scripts/apply_p2_ui_hardening.py
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: record P2 UI hardening diagnostic [skip ci]"
+
+          published=0
+          for attempt in $(seq 1 30); do
+            git fetch origin master
+            if git rebase origin/master && git push origin HEAD:master; then
+              published=1
+              break
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep 3
+          done
+          test "$published" = "1"
           exit 1
