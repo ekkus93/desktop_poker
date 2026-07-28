@@ -1,0 +1,187 @@
+name: Apply client shutdown patch once
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/client-shutdown-once-trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Apply explicit client shutdown patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src-tauri/src/networking/runtime/client.rs")
+          text = path.read_text(encoding="utf-8")
+
+          def replace_once(old: str, new: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one match, found {count}: {old[:120]!r}")
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '''    sync::{
+                  mpsc::{self},
+                  Arc, Mutex,
+              },''',
+              '''    sync::{
+                  atomic::{AtomicBool, Ordering},
+                  mpsc::{self},
+                  Arc, Mutex,
+              },''',
+          )
+
+          replace_once(
+              '''        let (sender, receiver) = mpsc::channel();''',
+              '''        let stop_signal = Arc::new(AtomicBool::new(false));
+                  let (sender, receiver) = mpsc::channel();''',
+          )
+
+          replace_once(
+              '''        let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
+                  let command_connection_for_thread = Arc::clone(&command_connection);
+
+                  // The client runtime thread is intentionally detached; shutdown is coordinated
+                  // by the stop flag and stream lifecycle.
+                  thread::Builder::new()''',
+              '''        let reconnect_identity_for_thread = Arc::clone(&reconnect_identity);
+                  let command_connection_for_thread = Arc::clone(&command_connection);
+                  let stop_signal_for_thread = Arc::clone(&stop_signal);
+
+                  let runtime_thread = thread::Builder::new()''',
+          )
+
+          replace_once(
+              '''            let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
+                          std::collections::BTreeMap::new();
+                      loop {
+                          let frame_value = match read_json_frame::<Value>(&mut stream) {''',
+              '''            let mut protocol_warning_counts: std::collections::BTreeMap<String, u64> =
+                          std::collections::BTreeMap::new();
+                      loop {
+                          if stop_signal_for_thread.load(Ordering::SeqCst) {
+                              break;
+                          }
+
+                          let frame_value = match read_json_frame::<Value>(&mut stream) {''',
+          )
+
+          replace_once(
+              '''                    Err(_) => {
+                                      // Best-effort cleanup: if this lock is poisoned, command submission is''',
+              '''                    Err(_) => {
+                                      if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                          break;
+                                      }
+
+                                      // Best-effort cleanup: if this lock is poisoned, command submission is''',
+          )
+
+          replace_once(
+              '''                            Ok((reconnected_stream, snapshot_envelope)) => {
+                                                  // Accept the new stream for reading, but do not install the
+                                                  // cloned command stream until all snapshot validation passes.
+                                                  // This prevents a malformed reconnect snapshot from leaving
+                                                  // a stale stream handle in command_connection.
+                                                  stream = reconnected_stream;''',
+              '''                            Ok((reconnected_stream, snapshot_envelope)) => {
+                                                  if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                                      drop(reconnected_stream);
+                                                      break;
+                                                  }
+
+                                                  // Accept the new stream for reading, but do not install the
+                                                  // cloned command stream until all snapshot validation passes.
+                                                  // This prevents a malformed reconnect snapshot from leaving
+                                                  // a stale stream handle in command_connection.
+                                                  stream = reconnected_stream;''',
+          )
+
+          replace_once(
+              '''                            Err(error) => {
+                                                  // Best-effort reconnect cleanup: failure to acquire this lock only''',
+              '''                            Err(error) => {
+                                                  if stop_signal_for_thread.load(Ordering::SeqCst) {
+                                                      break;
+                                                  }
+
+                                                  // Best-effort reconnect cleanup: failure to acquire this lock only''',
+          )
+
+          replace_once(
+              '''            send_runtime_event_best_effort(&sender, ClientRuntimeEvent::Disconnected { player_id });
+                  })
+                  .map_err(|error| {
+                      NetworkingError::new(format!(
+                          "failed to spawn client runtime thread: {error}"
+                      ))
+                  })?;
+
+                  Ok(Self {
+                      incoming: receiver,
+                      reconnect_identity,
+                      command_connection,
+                  })''',
+              '''            if !stop_signal_for_thread.load(Ordering::SeqCst) {
+                          send_runtime_event_best_effort(
+                              &sender,
+                              ClientRuntimeEvent::Disconnected { player_id },
+                          );
+                      }
+                  })
+                  .map_err(|error| {
+                      NetworkingError::new(format!(
+                          "failed to spawn client runtime thread: {error}"
+                      ))
+                  })?;
+
+                  Ok(Self {
+                      incoming: receiver,
+                      reconnect_identity,
+                      command_connection,
+                      stop_signal,
+                      runtime_thread: Some(runtime_thread),
+                  })''',
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Format Rust
+        run: cargo fmt
+
+      - name: Test Rust workspace
+        run: cargo test --workspace --all-targets --all-features -- --test-threads=2
+
+      - name: Commit tested patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/src/networking/runtime/client.rs src-tauri/src/networking/runtime/mod.rs src-tauri/src/app_state/app.rs
+          git commit -m "Add explicit client runtime shutdown"
+          git pull --rebase origin master
+          git push origin HEAD:master
