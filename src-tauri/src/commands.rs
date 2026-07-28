@@ -14,6 +14,60 @@ use crate::{
     protocol::decode_join_payload,
 };
 
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopCommandError {
+    pub code: String,
+    pub message: String,
+    pub recoverable: bool,
+}
+
+impl DesktopCommandError {
+    fn from_message(
+        message: String,
+        fallback_code: &'static str,
+        fallback_recoverable: bool,
+    ) -> Self {
+        let normalized = message.to_ascii_lowercase();
+        let (code, recoverable) = if normalized.contains("no active") {
+            ("NO_ACTIVE_SESSION", true)
+        } else if normalized.contains("observer mode")
+            || normalized.contains("observer") && normalized.contains("cannot submit")
+        {
+            ("OBSERVER_READ_ONLY", true)
+        } else if normalized.contains("does not own the action window")
+            || normalized.contains("until the local player owns the turn")
+        {
+            ("NOT_ACTING_PLAYER", true)
+        } else if normalized.contains("stale action window")
+            || normalized.contains("no open action window")
+        {
+            ("STALE_ACTION_WINDOW", true)
+        } else if normalized.contains("timed out") || normalized.contains("timeout") {
+            ("NETWORK_TIMEOUT", true)
+        } else if normalized.contains("runtime stopped unexpectedly")
+            || normalized.contains("event channel disconnected")
+            || normalized.contains("disconnected from host")
+        {
+            ("CLIENT_RUNTIME_DISCONNECTED", false)
+        } else if normalized.contains("joinpayload")
+            || normalized.contains("join payload")
+            || normalized.contains("invalid rejection envelope")
+            || normalized.contains("failed to decode")
+        {
+            ("INVALID_JOIN_PAYLOAD", true)
+        } else {
+            (fallback_code, fallback_recoverable)
+        };
+
+        Self {
+            code: code.to_string(),
+            message,
+            recoverable,
+        }
+    }
+}
+
 #[tauri::command]
 pub fn get_bootstrap_state(state: State<'_, DesktopAppState>) -> DesktopBootstrapState {
     get_bootstrap_state_inner(|| state.bootstrap())
@@ -100,8 +154,10 @@ pub fn host_set_lobby_ready_state(
 pub fn host_start_tournament(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
-) -> Result<HostSessionStatus, String> {
-    let result = state.host_start_tournament()?;
+) -> Result<HostSessionStatus, DesktopCommandError> {
+    let result = state.host_start_tournament().map_err(|message| {
+        DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
+    })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -111,8 +167,10 @@ pub fn join_host_session(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: JoinHostSessionRequest,
-) -> Result<ClientSessionStatus, String> {
-    let result = state.join_host_session(request)?;
+) -> Result<ClientSessionStatus, DesktopCommandError> {
+    let result = state.join_host_session(request).map_err(|message| {
+        DesktopCommandError::from_message(message, "INVALID_JOIN_PAYLOAD", true)
+    })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -139,8 +197,10 @@ pub fn client_claim_lobby_seat(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: ClaimLobbySeatRequest,
-) -> Result<ClientSessionStatus, String> {
-    let result = state.client_claim_lobby_seat(request)?;
+) -> Result<ClientSessionStatus, DesktopCommandError> {
+    let result = state.client_claim_lobby_seat(request).map_err(|message| {
+        DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
+    })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -150,8 +210,12 @@ pub fn client_set_lobby_ready_state(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
     request: SetLobbyReadyStateRequest,
-) -> Result<ClientSessionStatus, String> {
-    let result = state.client_set_lobby_ready_state(request)?;
+) -> Result<ClientSessionStatus, DesktopCommandError> {
+    let result = state
+        .client_set_lobby_ready_state(request)
+        .map_err(|message| {
+            DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
+        })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -275,7 +339,7 @@ pub fn submit_table_action(
     viewer_mode: TableViewerMode,
     action_kind: DesktopTableActionKind,
     raise_to_amount: Option<u32>,
-) -> Result<TableViewSnapshot, String> {
+) -> Result<TableViewSnapshot, DesktopCommandError> {
     let result = submit_table_action_inner(
         viewer_mode,
         action_kind,
@@ -283,7 +347,8 @@ pub fn submit_table_action(
         |next_viewer_mode, next_action_kind, next_raise_to_amount| {
             state.submit_table_action(next_viewer_mode, next_action_kind, next_raise_to_amount)
         },
-    )?;
+    )
+    .map_err(|message| DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true))?;
     emit_table_update(&app);
     Ok(result)
 }
@@ -588,5 +653,45 @@ mod tests {
             submit_error.expect_err("submit should fail"),
             "invalid action"
         );
+    }
+}
+
+#[cfg(test)]
+mod command_error_tests {
+    use super::DesktopCommandError;
+
+    #[test]
+    fn command_error_classifies_timeout_as_recoverable() {
+        let error = DesktopCommandError::from_message(
+            "table action timed out after 5 seconds".to_string(),
+            "HOST_REJECTED_ACTION",
+            true,
+        );
+        assert_eq!(error.code, "NETWORK_TIMEOUT");
+        assert!(error.recoverable);
+    }
+
+    #[test]
+    fn command_error_classifies_dead_runtime_as_fatal() {
+        let error = DesktopCommandError::from_message(
+            "Client runtime stopped unexpectedly".to_string(),
+            "HOST_REJECTED_ACTION",
+            true,
+        );
+        assert_eq!(error.code, "CLIENT_RUNTIME_DISCONNECTED");
+        assert!(!error.recoverable);
+    }
+
+    #[test]
+    fn command_error_serializes_stable_fields() {
+        let error = DesktopCommandError::from_message(
+            "observer mode cannot submit actions".to_string(),
+            "HOST_REJECTED_ACTION",
+            true,
+        );
+        let value = serde_json::to_value(error).expect("command error serializes");
+        assert_eq!(value["code"], "OBSERVER_READ_ONLY");
+        assert_eq!(value["recoverable"], true);
+        assert_eq!(value["message"], "observer mode cannot submit actions");
     }
 }

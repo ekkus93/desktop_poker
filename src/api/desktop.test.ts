@@ -23,6 +23,8 @@ import {
   validateJoinPayloadInput,
   type DebugInspectorState,
   type DesktopBootstrapState,
+  DesktopCommandFailure,
+  normalizeDesktopCommandError,
   type ClientSessionStatus,
   type HostSessionStatus,
   type JoinHostSessionRequest,
@@ -185,6 +187,46 @@ function sampleClientSessionStatus(): ClientSessionStatus {
     participants: sampleHostSessionStatus().participants,
   };
 }
+
+describe("desktop command errors", () => {
+  it("normalizes structured Tauri command errors", () => {
+    const failure = normalizeDesktopCommandError({
+      code: "NETWORK_TIMEOUT",
+      message: "host did not acknowledge within 5 seconds",
+      recoverable: true,
+    });
+    expect(failure).toBeInstanceOf(DesktopCommandFailure);
+    expect(failure.code).toBe("NETWORK_TIMEOUT");
+    expect(failure.message).toContain("5 seconds");
+    expect(failure.recoverable).toBe(true);
+    expect(String(failure)).toContain("host did not acknowledge");
+  });
+
+  it("preserves typed errors rejected by critical invoke wrappers", async () => {
+    mockedInvoke.mockRejectedValue({
+      code: "OBSERVER_READ_ONLY",
+      message: "observer mode cannot submit actions",
+      recoverable: true,
+    });
+
+    await expect(submitTableAction("observer", "fold")).rejects.toMatchObject({
+      code: "OBSERVER_READ_ONLY",
+      message: "observer mode cannot submit actions",
+      recoverable: true,
+    });
+  });
+
+  it("wraps legacy string failures without making them look recoverable", async () => {
+    mockedInvoke.mockRejectedValue("legacy backend failure");
+    await expect(
+      joinHostSession(sampleJoinHostSessionRequest()),
+    ).rejects.toMatchObject({
+      code: "COMMAND_FAILED",
+      message: "legacy backend failure",
+      recoverable: false,
+    });
+  });
+});
 
 describe("desktop API bridge", () => {
   beforeEach(() => {

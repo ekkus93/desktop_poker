@@ -71,6 +71,63 @@ function getBrowserMocks() {
   return window.__DESKTOP_POKER_BROWSER_MOCKS__;
 }
 
+export type DesktopCommandError = {
+  code: string;
+  message: string;
+  recoverable: boolean;
+};
+
+export class DesktopCommandFailure extends Error {
+  readonly code: string;
+  readonly recoverable: boolean;
+
+  constructor(error: DesktopCommandError) {
+    super(error.message);
+    this.name = "DesktopCommandFailure";
+    this.code = error.code;
+    this.recoverable = error.recoverable;
+  }
+}
+
+export function normalizeDesktopCommandError(
+  error: unknown,
+): DesktopCommandFailure {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    "recoverable" in error &&
+    typeof error.recoverable === "boolean"
+  ) {
+    return new DesktopCommandFailure({
+      code: error.code,
+      message: error.message,
+      recoverable: error.recoverable,
+    });
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : String(error);
+  return new DesktopCommandFailure({
+    code: "COMMAND_FAILED",
+    message,
+    recoverable: false,
+  });
+}
+
+function withDesktopCommandError<T>(operation: () => Promise<T>): Promise<T> {
+  return operation().catch((error: unknown) => {
+    throw normalizeDesktopCommandError(error);
+  });
+}
+
 export type BackendModuleDescriptor = {
   name: string;
   responsibility: string;
@@ -550,20 +607,20 @@ export function hostSetLobbyReadyState(request: SetLobbyReadyStateRequest) {
 
 export function hostStartTournament() {
   const browserMocks = getBrowserMocks();
-  if (browserMocks?.hostStartTournament) {
-    return browserMocks.hostStartTournament();
-  }
-
-  return invoke<HostSessionStatus>("host_start_tournament");
+  return withDesktopCommandError(() =>
+    browserMocks?.hostStartTournament
+      ? browserMocks.hostStartTournament()
+      : invoke<HostSessionStatus>("host_start_tournament"),
+  );
 }
 
 export function joinHostSession(request: JoinHostSessionRequest) {
   const browserMocks = getBrowserMocks();
-  if (browserMocks?.joinHostSession) {
-    return browserMocks.joinHostSession(request);
-  }
-
-  return invoke<ClientSessionStatus>("join_host_session", { request });
+  return withDesktopCommandError(() =>
+    browserMocks?.joinHostSession
+      ? browserMocks.joinHostSession(request)
+      : invoke<ClientSessionStatus>("join_host_session", { request }),
+  );
 }
 
 export function getClientSessionStatus() {
@@ -586,22 +643,22 @@ export function leaveClientSession() {
 
 export function clientClaimLobbySeat(request: ClaimLobbySeatRequest) {
   const browserMocks = getBrowserMocks();
-  if (browserMocks?.clientClaimLobbySeat) {
-    return browserMocks.clientClaimLobbySeat(request);
-  }
-
-  return invoke<ClientSessionStatus>("client_claim_lobby_seat", { request });
+  return withDesktopCommandError(() =>
+    browserMocks?.clientClaimLobbySeat
+      ? browserMocks.clientClaimLobbySeat(request)
+      : invoke<ClientSessionStatus>("client_claim_lobby_seat", { request }),
+  );
 }
 
 export function clientSetLobbyReadyState(request: SetLobbyReadyStateRequest) {
   const browserMocks = getBrowserMocks();
-  if (browserMocks?.clientSetLobbyReadyState) {
-    return browserMocks.clientSetLobbyReadyState(request);
-  }
-
-  return invoke<ClientSessionStatus>("client_set_lobby_ready_state", {
-    request,
-  });
+  return withDesktopCommandError(() =>
+    browserMocks?.clientSetLobbyReadyState
+      ? browserMocks.clientSetLobbyReadyState(request)
+      : invoke<ClientSessionStatus>("client_set_lobby_ready_state", {
+          request,
+        }),
+  );
 }
 
 export function resolveHostLanAddress() {
@@ -628,19 +685,15 @@ export function submitTableAction(
   raiseToAmount?: number,
 ) {
   const browserMocks = getBrowserMocks();
-  if (browserMocks?.submitTableAction) {
-    return browserMocks.submitTableAction(
-      viewerMode,
-      actionKind,
-      raiseToAmount,
-    );
-  }
-
-  return invoke<TableViewSnapshot>("submit_table_action", {
-    viewerMode,
-    actionKind,
-    raiseToAmount: raiseToAmount ?? null,
-  });
+  return withDesktopCommandError(() =>
+    browserMocks?.submitTableAction
+      ? browserMocks.submitTableAction(viewerMode, actionKind, raiseToAmount)
+      : invoke<TableViewSnapshot>("submit_table_action", {
+          viewerMode,
+          actionKind,
+          raiseToAmount: raiseToAmount ?? null,
+        }),
+  );
 }
 
 export function getDebugState(viewerMode: TableViewerMode) {
