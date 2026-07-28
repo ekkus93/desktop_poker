@@ -1,18 +1,18 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **PASS**
-- Validated commit: `4b6cdd3990a7f199649a9c98d4a6562fdd37cb8c`
-- GitHub Actions run: `30357049708`
+- Validated commit: `5a52bfe9813cf74d562a5d72fdbe85713d0a0cda`
+- GitHub Actions run: `30358345738`
 - Build outcome: `success`
 - Gameplay outcome: `success`
-- Recorded at: `2026-07-28T12:05:32.314611+00:00`
+- Recorded at: `2026-07-28T12:21:47.573105+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Result summary
 
-- Completed hands: `6`
-- Host instance: `full-game-host-30357049708`
-- Client instance: `full-game-client-30357049708`
+- Completed hands: `3`
+- Host instance: `full-game-host-30358345738`
+- Client instance: `full-game-client-30358345738`
 
 ## Executed checks
 
@@ -24,9 +24,6 @@
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
 - **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
 - **PASS** — all-in showdown attempt 2 settled with 3 synchronized hands
-- **PASS** — all-in showdown attempt 3 settled with 4 synchronized hands
-- **PASS** — all-in showdown attempt 4 settled with 5 synchronized hands
-- **PASS** — all-in showdown attempt 5 settled with 6 synchronized hands
 - **PASS** — tournament completed with matching standings and one eliminated observer
 - **PASS** — both release instances render the same Tournament Complete winner
 - **PASS** — fresh third profile contains no host/client hand history
