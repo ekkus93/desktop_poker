@@ -133,9 +133,9 @@ describe("TournamentLobbyScreen authoritative ready transitions", () => {
       name: "Start tournament",
     }) as HTMLButtonElement;
     expect(pendingStart.disabled).toBe(true);
-    expect(
-      screen.getByText("Host Alpha").closest("article")?.textContent,
-    ).toContain("Waiting");
+    expect(screen.getByText("You").closest("article")?.textContent).toContain(
+      "Waiting",
+    );
 
     await act(async () => {
       mutation.resolve(createHostSession(true, "readyCheck"));
@@ -195,9 +195,9 @@ describe("TournamentLobbyScreen authoritative ready transitions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Undo ready" }));
 
     expect(await screen.findByText("You: Undoing ready…")).toBeTruthy();
-    expect(
-      screen.getByText("Host Alpha").closest("article")?.textContent,
-    ).toContain("Ready");
+    expect(screen.getByText("You").closest("article")?.textContent).toContain(
+      "Ready",
+    );
     const pendingUndo = screen.getByRole("button", {
       name: "Undoing ready…",
     }) as HTMLButtonElement;
