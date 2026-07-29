@@ -115,9 +115,10 @@ fn d_remote_expired_action_publishes_timeout_before_rejecting_submission() {
     let mut saw_stale_rejection = false;
     while !(saw_timeout_publication && saw_stale_rejection) {
         match actor.next_event(Duration::from_millis(200)) {
-            Ok(crate::networking::ClientRuntimeEvent::PublicEvent { message_type, .. })
-                if message_type == ProtocolMessageType::PlayerActionCommittedEvent =>
-            {
+            Ok(crate::networking::ClientRuntimeEvent::PublicEvent {
+                message_type: ProtocolMessageType::PlayerActionCommittedEvent,
+                ..
+            }) => {
                 saw_timeout_publication = true;
             }
             Ok(crate::networking::ClientRuntimeEvent::SafeError { message, .. }) => {
