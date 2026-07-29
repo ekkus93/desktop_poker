@@ -62,7 +62,6 @@ jobs:
           rm .github/runtime-hardening-typed-errors.trigger
           rm .github/workflows/runtime-hardening-typed-errors-once.yml
           rm scripts/runtime_hardening_typed_errors_once.py
-          rm -f docs/runtime-validation/typed-errors-preflight-latest.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -73,8 +72,11 @@ jobs:
             src-tauri/src/app_state/tests/sessions.rs \
             scripts/runtime_hardening_typed_errors_once.py \
             .github/runtime-hardening-typed-errors.trigger \
-            .github/workflows/runtime-hardening-typed-errors-once.yml \
-            docs/runtime-validation/typed-errors-preflight-latest.log
+            .github/workflows/runtime-hardening-typed-errors-once.yml
+          if git ls-files --error-unmatch docs/runtime-validation/typed-errors-preflight-latest.log >/dev/null 2>&1; then
+            rm -f docs/runtime-validation/typed-errors-preflight-latest.log
+            git add -A -- docs/runtime-validation/typed-errors-preflight-latest.log
+          fi
           git commit -m "Replace command error string classification with typed provenance"
           git fetch --no-tags origin master
           git rebase origin/master
@@ -84,9 +86,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p docs/runtime-validation
-          cp typed-errors-preflight.log docs/runtime-validation/typed-errors-preflight-latest.log
           git reset --hard HEAD
+          mkdir -p docs/runtime-validation
           cp typed-errors-preflight.log docs/runtime-validation/typed-errors-preflight-latest.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
