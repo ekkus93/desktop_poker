@@ -1,1 +1,1 @@
-validate final runtime hardening source and tests
+validate final source including typed join-session errors
