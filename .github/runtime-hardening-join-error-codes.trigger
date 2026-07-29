@@ -1,0 +1,2 @@
+triggered_at=2026-07-29T07:34:00Z
+purpose=preserve_typed_join_session_error_codes
