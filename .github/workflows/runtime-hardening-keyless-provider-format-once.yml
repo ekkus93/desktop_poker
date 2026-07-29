@@ -19,24 +19,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
-      - name: Apply exact rustfmt correction
+      - name: Apply canonical Rust formatting
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('src-tauri/src/npc/provider_storage.rs')
-          text = path.read_text(encoding='utf-8')
-          old = '        assert!(tracking.deleted_accounts().contains(&"anthropic".to_string()));'
-          new = '''        assert!(tracking
-              .deleted_accounts()
-              .contains(&"anthropic".to_string()));'''
-          if old not in text:
-              raise SystemExit('expected unformatted assertion was not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
+          cargo fmt --all
           cargo fmt --all --check
           git diff --check
+          changed="$(git diff --name-only)"
+          test "$changed" = "src-tauri/src/npc/provider_storage.rs"
       - name: Commit formatting correction and self-clean
         shell: bash
         run: |
