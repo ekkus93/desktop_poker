@@ -357,6 +357,8 @@ export function DebugPanel({
         debugState.hostRuntimeHealth.clientRegistryErrorCount > 0 ||
         debugState.hostRuntimeHealth.reconnectMarkErrorCount > 0 ||
         debugState.hostRuntimeHealth.snapshotSyncErrorCount > 0 ||
+        debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount > 0 ||
+        debugState.hostRuntimeHealth.connectedClientLimitRejectionCount > 0 ||
         debugState.hostRuntimeHealth.lastError != null) ? (
         <SectionCard
           title="Host runtime health"
@@ -415,6 +417,18 @@ export function DebugPanel({
               <li>
                 <strong>Snapshot sync errors:</strong>{" "}
                 {debugState.hostRuntimeHealth.snapshotSyncErrorCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount > 0 && (
+              <li data-testid="host-runtime-pending-join-limit-rejections">
+                <strong>Pending join limit rejections:</strong>{" "}
+                {debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount}
+              </li>
+            )}
+            {debugState.hostRuntimeHealth.connectedClientLimitRejectionCount > 0 && (
+              <li data-testid="host-runtime-connected-client-limit-rejections">
+                <strong>Connected client limit rejections:</strong>{" "}
+                {debugState.hostRuntimeHealth.connectedClientLimitRejectionCount}
               </li>
             )}
             {debugState.hostRuntimeHealth.lastError != null && (

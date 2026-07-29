@@ -82,6 +82,68 @@ mod tests {
     }
 
     #[test]
+    fn pending_join_limit_rejection_is_visible_without_raw_error_detail() {
+        let health = HostRuntimeHealth {
+            pending_join_limit_rejection_count: 1,
+            last_error: Some("raw pending-join transport detail".to_string()),
+            ..HostRuntimeHealth::default()
+        };
+
+        let warnings = runtime_health_warning_messages(&health);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("safety limit"));
+        assert!(!warnings[0].contains("raw pending-join transport detail"));
+    }
+
+    #[test]
+    fn connected_client_limit_rejection_is_visible_without_raw_error_detail() {
+        let health = HostRuntimeHealth {
+            connected_client_limit_rejection_count: 1,
+            last_error: Some("raw connected-client transport detail".to_string()),
+            ..HostRuntimeHealth::default()
+        };
+
+        let warnings = runtime_health_warning_messages(&health);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("safety limit"));
+        assert!(!warnings[0].contains("raw connected-client transport detail"));
+    }
+
+    #[test]
+    fn host_runtime_health_serialization_keys_are_stable() {
+        let value = serde_json::to_value(HostRuntimeHealth::default())
+            .expect("host runtime health serializes");
+        let mut actual = value
+            .as_object()
+            .expect("host runtime health serializes as an object")
+            .keys()
+            .cloned()
+            .collect::<Vec<_>>();
+        actual.sort();
+        let mut expected = vec![
+            "acceptErrorCount",
+            "clientRegistryErrorCount",
+            "connectedClientLimitRejectionCount",
+            "lastError",
+            "lastSuccessfulPublishMs",
+            "lastSuccessfulTickMs",
+            "pendingJoinLimitRejectionCount",
+            "publishErrorCount",
+            "reconnectMarkErrorCount",
+            "snapshotSyncErrorCount",
+            "stateLockErrorCount",
+            "streamCloneErrorCount",
+            "streamTimeoutErrorCount",
+            "tickAdvanceErrorCount",
+        ];
+        expected.sort();
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn healthy_runtime_has_no_normal_ui_warning() {
         assert!(runtime_health_warning_messages(&HostRuntimeHealth::default()).is_empty());
     }

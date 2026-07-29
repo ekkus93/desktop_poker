@@ -388,6 +388,8 @@ export type HostRuntimeHealth = {
   clientRegistryErrorCount: number;
   reconnectMarkErrorCount: number;
   snapshotSyncErrorCount: number;
+  pendingJoinLimitRejectionCount: number;
+  connectedClientLimitRejectionCount: number;
   lastError: string | null;
   lastSuccessfulTickMs: number | null;
   lastSuccessfulPublishMs: number | null;

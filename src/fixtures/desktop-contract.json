@@ -88,7 +88,35 @@
     "lastNpcActionError",
     "hostRuntimeHealth"
   ],
-  "NpcProfileListResult": ["profiles", "errors"],
-  "LlmProviderSettings": ["provider", "endpointUrl", "model"],
-  "LlmProviderConfig": ["provider", "endpointUrl", "model", "apiKey"]
+  "NpcProfileListResult": [
+    "profiles",
+    "errors"
+  ],
+  "LlmProviderSettings": [
+    "provider",
+    "endpointUrl",
+    "model"
+  ],
+  "LlmProviderConfig": [
+    "provider",
+    "endpointUrl",
+    "model",
+    "apiKey"
+  ],
+  "HostRuntimeHealth": [
+    "acceptErrorCount",
+    "streamTimeoutErrorCount",
+    "tickAdvanceErrorCount",
+    "publishErrorCount",
+    "stateLockErrorCount",
+    "streamCloneErrorCount",
+    "clientRegistryErrorCount",
+    "reconnectMarkErrorCount",
+    "snapshotSyncErrorCount",
+    "pendingJoinLimitRejectionCount",
+    "connectedClientLimitRejectionCount",
+    "lastError",
+    "lastSuccessfulTickMs",
+    "lastSuccessfulPublishMs"
+  ]
 }

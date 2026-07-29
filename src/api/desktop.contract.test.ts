@@ -4,6 +4,7 @@ import { createBootstrap } from "../test/fixtures";
 import type {
   ClientSessionStatus,
   DebugInspectorState,
+  HostRuntimeHealth,
   HostSessionStatus,
   LlmProviderConfig,
   LlmProviderSettings,
@@ -85,6 +86,23 @@ describe("desktop DTO contract", () => {
       actionTray: null,
     };
 
+    const hostRuntimeHealth: HostRuntimeHealth = {
+      acceptErrorCount: 0,
+      streamTimeoutErrorCount: 0,
+      tickAdvanceErrorCount: 0,
+      publishErrorCount: 0,
+      stateLockErrorCount: 0,
+      streamCloneErrorCount: 0,
+      clientRegistryErrorCount: 0,
+      reconnectMarkErrorCount: 0,
+      snapshotSyncErrorCount: 0,
+      pendingJoinLimitRejectionCount: 0,
+      connectedClientLimitRejectionCount: 0,
+      lastError: null,
+      lastSuccessfulTickMs: null,
+      lastSuccessfulPublishMs: null,
+    };
+
     const debugState: DebugInspectorState = {
       protocolLog: [],
       snapshotJson: "{}",
@@ -95,7 +113,7 @@ describe("desktop DTO contract", () => {
       npcTiltLevels: {},
       lastLlmFallback: null,
       lastNpcActionError: null,
-      hostRuntimeHealth: null,
+      hostRuntimeHealth,
     };
 
     const profileList: NpcProfileListResult = { profiles: [], errors: [] };
@@ -118,6 +136,9 @@ describe("desktop DTO contract", () => {
     );
     expect(sortedKeys(tableView)).toEqual(expectedKeys("TableViewSnapshot"));
     expect(sortedKeys(debugState)).toEqual(expectedKeys("DebugInspectorState"));
+    expect(sortedKeys(hostRuntimeHealth)).toEqual(
+      expectedKeys("HostRuntimeHealth"),
+    );
     expect(sortedKeys(profileList)).toEqual(
       expectedKeys("NpcProfileListResult"),
     );

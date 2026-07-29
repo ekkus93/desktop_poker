@@ -604,10 +604,11 @@ impl ClientRuntime {
         })
     }
 
-    pub fn next_event(&self, timeout: Duration) -> Result<ClientRuntimeEvent, NetworkingError> {
-        self.incoming.recv_timeout(timeout).map_err(|error| {
-            NetworkingError::new(format!("timed out waiting for client event: {error}"))
-        })
+    pub fn next_event(
+        &self,
+        timeout: Duration,
+    ) -> Result<ClientRuntimeEvent, ClientRuntimePollError> {
+        self.poll_event(timeout)
     }
 
     pub fn clear_reconnect_identity(&self) -> Result<(), NetworkingError> {

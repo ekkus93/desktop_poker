@@ -289,3 +289,102 @@ fn remote_committed_action_updates_runtime_and_authoritative_state() {
         &after_state
     );
 }
+
+
+#[test]
+fn remote_stale_window_rejection_does_not_mutate_state() {
+    let fixture = started_runtime(now_epoch_ms());
+    let before = fixture
+        .authoritative_state
+        .lock()
+        .expect("authoritative state")
+        .clone();
+    let window = current_window(&fixture);
+    let envelope = signed_action(
+        &fixture,
+        &window.player_id,
+        "stale-action-window".to_string(),
+        window.seat_index,
+        ActionType::Fold,
+        None,
+    );
+
+    let outcome = handle_action_submission_request(
+        &fixture.provider,
+        envelope,
+        &fixture.authoritative_state,
+        &fixture.tournament_runtime,
+    )
+    .expect("stale-window rejection is typed");
+
+    assert!(matches!(
+        outcome,
+        RemoteActionSubmissionOutcome::RejectedNoStateChange { .. }
+    ));
+    assert_eq!(
+        *fixture
+            .authoritative_state
+            .lock()
+            .expect("authoritative state after rejection"),
+        before
+    );
+    assert_eq!(
+        fixture
+            .tournament_runtime
+            .lock()
+            .expect("runtime")
+            .as_ref()
+            .expect("controller")
+            .state(),
+        &before
+    );
+}
+
+#[test]
+fn remote_invalid_raise_rejection_does_not_mutate_state() {
+    let fixture = started_runtime(now_epoch_ms());
+    let before = fixture
+        .authoritative_state
+        .lock()
+        .expect("authoritative state")
+        .clone();
+    let window = current_window(&fixture);
+    let envelope = signed_action(
+        &fixture,
+        &window.player_id,
+        window.action_window_id,
+        window.seat_index,
+        ActionType::Raise,
+        Some(0),
+    );
+
+    let outcome = handle_action_submission_request(
+        &fixture.provider,
+        envelope,
+        &fixture.authoritative_state,
+        &fixture.tournament_runtime,
+    )
+    .expect("invalid-raise rejection is typed");
+
+    assert!(matches!(
+        outcome,
+        RemoteActionSubmissionOutcome::RejectedNoStateChange { .. }
+    ));
+    assert_eq!(
+        *fixture
+            .authoritative_state
+            .lock()
+            .expect("authoritative state after rejection"),
+        before
+    );
+    assert_eq!(
+        fixture
+            .tournament_runtime
+            .lock()
+            .expect("runtime")
+            .as_ref()
+            .expect("controller")
+            .state(),
+        &before
+    );
+}

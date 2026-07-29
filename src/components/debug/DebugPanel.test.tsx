@@ -41,6 +41,8 @@ function baseHostHealth(
     clientRegistryErrorCount: 0,
     reconnectMarkErrorCount: 0,
     snapshotSyncErrorCount: 0,
+    pendingJoinLimitRejectionCount: 0,
+    connectedClientLimitRejectionCount: 0,
     lastError: null,
     lastSuccessfulTickMs: null,
     lastSuccessfulPublishMs: null,
@@ -263,6 +265,8 @@ describe("DebugPanel", () => {
           clientRegistryErrorCount: 7,
           reconnectMarkErrorCount: 8,
           snapshotSyncErrorCount: 9,
+          pendingJoinLimitRejectionCount: 10,
+          connectedClientLimitRejectionCount: 11,
         }),
       }),
     );
@@ -281,6 +285,8 @@ describe("DebugPanel", () => {
     expect(screen.getByText(/Client registry errors:/i)).toBeTruthy();
     expect(screen.getByText(/Reconnect mark errors:/i)).toBeTruthy();
     expect(screen.getByText(/Snapshot sync errors:/i)).toBeTruthy();
+    expect(screen.getByText(/Pending join limit rejections:/i)).toBeTruthy();
+    expect(screen.getByText(/Connected client limit rejections:/i)).toBeTruthy();
   });
 
   it("hides host runtime health section when all counters are zero and no last error", async () => {

@@ -5,7 +5,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use super::NetworkingError;
 
-/// Maximum accepted JSON frame payload size.
+/// Maximum JSON frame payload size for both inbound and outbound frames.
 ///
 /// The length prefix is controlled by the remote peer, so this limit must be
 /// checked before allocating the body buffer.
@@ -37,6 +37,14 @@ fn write_frame_bytes<W: Write>(
     payload_bytes: &[u8],
     payload_len: u64,
 ) -> Result<(), NetworkingError> {
+    if payload_bytes.len() > MAX_FRAME_PAYLOAD_BYTES {
+        return Err(NetworkingError::new(format!(
+            "frame payload exceeds maximum allowed size: {} > {}",
+            payload_bytes.len(),
+            MAX_FRAME_PAYLOAD_BYTES
+        )));
+    }
+
     let length = u32::try_from(payload_len)
         .map_err(|_| NetworkingError::new("frame payload exceeds u32 length"))?;
 
@@ -301,6 +309,36 @@ mod tests {
             write_json_frame_to_writer(&mut writer, &payload).expect_err("flush should fail");
 
         assert!(error.to_string().contains("failed to flush frame"));
+    }
+
+    #[test]
+    fn write_frame_bytes_accepts_payload_at_exact_maximum() {
+        let payload = vec![b'a'; MAX_FRAME_PAYLOAD_BYTES];
+        let mut writer = Vec::new();
+
+        write_frame_bytes(&mut writer, &payload, payload.len() as u64)
+            .expect("payload at the maximum should write");
+
+        assert_eq!(writer.len(), MAX_FRAME_PAYLOAD_BYTES + 4);
+    }
+
+    #[test]
+    fn write_frame_bytes_rejects_payload_above_max_without_partial_write() {
+        let payload = vec![b'a'; MAX_FRAME_PAYLOAD_BYTES + 1];
+        let mut writer = Vec::new();
+
+        let error = write_frame_bytes(&mut writer, &payload, payload.len() as u64)
+            .expect_err("payload above the maximum should fail");
+
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "frame payload exceeds maximum allowed size: {} > {}",
+                MAX_FRAME_PAYLOAD_BYTES + 1,
+                MAX_FRAME_PAYLOAD_BYTES
+            )
+        );
+        assert!(writer.is_empty(), "oversized frames must not be partially written");
     }
 
     #[test]
