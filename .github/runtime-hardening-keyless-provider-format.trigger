@@ -1,2 +1,2 @@
-triggered_at=2026-07-29T08:35:00Z
-purpose=apply_exact_rustfmt_diff_for_keyless_provider_regression_test
+triggered_at=2026-07-29T08:40:00Z
+purpose=apply_canonical_rustfmt_to_keyless_provider_storage_only
