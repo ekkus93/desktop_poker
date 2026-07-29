@@ -1,8 +1,8 @@
 # Latest Installed Debian Package Validation
 
 - Overall result: **PASS**
-- Validated commit: `9b4bb0a5738e609c418b6dfd673dd431dd7cb70e`
-- GitHub Actions run: `30432686451`
+- Validated commit: `0d3c109a2de19d027fa24f383a3e90fd2baf6f8f`
+- GitHub Actions run: `30435746573`
 - Build outcome: `success`
 - Validation outcome: `success`
 - Evidence artifact: `linux-debian-package-v3-evidence`
@@ -19,7 +19,7 @@
 - Name: `desktop-poker`
 - Version: `0.1.0`
 - Architecture: `amd64`
-- Debian SHA-256: `e80919ffd0a3c78e6376010f53eabf3561de436d71be54a056133f2c6450e6de`
+- Debian SHA-256: `2f7a48f4591d8e4bb70b3052f466424be9a9beff3d9e96c6a9fe6c0d4b418550`
 - Installed binary: `/usr/bin/desktop-poker`
 - Desktop file: `/usr/share/applications/Desktop Poker.desktop`
 - Installed icon count: `3`
