@@ -286,7 +286,9 @@ describe("DebugPanel", () => {
     expect(screen.getByText(/Reconnect mark errors:/i)).toBeTruthy();
     expect(screen.getByText(/Snapshot sync errors:/i)).toBeTruthy();
     expect(screen.getByText(/Pending join limit rejections:/i)).toBeTruthy();
-    expect(screen.getByText(/Connected client limit rejections:/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Connected client limit rejections:/i),
+    ).toBeTruthy();
   });
 
   it("hides host runtime health section when all counters are zero and no last error", async () => {

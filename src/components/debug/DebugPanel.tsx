@@ -419,16 +419,21 @@ export function DebugPanel({
                 {debugState.hostRuntimeHealth.snapshotSyncErrorCount}
               </li>
             )}
-            {debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount > 0 && (
+            {debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount >
+              0 && (
               <li data-testid="host-runtime-pending-join-limit-rejections">
                 <strong>Pending join limit rejections:</strong>{" "}
                 {debugState.hostRuntimeHealth.pendingJoinLimitRejectionCount}
               </li>
             )}
-            {debugState.hostRuntimeHealth.connectedClientLimitRejectionCount > 0 && (
+            {debugState.hostRuntimeHealth.connectedClientLimitRejectionCount >
+              0 && (
               <li data-testid="host-runtime-connected-client-limit-rejections">
                 <strong>Connected client limit rejections:</strong>{" "}
-                {debugState.hostRuntimeHealth.connectedClientLimitRejectionCount}
+                {
+                  debugState.hostRuntimeHealth
+                    .connectedClientLimitRejectionCount
+                }
               </li>
             )}
             {debugState.hostRuntimeHealth.lastError != null && (
