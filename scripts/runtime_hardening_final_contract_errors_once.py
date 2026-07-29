@@ -71,7 +71,7 @@ impl DesktopCommandErrorCode {
     }
 
     const fn recoverable(self) -> bool {
-        !matches!(Self::ClientRuntimeDisconnected | Self::CommandFailed, self)
+        !matches!(self, Self::ClientRuntimeDisconnected | Self::CommandFailed)
     }
 }
 
