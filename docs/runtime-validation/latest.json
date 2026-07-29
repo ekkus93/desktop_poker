@@ -4,15 +4,15 @@
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "d7f4685fe7328d9fa1500a8f5e1b9bdfb83120cb4bcc5143dc914755db972e55",
-    "clientInstanceId": "runtime-client-30431685955",
-    "clientTableId": "table-runtime-host-30431685955-1785310151110",
-    "conflictInstanceId": "runtime-conflict-30431685955",
-    "hostInstanceId": "runtime-host-30431685955",
+    "clientInstanceId": "runtime-client-30432233163",
+    "clientTableId": "table-runtime-host-30432233163-1785310680774",
+    "conflictInstanceId": "runtime-conflict-30432233163",
+    "hostInstanceId": "runtime-host-30432233163",
     "hostPort": 43818,
     "profileDirectories": [
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30431685955",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30431685955",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30431685955"
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-30432233163",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-30432233163",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-30432233163"
     ],
     "recoveryPort": 43819,
     "result": "PASS",
@@ -78,15 +78,15 @@
         "result": "PASS"
       }
     ],
-    "tableId": "table-runtime-host-30431685955-1785310151110"
+    "tableId": "table-runtime-host-30432233163-1785310680774"
   },
   "multiInstanceOutcome": "success",
-  "recordedAtUtc": "2026-07-29T07:29:24.500325+00:00",
+  "recordedAtUtc": "2026-07-29T07:38:14.716903+00:00",
   "result": "PASS",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "d7f4685fe7328d9fa1500a8f5e1b9bdfb83120cb4bcc5143dc914755db972e55",
-    "instanceId": "runtime-smoke-30431685955",
+    "instanceId": "runtime-smoke-30432233163",
     "result": "PASS",
     "steps": [
       {
@@ -144,7 +144,7 @@
     ]
   },
   "singleInstanceOutcome": "success",
-  "validatedCommit": "2915ae2214bf8cc7a319af1778caa8228dd6e591",
+  "validatedCommit": "ff2c81062b7c568b0f27987e3c12a68c0b426b26",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30431685955"
+  "workflowRunId": "30432233163"
 }
