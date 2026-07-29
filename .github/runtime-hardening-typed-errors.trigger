@@ -1,1 +1,1 @@
-replace command-boundary string parsing with typed provenance
+rerun typed command errors after lifecycle test migration
