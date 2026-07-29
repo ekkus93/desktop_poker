@@ -1,1 +1,1 @@
-validate full-game invite smoke correction and independent hardening
+validate normalized remote action state and rollback invariants
