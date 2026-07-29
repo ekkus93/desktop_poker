@@ -32,6 +32,12 @@ impl LlmProviderType {
             LlmProviderType::EmbeddedLocal => "embeddedLocal",
         }
     }
+
+    /// Whether this provider stores an API credential in the secret store.
+    /// Local providers must remain usable when no platform keychain service exists.
+    pub const fn uses_api_key(&self) -> bool {
+        matches!(self, LlmProviderType::Anthropic | LlmProviderType::OpenAi)
+    }
 }
 
 /// Non-secret provider settings: safe to log, display in debug state, and
@@ -188,6 +194,15 @@ mod tests {
             },
             api_key: None,
         }
+    }
+
+    #[test]
+    fn only_remote_api_providers_use_secret_storage() {
+        assert!(LlmProviderType::Anthropic.uses_api_key());
+        assert!(LlmProviderType::OpenAi.uses_api_key());
+        assert!(!LlmProviderType::Ollama.uses_api_key());
+        assert!(!LlmProviderType::LlamaServer.uses_api_key());
+        assert!(!LlmProviderType::EmbeddedLocal.uses_api_key());
     }
 
     #[test]
