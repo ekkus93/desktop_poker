@@ -4,30 +4,12 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "9da4d34a518cbdd937e9b4531468f5db7e6cf85fd378e91b6c3072111b59478d",
-    "clientInstanceId": "full-game-client-30417881469",
-    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30417881469",
-    "completedHands": 4,
+    "clientInstanceId": "full-game-client-30418196062",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30418196062",
+    "completedHands": 3,
     "finalHistory": [
       {
         "boardCards": [
-          {
-            "compactLabel": "Q\u2665",
-            "label": "Queen of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "K\u2665",
-            "label": "King of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "K\u2666",
-            "label": "King of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          },
           {
             "compactLabel": "2\u2666",
             "label": "Two of Diamonds",
@@ -35,27 +17,8 @@
             "tone": "red"
           },
           {
-            "compactLabel": "6\u2666",
-            "label": "Six of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          }
-        ],
-        "eliminatedPlayers": [
-          "Player full-game-client-30417881469"
-        ],
-        "handNumber": 4,
-        "potTotal": 120,
-        "summary": "Player full-game-host-30417881469 won 120 chip(s).",
-        "winningPlayers": [
-          "Player full-game-host-30417881469"
-        ]
-      },
-      {
-        "boardCards": [
-          {
-            "compactLabel": "3\u2665",
-            "label": "Three of Hearts",
+            "compactLabel": "7\u2665",
+            "label": "Seven of Hearts",
             "suitSymbol": "\u2665",
             "tone": "red"
           },
@@ -66,30 +29,26 @@
             "tone": "dark"
           },
           {
-            "compactLabel": "5\u2665",
-            "label": "Five of Hearts",
+            "compactLabel": "10\u2665",
+            "label": "Ten of Hearts",
             "suitSymbol": "\u2665",
             "tone": "red"
           },
           {
-            "compactLabel": "J\u2663",
-            "label": "Jack of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "K\u2666",
-            "label": "King of Diamonds",
-            "suitSymbol": "\u2666",
+            "compactLabel": "2\u2665",
+            "label": "Two of Hearts",
+            "suitSymbol": "\u2665",
             "tone": "red"
           }
         ],
-        "eliminatedPlayers": [],
+        "eliminatedPlayers": [
+          "Player full-game-host-30418196062"
+        ],
         "handNumber": 3,
         "potTotal": 1940,
-        "summary": "Player full-game-host-30417881469 won 1940 chip(s).",
+        "summary": "Player full-game-client-30418196062 won 1940 chip(s).",
         "winningPlayers": [
-          "Player full-game-host-30417881469"
+          "Player full-game-client-30418196062"
         ]
       },
       {
@@ -97,9 +56,9 @@
         "eliminatedPlayers": [],
         "handNumber": 2,
         "potTotal": 1030,
-        "summary": "Player full-game-client-30417881469 won 1030 chip(s).",
+        "summary": "Player full-game-client-30418196062 won 1030 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30417881469"
+          "Player full-game-client-30418196062"
         ]
       },
       {
@@ -107,16 +66,16 @@
         "eliminatedPlayers": [],
         "handNumber": 1,
         "potTotal": 30,
-        "summary": "Player full-game-client-30417881469 won 30 chip(s).",
+        "summary": "Player full-game-client-30418196062 won 30 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30417881469"
+          "Player full-game-client-30418196062"
         ]
       }
     ],
     "finalStandings": [
       {
         "chipCount": 2000,
-        "displayName": "Player full-game-host-30417881469",
+        "displayName": "Player full-game-client-30418196062",
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -124,15 +83,15 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Player full-game-client-30417881469",
+        "displayName": "Player full-game-host-30418196062",
         "isObserver": true,
         "note": null,
         "rank": 2,
         "statusLabel": "Eliminated observer"
       }
     ],
-    "hostInstanceId": "full-game-host-30417881469",
-    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30417881469",
+    "hostInstanceId": "full-game-host-30418196062",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30418196062",
     "result": "PASS",
     "steps": [
       {
@@ -168,10 +127,6 @@
         "result": "PASS"
       },
       {
-        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
-        "result": "PASS"
-      },
-      {
         "name": "tournament completed with matching standings and one eliminated observer",
         "result": "PASS"
       },
@@ -190,9 +145,9 @@
     ]
   },
   "gameplayOutcome": "success",
-  "recordedAtUtc": "2026-07-29T02:53:36.341787+00:00",
+  "recordedAtUtc": "2026-07-29T03:00:56.470040+00:00",
   "result": "PASS",
-  "validatedCommit": "f50de2bf942585fd2550903a0cbfeb03e7c5daff",
+  "validatedCommit": "77c3e76e6d2a9b918b32e80a17288ae2eddea473",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30417881469"
+  "workflowRunId": "30418196062"
 }
