@@ -1,0 +1,2 @@
+triggered_at=2026-07-29T07:28:00Z
+purpose=validate_nested_host_runtime_health_contract_assertion
