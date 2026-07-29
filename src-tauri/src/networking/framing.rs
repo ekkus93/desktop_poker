@@ -338,7 +338,10 @@ mod tests {
                 MAX_FRAME_PAYLOAD_BYTES
             )
         );
-        assert!(writer.is_empty(), "oversized frames must not be partially written");
+        assert!(
+            writer.is_empty(),
+            "oversized frames must not be partially written"
+        );
     }
 
     #[test]
