@@ -1,0 +1,64 @@
+name: Runtime hardening Rust host health contract
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-rust-health-contract.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      - name: Apply Rust health contract assertion
+        run: python3 scripts/runtime_hardening_rust_health_contract_once.py
+      - name: Validate Rust
+        run: |
+          cargo fmt --all --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          cargo test --workspace --all-targets --all-features
+      - name: Commit validated Rust health contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-rust-health-contract.trigger
+          rm .github/workflows/runtime-hardening-rust-health-contract-once.yml
+          rm scripts/runtime_hardening_rust_health_contract_once.py
+          rm -f docs/runtime-validation/final-contract-errors-preflight-latest.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- \
+            src-tauri/tests/desktop_contract.rs \
+            scripts/runtime_hardening_rust_health_contract_once.py \
+            .github/runtime-hardening-rust-health-contract.trigger \
+            .github/workflows/runtime-hardening-rust-health-contract-once.yml \
+            docs/runtime-validation/final-contract-errors-preflight-latest.log
+          git commit -m "Assert Rust host runtime health DTO contract"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
