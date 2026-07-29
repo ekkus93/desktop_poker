@@ -5,9 +5,9 @@ use tauri::{AppHandle, Emitter, State};
 use crate::{
     app_state::{
         ClaimLobbySeatRequest, ClientSessionStatus, DebugInspectorState, DesktopAppState,
-        DesktopBootstrapState, DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest,
-        ScreenDescriptor, SetLobbyReadyStateRequest, StartHostSessionRequest, TableViewSnapshot,
-        TableViewerMode,
+        DesktopBootstrapState, DesktopTableActionError, DesktopTableActionErrorCode,
+        DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest, ScreenDescriptor,
+        SetLobbyReadyStateRequest, StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
     },
     domain::JoinPayload,
     networking::resolve_connectable_host_ip,
@@ -23,48 +23,28 @@ pub struct DesktopCommandError {
 }
 
 impl DesktopCommandError {
-    fn from_message(
-        message: String,
-        fallback_code: &'static str,
-        fallback_recoverable: bool,
-    ) -> Self {
-        let normalized = message.to_ascii_lowercase();
-        let (code, recoverable) = if normalized.contains("no active") {
-            ("NO_ACTIVE_SESSION", true)
-        } else if normalized.contains("observer mode")
-            || normalized.contains("observer") && normalized.contains("cannot submit")
-        {
-            ("OBSERVER_READ_ONLY", true)
-        } else if normalized.contains("does not own the action window")
-            || normalized.contains("until the local player owns the turn")
-        {
-            ("NOT_ACTING_PLAYER", true)
-        } else if normalized.contains("stale action window")
-            || normalized.contains("no open action window")
-        {
-            ("STALE_ACTION_WINDOW", true)
-        } else if normalized.contains("timed out") || normalized.contains("timeout") {
-            ("NETWORK_TIMEOUT", true)
-        } else if normalized.contains("runtime stopped unexpectedly")
-            || normalized.contains("event channel disconnected")
-            || normalized.contains("disconnected from host")
-        {
-            ("CLIENT_RUNTIME_DISCONNECTED", false)
-        } else if normalized.contains("joinpayload")
-            || normalized.contains("join payload")
-            || normalized.contains("invalid rejection envelope")
-            || normalized.contains("failed to decode")
-        {
-            ("INVALID_JOIN_PAYLOAD", true)
-        } else {
-            (fallback_code, fallback_recoverable)
-        };
-
+    fn new(code: &'static str, message: String, recoverable: bool) -> Self {
         Self {
             code: code.to_string(),
             message,
             recoverable,
         }
+    }
+
+    fn from_table_action(error: DesktopTableActionError) -> Self {
+        let (code, recoverable) = match error.code() {
+            DesktopTableActionErrorCode::NoActiveSession => ("NO_ACTIVE_SESSION", true),
+            DesktopTableActionErrorCode::ObserverReadOnly => ("OBSERVER_READ_ONLY", true),
+            DesktopTableActionErrorCode::NotActingPlayer => ("NOT_ACTING_PLAYER", true),
+            DesktopTableActionErrorCode::StaleActionWindow => ("STALE_ACTION_WINDOW", true),
+            DesktopTableActionErrorCode::NetworkTimeout => ("NETWORK_TIMEOUT", true),
+            DesktopTableActionErrorCode::ClientRuntimeDisconnected => {
+                ("CLIENT_RUNTIME_DISCONNECTED", false)
+            }
+            DesktopTableActionErrorCode::HostRejectedAction => ("HOST_REJECTED_ACTION", true),
+            DesktopTableActionErrorCode::CommandFailed => ("COMMAND_FAILED", false),
+        };
+        Self::new(code, error.into_message(), recoverable)
     }
 }
 
@@ -155,9 +135,9 @@ pub fn host_start_tournament(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
 ) -> Result<HostSessionStatus, DesktopCommandError> {
-    let result = state.host_start_tournament().map_err(|message| {
-        DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
-    })?;
+    let result = state
+        .host_start_tournament()
+        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -168,9 +148,9 @@ pub fn join_host_session(
     state: State<'_, DesktopAppState>,
     request: JoinHostSessionRequest,
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
-    let result = state.join_host_session(request).map_err(|message| {
-        DesktopCommandError::from_message(message, "INVALID_JOIN_PAYLOAD", true)
-    })?;
+    let result = state
+        .join_host_session(request)
+        .map_err(|message| DesktopCommandError::new("INVALID_JOIN_PAYLOAD", message, true))?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -198,9 +178,9 @@ pub fn client_claim_lobby_seat(
     state: State<'_, DesktopAppState>,
     request: ClaimLobbySeatRequest,
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
-    let result = state.client_claim_lobby_seat(request).map_err(|message| {
-        DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
-    })?;
+    let result = state
+        .client_claim_lobby_seat(request)
+        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -213,9 +193,7 @@ pub fn client_set_lobby_ready_state(
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
     let result = state
         .client_set_lobby_ready_state(request)
-        .map_err(|message| {
-            DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true)
-        })?;
+        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -348,7 +326,7 @@ pub fn submit_table_action(
             state.submit_table_action(next_viewer_mode, next_action_kind, next_raise_to_amount)
         },
     )
-    .map_err(|message| DesktopCommandError::from_message(message, "HOST_REJECTED_ACTION", true))?;
+    .map_err(DesktopCommandError::from_table_action)?;
     emit_table_update(&app);
     Ok(result)
 }
@@ -415,8 +393,8 @@ fn submit_table_action_inner(
         TableViewerMode,
         DesktopTableActionKind,
         Option<u32>,
-    ) -> Result<TableViewSnapshot, String>,
-) -> Result<TableViewSnapshot, String> {
+    ) -> Result<TableViewSnapshot, DesktopTableActionError>,
+) -> Result<TableViewSnapshot, DesktopTableActionError> {
     submit_table_action(viewer_mode, action_kind, raise_to_amount)
 }
 
@@ -641,7 +619,10 @@ mod tests {
             None,
             |_viewer_mode, _action_kind, raise_to_amount| {
                 assert_eq!(raise_to_amount, None);
-                Err("invalid action".to_string())
+                Err(DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::HostRejectedAction,
+                    "invalid action",
+                ))
             },
         );
 
@@ -650,7 +631,7 @@ mod tests {
             "observer mode is read-only"
         );
         assert_eq!(
-            submit_error.expect_err("submit should fail"),
+            submit_error.expect_err("submit should fail").message(),
             "invalid action"
         );
     }
@@ -658,40 +639,44 @@ mod tests {
 
 #[cfg(test)]
 mod command_error_tests {
-    use super::DesktopCommandError;
+    use super::{DesktopCommandError, DesktopTableActionError, DesktopTableActionErrorCode};
 
     #[test]
-    fn command_error_classifies_timeout_as_recoverable() {
-        let error = DesktopCommandError::from_message(
-            "table action timed out after 5 seconds".to_string(),
-            "HOST_REJECTED_ACTION",
-            true,
-        );
-        assert_eq!(error.code, "NETWORK_TIMEOUT");
-        assert!(error.recoverable);
+    fn typed_timeout_code_is_recoverable_independent_of_wording() {
+        for message in [
+            "host acknowledgement deadline expired",
+            "rewritten timeout copy",
+        ] {
+            let error = DesktopCommandError::from_table_action(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::NetworkTimeout,
+                message,
+            ));
+            assert_eq!(error.code, "NETWORK_TIMEOUT");
+            assert!(error.recoverable);
+        }
     }
 
     #[test]
-    fn command_error_classifies_dead_runtime_as_fatal() {
-        let error = DesktopCommandError::from_message(
-            "Client runtime stopped unexpectedly".to_string(),
-            "HOST_REJECTED_ACTION",
-            true,
-        );
-        assert_eq!(error.code, "CLIENT_RUNTIME_DISCONNECTED");
-        assert!(!error.recoverable);
+    fn typed_dead_runtime_code_is_fatal_independent_of_wording() {
+        for message in ["runtime unavailable", "connection ended"] {
+            let error = DesktopCommandError::from_table_action(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::ClientRuntimeDisconnected,
+                message,
+            ));
+            assert_eq!(error.code, "CLIENT_RUNTIME_DISCONNECTED");
+            assert!(!error.recoverable);
+        }
     }
 
     #[test]
     fn command_error_serializes_stable_fields() {
-        let error = DesktopCommandError::from_message(
-            "observer mode cannot submit actions".to_string(),
-            "HOST_REJECTED_ACTION",
-            true,
-        );
+        let error = DesktopCommandError::from_table_action(DesktopTableActionError::new(
+            DesktopTableActionErrorCode::ObserverReadOnly,
+            "spectators cannot act",
+        ));
         let value = serde_json::to_value(error).expect("command error serializes");
         assert_eq!(value["code"], "OBSERVER_READ_ONLY");
         assert_eq!(value["recoverable"], true);
-        assert_eq!(value["message"], "observer mode cannot submit actions");
+        assert_eq!(value["message"], "spectators cannot act");
     }
 }

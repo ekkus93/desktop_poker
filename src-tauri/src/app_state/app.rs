@@ -153,11 +153,16 @@ impl DesktopAppState {
         viewer_mode: TableViewerMode,
         action_kind: DesktopTableActionKind,
         raise_to_amount: Option<u32>,
-    ) -> Result<TableViewSnapshot, String> {
+    ) -> Result<TableViewSnapshot, DesktopTableActionError> {
         if let Some(table_view) = self
             .host_session
             .lock()
-            .map_err(|_| "host session lock poisoned".to_string())?
+            .map_err(|_| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::CommandFailed,
+                    "host session lock poisoned",
+                )
+            })?
             .as_ref()
             .map(|session| session.submit_table_action(viewer_mode, action_kind, raise_to_amount))
             .transpose()?
@@ -168,7 +173,12 @@ impl DesktopAppState {
         if let Some(table_view) = self
             .client_session
             .lock()
-            .map_err(|_| "client session lock poisoned".to_string())?
+            .map_err(|_| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::CommandFailed,
+                    "client session lock poisoned",
+                )
+            })?
             .as_mut()
             .map(|session| session.submit_table_action(viewer_mode, action_kind, raise_to_amount))
             .transpose()?
@@ -177,7 +187,10 @@ impl DesktopAppState {
         }
 
         let _ = (viewer_mode, action_kind, raise_to_amount);
-        Err("no active live session is available for table actions".to_string())
+        Err(DesktopTableActionError::new(
+            DesktopTableActionErrorCode::NoActiveSession,
+            "no active live session is available for table actions",
+        ))
     }
 
     pub fn debug_state(&self, viewer_mode: TableViewerMode) -> Result<DebugInspectorState, String> {

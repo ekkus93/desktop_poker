@@ -1,6 +1,6 @@
 use super::super::{
-    ClaimLobbySeatRequest, DesktopAppState, DesktopTableActionKind, SetLobbyReadyStateRequest,
-    TableViewerMode,
+    ClaimLobbySeatRequest, DesktopAppState, DesktopTableActionErrorCode, DesktopTableActionKind,
+    SetLobbyReadyStateRequest, TableViewerMode,
 };
 use crate::{
     networking::HostRuntimeMode,
@@ -531,10 +531,13 @@ fn client_table_action_returns_explicit_error_when_no_action_window_is_open() {
         .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::Fold, None)
         .expect_err("table action with no open window must fail");
 
+    assert_eq!(
+        err.code(),
+        DesktopTableActionErrorCode::StaleActionWindow,
+        "a joined client without an active action window should receive the stable stale-window code"
+    );
     assert!(
-        err.contains("no open action window")
-            || err.contains("no active client session")
-            || err.contains("action tray"),
+        err.message().contains("no open action window"),
         "error should describe why the action failed; got: {err}"
     );
 }

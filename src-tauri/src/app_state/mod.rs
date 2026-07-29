@@ -113,6 +113,57 @@ pub enum DesktopTableActionKind {
     AllIn,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DesktopTableActionErrorCode {
+    NoActiveSession,
+    ObserverReadOnly,
+    NotActingPlayer,
+    StaleActionWindow,
+    NetworkTimeout,
+    ClientRuntimeDisconnected,
+    HostRejectedAction,
+    CommandFailed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DesktopTableActionError {
+    code: DesktopTableActionErrorCode,
+    message: String,
+}
+
+impl DesktopTableActionError {
+    #[must_use]
+    pub fn new(code: DesktopTableActionErrorCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn code(&self) -> DesktopTableActionErrorCode {
+        self.code
+    }
+
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    #[must_use]
+    pub fn into_message(self) -> String {
+        self.message
+    }
+}
+
+impl std::fmt::Display for DesktopTableActionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for DesktopTableActionError {}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TableCardView {

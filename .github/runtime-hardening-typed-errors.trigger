@@ -1,1 +1,0 @@
-rerun typed command errors after lifecycle test migration

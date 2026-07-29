@@ -69,26 +69,48 @@ impl DesktopHostSession {
         viewer_mode: TableViewerMode,
         action_kind: DesktopTableActionKind,
         raise_to_amount: Option<u32>,
-    ) -> Result<TableViewSnapshot, String> {
+    ) -> Result<TableViewSnapshot, DesktopTableActionError> {
         if matches!(viewer_mode, TableViewerMode::Observer) {
-            return Err("observer mode cannot submit actions".to_string());
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::ObserverReadOnly,
+                "observer mode cannot submit actions",
+            ));
         }
 
         let current_window = self
             .host_server
             .authoritative_state()
-            .map_err(|error| error.to_string())?
+            .map_err(|error| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::CommandFailed,
+                    error.to_string(),
+                )
+            })?
             .current_hand
             .as_ref()
             .and_then(|hand| hand.action_window.clone())
-            .ok_or_else(|| "no open action window".to_string())?;
+            .ok_or_else(|| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::StaleActionWindow,
+                    "no open action window",
+                )
+            })?;
 
         if current_window.player_id != LOCAL_PLAYER_ID {
-            return Err("action tray is disabled until the local player owns the turn".to_string());
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::NotActingPlayer,
+                "action tray is disabled until the local player owns the turn",
+            ));
         }
 
-        let (action_type, action_amount, _) =
-            resolve_action_request(&current_window, action_kind, raise_to_amount)?;
+        let (action_type, action_amount, _) = resolve_action_request(
+            &current_window,
+            action_kind,
+            raise_to_amount,
+        )
+        .map_err(|message| {
+            DesktopTableActionError::new(DesktopTableActionErrorCode::HostRejectedAction, message)
+        })?;
         self.host_server
             .submit_action(
                 LOCAL_PLAYER_ID,
@@ -96,8 +118,15 @@ impl DesktopHostSession {
                 action_type,
                 action_amount,
             )
-            .map_err(|error| error.to_string())?;
-        self.table_view(viewer_mode)
+            .map_err(|error| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::HostRejectedAction,
+                    error.to_string(),
+                )
+            })?;
+        self.table_view(viewer_mode).map_err(|message| {
+            DesktopTableActionError::new(DesktopTableActionErrorCode::CommandFailed, message)
+        })
     }
 }
 
@@ -183,26 +212,51 @@ impl DesktopClientSession {
         viewer_mode: TableViewerMode,
         action_kind: DesktopTableActionKind,
         raise_to_amount: Option<u32>,
-    ) -> Result<TableViewSnapshot, String> {
+    ) -> Result<TableViewSnapshot, DesktopTableActionError> {
         if matches!(viewer_mode, TableViewerMode::Observer) {
-            return Err("observer mode cannot submit actions".to_string());
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::ObserverReadOnly,
+                "observer mode cannot submit actions",
+            ));
         }
 
         self.refresh();
+        if self.terminated {
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::ClientRuntimeDisconnected,
+                self.last_error
+                    .clone()
+                    .unwrap_or_else(|| "Disconnected from host".to_string()),
+            ));
+        }
         let current_window = self
             .latest_snapshot
             .state
             .current_hand
             .as_ref()
             .and_then(|hand| hand.action_window.clone())
-            .ok_or_else(|| "no open action window".to_string())?;
+            .ok_or_else(|| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::StaleActionWindow,
+                    "no open action window",
+                )
+            })?;
 
         if current_window.player_id != self.latest_snapshot.local_player_id {
-            return Err("action tray is disabled until the local player owns the turn".to_string());
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::NotActingPlayer,
+                "action tray is disabled until the local player owns the turn",
+            ));
         }
 
-        let (action_type, action_amount, _) =
-            resolve_action_request(&current_window, action_kind, raise_to_amount)?;
+        let (action_type, action_amount, _) = resolve_action_request(
+            &current_window,
+            action_kind,
+            raise_to_amount,
+        )
+        .map_err(|message| {
+            DesktopTableActionError::new(DesktopTableActionErrorCode::HostRejectedAction, message)
+        })?;
         self.last_error = None;
         let prior_action_window_id = current_window.action_window_id.clone();
         let prior_hand_number = self
@@ -218,7 +272,12 @@ impl DesktopClientSession {
                 action_type,
                 action_amount,
             )
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| {
+                DesktopTableActionError::new(
+                    DesktopTableActionErrorCode::ClientRuntimeDisconnected,
+                    error.to_string(),
+                )
+            })?;
         let observed = self.await_condition(CLIENT_ACTION_ACK_TIMEOUT, |session| {
             session.last_error.is_some()
                 || session
@@ -239,16 +298,24 @@ impl DesktopClientSession {
         });
 
         if let Some(error) = self.last_error.clone() {
-            return Err(error);
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::HostRejectedAction,
+                error,
+            ));
         }
         if !observed {
-            return Err(format!(
-                "table action timed out: host did not acknowledge within {} seconds",
-                CLIENT_ACTION_ACK_TIMEOUT.as_secs()
+            return Err(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::NetworkTimeout,
+                format!(
+                    "table action timed out: host did not acknowledge within {} seconds",
+                    CLIENT_ACTION_ACK_TIMEOUT.as_secs()
+                ),
             ));
         }
 
-        self.table_view(viewer_mode)
+        self.table_view(viewer_mode).map_err(|message| {
+            DesktopTableActionError::new(DesktopTableActionErrorCode::CommandFailed, message)
+        })
     }
 
     pub(crate) fn refresh(&mut self) {

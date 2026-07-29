@@ -1,7 +1,7 @@
 use super::super::{
     build_debug_child_instance_id, build_debug_child_launch_args, derive_instance_profile,
-    detect_profile_directory, screen_catalog, DesktopAppState, DesktopTableActionKind,
-    TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
+    detect_profile_directory, screen_catalog, DesktopAppState, DesktopTableActionErrorCode,
+    DesktopTableActionKind, TableViewerMode, INSTANCE_ID_ENV_VAR, JOIN_PAYLOAD_ENV_VAR,
 };
 
 use super::support::*;
@@ -106,10 +106,13 @@ fn table_view_requires_an_active_live_session() {
 
 #[test]
 fn table_actions_require_an_active_live_session() {
+    let error = DesktopAppState::detect()
+        .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::Fold, None)
+        .expect_err("table actions should require an active live session");
+
+    assert_eq!(error.code(), DesktopTableActionErrorCode::NoActiveSession);
     assert_eq!(
-        DesktopAppState::detect()
-            .submit_table_action(TableViewerMode::Local, DesktopTableActionKind::Fold, None)
-            .expect_err("table actions should require an active live session"),
+        error.message(),
         "no active live session is available for table actions"
     );
 }
