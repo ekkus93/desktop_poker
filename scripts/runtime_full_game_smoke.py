@@ -193,7 +193,7 @@ def setup_tournament(
     client.clear(invite_input)
     client.type_text(invite_input, invite)
     click_text(client, "Check invite")
-    wait_for_source(client, "Invite looks good")
+    wait_for_source(client, "Invite decoded")
     click_first_enabled_text(client, "Continue to lobby")
     wait_for_route(client, "/lobby", "Lobby")
 
