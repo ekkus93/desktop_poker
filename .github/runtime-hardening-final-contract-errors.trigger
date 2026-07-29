@@ -1,2 +1,2 @@
-triggered_at=2026-07-29T07:13:00Z
-purpose=finish_typed_command_errors_and_shared_host_runtime_health_contract
+triggered_at=2026-07-29T07:17:00Z
+purpose=rerun_fixed_typed_command_errors_and_shared_host_runtime_health_contract
