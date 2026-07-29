@@ -1,1 +1,1 @@
-validate handlers rustfmt and P0 semantics
+apply DTO polling framing and abuse coverage batch
