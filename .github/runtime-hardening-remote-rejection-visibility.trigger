@@ -1,2 +1,0 @@
-triggered_at=2026-07-29T07:06:00Z
-purpose=validate_remote_rejection_visibility_and_zero_publication
