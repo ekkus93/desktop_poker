@@ -62,6 +62,27 @@ def load_evidence(label: str, path: Path) -> dict[str, object]:
     return payload
 
 
+def require_source_equivalent(commit: str) -> None:
+    if subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        check=False,
+    ).returncode != 0:
+        raise SystemExit(f"validated commit is unavailable in repository history: {commit}")
+
+    source_diff = subprocess.run(
+        ["git", "diff", "--quiet", commit, "HEAD", "--", *SOURCE_PATHS],
+        check=False,
+    )
+    if source_diff.returncode == 1:
+        raise SystemExit(
+            "current product source differs from an evidence commit: " f"{commit}"
+        )
+    if source_diff.returncode != 0:
+        raise SystemExit(
+            "unable to compare current product source with evidence commit: " f"{commit}"
+        )
+
+
 unexpected_helpers: list[Path] = []
 for pattern in (
     ".github/runtime-hardening-*",
@@ -78,31 +99,11 @@ if unexpected_helpers:
     )
 
 payloads = {label: load_evidence(label, path) for label, path in EVIDENCE.items()}
-validated_commits = {str(payload["validatedCommit"]) for payload in payloads.values()}
-if len(validated_commits) != 1:
-    details = ", ".join(
-        f"{label}={payload['validatedCommit']}" for label, payload in payloads.items()
-    )
-    raise SystemExit(f"runtime evidence does not validate one commit: {details}")
-validated_commit = validated_commits.pop()
-
-if subprocess.run(
-    ["git", "cat-file", "-e", f"{validated_commit}^{{commit}}"],
-    check=False,
-).returncode != 0:
-    raise SystemExit(f"validated commit is unavailable in repository history: {validated_commit}")
-
-source_diff = subprocess.run(
-    ["git", "diff", "--quiet", validated_commit, "HEAD", "--", *SOURCE_PATHS],
-    check=False,
+validated_commits = sorted(
+    {str(payload["validatedCommit"]) for payload in payloads.values()}
 )
-if source_diff.returncode == 1:
-    raise SystemExit(
-        "current source differs from the commit named by retained evidence: "
-        f"{validated_commit}"
-    )
-if source_diff.returncode != 0:
-    raise SystemExit("unable to compare current source with retained evidence commit")
+for validated_commit in validated_commits:
+    require_source_equivalent(validated_commit)
 
 text = TODO_PATH.read_text(encoding="utf-8")
 if "Status: **OPEN**" in text:
@@ -140,44 +141,56 @@ implementation_commits = [
     ("e494ca46cc764dc78a90ee3f7200de70a8357726", "Rust HostRuntimeHealth shared fixture assertion"),
     ("adbd7401a666ba94a978b03f9dd868cd3adcc1b6", "nested TypeScript HostRuntimeHealth assertion"),
     ("df5733421b360d26011faff08663945d53e9aab8", "typed join-session error provenance"),
+    ("5bbeefdca40836a1d518103422aea904baf1d9f1", "keyless local providers avoid unavailable platform keychains"),
+    ("99daa6d9a5f1379c19ca7788601cbe965fe2447f", "canonical formatting for the keyless-provider regression test"),
 ]
 
 lines = [
     "# Desktop Poker Runtime Hardening Fixes Reconciliation",
     "",
     "Date: 2026-07-29  ",
-    f"Validated evidence commit: `{validated_commit}`  ",
     "Result: **COMPLETE**",
     "",
-    "## Implemented behavior",
+    "## Evidence source identity",
     "",
-    "- Remote client actions use explicit typed outcomes.",
-    "- Timeout-advanced rejected actions commit and publish the advanced state before the rejection is returned.",
-    "- Wrong-player, stale-window, and invalid-size remote submissions reject visibly and publish zero transitions.",
-    "- Gameplay-state invariants normalize networking-only participant metadata before comparison.",
-    "- Command errors preserve stable typed codes without substring classification.",
-    "- Join-session failures preserve invalid-payload, network-timeout, disconnected-runtime, and unknown-command provenance instead of collapsing every failure into `INVALID_JOIN_PAYLOAD`.",
-    "- Host runtime health fields are synchronized across Rust, TypeScript, UI diagnostics, and shared contract fixtures.",
-    "- Client event polling preserves timeout-versus-disconnection semantics.",
-    "- Inbound and outbound frame-size limits are symmetric and regression-tested.",
-    "- Hostile peer and abuse coverage is indexed and backed by deterministic tests.",
-    "",
-    "## Key implementation commits",
+    "The retained publishers name more than one commit because documentation-only evidence and reconciliation commits landed while independent workflows were finishing. The reconciliation gate compared every named commit against the current tree across all product-source paths and required zero differences.",
     "",
 ]
+for validated_commit in validated_commits:
+    lines.append(f"- Source-equivalent validated commit: `{validated_commit}`")
+
+lines.extend(
+    [
+        "",
+        "## Implemented behavior",
+        "",
+        "- Remote client actions use explicit typed outcomes.",
+        "- Timeout-advanced rejected actions commit and publish the advanced state before the rejection is returned.",
+        "- Wrong-player, stale-window, and invalid-size remote submissions reject visibly and publish zero transitions.",
+        "- Gameplay-state invariants normalize networking-only participant metadata before comparison.",
+        "- Command errors preserve stable typed codes without substring classification.",
+        "- Join-session failures preserve invalid-payload, network-timeout, disconnected-runtime, and unknown-command provenance instead of collapsing every failure into `INVALID_JOIN_PAYLOAD`.",
+        "- Host runtime health fields are synchronized across Rust, TypeScript, UI diagnostics, and shared contract fixtures.",
+        "- Client event polling preserves timeout-versus-disconnection semantics.",
+        "- Inbound and outbound frame-size limits are symmetric and regression-tested.",
+        "- Hostile peer and abuse coverage is indexed and backed by deterministic tests.",
+        "- Keyless local LLM providers do not depend on an OS keychain; API-provider secret deletion remains fail-closed.",
+        "",
+        "## Key implementation commits",
+        "",
+    ]
+)
 for sha, description in implementation_commits:
     lines.append(f"- `{sha}` — {description}")
-lines.append(
-    f"- `{validated_commit}` — final source tree retained by every required validation publisher."
-)
 
 lines.extend(["", "## Retained validation evidence", ""])
 for label, path in EVIDENCE.items():
     payload = payloads[label]
     run_id = payload.get("workflowRunId", "unknown")
+    evidence_commit = payload["validatedCommit"]
     lines.append(
         f"- **{label}: PASS** — `{path}`; GitHub Actions run `{run_id}`; "
-        f"validated `{validated_commit}`."
+        f"validated source-equivalent commit `{evidence_commit}`."
     )
 
 lines.extend(
@@ -187,6 +200,8 @@ lines.extend(
         "",
         "- The earlier rule-based NPC failure was retained as a pre-existing baseline artifact and was not silently reclassified as a regression. The final rule-based tournament rerun passed.",
         "- Embedded-tournament runs cancelled by newer source pushes were treated as incomplete evidence, not as code success. Completion required a later non-cancelled PASS artifact.",
+        "- The final embedded tournament itself passed, but its first durable-evidence push conflicted with concurrent evidence publishers. The successful artifact was recovered and published without changing its payload.",
+        "- Validation exposed a real keyless-provider storage bug. Product source was fixed; no CI-only fallback or silent keychain bypass was added.",
         "- An optional patch preflight caught a malformed generated expression before it could modify source; the corrected guarded run passed and the superseded failure log was removed.",
         "",
         "## Scope note",
