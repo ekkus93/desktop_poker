@@ -4,10 +4,10 @@
     "browser-geometry-evidence"
   ],
   "geometryResult": "success",
-  "recordedAtUtc": "2026-07-29T02:07:27.653853+00:00",
+  "recordedAtUtc": "2026-07-29T02:15:48.157838+00:00",
   "result": "FAIL",
-  "validatedCommit": "42eb3778749a714b9637fdaac703ae2e33e8f95a",
+  "validatedCommit": "2d1e2e4a7c3431b63f94b4b5c4e0042cd1918b81",
   "verifyResult": "failure",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30415908080"
+  "workflowRunId": "30416201632"
 }
