@@ -22,10 +22,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm src-tauri/.runtime-hardening-final-validation.trigger
-          rm .github/runtime-hardening-reconcile.trigger
-          rm .github/workflows/runtime-hardening-reconcile-once.yml
-          rm scripts/runtime_hardening_reconcile_once.py
+          rm -f src-tauri/.runtime-hardening-final-validation.trigger
+          rm -f .github/runtime-hardening-reconcile.trigger
+          rm -f .github/workflows/runtime-hardening-reconcile-once.yml
+          rm -f scripts/runtime_hardening_reconcile_once.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- \
