@@ -12,7 +12,7 @@ use crate::{
         JsonSignedEnvelope, PlayerActionSubmission, ProtocolMessageType, SignedEnvelope,
         PROTOCOL_VERSION,
     },
-    tournament::{RegisteredPlayer, TournamentController},
+    tournament::{ActionRequest, RegisteredPlayer, TournamentController},
 };
 
 use super::{super::*, support::sample_tournament_state};
@@ -386,4 +386,99 @@ fn remote_invalid_raise_rejection_does_not_mutate_state() {
             .state(),
         &before
     );
+}
+
+#[test]
+fn authoritative_commit_failure_rolls_controller_back() {
+    let fixture = started_runtime(now_epoch_ms());
+    let window = current_window(&fixture);
+    let mut runtime = fixture.tournament_runtime.lock().expect("runtime");
+    let controller = runtime.as_mut().expect("controller");
+    let rollback_controller = controller.clone();
+    controller
+        .submit_action(
+            ActionRequest {
+                player_id: window.player_id,
+                action_window_id: window.action_window_id,
+                action_type: ActionType::Fold,
+                raise_to_amount: None,
+            },
+            now_epoch_ms(),
+        )
+        .expect("controller advances before simulated commit failure");
+    let advanced_state = controller.state().clone();
+    assert_ne!(advanced_state, *rollback_controller.state());
+
+    let poisoned_authoritative = Arc::new(Mutex::new(rollback_controller.state().clone()));
+    let poison_target = Arc::clone(&poisoned_authoritative);
+    let _ = std::thread::spawn(move || {
+        let _guard = poison_target.lock().expect("lock before poisoning");
+        panic!("poison authoritative state for rollback test");
+    })
+    .join();
+
+    let error = commit_remote_action_state(
+        controller,
+        &poisoned_authoritative,
+        advanced_state,
+        rollback_controller.clone(),
+    )
+    .expect_err("poisoned authoritative commit should fail");
+
+    assert!(error
+        .to_string()
+        .contains("authoritative state lock poisoned"));
+    assert_eq!(controller.state(), rollback_controller.state());
+}
+
+#[test]
+fn networking_only_authoritative_fields_do_not_trigger_false_divergence() {
+    let fixture = started_runtime(now_epoch_ms());
+    let window = current_window(&fixture);
+    {
+        let mut authoritative = fixture
+            .authoritative_state
+            .lock()
+            .expect("authoritative state");
+        let participant = authoritative
+            .participants
+            .get_mut(&window.player_id)
+            .expect("acting participant");
+        participant.reconnect_token = Some("network-only-token".to_string());
+        participant.admitted_at_ms = 777;
+    }
+    let envelope = signed_action(
+        &fixture,
+        &window.player_id,
+        window.action_window_id,
+        window.seat_index,
+        ActionType::Fold,
+        None,
+    );
+
+    let outcome = handle_action_submission_request(
+        &fixture.provider,
+        envelope,
+        &fixture.authoritative_state,
+        &fixture.tournament_runtime,
+    )
+    .expect("networking-only metadata must not look like gameplay divergence");
+
+    assert!(matches!(
+        outcome,
+        RemoteActionSubmissionOutcome::Committed { .. }
+    ));
+    let authoritative = fixture
+        .authoritative_state
+        .lock()
+        .expect("authoritative state after action");
+    let participant = authoritative
+        .participants
+        .get(&window.player_id)
+        .expect("acting participant after action");
+    assert_eq!(
+        participant.reconnect_token.as_deref(),
+        Some("network-only-token")
+    );
+    assert_eq!(participant.admitted_at_ms, 777);
 }

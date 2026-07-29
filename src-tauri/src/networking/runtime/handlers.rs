@@ -374,6 +374,21 @@ pub(crate) enum RemoteActionSubmissionOutcome {
     },
 }
 
+pub(crate) fn commit_remote_action_state(
+    controller: &mut TournamentController,
+    authoritative_state: &Arc<Mutex<TournamentState>>,
+    next_state: TournamentState,
+    rollback_controller: TournamentController,
+) -> Result<(TournamentState, TournamentState), NetworkingError> {
+    match commit_runtime_state(authoritative_state, next_state) {
+        Ok(states) => Ok(states),
+        Err(error) => {
+            *controller = rollback_controller;
+            Err(error)
+        }
+    }
+}
+
 pub(crate) fn handle_action_submission_request(
     crypto_provider: &impl ProtocolCryptoProvider,
     request_envelope: JsonSignedEnvelope,
@@ -409,50 +424,50 @@ pub(crate) fn handle_action_submission_request(
         raise_to_amount: request.raise_to_amount,
     };
 
-    let (next_state, action_outcome) = {
-        let mut runtime = tournament_runtime
-            .lock()
-            .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?;
-        let controller = runtime
-            .as_mut()
-            .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
-        if controller.state() != &before_state {
-            return Err(NetworkingError::new(
-                "tournament runtime diverged from authoritative state before remote action",
-            ));
-        }
-        let rollback_controller = controller.clone();
-        let action_outcome =
-            match controller.submit_action_with_outcome(action_request, now_epoch_ms()) {
-                Ok(outcome) => outcome,
-                Err(error) => {
-                    *controller = rollback_controller;
-                    return Err(NetworkingError::new(error.to_string()));
-                }
-            };
-        let next_state = controller.state().clone();
-
-        let invalid_transition = match &action_outcome {
-            ActionSubmissionOutcome::Committed => next_state == before_state,
-            ActionSubmissionOutcome::RejectedNoStateChange { .. } => next_state != before_state,
-            ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => {
-                next_state == before_state
-            }
-        };
-        if invalid_transition {
+    let mut runtime = tournament_runtime
+        .lock()
+        .map_err(|_| NetworkingError::new("tournament runtime lock poisoned"))?;
+    let controller = runtime
+        .as_mut()
+        .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
+    let mut normalized_controller_state = controller.state().clone();
+    merge_networking_state(&before_state, &mut normalized_controller_state);
+    if normalized_controller_state != before_state {
+        return Err(NetworkingError::new(
+            "tournament runtime diverged from authoritative gameplay state before remote action",
+        ));
+    }
+    let rollback_controller = controller.clone();
+    let action_outcome = match controller.submit_action_with_outcome(action_request, now_epoch_ms())
+    {
+        Ok(outcome) => outcome,
+        Err(error) => {
             *controller = rollback_controller;
-            return Err(NetworkingError::new(
-                "remote action outcome did not match its controller state transition; mutation was rolled back",
-            ));
+            return Err(NetworkingError::new(error.to_string()));
         }
-
-        (next_state, action_outcome)
     };
+    let next_state = controller.state().clone();
+
+    let invalid_transition = match &action_outcome {
+        ActionSubmissionOutcome::Committed => next_state == before_state,
+        ActionSubmissionOutcome::RejectedNoStateChange { .. } => next_state != before_state,
+        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => next_state == before_state,
+    };
+    if invalid_transition {
+        *controller = rollback_controller;
+        return Err(NetworkingError::new(
+            "remote action outcome did not match its controller state transition; mutation was rolled back",
+        ));
+    }
 
     match action_outcome {
         ActionSubmissionOutcome::Committed => {
-            let (previous_state, after_state) =
-                commit_runtime_state(authoritative_state, next_state)?;
+            let (previous_state, after_state) = commit_remote_action_state(
+                controller,
+                authoritative_state,
+                next_state,
+                rollback_controller,
+            )?;
             Ok(RemoteActionSubmissionOutcome::Committed {
                 previous_state,
                 after_state,
@@ -464,8 +479,12 @@ pub(crate) fn handle_action_submission_request(
             })
         }
         ActionSubmissionOutcome::TimeoutAdvancedThenRejected { error } => {
-            let (previous_state, after_state) =
-                commit_runtime_state(authoritative_state, next_state)?;
+            let (previous_state, after_state) = commit_remote_action_state(
+                controller,
+                authoritative_state,
+                next_state,
+                rollback_controller,
+            )?;
             Ok(RemoteActionSubmissionOutcome::TimeoutAdvancedThenRejected {
                 previous_state,
                 after_state,
