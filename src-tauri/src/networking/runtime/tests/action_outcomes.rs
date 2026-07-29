@@ -7,7 +7,7 @@ use base64::Engine as _;
 
 use crate::{
     crypto::{key_fingerprint, DefaultCryptoProvider, ProtocolCryptoProvider, SigningKeyMaterial},
-    domain::{ActionType, PlayerIdentity, TournamentState},
+    domain::{ActionType, ConnectionState, PlayerIdentity, TournamentState},
     protocol::{
         JsonSignedEnvelope, PlayerActionSubmission, ProtocolMessageType, SignedEnvelope,
         PROTOCOL_VERSION,
@@ -481,4 +481,78 @@ fn networking_only_authoritative_fields_do_not_trigger_false_divergence() {
         Some("network-only-token")
     );
     assert_eq!(participant.admitted_at_ms, 777);
+}
+
+#[test]
+fn networking_only_authoritative_fields_do_not_turn_rejection_into_internal_error() {
+    let fixture = started_runtime(now_epoch_ms());
+    let window = current_window(&fixture);
+    let wrong_player = if window.player_id == "player-a" {
+        "player-b"
+    } else {
+        "player-a"
+    };
+    {
+        let mut authoritative = fixture
+            .authoritative_state
+            .lock()
+            .expect("authoritative state");
+        let participant = authoritative
+            .participants
+            .get_mut(wrong_player)
+            .expect("wrong-player participant");
+        participant.connection_state = ConnectionState::Reconnecting;
+        participant.reconnect_token = Some("network-only-rejection-token".to_string());
+        participant.admitted_at_ms = 991;
+    }
+    let envelope = signed_action(
+        &fixture,
+        wrong_player,
+        window.action_window_id,
+        window.seat_index,
+        ActionType::Fold,
+        None,
+    );
+
+    let outcome = handle_action_submission_request(
+        &fixture.provider,
+        envelope,
+        &fixture.authoritative_state,
+        &fixture.tournament_runtime,
+    )
+    .expect(
+        "networking-only metadata must not convert a gameplay rejection into an internal error",
+    );
+
+    let RemoteActionSubmissionOutcome::RejectedNoStateChange { error } = outcome else {
+        panic!("expected a no-state-change rejection");
+    };
+    assert!(error.to_string().contains("does not own the action window"));
+
+    let authoritative = fixture
+        .authoritative_state
+        .lock()
+        .expect("authoritative state after rejection")
+        .clone();
+    let participant = authoritative
+        .participants
+        .get(wrong_player)
+        .expect("wrong-player participant after rejection");
+    assert_eq!(participant.connection_state, ConnectionState::Reconnecting);
+    assert_eq!(
+        participant.reconnect_token.as_deref(),
+        Some("network-only-rejection-token")
+    );
+    assert_eq!(participant.admitted_at_ms, 991);
+
+    let mut normalized_controller_state = fixture
+        .tournament_runtime
+        .lock()
+        .expect("runtime")
+        .as_ref()
+        .expect("controller")
+        .state()
+        .clone();
+    merge_networking_state(&authoritative, &mut normalized_controller_state);
+    assert_eq!(normalized_controller_state, authoritative);
 }

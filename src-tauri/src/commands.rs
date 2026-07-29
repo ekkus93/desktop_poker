@@ -31,6 +31,10 @@ impl DesktopCommandError {
         }
     }
 
+    fn invalid_join_payload(message: String) -> Self {
+        Self::new("INVALID_JOIN_PAYLOAD", message, true)
+    }
+
     fn from_table_action(error: DesktopTableActionError) -> Self {
         let (code, recoverable) = match error.code() {
             DesktopTableActionErrorCode::NoActiveSession => ("NO_ACTIVE_SESSION", true),
@@ -150,7 +154,7 @@ pub fn join_host_session(
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
     let result = state
         .join_host_session(request)
-        .map_err(|message| DesktopCommandError::new("INVALID_JOIN_PAYLOAD", message, true))?;
+        .map_err(DesktopCommandError::invalid_join_payload)?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -678,5 +682,31 @@ mod command_error_tests {
         assert_eq!(value["code"], "OBSERVER_READ_ONLY");
         assert_eq!(value["recoverable"], true);
         assert_eq!(value["message"], "spectators cannot act");
+    }
+
+    #[test]
+    fn typed_not_acting_player_code_is_recoverable_independent_of_wording() {
+        for message in [
+            "turn belongs to another participant",
+            "rewritten ownership copy",
+        ] {
+            let error = DesktopCommandError::from_table_action(DesktopTableActionError::new(
+                DesktopTableActionErrorCode::NotActingPlayer,
+                message,
+            ));
+            assert_eq!(error.code, "NOT_ACTING_PLAYER");
+            assert!(error.recoverable);
+            assert_eq!(error.message, message);
+        }
+    }
+
+    #[test]
+    fn invalid_join_payload_code_is_recoverable_independent_of_wording() {
+        for message in ["invite envelope was invalid", "rewritten join failure copy"] {
+            let error = DesktopCommandError::invalid_join_payload(message.to_string());
+            assert_eq!(error.code, "INVALID_JOIN_PAYLOAD");
+            assert!(error.recoverable);
+            assert_eq!(error.message, message);
+        }
     }
 }

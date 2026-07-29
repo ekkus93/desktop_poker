@@ -447,11 +447,14 @@ pub(crate) fn handle_action_submission_request(
         }
     };
     let next_state = controller.state().clone();
+    let mut normalized_next_state = next_state.clone();
+    merge_networking_state(&before_state, &mut normalized_next_state);
+    let gameplay_state_changed = normalized_next_state != before_state;
 
     let invalid_transition = match &action_outcome {
-        ActionSubmissionOutcome::Committed => next_state == before_state,
-        ActionSubmissionOutcome::RejectedNoStateChange { .. } => next_state != before_state,
-        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => next_state == before_state,
+        ActionSubmissionOutcome::Committed => !gameplay_state_changed,
+        ActionSubmissionOutcome::RejectedNoStateChange { .. } => gameplay_state_changed,
+        ActionSubmissionOutcome::TimeoutAdvancedThenRejected { .. } => !gameplay_state_changed,
     };
     if invalid_transition {
         *controller = rollback_controller;
