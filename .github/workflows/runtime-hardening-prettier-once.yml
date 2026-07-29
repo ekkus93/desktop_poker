@@ -1,0 +1,42 @@
+name: Runtime hardening frontend formatter
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-prettier.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Apply repository Prettier version
+        run: npx prettier --write src/components/debug/DebugPanel.tsx src/components/debug/DebugPanel.test.tsx
+      - name: Commit formatted files and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-prettier.trigger
+          rm .github/workflows/runtime-hardening-prettier-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/debug/DebugPanel.tsx \
+            src/components/debug/DebugPanel.test.tsx \
+            .github/runtime-hardening-prettier.trigger \
+            .github/workflows/runtime-hardening-prettier-once.yml
+          git commit -m "Format runtime hardening frontend changes"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
