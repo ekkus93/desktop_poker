@@ -14,6 +14,39 @@ use crate::{
     protocol::decode_join_payload,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DesktopCommandErrorCode {
+    NoActiveSession,
+    ObserverReadOnly,
+    NotActingPlayer,
+    StaleActionWindow,
+    NetworkTimeout,
+    ClientRuntimeDisconnected,
+    InvalidJoinPayload,
+    HostRejectedAction,
+    CommandFailed,
+}
+
+impl DesktopCommandErrorCode {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::NoActiveSession => "NO_ACTIVE_SESSION",
+            Self::ObserverReadOnly => "OBSERVER_READ_ONLY",
+            Self::NotActingPlayer => "NOT_ACTING_PLAYER",
+            Self::StaleActionWindow => "STALE_ACTION_WINDOW",
+            Self::NetworkTimeout => "NETWORK_TIMEOUT",
+            Self::ClientRuntimeDisconnected => "CLIENT_RUNTIME_DISCONNECTED",
+            Self::InvalidJoinPayload => "INVALID_JOIN_PAYLOAD",
+            Self::HostRejectedAction => "HOST_REJECTED_ACTION",
+            Self::CommandFailed => "COMMAND_FAILED",
+        }
+    }
+
+    const fn recoverable(self) -> bool {
+        !matches!(self, Self::ClientRuntimeDisconnected | Self::CommandFailed)
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DesktopCommandError {
@@ -23,32 +56,42 @@ pub struct DesktopCommandError {
 }
 
 impl DesktopCommandError {
-    fn new(code: &'static str, message: String, recoverable: bool) -> Self {
+    fn new(code: DesktopCommandErrorCode, message: String) -> Self {
         Self {
-            code: code.to_string(),
+            code: code.as_str().to_string(),
             message,
-            recoverable,
+            recoverable: code.recoverable(),
         }
     }
 
     fn invalid_join_payload(message: String) -> Self {
-        Self::new("INVALID_JOIN_PAYLOAD", message, true)
+        Self::new(DesktopCommandErrorCode::InvalidJoinPayload, message)
     }
 
     fn from_table_action(error: DesktopTableActionError) -> Self {
-        let (code, recoverable) = match error.code() {
-            DesktopTableActionErrorCode::NoActiveSession => ("NO_ACTIVE_SESSION", true),
-            DesktopTableActionErrorCode::ObserverReadOnly => ("OBSERVER_READ_ONLY", true),
-            DesktopTableActionErrorCode::NotActingPlayer => ("NOT_ACTING_PLAYER", true),
-            DesktopTableActionErrorCode::StaleActionWindow => ("STALE_ACTION_WINDOW", true),
-            DesktopTableActionErrorCode::NetworkTimeout => ("NETWORK_TIMEOUT", true),
-            DesktopTableActionErrorCode::ClientRuntimeDisconnected => {
-                ("CLIENT_RUNTIME_DISCONNECTED", false)
+        let code = match error.code() {
+            DesktopTableActionErrorCode::NoActiveSession => {
+                DesktopCommandErrorCode::NoActiveSession
             }
-            DesktopTableActionErrorCode::HostRejectedAction => ("HOST_REJECTED_ACTION", true),
-            DesktopTableActionErrorCode::CommandFailed => ("COMMAND_FAILED", false),
+            DesktopTableActionErrorCode::ObserverReadOnly => {
+                DesktopCommandErrorCode::ObserverReadOnly
+            }
+            DesktopTableActionErrorCode::NotActingPlayer => {
+                DesktopCommandErrorCode::NotActingPlayer
+            }
+            DesktopTableActionErrorCode::StaleActionWindow => {
+                DesktopCommandErrorCode::StaleActionWindow
+            }
+            DesktopTableActionErrorCode::NetworkTimeout => DesktopCommandErrorCode::NetworkTimeout,
+            DesktopTableActionErrorCode::ClientRuntimeDisconnected => {
+                DesktopCommandErrorCode::ClientRuntimeDisconnected
+            }
+            DesktopTableActionErrorCode::HostRejectedAction => {
+                DesktopCommandErrorCode::HostRejectedAction
+            }
+            DesktopTableActionErrorCode::CommandFailed => DesktopCommandErrorCode::CommandFailed,
         };
-        Self::new(code, error.into_message(), recoverable)
+        Self::new(code, error.into_message())
     }
 }
 
@@ -139,9 +182,9 @@ pub fn host_start_tournament(
     app: AppHandle,
     state: State<'_, DesktopAppState>,
 ) -> Result<HostSessionStatus, DesktopCommandError> {
-    let result = state
-        .host_start_tournament()
-        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
+    let result = state.host_start_tournament().map_err(|message| {
+        DesktopCommandError::new(DesktopCommandErrorCode::HostRejectedAction, message)
+    })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -182,9 +225,9 @@ pub fn client_claim_lobby_seat(
     state: State<'_, DesktopAppState>,
     request: ClaimLobbySeatRequest,
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
-    let result = state
-        .client_claim_lobby_seat(request)
-        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
+    let result = state.client_claim_lobby_seat(request).map_err(|message| {
+        DesktopCommandError::new(DesktopCommandErrorCode::HostRejectedAction, message)
+    })?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -197,7 +240,9 @@ pub fn client_set_lobby_ready_state(
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
     let result = state
         .client_set_lobby_ready_state(request)
-        .map_err(|message| DesktopCommandError::new("HOST_REJECTED_ACTION", message, true))?;
+        .map_err(|message| {
+            DesktopCommandError::new(DesktopCommandErrorCode::HostRejectedAction, message)
+        })?;
     emit_session_update(&app);
     Ok(result)
 }

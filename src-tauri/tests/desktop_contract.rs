@@ -6,6 +6,7 @@ use desktop_poker_lib::{
         HostSessionParticipantView, HostSessionStatus, ModuleDescriptor, ScreenDescriptor,
         TableViewSnapshot, TableViewerMode,
     },
+    networking::HostRuntimeHealth,
     npc::{
         profile_store::NpcProfileListResult, LlmProviderConfig, LlmProviderSettings,
         LlmProviderType,
@@ -171,6 +172,8 @@ fn rust_serialization_matches_desktop_contract_fixture() {
             host_runtime_health: None,
         },
     );
+
+    assert_contract_keys("HostRuntimeHealth", &HostRuntimeHealth::default());
 
     assert_contract_keys(
         "NpcProfileListResult",
