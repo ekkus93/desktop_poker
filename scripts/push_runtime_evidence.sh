@@ -9,6 +9,10 @@ if (( $# == 0 )); then
   exit 2
 fi
 
+# A cancelled workflow is not a product failure and must never overwrite the
+# last completed result. Likewise, a payload whose execution-status fields are
+# all skipped/not-run contains no validation evidence. Actual build or test
+# failures remain publishable so defects are still visible.
 publish_decision="$({ python3 - "$@" <<'PY'
 from __future__ import annotations
 
@@ -25,6 +29,8 @@ for raw_path in sys.argv[1:]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
+        # Malformed evidence is a real publisher failure; let the normal git
+        # path expose it rather than silently discarding the generated file.
         continue
     if not isinstance(payload, dict):
         continue
@@ -53,38 +59,18 @@ if [[ "$publish_decision" != "publish" ]]; then
   exit 0
 fi
 
-extra_paths=()
-if [[ -f scripts/runtime_hardening_independent_batch_once.py ]]; then
-  python3 scripts/runtime_hardening_independent_batch_once.py
-  rm scripts/runtime_hardening_independent_batch_once.py
-  rm -f .github/runtime-hardening-validation.trigger
-  extra_paths=(
-    scripts/runtime_hardening_independent_batch_once.py
-    .github/runtime-hardening-validation.trigger
-    src/api/desktop.ts
-    src/components/debug/DebugPanel.tsx
-    src/components/debug/DebugPanel.test.tsx
-    src/fixtures/desktop-contract.json
-    src/api/desktop.contract.test.ts
-    src-tauri/src/app_state/host_shutdown.rs
-    src-tauri/src/networking/runtime/client.rs
-    src-tauri/src/networking/framing.rs
-    src-tauri/src/networking/runtime/tests/action_outcomes.rs
-    docs/runtime-validation/runtime-hardening-abuse-coverage.md
-  )
-  commit_message="Implement independent runtime hardening follow-ups"
-fi
-
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git add -- "$@" "${extra_paths[@]}"
+git add -- "$@"
 
 if git diff --cached --quiet; then
   echo "No runtime evidence changes to publish."
   exit 0
 fi
 
-if (( ${#extra_paths[@]} == 0 )) && [[ "$commit_message" != *"[skip ci]"* ]]; then
+# Evidence-only commits must not recursively start every push workflow. GitHub
+# Actions recognizes the skip directive for push-triggered workflows.
+if [[ "$commit_message" != *"[skip ci]"* ]]; then
   commit_message="$commit_message [skip ci]"
 fi
 git commit -m "$commit_message"
