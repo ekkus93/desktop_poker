@@ -1,2 +1,2 @@
-triggered_at=2026-07-29T07:55:00Z
-purpose=keep_keyless_llm_providers_independent_of_platform_keychain
+triggered_at=2026-07-29T08:21:00Z
+purpose=rerun_full_workspace_keyless_provider_storage_validation_after_green_diagnostic
