@@ -1,0 +1,40 @@
+name: Runtime hardening full-game smoke fix
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-full-game-fix.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply stale invite assertion fix
+        run: python3 scripts/runtime_full_game_invite_text_fix_once.py
+      - name: Validate Python syntax
+        run: python3 -m py_compile scripts/runtime_full_game_smoke.py
+      - name: Commit fix and remove one-time helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-full-game-fix.trigger
+          rm .github/workflows/runtime-hardening-full-game-fix-once.yml
+          rm scripts/runtime_full_game_invite_text_fix_once.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            scripts/runtime_full_game_smoke.py \
+            scripts/runtime_full_game_invite_text_fix_once.py \
+            .github/runtime-hardening-full-game-fix.trigger \
+            .github/workflows/runtime-hardening-full-game-fix-once.yml
+          git commit -m "Fix stale full-game invite smoke assertion"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
