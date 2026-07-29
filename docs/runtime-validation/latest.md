@@ -1,12 +1,12 @@
 # Latest Linux Release Runtime Validation
 
 - Overall result: **PASS**
-- Validated commit: `f50de2bf942585fd2550903a0cbfeb03e7c5daff`
-- GitHub Actions run: `30417881438`
+- Validated commit: `77c3e76e6d2a9b918b32e80a17288ae2eddea473`
+- GitHub Actions run: `30418196053`
 - Build outcome: `success`
 - Single-instance outcome: `success`
 - Multi-instance outcome: `success`
-- Recorded at: `2026-07-29T02:51:59.201342+00:00`
+- Recorded at: `2026-07-29T02:59:09.515213+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
