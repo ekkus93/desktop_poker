@@ -65,7 +65,9 @@ pub(crate) fn handle_join_request(
     host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
 ) -> Result<InitialRequestAcceptance, NetworkingError> {
     let request: JoinTournamentRequest = serde_json::from_value(request_envelope.payload.clone())
-        .map_err(|error| NetworkingError::new(format!("invalid join request payload: {error}")))?;
+        .map_err(|error| {
+            NetworkingError::new(format!("invalid join request payload: {error}"))
+        })?;
 
     request_envelope
         .verify(crypto_provider, &request.signing_public_key)

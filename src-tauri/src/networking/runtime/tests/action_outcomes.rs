@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use base64::Engine as _;
 
@@ -57,13 +60,9 @@ fn started_runtime(start_ms: u64) -> StartedRuntimeFixture {
     let mut config = sample_tournament_state("table-action-outcomes", 401).config;
     config.max_players = 2;
     config.turn_timer_seconds = 20;
-    let mut controller = TournamentController::new(
-        "table-action-outcomes",
-        401,
-        config,
-        registered_players,
-    )
-    .expect("controller builds");
+    let mut controller =
+        TournamentController::new("table-action-outcomes", 401, config, registered_players)
+            .expect("controller builds");
     controller
         .start_tournament(start_ms)
         .expect("tournament starts");
