@@ -1,0 +1,50 @@
+name: Runtime hardening nested DTO contract
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-nested-dto-contract.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply nested DTO contract assertion
+        run: python3 scripts/runtime_hardening_nested_dto_contract_once.py
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Validate frontend
+        run: |
+          npm run format:check
+          npm run lint
+          npm run test
+          npm run build
+      - name: Commit validated nested DTO contract assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-nested-dto-contract.trigger
+          rm .github/workflows/runtime-hardening-nested-dto-contract-once.yml
+          rm scripts/runtime_hardening_nested_dto_contract_once.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/api/desktop.contract.test.ts \
+            scripts/runtime_hardening_nested_dto_contract_once.py \
+            .github/runtime-hardening-nested-dto-contract.trigger \
+            .github/workflows/runtime-hardening-nested-dto-contract-once.yml
+          git commit -m "Assert nested host runtime health DTO contract"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
