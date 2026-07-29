@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
-VALIDATED_COMMIT = "9b4bb0a5738e609c418b6dfd673dd431dd7cb70e"
 TODO_PATH = Path("docs/DESKTOP_POKER_RUNTIME_HARDENING_FIXES_TODO_2026-07-28.md")
 NOTE_PATH = Path(
     "docs/runtime-validation/runtime-hardening-fixes-reconciliation-2026-07-29.md"
@@ -33,6 +33,18 @@ ALLOWED_HELPERS = {
     Path("scripts/runtime_hardening_reconcile_once.py"),
 }
 
+SOURCE_PATHS = (
+    "Cargo.toml",
+    "Cargo.lock",
+    "package.json",
+    "package-lock.json",
+    "src",
+    "src-tauri/Cargo.toml",
+    "src-tauri/src",
+    "src-tauri/tests",
+    "crates",
+)
+
 
 def load_evidence(label: str, path: Path) -> dict[str, object]:
     if not path.is_file():
@@ -44,11 +56,9 @@ def load_evidence(label: str, path: Path) -> dict[str, object]:
         raise SystemExit(
             f"evidence for {label} is not PASS: {payload.get('result')!r} ({path})"
         )
-    if payload.get("validatedCommit") != VALIDATED_COMMIT:
-        raise SystemExit(
-            f"evidence for {label} validates {payload.get('validatedCommit')!r}, "
-            f"expected {VALIDATED_COMMIT}"
-        )
+    validated_commit = payload.get("validatedCommit")
+    if not isinstance(validated_commit, str) or not validated_commit:
+        raise SystemExit(f"evidence for {label} has no validatedCommit: {path}")
     return payload
 
 
@@ -68,6 +78,31 @@ if unexpected_helpers:
     )
 
 payloads = {label: load_evidence(label, path) for label, path in EVIDENCE.items()}
+validated_commits = {str(payload["validatedCommit"]) for payload in payloads.values()}
+if len(validated_commits) != 1:
+    details = ", ".join(
+        f"{label}={payload['validatedCommit']}" for label, payload in payloads.items()
+    )
+    raise SystemExit(f"runtime evidence does not validate one commit: {details}")
+validated_commit = validated_commits.pop()
+
+if subprocess.run(
+    ["git", "cat-file", "-e", f"{validated_commit}^{{commit}}"],
+    check=False,
+).returncode != 0:
+    raise SystemExit(f"validated commit is unavailable in repository history: {validated_commit}")
+
+source_diff = subprocess.run(
+    ["git", "diff", "--quiet", validated_commit, "HEAD", "--", *SOURCE_PATHS],
+    check=False,
+)
+if source_diff.returncode == 1:
+    raise SystemExit(
+        "current source differs from the commit named by retained evidence: "
+        f"{validated_commit}"
+    )
+if source_diff.returncode != 0:
+    raise SystemExit("unable to compare current source with retained evidence commit")
 
 text = TODO_PATH.read_text(encoding="utf-8")
 if "Status: **OPEN**" in text:
@@ -75,6 +110,24 @@ if "Status: **OPEN**" in text:
 elif "Status: **COMPLETE**" not in text:
     raise SystemExit("TODO status line was not found")
 text = text.replace("- [ ]", "- [x]")
+text = text.replace(
+    "- [x] Remove `next_event` and update tests to call `poll_event`.",
+    "- [ ] Remove `next_event` and update tests to call `poll_event`.",
+)
+text = text.replace(
+    "- [x] Rename it to `next_event_for_test` and guard it with `#[cfg(test)]`.",
+    "- [ ] Rename it to `next_event_for_test` and guard it with `#[cfg(test)]`.",
+)
+completion_note = (
+    "Completion evidence: "
+    "`docs/runtime-validation/runtime-hardening-fixes-reconciliation-2026-07-29.md`  "
+)
+if completion_note not in text:
+    text = text.replace(
+        "Status: **COMPLETE**\n",
+        f"Status: **COMPLETE**\n{completion_note}\n",
+        1,
+    )
 TODO_PATH.write_text(text, encoding="utf-8")
 
 implementation_commits = [
@@ -83,7 +136,7 @@ implementation_commits = [
     ("0d813c2499c33287c7c513cdb9fff92b1d31e4ee", "normalized remote action invariants"),
     ("c97a8be60b264ec3a158902747b1ec2a3acaefc1", "real remote timeout publication regression"),
     ("14a7df4a2d980c72f5164a97638fd7dc7e32e422", "remote rejection visibility and zero publication"),
-    ("bd252a2e39363a3ad8e06b95b6ddde6bd0f7ce4b", "final command error and DTO contract coverage"),
+    ("bd252a2e39363a3ad8e06b95b6ddde6bd0f7ce4b", "typed command errors and shared DTO contract coverage"),
     ("e494ca46cc764dc78a90ee3f7200de70a8357726", "Rust HostRuntimeHealth shared fixture assertion"),
     ("adbd7401a666ba94a978b03f9dd868cd3adcc1b6", "nested TypeScript HostRuntimeHealth assertion"),
     ("df5733421b360d26011faff08663945d53e9aab8", "typed join-session error provenance"),
@@ -93,7 +146,7 @@ lines = [
     "# Desktop Poker Runtime Hardening Fixes Reconciliation",
     "",
     "Date: 2026-07-29  ",
-    f"Validated source commit: `{VALIDATED_COMMIT}`  ",
+    f"Validated evidence commit: `{validated_commit}`  ",
     "Result: **COMPLETE**",
     "",
     "## Implemented behavior",
@@ -102,7 +155,8 @@ lines = [
     "- Timeout-advanced rejected actions commit and publish the advanced state before the rejection is returned.",
     "- Wrong-player, stale-window, and invalid-size remote submissions reject visibly and publish zero transitions.",
     "- Gameplay-state invariants normalize networking-only participant metadata before comparison.",
-    "- Command and join-session errors preserve stable typed codes without substring classification.",
+    "- Command errors preserve stable typed codes without substring classification.",
+    "- Join-session failures preserve invalid-payload, network-timeout, disconnected-runtime, and unknown-command provenance instead of collapsing every failure into `INVALID_JOIN_PAYLOAD`.",
     "- Host runtime health fields are synchronized across Rust, TypeScript, UI diagnostics, and shared contract fixtures.",
     "- Client event polling preserves timeout-versus-disconnection semantics.",
     "- Inbound and outbound frame-size limits are symmetric and regression-tested.",
@@ -113,6 +167,9 @@ lines = [
 ]
 for sha, description in implementation_commits:
     lines.append(f"- `{sha}` — {description}")
+lines.append(
+    f"- `{validated_commit}` — final source tree retained by every required validation publisher."
+)
 
 lines.extend(["", "## Retained validation evidence", ""])
 for label, path in EVIDENCE.items():
@@ -120,15 +177,23 @@ for label, path in EVIDENCE.items():
     run_id = payload.get("workflowRunId", "unknown")
     lines.append(
         f"- **{label}: PASS** — `{path}`; GitHub Actions run `{run_id}`; "
-        f"validated `{VALIDATED_COMMIT}`."
+        f"validated `{validated_commit}`."
     )
 
 lines.extend(
     [
         "",
+        "## Baseline and transient validation notes",
+        "",
+        "- The earlier rule-based NPC failure was retained as a pre-existing baseline artifact and was not silently reclassified as a regression. The final rule-based tournament rerun passed.",
+        "- Embedded-tournament runs cancelled by newer source pushes were treated as incomplete evidence, not as code success. Completion required a later non-cancelled PASS artifact.",
+        "- An optional patch preflight caught a malformed generated expression before it could modify source; the corrected guarded run passed and the superseded failure log was removed.",
+        "",
         "## Scope note",
         "",
-        "The automated multi-instance validation uses separate real release processes, isolated profile directories, and real TCP connections on one Linux runner. A separate physical multi-machine LAN session remains a manual field-validation item, not an unimplemented code requirement.",
+        "The automated multi-instance validation uses separate real release processes, isolated profile directories, and real TCP connections on one Linux runner. A separate physical multi-machine LAN session remains an intentionally deferred manual field-validation item, not an unimplemented code requirement.",
+        "",
+        "The TODO's historical DebugPanel path is `src/components/shell/DebugPanel.tsx`; the current implementation and tests live at `src/components/debug/DebugPanel.tsx` and `src/components/debug/DebugPanel.test.tsx`.",
         "",
         "## Reconciliation conclusion",
         "",
