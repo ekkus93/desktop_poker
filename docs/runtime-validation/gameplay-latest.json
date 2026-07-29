@@ -4,9 +4,33 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "7a89f271292eb5bb7b7bcbff9fb3ccebfb9066dce713fcacc5460fc9b2dc8877",
-    "error": "AssertionError: Timed out waiting for source text 'Invite looks good'; last error: None",
+    "error": "AssertionError: Timed out waiting for opponent response or all-in settlement; last error: None",
     "result": "FAIL",
     "steps": [
+      {
+        "name": "two isolated release instances completed host/join/seat/ready/start",
+        "result": "PASS"
+      },
+      {
+        "name": "initial running-hand public state is synchronized",
+        "result": "PASS"
+      },
+      {
+        "name": "exactly one action tray is visible; initial actor is host",
+        "result": "PASS"
+      },
+      {
+        "name": "out-of-bounds raise was rejected without advancing state: Tauri command 'submit_table_action' failed: [object Object]",
+        "result": "PASS"
+      },
+      {
+        "name": "quick-size Min updates the legal raise amount without submitting",
+        "result": "PASS"
+      },
+      {
+        "name": "Fold completed hand 1 with synchronized duplicate-free history",
+        "result": "PASS"
+      },
       {
         "name": "full-game runtime smoke",
         "result": "FAIL"
@@ -14,9 +38,9 @@
     ]
   },
   "gameplayOutcome": "failure",
-  "recordedAtUtc": "2026-07-29T02:23:48.263331+00:00",
+  "recordedAtUtc": "2026-07-29T02:30:42.659257+00:00",
   "result": "FAIL",
-  "validatedCommit": "012f33a9a3eef2d1f6cd88a2943b0dc15ac34be4",
+  "validatedCommit": "4d3b2c6146690b57f75db60ba5f53c27d12e8170",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30416559509"
+  "workflowRunId": "30416865473"
 }
