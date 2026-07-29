@@ -1,2 +1,3 @@
-validated_commit=561c374e31414b3581355d8e83216d8aadee2616
+generation=2
 purpose=complete_runtime_hardening_follow_up
+source_identity=validated_product_tree
