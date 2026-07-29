@@ -1,12 +1,13 @@
 use std::sync::{atomic::AtomicU64, Arc, Mutex};
 
-use super::super::handle_join_request;
+use super::super::{handle_initial_client_request, handle_join_request};
 use crate::{
     crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
     domain::{
         ConnectionState, ParticipantState, SeatOccupancyState, SeatState, TournamentPhase,
         TournamentSeatState,
     },
+    protocol::{JsonSignedEnvelope, ProtocolMessageType, PROTOCOL_VERSION},
 };
 
 use super::support::*;
@@ -433,4 +434,123 @@ fn join_requests_reject_the_wrong_join_token() {
         .expect_err("join should fail")
         .to_string()
         .contains("join token mismatch"));
+}
+
+#[test]
+fn initial_request_rejects_wrong_message_type() {
+    let provider = DefaultCryptoProvider;
+    let host_signing_keys = provider.generate_signing_keypair();
+    let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+    let join_payload = sample_join_payload_for_tests(
+        "table-wrong-initial-message",
+        88,
+        host_signing_keys.public_key_base64(),
+    );
+    let authoritative_state = Arc::new(Mutex::new(sample_tournament_state(
+        "table-wrong-initial-message",
+        88,
+    )));
+    let server_sequence = Arc::new(AtomicU64::new(0));
+    let envelope = JsonSignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type: ProtocolMessageType::SeatClaimRequest,
+        table_id: join_payload.table_id.clone(),
+        session_epoch: join_payload.session_epoch,
+        sender_id: "wrong-initial-player".to_string(),
+        counter: 1,
+        message_id: "wrong-initial-message".to_string(),
+        server_sequence: None,
+        payload: serde_json::json!({ "seatIndex": 0 }),
+        signature: None,
+    };
+
+    let error = handle_initial_client_request(
+        &provider,
+        envelope,
+        &join_payload,
+        &authoritative_state,
+        &server_sequence,
+        &host_signing_keys,
+        &host_encryption_keys,
+    )
+    .expect_err("non-join initial request must be rejected");
+
+    assert!(error
+        .to_string()
+        .contains("first client message must be JOIN_TOURNAMENT_REQUEST"));
+    assert!(authoritative_state
+        .lock()
+        .expect("authoritative state")
+        .participants
+        .is_empty());
+}
+
+#[test]
+fn duplicate_player_id_join_is_rejected_without_replacing_identity() {
+    let provider = DefaultCryptoProvider;
+    let host_signing_keys = provider.generate_signing_keypair();
+    let host_encryption_keys = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+    let join_payload = sample_join_payload_for_tests(
+        "table-duplicate-player",
+        89,
+        host_signing_keys.public_key_base64(),
+    );
+    let authoritative_state = Arc::new(Mutex::new(sample_tournament_state(
+        "table-duplicate-player",
+        89,
+    )));
+    let server_sequence = Arc::new(AtomicU64::new(0));
+    let original_signing = provider.generate_signing_keypair();
+    let original_encryption = provider.generate_encryption_keypair();
+    let replacement_signing = provider.generate_signing_keypair();
+    let replacement_encryption = provider.generate_encryption_keypair();
+    let original_public_key = original_signing.public_key_base64();
+
+    handle_join_request(
+        &provider,
+        signed_join_envelope(
+            &provider,
+            &original_signing,
+            &original_encryption,
+            &join_payload,
+            "duplicate-player",
+            "Original",
+            &join_payload.join_token,
+        ),
+        &join_payload,
+        &authoritative_state,
+        &server_sequence,
+        &host_signing_keys,
+        &host_encryption_keys,
+    )
+    .expect("first join succeeds");
+
+    let error = handle_join_request(
+        &provider,
+        signed_join_envelope(
+            &provider,
+            &replacement_signing,
+            &replacement_encryption,
+            &join_payload,
+            "duplicate-player",
+            "Replacement",
+            &join_payload.join_token,
+        ),
+        &join_payload,
+        &authoritative_state,
+        &server_sequence,
+        &host_signing_keys,
+        &host_encryption_keys,
+    )
+    .expect_err("duplicate player ID must be rejected");
+
+    assert!(error.to_string().contains("playerId already exists"));
+    let state = authoritative_state.lock().expect("authoritative state");
+    assert_eq!(state.participants.len(), 1);
+    let participant = state
+        .participants
+        .get("duplicate-player")
+        .expect("original participant remains");
+    assert_eq!(participant.identity.display_name, "Original");
+    assert_eq!(participant.identity.signing_public_key, original_public_key);
 }

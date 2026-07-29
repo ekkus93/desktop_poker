@@ -1,6 +1,10 @@
 use std::time::{Duration, Instant};
 
-use crate::{crypto::DefaultCryptoProvider, networking::ClientRuntimeEvent};
+use crate::{
+    crypto::DefaultCryptoProvider,
+    networking::ClientRuntimeEvent,
+    protocol::{ProtocolMessageType, SignedEnvelope, TournamentStartedEvent, PROTOCOL_VERSION},
+};
 
 use super::support::*;
 
@@ -102,4 +106,68 @@ fn different_warning_reasons_tracked_independently() {
     }
 
     assert_eq!(counts, vec![1, 2]);
+}
+
+#[test]
+fn bad_public_signature_emits_protocol_warning_and_runtime_continues() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-protocol-warning-signature", 63);
+    let client = connect_test_client(&provider, &host, "player-pw-signature", "Signature");
+    let _ = expect_snapshot_event(&client);
+    let bad_event = TournamentStartedEvent {
+        tournament_name: "Tampered".to_string(),
+        starting_stack: 1500,
+        blind_schedule_preset: "FAST".to_string(),
+        frozen_player_ids: vec!["player-pw-signature".to_string()],
+    };
+    let bad_envelope = SignedEnvelope {
+        protocol_version: PROTOCOL_VERSION,
+        message_type: ProtocolMessageType::TournamentStartedEvent,
+        table_id: "table-protocol-warning-signature".to_string(),
+        session_epoch: 63,
+        sender_id: "host".to_string(),
+        counter: 1,
+        message_id: "tampered-public-event".to_string(),
+        server_sequence: Some(2),
+        payload: serde_json::to_value(bad_event).expect("bad event payload serializes"),
+        signature: Some("invalid-signature".to_string()),
+    };
+
+    send_frame_to_client(
+        &host,
+        "player-pw-signature",
+        &serde_json::to_value(bad_envelope).expect("bad envelope serializes"),
+    );
+
+    match client
+        .next_event(Duration::from_secs(2))
+        .expect("protocol warning")
+    {
+        ClientRuntimeEvent::ProtocolWarning {
+            player_id,
+            reason,
+            count,
+        } => {
+            assert_eq!(player_id, "player-pw-signature");
+            assert_eq!(reason, "public envelope signature verification failed");
+            assert_eq!(count, 1);
+        }
+        other => panic!("expected ProtocolWarning, got {other:?}"),
+    }
+
+    host.broadcast_public_event(
+        ProtocolMessageType::TournamentStartedEvent,
+        &TournamentStartedEvent {
+            tournament_name: "Valid Followup".to_string(),
+            starting_stack: 1500,
+            blind_schedule_preset: "FAST".to_string(),
+            frozen_player_ids: vec!["player-pw-signature".to_string()],
+        },
+    )
+    .expect("valid followup event sends");
+    let payload = assert_public_event(&client, ProtocolMessageType::TournamentStartedEvent);
+    assert_eq!(
+        payload.get("tournamentName"),
+        Some(&serde_json::json!("Valid Followup"))
+    );
 }

@@ -1,4 +1,5 @@
 use std::{
+    net::TcpStream,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -9,10 +10,13 @@ use crate::{
     crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
     domain::{Card, Rank, SeatOccupancyState, Suit, TournamentPhase},
     networking::{
-        ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent, HostRuntimeConfig, HostRuntimeMode,
-        HostServer,
+        read_json_frame, write_json_frame, ClientRuntime, ClientRuntimeConfig, ClientRuntimeEvent,
+        HostRuntimeConfig, HostRuntimeMode, HostServer,
     },
-    protocol::{PrivateHoleCardsEvent, ProtocolMessageType, TournamentStartedEvent},
+    protocol::{
+        PrivateHoleCardsEvent, ProtocolErrorMessage, ProtocolMessageType, SignedEnvelope,
+        SnapshotEvent, TournamentStartedEvent,
+    },
 };
 
 use super::support::*;
@@ -451,4 +455,56 @@ fn client_lobby_requests_sync_seat_and_ready_state_across_host_and_clients() {
         .iter()
         .filter(|seat| seat.occupancy == SeatOccupancyState::Occupied)
         .all(|seat| seat.is_ready));
+}
+
+#[test]
+fn connected_session_rejects_unsupported_request_with_protocol_error() {
+    let provider = DefaultCryptoProvider;
+    let host = bind_test_host(&provider, "table-unsupported-connected", 90);
+    let signing_keys = provider.generate_signing_keypair();
+    let encryption_keys = provider.generate_encryption_keypair();
+    let mut stream = TcpStream::connect(host.listener_addr()).expect("connect raw client");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .expect("set raw client timeout");
+    let join_payload = host.join_payload().clone();
+    let join_envelope = signed_join_envelope(
+        &provider,
+        &signing_keys,
+        &encryption_keys,
+        &join_payload,
+        "unsupported-connected-player",
+        "Unsupported",
+        &join_payload.join_token,
+    );
+
+    write_json_frame(&mut stream, &join_envelope).expect("write initial join");
+    let _: SignedEnvelope<SnapshotEvent> =
+        read_json_frame(&mut stream).expect("read accepted snapshot");
+
+    let mut unsupported = signed_join_envelope(
+        &provider,
+        &signing_keys,
+        &encryption_keys,
+        &join_payload,
+        "unsupported-connected-player",
+        "Unsupported",
+        &join_payload.join_token,
+    );
+    unsupported.counter = 2;
+    unsupported.message_id = "unsupported-post-connect".to_string();
+    write_json_frame(&mut stream, &unsupported).expect("write unsupported request");
+
+    let rejection: SignedEnvelope<ProtocolErrorMessage> =
+        read_json_frame(&mut stream).expect("read protocol rejection");
+    assert_eq!(rejection.message_type, ProtocolMessageType::ProtocolError);
+    assert_eq!(rejection.payload.code, "UNSUPPORTED_REQUEST");
+    assert_eq!(
+        rejection.payload.rejected_message_id.as_deref(),
+        Some("unsupported-post-connect")
+    );
+    assert!(rejection
+        .payload
+        .message
+        .contains("only supports RESYNC_REQUEST"));
 }
