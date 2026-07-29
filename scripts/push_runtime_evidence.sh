@@ -69,18 +69,8 @@ if [[ -f .github/runtime-hardening-publisher.trigger ]]; then
     scripts/runtime_hardening_patch_once.py
     src-tauri/src/networking/runtime/handlers.rs
     src-tauri/src/networking/runtime/tests/action_outcomes.rs
-    src/api/desktop.ts
-    src/components/debug/DebugPanel.tsx
-    src/components/debug/DebugPanel.test.tsx
-    src/fixtures/desktop-contract.json
-    src/api/desktop.contract.test.ts
-    src-tauri/src/networking/runtime/client.rs
-    src-tauri/src/networking/framing.rs
-    src-tauri/src/app_state/host_shutdown.rs
-    src-tauri/src/commands.rs
-    docs/runtime-validation/runtime-hardening-abuse-coverage.md
   )
-  commit_message="Complete runtime hardening follow-up implementation"
+  commit_message="Format remote action hardening implementation"
 fi
 
 git config user.name "github-actions[bot]"
