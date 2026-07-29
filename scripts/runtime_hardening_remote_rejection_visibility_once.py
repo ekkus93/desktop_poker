@@ -87,20 +87,28 @@ new = '''    wait_for_client_command_connection(actor);
         "stale-window rejection should remain explicit; got: {stale_window_error}"
     );
 
-    // (3) Invalid raise sizing from the real actor must also reject visibly and
-    // preserve the same authoritative action window.
+    // (3) Pick a raise-style action that is legal for this window, then submit an
+    // amount below the minimum. This proves sizing validation rather than merely
+    // exercising the generic illegal-action branch.
+    let invalid_sized_action = if window.legal_actions.contains(&ActionType::Raise) {
+        ActionType::Raise
+    } else if window.legal_actions.contains(&ActionType::Bet) {
+        ActionType::Bet
+    } else {
+        panic!("test action window must permit bet or raise sizing validation")
+    };
     actor
         .submit_action(
             window.action_window_id.clone(),
             window.seat_index,
-            ActionType::Raise,
+            invalid_sized_action,
             Some(0),
         )
-        .expect("invalid-raise request is written");
+        .expect("invalid-size raise request is written");
     let invalid_raise_error = wait_for_safe_error(actor);
     assert!(
-        invalid_raise_error.contains("raise") || invalid_raise_error.contains("not legal"),
-        "invalid raise rejection should remain explicit; got: {invalid_raise_error}"
+        invalid_raise_error.contains("minimum full raise sizing"),
+        "invalid raise sizing rejection should remain explicit; got: {invalid_raise_error}"
     );
 
     // Give the host a short scheduling window. None of the rejected submissions
