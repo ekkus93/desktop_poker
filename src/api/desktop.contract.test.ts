@@ -136,7 +136,7 @@ describe("desktop DTO contract", () => {
     );
     expect(sortedKeys(tableView)).toEqual(expectedKeys("TableViewSnapshot"));
     expect(sortedKeys(debugState)).toEqual(expectedKeys("DebugInspectorState"));
-    expect(sortedKeys(hostRuntimeHealth)).toEqual(
+    expect(sortedKeys(debugState.hostRuntimeHealth ?? {})).toEqual(
       expectedKeys("HostRuntimeHealth"),
     );
     expect(sortedKeys(profileList)).toEqual(
