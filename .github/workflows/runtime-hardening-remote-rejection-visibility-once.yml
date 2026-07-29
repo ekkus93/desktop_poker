@@ -1,0 +1,107 @@
+name: Runtime hardening remote rejection visibility
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-remote-rejection-visibility.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libwebkit2gtk-4.1-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Apply and validate remote rejection visibility
+        id: preflight
+        shell: bash
+        run: |
+          set +e
+          log=remote-rejection-visibility-preflight.log
+          : > "$log"
+          python3 scripts/runtime_hardening_remote_rejection_visibility_once.py >>"$log" 2>&1
+          apply_status=$?
+          if (( apply_status == 0 )); then
+            cargo fmt --all >>"$log" 2>&1
+            fmt_status=$?
+          else
+            fmt_status=1
+          fi
+          if (( apply_status == 0 && fmt_status == 0 )); then
+            cargo clippy --workspace --all-targets -- -D warnings >>"$log" 2>&1
+            clippy_status=$?
+          else
+            clippy_status=1
+          fi
+          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 )); then
+            cargo test --workspace --all-targets >>"$log" 2>&1
+            test_status=$?
+          else
+            test_status=1
+          fi
+          printf 'apply=%s\nfmt=%s\nclippy=%s\ntest=%s\n' \
+            "$apply_status" "$fmt_status" "$clippy_status" "$test_status" >>"$log"
+          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 && test_status == 0 )); then
+            echo 'result=success' >> "$GITHUB_OUTPUT"
+          else
+            echo 'result=failure' >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+      - name: Commit validated remote rejection visibility
+        if: steps.preflight.outputs.result == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-remote-rejection-visibility.trigger
+          rm .github/workflows/runtime-hardening-remote-rejection-visibility-once.yml
+          rm scripts/runtime_hardening_remote_rejection_visibility_once.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src-tauri/src/networking/runtime/tests/end_to_end/basic.rs \
+            scripts/runtime_hardening_remote_rejection_visibility_once.py \
+            .github/runtime-hardening-remote-rejection-visibility.trigger \
+            .github/workflows/runtime-hardening-remote-rejection-visibility-once.yml
+          if git ls-files --error-unmatch docs/runtime-validation/remote-rejection-visibility-preflight-latest.log >/dev/null 2>&1; then
+            rm -f docs/runtime-validation/remote-rejection-visibility-preflight-latest.log
+            git add -A -- docs/runtime-validation/remote-rejection-visibility-preflight-latest.log
+          fi
+          git commit -m "Verify remote rejection visibility and zero publication"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
+      - name: Publish remote-rejection preflight failure
+        if: steps.preflight.outputs.result == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git reset --hard HEAD
+          mkdir -p docs/runtime-validation
+          cp remote-rejection-visibility-preflight.log docs/runtime-validation/remote-rejection-visibility-preflight-latest.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/runtime-validation/remote-rejection-visibility-preflight-latest.log
+          git commit -m "docs: record remote-rejection visibility preflight failure [skip ci]"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
