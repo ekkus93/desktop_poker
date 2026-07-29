@@ -1,0 +1,63 @@
+name: Runtime hardening promote validated keyless provider patch
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-keyless-provider-promote.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify retained diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          log=docs/runtime-validation/keyless-provider-storage-diagnostic-latest.log
+          test -f "$log"
+          grep -Fx 'apply=0' "$log"
+          grep -Fx 'fmt=0' "$log"
+          grep -Fx 'clippy=0' "$log"
+          grep -Fx 'test=0' "$log"
+          grep -F 'test result: ok. 28 passed; 0 failed' "$log"
+      - name: Apply validated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/runtime_hardening_keyless_provider_storage_once.py
+          git diff --check
+      - name: Commit source and clean temporary helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/runtime-hardening-keyless-provider-storage.trigger \
+            .github/workflows/runtime-hardening-keyless-provider-storage-once.yml \
+            scripts/runtime_hardening_keyless_provider_storage_once.py \
+            docs/runtime-validation/keyless-provider-storage-diagnostic-latest.log \
+            docs/runtime-validation/keyless-provider-storage-apply-preflight-latest.log \
+            .github/runtime-hardening-keyless-provider-promote.trigger \
+            .github/workflows/runtime-hardening-keyless-provider-promote-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- \
+            src-tauri/src/npc/provider.rs \
+            src-tauri/src/npc/provider_storage.rs \
+            .github/runtime-hardening-keyless-provider-storage.trigger \
+            .github/workflows/runtime-hardening-keyless-provider-storage-once.yml \
+            scripts/runtime_hardening_keyless_provider_storage_once.py \
+            docs/runtime-validation/keyless-provider-storage-diagnostic-latest.log \
+            docs/runtime-validation/keyless-provider-storage-apply-preflight-latest.log \
+            .github/runtime-hardening-keyless-provider-promote.trigger \
+            .github/workflows/runtime-hardening-keyless-provider-promote-once.yml
+          git commit -m "Keep keyless LLM providers independent of keychain"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
