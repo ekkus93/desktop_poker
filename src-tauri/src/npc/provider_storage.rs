@@ -747,7 +747,9 @@ mod tests {
 
         save_provider_config(dir.path(), Some(&embedded_config()), &tracking).unwrap();
 
-        assert!(tracking.deleted_accounts().contains(&"anthropic".to_string()));
+        assert!(tracking
+            .deleted_accounts()
+            .contains(&"anthropic".to_string()));
         let loaded = unwrap_loaded(load_provider_config(dir.path(), &tracking));
         assert_eq!(loaded.settings.provider, LlmProviderType::EmbeddedLocal);
         assert!(loaded.api_key.is_none());

@@ -1,2 +1,0 @@
-triggered_at=2026-07-29T08:40:00Z
-purpose=apply_canonical_rustfmt_to_keyless_provider_storage_only
