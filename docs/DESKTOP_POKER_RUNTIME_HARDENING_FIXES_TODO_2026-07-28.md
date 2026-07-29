@@ -3,7 +3,8 @@
 Created: 2026-07-28  
 Repo: `ekkus93/desktop_poker`  
 Branch: `master`  
-Status: **OPEN**
+Status: **COMPLETE**
+Completion evidence: `docs/runtime-validation/runtime-hardening-fixes-reconciliation-2026-07-29.md`  
 
 ## Purpose
 
@@ -47,23 +48,23 @@ This file is intended to be handed to Claude Code or another coding agent. Keep 
 
 ### Subtasks
 
-- [ ] Confirm the working target is `master`.
-- [ ] Confirm no temporary workflow/helper files from the prior Ralph loop remain.
-- [ ] Read the current source for:
-  - [ ] `src-tauri/src/networking/runtime/handlers.rs`
-  - [ ] `src-tauri/src/networking/runtime/host_session.rs`
-  - [ ] `src-tauri/src/networking/runtime/host.rs`
-  - [ ] `crates/poker-core/src/tournament/controller_core.rs`
-  - [ ] `src/api/desktop.ts`
-  - [ ] `src/fixtures/desktop-contract.json`
-  - [ ] `src/components/shell/DebugPanel.tsx`
-- [ ] Run or inspect the latest CI/runtime evidence before making behavior changes.
-- [ ] Record any pre-existing failures separately from regressions introduced by this TODO.
+- [x] Confirm the working target is `master`.
+- [x] Confirm no temporary workflow/helper files from the prior Ralph loop remain.
+- [x] Read the current source for:
+  - [x] `src-tauri/src/networking/runtime/handlers.rs`
+  - [x] `src-tauri/src/networking/runtime/host_session.rs`
+  - [x] `src-tauri/src/networking/runtime/host.rs`
+  - [x] `crates/poker-core/src/tournament/controller_core.rs`
+  - [x] `src/api/desktop.ts`
+  - [x] `src/fixtures/desktop-contract.json`
+  - [x] `src/components/shell/DebugPanel.tsx`
+- [x] Run or inspect the latest CI/runtime evidence before making behavior changes.
+- [x] Record any pre-existing failures separately from regressions introduced by this TODO.
 
 ### Acceptance criteria
 
-- [ ] The implementation agent knows the exact current baseline.
-- [ ] No existing CI/runtime failures are silently reclassified as TODO regressions.
+- [x] The implementation agent knows the exact current baseline.
+- [x] No existing CI/runtime failures are silently reclassified as TODO regressions.
 
 ---
 
@@ -106,15 +107,15 @@ pub(crate) enum RemoteActionSubmissionOutcome {
 
 ### Subtasks
 
-- [ ] Define the outcome near the remote action handler or in a small helper module under `src-tauri/src/networking/runtime/`.
-- [ ] Keep the type internal to the networking runtime unless a wider API is genuinely required.
-- [ ] Do not encode these outcomes as strings.
-- [ ] Preserve the existing `NetworkingError` behavior for command/rejection messages.
+- [x] Define the outcome near the remote action handler or in a small helper module under `src-tauri/src/networking/runtime/`.
+- [x] Keep the type internal to the networking runtime unless a wider API is genuinely required.
+- [x] Do not encode these outcomes as strings.
+- [x] Preserve the existing `NetworkingError` behavior for command/rejection messages.
 
 ### Acceptance criteria
 
-- [ ] Remote action handling has an explicit typed outcome.
-- [ ] Code no longer needs to infer timeout-vs-rejection behavior from an `Err` after calling `submit_action`.
+- [x] Remote action handling has an explicit typed outcome.
+- [x] Code no longer needs to infer timeout-vs-rejection behavior from an `Err` after calling `submit_action`.
 
 ## Task 1.2 — Refactor `handle_action_submission_request` to use `submit_action_with_outcome`
 
@@ -184,20 +185,20 @@ Then convert the outcome into `RemoteActionSubmissionOutcome` and call `commit_r
 
 ### Subtasks
 
-- [ ] Parse and verify `PlayerActionSubmission` exactly as the current handler does.
-- [ ] Keep signature verification before runtime mutation.
-- [ ] Keep `sender_id` as the authoritative player ID; do not trust a payload player ID for authority.
-- [ ] Replace `controller.submit_action(...)` with `controller.submit_action_with_outcome(...)`.
-- [ ] Clone/rollback the controller on internal errors exactly as the local path does.
-- [ ] Assert or explicitly check that `RejectedNoStateChange` does not mutate controller state.
-- [ ] Call `commit_runtime_state` for `Committed` and `TimeoutAdvancedThenRejected` only.
-- [ ] Return a typed result that tells the caller whether a transition must be published.
+- [x] Parse and verify `PlayerActionSubmission` exactly as the current handler does.
+- [x] Keep signature verification before runtime mutation.
+- [x] Keep `sender_id` as the authoritative player ID; do not trust a payload player ID for authority.
+- [x] Replace `controller.submit_action(...)` with `controller.submit_action_with_outcome(...)`.
+- [x] Clone/rollback the controller on internal errors exactly as the local path does.
+- [x] Assert or explicitly check that `RejectedNoStateChange` does not mutate controller state.
+- [x] Call `commit_runtime_state` for `Committed` and `TimeoutAdvancedThenRejected` only.
+- [x] Return a typed result that tells the caller whether a transition must be published.
 
 ### Acceptance criteria
 
-- [ ] No remote action code path uses `TournamentController::submit_action` for live remote client actions.
-- [ ] Timeout-advanced remote submissions commit authoritative state before returning a rejection to the client.
-- [ ] Rejected no-state-change submissions cannot mutate controller or authoritative state.
+- [x] No remote action code path uses `TournamentController::submit_action` for live remote client actions.
+- [x] Timeout-advanced remote submissions commit authoritative state before returning a rejection to the client.
+- [x] Rejected no-state-change submissions cannot mutate controller or authoritative state.
 
 ## Task 1.3 — Update `spawn_host_client_session` action handling
 
@@ -205,13 +206,13 @@ The remote client session loop currently captures `previous_state`, calls `handl
 
 ### Required behavior
 
-- [ ] Remove the old `previous_state` capture outside the handler unless it is still needed for diagnostics.
-- [ ] Match on the new `RemoteActionSubmissionOutcome`.
-- [ ] For `Committed`, publish the returned `(previous_state, after_state)` transition.
-- [ ] For `TimeoutAdvancedThenRejected`, publish the returned transition first, then send a signed `ACTION_SUBMISSION_REJECTED` protocol error for the attempted action.
-- [ ] For `RejectedNoStateChange`, do not publish; send only the signed protocol error.
-- [ ] If publishing a committed or timeout-advanced transition fails, do not leave the client believing it is synchronized. Disconnect the client or force reconnect using the existing failure path.
-- [ ] Keep rejection writes best-effort only after the authoritative/publish semantics are already correct.
+- [x] Remove the old `previous_state` capture outside the handler unless it is still needed for diagnostics.
+- [x] Match on the new `RemoteActionSubmissionOutcome`.
+- [x] For `Committed`, publish the returned `(previous_state, after_state)` transition.
+- [x] For `TimeoutAdvancedThenRejected`, publish the returned transition first, then send a signed `ACTION_SUBMISSION_REJECTED` protocol error for the attempted action.
+- [x] For `RejectedNoStateChange`, do not publish; send only the signed protocol error.
+- [x] If publishing a committed or timeout-advanced transition fails, do not leave the client believing it is synchronized. Disconnect the client or force reconnect using the existing failure path.
+- [x] Keep rejection writes best-effort only after the authoritative/publish semantics are already correct.
 
 ### Suggested caller shape
 
@@ -242,10 +243,10 @@ match handle_action_submission_request(...) {
 
 ### Acceptance criteria
 
-- [ ] Remote committed actions still publish exactly once.
-- [ ] Remote timeout-advanced rejected actions publish exactly once.
-- [ ] Remote no-state-change rejected actions publish zero state transitions.
-- [ ] A failed publish does not result in a quiet stale client.
+- [x] Remote committed actions still publish exactly once.
+- [x] Remote timeout-advanced rejected actions publish exactly once.
+- [x] Remote no-state-change rejected actions publish zero state transitions.
+- [x] A failed publish does not result in a quiet stale client.
 
 ## Task 1.4 — Consider extracting shared local/remote action outcome logic
 
@@ -253,17 +254,17 @@ The local host path and remote client path should not drift again.
 
 ### Subtasks
 
-- [ ] Evaluate whether `HostServer::submit_action` and the remote handler can share a helper for:
-  - [ ] calling `submit_action_with_outcome`;
-  - [ ] rollback on internal errors;
-  - [ ] no-state-change mutation checks;
-  - [ ] committing `Committed` and `TimeoutAdvancedThenRejected` states.
-- [ ] If a helper improves clarity, extract it.
-- [ ] If a helper would make the code harder to read, keep duplicated logic but add comments explaining that both paths must remain semantically equivalent.
+- [x] Evaluate whether `HostServer::submit_action` and the remote handler can share a helper for:
+  - [x] calling `submit_action_with_outcome`;
+  - [x] rollback on internal errors;
+  - [x] no-state-change mutation checks;
+  - [x] committing `Committed` and `TimeoutAdvancedThenRejected` states.
+- [x] If a helper improves clarity, extract it.
+- [x] If a helper would make the code harder to read, keep duplicated logic but add comments explaining that both paths must remain semantically equivalent.
 
 ### Acceptance criteria
 
-- [ ] Future changes to action outcome semantics have an obvious single place or mirrored tests to update.
+- [x] Future changes to action outcome semantics have an obvious single place or mirrored tests to update.
 
 ---
 
@@ -285,56 +286,56 @@ If you create a new file, add it to the relevant `mod.rs` so it runs in normal R
 
 ### Subtasks
 
-- [ ] Start a real test host with a short action timer.
-- [ ] Connect at least one real `ClientRuntime` remote player.
-- [ ] Seat and ready enough players to start a tournament.
-- [ ] Start the tournament and wait for an action window owned by the remote client or construct the test so the remote client is next to act.
-- [ ] Wait until the action deadline has passed.
-- [ ] Submit the stale action from the remote client.
-- [ ] Assert the remote client receives an action rejection or safe error.
-- [ ] Assert the host authoritative state has advanced past the timed-out window.
-- [ ] Assert connected clients receive the state transition, snapshot, or public event proving the timeout was published.
-- [ ] Assert the runtime controller and `authoritative_state` are not divergent after the stale action.
+- [x] Start a real test host with a short action timer.
+- [x] Connect at least one real `ClientRuntime` remote player.
+- [x] Seat and ready enough players to start a tournament.
+- [x] Start the tournament and wait for an action window owned by the remote client or construct the test so the remote client is next to act.
+- [x] Wait until the action deadline has passed.
+- [x] Submit the stale action from the remote client.
+- [x] Assert the remote client receives an action rejection or safe error.
+- [x] Assert the host authoritative state has advanced past the timed-out window.
+- [x] Assert connected clients receive the state transition, snapshot, or public event proving the timeout was published.
+- [x] Assert the runtime controller and `authoritative_state` are not divergent after the stale action.
 
 ### Acceptance criteria
 
-- [ ] The test fails against the pre-fix remote handler.
-- [ ] The test passes after Phase 1.
-- [ ] The test does not rely on flaky long sleeps when a shorter deterministic wait/poll is possible.
+- [x] The test fails against the pre-fix remote handler.
+- [x] The test passes after Phase 1.
+- [x] The test does not rely on flaky long sleeps when a shorter deterministic wait/poll is possible.
 
 ## Task 2.2 — Add tests for remote no-state-change rejections
 
 ### Cases to cover
 
-- [ ] Remote wrong-player action is rejected without state change.
-- [ ] Remote stale action-window ID is rejected without state change.
-- [ ] Remote invalid raise/bet amount is rejected without state change.
+- [x] Remote wrong-player action is rejected without state change.
+- [x] Remote stale action-window ID is rejected without state change.
+- [x] Remote invalid raise/bet amount is rejected without state change.
 
 ### Subtasks
 
-- [ ] Capture host authoritative state before the rejected remote submission.
-- [ ] Submit the bad action from a real remote runtime or signed remote envelope.
-- [ ] Assert the host authoritative state equals the pre-action state.
-- [ ] Assert no new publishable runtime event was emitted for the rejected no-state-change action.
-- [ ] Assert the remote client sees a clear rejection, not a timeout/hang.
+- [x] Capture host authoritative state before the rejected remote submission.
+- [x] Submit the bad action from a real remote runtime or signed remote envelope.
+- [x] Assert the host authoritative state equals the pre-action state.
+- [x] Assert no new publishable runtime event was emitted for the rejected no-state-change action.
+- [x] Assert the remote client sees a clear rejection, not a timeout/hang.
 
 ### Acceptance criteria
 
-- [ ] No-state-change rejected remote actions cannot mutate either controller state or authoritative state.
-- [ ] The client receives a rejection path that is visible to the UI/session layer.
+- [x] No-state-change rejected remote actions cannot mutate either controller state or authoritative state.
+- [x] The client receives a rejection path that is visible to the UI/session layer.
 
 ## Task 2.3 — Add tests for remote committed action parity
 
 ### Subtasks
 
-- [ ] Submit a legal action from a remote client.
-- [ ] Assert authoritative state changes.
-- [ ] Assert clients receive the corresponding transition.
-- [ ] Assert the behavior remains equivalent to local `HostServer::submit_action` for the same action.
+- [x] Submit a legal action from a remote client.
+- [x] Assert authoritative state changes.
+- [x] Assert clients receive the corresponding transition.
+- [x] Assert the behavior remains equivalent to local `HostServer::submit_action` for the same action.
 
 ### Acceptance criteria
 
-- [ ] Remote committed action behavior is unchanged except for any intentional cleanup from Phase 1.
+- [x] Remote committed action behavior is unchanged except for any intentional cleanup from Phase 1.
 
 ---
 
@@ -353,70 +354,70 @@ The TypeScript `HostRuntimeHealth` type and debug UI do not include or render th
 
 ### Subtasks
 
-- [ ] Add `pendingJoinLimitRejectionCount: number` to `HostRuntimeHealth` in `src/api/desktop.ts`.
-- [ ] Add `connectedClientLimitRejectionCount: number` to `HostRuntimeHealth` in `src/api/desktop.ts`.
-- [ ] Keep camelCase names consistent with Rust `#[serde(rename_all = "camelCase")]`.
+- [x] Add `pendingJoinLimitRejectionCount: number` to `HostRuntimeHealth` in `src/api/desktop.ts`.
+- [x] Add `connectedClientLimitRejectionCount: number` to `HostRuntimeHealth` in `src/api/desktop.ts`.
+- [x] Keep camelCase names consistent with Rust `#[serde(rename_all = "camelCase")]`.
 
 ### Acceptance criteria
 
-- [ ] TypeScript has all serialized Rust `HostRuntimeHealth` fields.
+- [x] TypeScript has all serialized Rust `HostRuntimeHealth` fields.
 
 ## Task 3.2 — Update debug panel rendering
 
 ### Subtasks
 
-- [ ] In `src/components/shell/DebugPanel.tsx`, include the two new counters in the condition that decides whether to render `Host runtime health`.
-- [ ] Render a line for pending join safety-limit rejections when `pendingJoinLimitRejectionCount > 0`.
-- [ ] Render a line for connected client safety-limit rejections when `connectedClientLimitRejectionCount > 0`.
-- [ ] Add `data-testid` attributes if existing tests use them or if new tests need stable selectors.
+- [x] In `src/components/shell/DebugPanel.tsx`, include the two new counters in the condition that decides whether to render `Host runtime health`.
+- [x] Render a line for pending join safety-limit rejections when `pendingJoinLimitRejectionCount > 0`.
+- [x] Render a line for connected client safety-limit rejections when `connectedClientLimitRejectionCount > 0`.
+- [x] Add `data-testid` attributes if existing tests use them or if new tests need stable selectors.
 
 ### Acceptance criteria
 
-- [ ] Debug UI exposes all host runtime health counters.
-- [ ] Safety-limit rejections are visible in debug diagnostics.
+- [x] Debug UI exposes all host runtime health counters.
+- [x] Safety-limit rejections are visible in debug diagnostics.
 
 ## Task 3.3 — Strengthen DTO contract fixtures
 
 ### Subtasks
 
-- [ ] Extend `src/fixtures/desktop-contract.json` to include a `HostRuntimeHealth` key list, or include nested expected keys under `DebugInspectorState` in a way the tests actually check.
-- [ ] Update `src/api/desktop.contract.test.ts` to instantiate a non-null `hostRuntimeHealth` object.
-- [ ] Assert `Object.keys(debugState.hostRuntimeHealth)` matches the fixture keys.
-- [ ] Add all current fields, including:
-  - [ ] `acceptErrorCount`
-  - [ ] `streamTimeoutErrorCount`
-  - [ ] `tickAdvanceErrorCount`
-  - [ ] `publishErrorCount`
-  - [ ] `stateLockErrorCount`
-  - [ ] `streamCloneErrorCount`
-  - [ ] `clientRegistryErrorCount`
-  - [ ] `reconnectMarkErrorCount`
-  - [ ] `snapshotSyncErrorCount`
-  - [ ] `pendingJoinLimitRejectionCount`
-  - [ ] `connectedClientLimitRejectionCount`
-  - [ ] `lastError`
-  - [ ] `lastSuccessfulTickMs`
-  - [ ] `lastSuccessfulPublishMs`
-- [ ] Add a Rust-side serialization-key test if it does not already exist, so Rust and TypeScript fixtures cannot drift silently.
+- [x] Extend `src/fixtures/desktop-contract.json` to include a `HostRuntimeHealth` key list, or include nested expected keys under `DebugInspectorState` in a way the tests actually check.
+- [x] Update `src/api/desktop.contract.test.ts` to instantiate a non-null `hostRuntimeHealth` object.
+- [x] Assert `Object.keys(debugState.hostRuntimeHealth)` matches the fixture keys.
+- [x] Add all current fields, including:
+  - [x] `acceptErrorCount`
+  - [x] `streamTimeoutErrorCount`
+  - [x] `tickAdvanceErrorCount`
+  - [x] `publishErrorCount`
+  - [x] `stateLockErrorCount`
+  - [x] `streamCloneErrorCount`
+  - [x] `clientRegistryErrorCount`
+  - [x] `reconnectMarkErrorCount`
+  - [x] `snapshotSyncErrorCount`
+  - [x] `pendingJoinLimitRejectionCount`
+  - [x] `connectedClientLimitRejectionCount`
+  - [x] `lastError`
+  - [x] `lastSuccessfulTickMs`
+  - [x] `lastSuccessfulPublishMs`
+- [x] Add a Rust-side serialization-key test if it does not already exist, so Rust and TypeScript fixtures cannot drift silently.
 
 ### Acceptance criteria
 
-- [ ] A missing or extra `HostRuntimeHealth` serialized field fails tests.
-- [ ] Nested DTO drift is covered, not just top-level object keys.
+- [x] A missing or extra `HostRuntimeHealth` serialized field fails tests.
+- [x] Nested DTO drift is covered, not just top-level object keys.
 
 ## Task 3.4 — Extend runtime warning tests
 
 ### Subtasks
 
-- [ ] Add/extend tests in `src-tauri/src/app_state/host_shutdown.rs` for both safety-limit counters.
-- [ ] Assert `pending_join_limit_rejection_count > 0` produces the sanitized safety-limit warning.
-- [ ] Assert `connected_client_limit_rejection_count > 0` produces the sanitized safety-limit warning.
-- [ ] Assert raw `last_error` detail still does not leak to normal UI warnings.
+- [x] Add/extend tests in `src-tauri/src/app_state/host_shutdown.rs` for both safety-limit counters.
+- [x] Assert `pending_join_limit_rejection_count > 0` produces the sanitized safety-limit warning.
+- [x] Assert `connected_client_limit_rejection_count > 0` produces the sanitized safety-limit warning.
+- [x] Assert raw `last_error` detail still does not leak to normal UI warnings.
 
 ### Acceptance criteria
 
-- [ ] Normal runtime warnings remain sanitized and actionable.
-- [ ] Both admission-limit counters feed the normal UI warning path.
+- [x] Normal runtime warnings remain sanitized and actionable.
+- [x] Both admission-limit counters feed the normal UI warning path.
 
 ---
 
@@ -449,61 +450,61 @@ Then provide a conversion into the serialized `DesktopCommandError`.
 
 ### Subtasks
 
-- [ ] Define stable internal error codes near `DesktopCommandError` or in a dedicated app error module.
-- [ ] Map codes to the existing serialized strings:
-  - [ ] `NO_ACTIVE_SESSION`
-  - [ ] `OBSERVER_READ_ONLY`
-  - [ ] `NOT_ACTING_PLAYER`
-  - [ ] `STALE_ACTION_WINDOW`
-  - [ ] `NETWORK_TIMEOUT`
-  - [ ] `CLIENT_RUNTIME_DISCONNECTED`
-  - [ ] `INVALID_JOIN_PAYLOAD`
-  - [ ] `HOST_REJECTED_ACTION`
-  - [ ] `COMMAND_FAILED`
-- [ ] Preserve `message` as human-readable text.
-- [ ] Preserve `recoverable` semantics.
+- [x] Define stable internal error codes near `DesktopCommandError` or in a dedicated app error module.
+- [x] Map codes to the existing serialized strings:
+  - [x] `NO_ACTIVE_SESSION`
+  - [x] `OBSERVER_READ_ONLY`
+  - [x] `NOT_ACTING_PLAYER`
+  - [x] `STALE_ACTION_WINDOW`
+  - [x] `NETWORK_TIMEOUT`
+  - [x] `CLIENT_RUNTIME_DISCONNECTED`
+  - [x] `INVALID_JOIN_PAYLOAD`
+  - [x] `HOST_REJECTED_ACTION`
+  - [x] `COMMAND_FAILED`
+- [x] Preserve `message` as human-readable text.
+- [x] Preserve `recoverable` semantics.
 
 ### Acceptance criteria
 
-- [ ] There is an internal typed code path for command errors.
-- [ ] The serialized frontend contract remains `{ code, message, recoverable }`.
+- [x] There is an internal typed code path for command errors.
+- [x] The serialized frontend contract remains `{ code, message, recoverable }`.
 
 ## Task 4.2 — Remove substring classification from critical command paths
 
 ### Critical commands
 
-- [ ] `host_start_tournament`
-- [ ] `join_host_session`
-- [ ] `client_claim_lobby_seat`
-- [ ] `client_set_lobby_ready_state`
-- [ ] `submit_table_action`
+- [x] `host_start_tournament`
+- [x] `join_host_session`
+- [x] `client_claim_lobby_seat`
+- [x] `client_set_lobby_ready_state`
+- [x] `submit_table_action`
 
 ### Subtasks
 
-- [ ] Replace `DesktopCommandError::from_message(...)` calls on critical commands with explicit typed construction.
-- [ ] Where source functions currently return `Result<T, String>`, either:
-  - [ ] migrate those source functions to return a typed app error, or
-  - [ ] wrap specific call sites with explicit known codes instead of substring parsing.
-- [ ] Do not attempt to classify a generic unknown string as a specific code.
-- [ ] Keep a conservative fallback code for truly unknown failures.
+- [x] Replace `DesktopCommandError::from_message(...)` calls on critical commands with explicit typed construction.
+- [x] Where source functions currently return `Result<T, String>`, either:
+  - [x] migrate those source functions to return a typed app error, or
+  - [x] wrap specific call sites with explicit known codes instead of substring parsing.
+- [x] Do not attempt to classify a generic unknown string as a specific code.
+- [x] Keep a conservative fallback code for truly unknown failures.
 
 ### Acceptance criteria
 
-- [ ] Changing a human-readable error message does not change the serialized `code` for these commands.
-- [ ] There is no substring-matching decision tree for critical command error codes.
+- [x] Changing a human-readable error message does not change the serialized `code` for these commands.
+- [x] There is no substring-matching decision tree for critical command error codes.
 
 ## Task 4.3 — Add command error tests
 
 ### Subtasks
 
-- [ ] Add Rust tests proving observer action rejection returns `OBSERVER_READ_ONLY` without relying on message text.
-- [ ] Add Rust tests proving not-acting-player action rejection returns `NOT_ACTING_PLAYER` without relying on message text.
-- [ ] Add Rust tests proving invalid join payload returns `INVALID_JOIN_PAYLOAD`.
-- [ ] Add frontend tests proving `DesktopCommandFailure` preserves backend `code`, `message`, and `recoverable`.
+- [x] Add Rust tests proving observer action rejection returns `OBSERVER_READ_ONLY` without relying on message text.
+- [x] Add Rust tests proving not-acting-player action rejection returns `NOT_ACTING_PLAYER` without relying on message text.
+- [x] Add Rust tests proving invalid join payload returns `INVALID_JOIN_PAYLOAD`.
+- [x] Add frontend tests proving `DesktopCommandFailure` preserves backend `code`, `message`, and `recoverable`.
 
 ### Acceptance criteria
 
-- [ ] Error-code behavior is stable under wording changes.
+- [x] Error-code behavior is stable under wording changes.
 
 ---
 
@@ -519,25 +520,25 @@ Choose one:
 
 - [ ] Remove `next_event` and update tests to call `poll_event`.
 - [ ] Rename it to `next_event_for_test` and guard it with `#[cfg(test)]`.
-- [ ] Change it to return `Result<ClientRuntimeEvent, ClientRuntimePollError>` and delegate to `poll_event`.
+- [x] Change it to return `Result<ClientRuntimeEvent, ClientRuntimePollError>` and delegate to `poll_event`.
 
 Preferred option: change it to delegate to `poll_event` with the typed error, then update tests accordingly.
 
 ### Acceptance criteria
 
-- [ ] There is no public production method that erases timeout vs disconnected-channel distinction.
+- [x] There is no public production method that erases timeout vs disconnected-channel distinction.
 
 ## Task 5.2 — Update tests using `next_event`
 
 ### Subtasks
 
-- [ ] Search all Rust tests for `.next_event(`.
-- [ ] Update tests to handle `ClientRuntimePollError::Timeout` and `ClientRuntimePollError::Disconnected` explicitly where relevant.
-- [ ] Keep helper functions if they improve test readability, but name them as test helpers.
+- [x] Search all Rust tests for `.next_event(`.
+- [x] Update tests to handle `ClientRuntimePollError::Timeout` and `ClientRuntimePollError::Disconnected` explicitly where relevant.
+- [x] Keep helper functions if they improve test readability, but name them as test helpers.
 
 ### Acceptance criteria
 
-- [ ] Test code no longer normalizes typed poll failures into generic networking failures.
+- [x] Test code no longer normalizes typed poll failures into generic networking failures.
 
 ---
 
@@ -553,13 +554,13 @@ Preferred policy: outbound JSON payloads should also be capped at `MAX_FRAME_PAY
 
 ### Subtasks
 
-- [ ] Confirm there is no valid application message expected to exceed `MAX_FRAME_PAYLOAD_BYTES`.
-- [ ] If large snapshots are possible, decide whether to implement paging/compression later; do not silently raise the max here.
-- [ ] Document the decision in `src-tauri/src/networking/framing.rs`.
+- [x] Confirm there is no valid application message expected to exceed `MAX_FRAME_PAYLOAD_BYTES`.
+- [x] If large snapshots are possible, decide whether to implement paging/compression later; do not silently raise the max here.
+- [x] Document the decision in `src-tauri/src/networking/framing.rs`.
 
 ### Acceptance criteria
 
-- [ ] The outbound/inbound size policy is explicit.
+- [x] The outbound/inbound size policy is explicit.
 
 ## Task 6.2 — Enforce outbound cap
 
@@ -577,25 +578,25 @@ if payload_bytes.len() > MAX_FRAME_PAYLOAD_BYTES {
 
 ### Subtasks
 
-- [ ] Add the check before writing the length prefix.
-- [ ] Keep the existing `u32::try_from` guard as a secondary safety check.
-- [ ] Ensure error wording is clear enough for logs/tests.
+- [x] Add the check before writing the length prefix.
+- [x] Keep the existing `u32::try_from` guard as a secondary safety check.
+- [x] Ensure error wording is clear enough for logs/tests.
 
 ### Acceptance criteria
 
-- [ ] The process cannot emit outbound JSON frames larger than the configured max.
+- [x] The process cannot emit outbound JSON frames larger than the configured max.
 
 ## Task 6.3 — Add outbound frame tests
 
 ### Subtasks
 
-- [ ] Add a test that writes a payload at exactly `MAX_FRAME_PAYLOAD_BYTES` and succeeds.
-- [ ] Add a test that attempts to write a payload at `MAX_FRAME_PAYLOAD_BYTES + 1` and fails before writing body bytes.
-- [ ] Add a test that the writer receives no partial oversized body.
+- [x] Add a test that writes a payload at exactly `MAX_FRAME_PAYLOAD_BYTES` and succeeds.
+- [x] Add a test that attempts to write a payload at `MAX_FRAME_PAYLOAD_BYTES + 1` and fails before writing body bytes.
+- [x] Add a test that the writer receives no partial oversized body.
 
 ### Acceptance criteria
 
-- [ ] Inbound and outbound frame-size behavior are both regression-tested.
+- [x] Inbound and outbound frame-size behavior are both regression-tested.
 
 ---
 
@@ -617,34 +618,34 @@ or a module-level comment in:
 
 ### Cases to map
 
-- [ ] Oversized frame prefix.
-- [ ] Truncated frame body.
-- [ ] Malformed JSON.
-- [ ] Wrong protocol `messageType` as first message.
-- [ ] Invalid join token.
-- [ ] Duplicate player ID join.
-- [ ] Already-connected reconnect rejection.
-- [ ] Reconnect after host-side disconnect.
-- [ ] Resync after stale server sequence.
-- [ ] Unsupported post-connect request.
-- [ ] Bad signature.
+- [x] Oversized frame prefix.
+- [x] Truncated frame body.
+- [x] Malformed JSON.
+- [x] Wrong protocol `messageType` as first message.
+- [x] Invalid join token.
+- [x] Duplicate player ID join.
+- [x] Already-connected reconnect rejection.
+- [x] Reconnect after host-side disconnect.
+- [x] Resync after stale server sequence.
+- [x] Unsupported post-connect request.
+- [x] Bad signature.
 
 ### Acceptance criteria
 
-- [ ] A reviewer can quickly see which hostile input cases are tested and where.
-- [ ] Missing cases are explicitly listed as open rather than implied complete.
+- [x] A reviewer can quickly see which hostile input cases are tested and where.
+- [x] Missing cases are explicitly listed as open rather than implied complete.
 
 ## Task 7.2 — Fill any obvious abuse-test gaps
 
 ### Subtasks
 
-- [ ] If any mapped hostile input case has no deterministic test, add one.
-- [ ] Do not rely only on runtime smoke tests for protocol-level rejection semantics.
-- [ ] Keep tests fast enough for normal CI where possible.
+- [x] If any mapped hostile input case has no deterministic test, add one.
+- [x] Do not rely only on runtime smoke tests for protocol-level rejection semantics.
+- [x] Keep tests fast enough for normal CI where possible.
 
 ### Acceptance criteria
 
-- [ ] The abuse matrix is not just documentation; it corresponds to actual runnable tests or clearly deferred items.
+- [x] The abuse matrix is not just documentation; it corresponds to actual runnable tests or clearly deferred items.
 
 ---
 
@@ -663,8 +664,8 @@ cargo test --manifest-path crates/poker-core/Cargo.toml --all-targets
 
 ### Acceptance criteria
 
-- [ ] All Rust validation commands pass.
-- [ ] New remote-action tests fail before the fix and pass after the fix, or the commit message/test note explains how the regression was verified.
+- [x] All Rust validation commands pass.
+- [x] New remote-action tests fail before the fix and pass after the fix, or the commit message/test note explains how the regression was verified.
 
 ## Task 8.2 — Run frontend validation
 
@@ -680,59 +681,59 @@ npm run build
 
 ### Acceptance criteria
 
-- [ ] All frontend validation commands pass.
-- [ ] DTO fixture tests fail if `HostRuntimeHealth` fields drift.
+- [x] All frontend validation commands pass.
+- [x] DTO fixture tests fail if `HostRuntimeHealth` fields drift.
 
 ## Task 8.3 — Run runtime validation
 
 ### Required automated evidence
 
-- [ ] General CI passes.
-- [ ] Release runtime validation passes.
-- [ ] Multi-instance host/client smoke passes.
-- [ ] Full gameplay runtime evidence remains passing.
-- [ ] Reconnect/host-loss runtime evidence remains passing.
-- [ ] NPC runtime evidence remains passing.
+- [x] General CI passes.
+- [x] Release runtime validation passes.
+- [x] Multi-instance host/client smoke passes.
+- [x] Full gameplay runtime evidence remains passing.
+- [x] Reconnect/host-loss runtime evidence remains passing.
+- [x] NPC runtime evidence remains passing.
 
 ### Acceptance criteria
 
-- [ ] Runtime validation evidence is committed under `docs/runtime-validation/` or otherwise retained by the repository's existing evidence publisher.
-- [ ] The evidence names the commit SHA being validated.
+- [x] Runtime validation evidence is committed under `docs/runtime-validation/` or otherwise retained by the repository's existing evidence publisher.
+- [x] The evidence names the commit SHA being validated.
 
 ## Task 8.4 — Update this TODO only after verification
 
 ### Subtasks
 
-- [ ] Check off each completed task only after implementation and tests are committed.
-- [ ] Add a short reconciliation note under `docs/runtime-validation/` summarizing:
-  - [ ] fixed remote action outcome semantics;
-  - [ ] added tests;
-  - [ ] CI result;
-  - [ ] runtime evidence result;
-  - [ ] any intentionally deferred physical-LAN validation.
-- [ ] Do not mark `Status: COMPLETE` until every non-deferred acceptance criterion is satisfied.
+- [x] Check off each completed task only after implementation and tests are committed.
+- [x] Add a short reconciliation note under `docs/runtime-validation/` summarizing:
+  - [x] fixed remote action outcome semantics;
+  - [x] added tests;
+  - [x] CI result;
+  - [x] runtime evidence result;
+  - [x] any intentionally deferred physical-LAN validation.
+- [x] Do not mark `Status: COMPLETE` until every non-deferred acceptance criterion is satisfied.
 
 ### Acceptance criteria
 
-- [ ] This TODO's final status matches committed code and evidence.
-- [ ] No task is marked complete solely because CI is green; it must also satisfy the behavior described here.
+- [x] This TODO's final status matches committed code and evidence.
+- [x] No task is marked complete solely because CI is green; it must also satisfy the behavior described here.
 
 ---
 
 # Final completion checklist
 
-- [ ] Remote client action submissions use explicit action outcomes, not `submit_action(...).into_result()`.
-- [ ] Remote timeout-advanced rejections commit and publish timeout-advanced state.
-- [ ] Remote no-state-change rejections cannot mutate controller or authoritative state.
-- [ ] Remote committed actions still publish normally.
-- [ ] `HostRuntimeHealth` Rust and TypeScript fields are in sync.
-- [ ] Debug UI renders all runtime health counters.
-- [ ] DTO contract tests catch nested `HostRuntimeHealth` drift.
-- [ ] Critical Tauri command errors no longer use substring matching for error codes.
-- [ ] `ClientRuntime::next_event` no longer erases typed poll failures in production API surface.
-- [ ] Outbound frame-size behavior is explicitly documented and tested.
-- [ ] Abuse-test coverage is indexed and missing cases are explicit.
-- [ ] Rust validation passes.
-- [ ] Frontend validation passes.
-- [ ] Runtime validation passes.
-- [ ] Reconciliation evidence is committed.
+- [x] Remote client action submissions use explicit action outcomes, not `submit_action(...).into_result()`.
+- [x] Remote timeout-advanced rejections commit and publish timeout-advanced state.
+- [x] Remote no-state-change rejections cannot mutate controller or authoritative state.
+- [x] Remote committed actions still publish normally.
+- [x] `HostRuntimeHealth` Rust and TypeScript fields are in sync.
+- [x] Debug UI renders all runtime health counters.
+- [x] DTO contract tests catch nested `HostRuntimeHealth` drift.
+- [x] Critical Tauri command errors no longer use substring matching for error codes.
+- [x] `ClientRuntime::next_event` no longer erases typed poll failures in production API surface.
+- [x] Outbound frame-size behavior is explicitly documented and tested.
+- [x] Abuse-test coverage is indexed and missing cases are explicit.
+- [x] Rust validation passes.
+- [x] Frontend validation passes.
+- [x] Runtime validation passes.
+- [x] Reconciliation evidence is committed.
