@@ -1,16 +1,18 @@
 # Latest Linux Release Full-Game Validation
 
-- Result: **FAIL**
-- Validated commit: `909b284d71201bcabaec12f90cf15910fd673231`
-- GitHub Actions run: `30417348067`
+- Result: **PASS**
+- Validated commit: `f50de2bf942585fd2550903a0cbfeb03e7c5daff`
+- GitHub Actions run: `30417881469`
 - Build outcome: `success`
-- Gameplay outcome: `failure`
-- Recorded at: `2026-07-29T02:41:19.762291+00:00`
+- Gameplay outcome: `success`
+- Recorded at: `2026-07-29T02:53:36.341787+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
-## Failure
+## Result summary
 
-AssertionError: Timed out waiting for opponent response or all-in settlement; last error: None
+- Completed hands: `4`
+- Host instance: `full-game-host-30417881469`
+- Client instance: `full-game-client-30417881469`
 
 ## Executed checks
 
@@ -20,4 +22,10 @@ AssertionError: Timed out waiting for opponent response or all-in settlement; la
 - **PASS** — out-of-bounds raise was rejected without advancing state: Tauri command 'submit_table_action' failed: [object Object]
 - **PASS** — quick-size Min updates the legal raise amount without submitting
 - **PASS** — Fold completed hand 1 with synchronized duplicate-free history
-- **FAIL** — full-game runtime smoke
+- **PASS** — all-in showdown attempt 1 settled with 2 synchronized hands
+- **PASS** — all-in showdown attempt 2 settled with 3 synchronized hands
+- **PASS** — all-in showdown attempt 3 settled with 4 synchronized hands
+- **PASS** — tournament completed with matching standings and one eliminated observer
+- **PASS** — both release instances render the same Tournament Complete winner
+- **PASS** — fresh third profile contains no host/client hand history
+- **PASS** — host and client history restore after release-process restart
