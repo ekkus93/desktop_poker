@@ -1,17 +1,186 @@
 {
-  "buildOutcome": "cancelled",
+  "buildOutcome": "success",
   "checksumOutcome": "success",
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-07-29T08:39:35.131206+00:00",
-  "result": "FAIL",
+  "recordedAtUtc": "2026-07-29T08:49:00.609328+00:00",
+  "result": "PASS",
   "runtime": {
-    "error": "Tournament result was not produced.",
-    "result": "FAIL"
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "120f4060a121e7f4b079b8e0085002161b752ecf4e114340ffa902e946a9cc01",
+    "completedHands": 4,
+    "finalStandings": [
+      {
+        "chipCount": 300,
+        "displayName": "Bot Beta",
+        "isLocal": false,
+        "isObserver": false,
+        "note": "Dealer",
+        "rank": 1,
+        "statusLabel": "Active"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "Bot Alpha",
+        "isLocal": false,
+        "isObserver": true,
+        "note": null,
+        "rank": 2,
+        "statusLabel": "Eliminated observer"
+      },
+      {
+        "chipCount": 0,
+        "displayName": "CI Human Host",
+        "isLocal": true,
+        "isObserver": true,
+        "note": null,
+        "rank": 3,
+        "statusLabel": "Eliminated observer"
+      }
+    ],
+    "hostActions": [
+      "hand 1: fold",
+      "hand 2: allIn",
+      "hand 3: allIn",
+      "hand 4: allIn"
+    ],
+    "instanceId": "embedded-npc-tournament-30436380826",
+    "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
+    "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
+    "npcActionCount": 13,
+    "npcActionCounts": {
+      "Bot Alpha": 5,
+      "Bot Beta": 8
+    },
+    "npcActions": [
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 6
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Raise to 40.",
+        "profileId": "balanced-sam",
+        "sequence": 8
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 10
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Bet to 60.",
+        "profileId": "aggressive-alice",
+        "sequence": 13
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 15
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha Bet to 80.",
+        "profileId": "aggressive-alice",
+        "sequence": 18
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 20
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 1,
+        "message": "Bot Alpha All-in to 100.",
+        "profileId": "aggressive-alice",
+        "sequence": 23
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 1,
+        "message": "Bot Beta All-in to 100.",
+        "profileId": "balanced-sam",
+        "sequence": 25
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 2,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 30
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 2,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 34
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 3,
+        "message": "Bot Beta All-in to 100.",
+        "profileId": "balanced-sam",
+        "sequence": 41
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 4,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 46
+      }
+    ],
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-30436380826",
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "tauri-driver became ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release binary created a real Tauri/WebKit session",
+        "result": "PASS"
+      },
+      {
+        "name": "embedded provider loaded and two profile-backed NPCs were seated ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release table entered hand 1 with the production NPC runner active",
+        "result": "PASS"
+      },
+      {
+        "name": "tournament completed across 4 hands with 13 committed embedded NPC actions",
+        "result": "PASS"
+      },
+      {
+        "name": "both embedded NPC identities and profile assignments produced live actions",
+        "result": "PASS"
+      },
+      {
+        "name": "final standings contain the human host and both embedded NPC players",
+        "result": "PASS"
+      }
+    ]
   },
-  "tournamentOutcome": "skipped",
-  "validatedCommit": "0d3c109a2de19d027fa24f383a3e90fd2baf6f8f",
+  "tournamentOutcome": "success",
+  "validatedCommit": "561c374e31414b3581355d8e83216d8aadee2616",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30435746544"
+  "workflowRunId": "30436380826"
 }
