@@ -4,61 +4,12 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "02e5ef9c82146c31ac59dbf9662f4451f9aa31f519c11ad96e870eb22ee5328e",
-    "clientInstanceId": "full-game-client-30428125489",
-    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30428125489",
-    "completedHands": 4,
+    "clientInstanceId": "full-game-client-30428510734",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30428510734",
+    "completedHands": 3,
     "finalHistory": [
       {
         "boardCards": [
-          {
-            "compactLabel": "Q\u2663",
-            "label": "Queen of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "K\u2665",
-            "label": "King of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "9\u2663",
-            "label": "Nine of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          },
-          {
-            "compactLabel": "A\u2665",
-            "label": "Ace of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
-          },
-          {
-            "compactLabel": "3\u2666",
-            "label": "Three of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
-          }
-        ],
-        "eliminatedPlayers": [
-          "Player full-game-client-30428125489"
-        ],
-        "handNumber": 4,
-        "potTotal": 120,
-        "summary": "Player full-game-host-30428125489 won 120 chip(s).",
-        "winningPlayers": [
-          "Player full-game-host-30428125489"
-        ]
-      },
-      {
-        "boardCards": [
-          {
-            "compactLabel": "A\u2663",
-            "label": "Ace of Clubs",
-            "suitSymbol": "\u2663",
-            "tone": "dark"
-          },
           {
             "compactLabel": "8\u2660",
             "label": "Eight of Spades",
@@ -66,10 +17,16 @@
             "tone": "dark"
           },
           {
-            "compactLabel": "5\u2666",
-            "label": "Five of Diamonds",
-            "suitSymbol": "\u2666",
-            "tone": "red"
+            "compactLabel": "7\u2660",
+            "label": "Seven of Spades",
+            "suitSymbol": "\u2660",
+            "tone": "dark"
+          },
+          {
+            "compactLabel": "2\u2663",
+            "label": "Two of Clubs",
+            "suitSymbol": "\u2663",
+            "tone": "dark"
           },
           {
             "compactLabel": "3\u2660",
@@ -78,18 +35,20 @@
             "tone": "dark"
           },
           {
-            "compactLabel": "Q\u2665",
-            "label": "Queen of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
+            "compactLabel": "9\u2663",
+            "label": "Nine of Clubs",
+            "suitSymbol": "\u2663",
+            "tone": "dark"
           }
         ],
-        "eliminatedPlayers": [],
+        "eliminatedPlayers": [
+          "Player full-game-host-30428510734"
+        ],
         "handNumber": 3,
         "potTotal": 1940,
-        "summary": "Player full-game-host-30428125489 won 1940 chip(s).",
+        "summary": "Player full-game-client-30428510734 won 1940 chip(s).",
         "winningPlayers": [
-          "Player full-game-host-30428125489"
+          "Player full-game-client-30428510734"
         ]
       },
       {
@@ -97,9 +56,9 @@
         "eliminatedPlayers": [],
         "handNumber": 2,
         "potTotal": 1030,
-        "summary": "Player full-game-client-30428125489 won 1030 chip(s).",
+        "summary": "Player full-game-client-30428510734 won 1030 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30428125489"
+          "Player full-game-client-30428510734"
         ]
       },
       {
@@ -107,16 +66,16 @@
         "eliminatedPlayers": [],
         "handNumber": 1,
         "potTotal": 30,
-        "summary": "Player full-game-client-30428125489 won 30 chip(s).",
+        "summary": "Player full-game-client-30428510734 won 30 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30428125489"
+          "Player full-game-client-30428510734"
         ]
       }
     ],
     "finalStandings": [
       {
         "chipCount": 2000,
-        "displayName": "Player full-game-host-30428125489",
+        "displayName": "Player full-game-client-30428510734",
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -124,15 +83,15 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Player full-game-client-30428125489",
+        "displayName": "Player full-game-host-30428510734",
         "isObserver": true,
         "note": null,
         "rank": 2,
         "statusLabel": "Eliminated observer"
       }
     ],
-    "hostInstanceId": "full-game-host-30428125489",
-    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30428125489",
+    "hostInstanceId": "full-game-host-30428510734",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30428510734",
     "result": "PASS",
     "steps": [
       {
@@ -168,10 +127,6 @@
         "result": "PASS"
       },
       {
-        "name": "all-in showdown attempt 3 settled with 4 synchronized hands",
-        "result": "PASS"
-      },
-      {
         "name": "tournament completed with matching standings and one eliminated observer",
         "result": "PASS"
       },
@@ -190,9 +145,9 @@
     ]
   },
   "gameplayOutcome": "success",
-  "recordedAtUtc": "2026-07-29T06:29:05.848090+00:00",
+  "recordedAtUtc": "2026-07-29T06:36:22.533535+00:00",
   "result": "PASS",
-  "validatedCommit": "8026a98f6400968db80af56b8c32074e14b7aafa",
+  "validatedCommit": "bf3793d94d72089484ce0410d205c12c65897b7c",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30428125489"
+  "workflowRunId": "30428510734"
 }
