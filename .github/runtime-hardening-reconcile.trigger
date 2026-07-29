@@ -1,3 +1,3 @@
-generation=2
+generation=3
 purpose=complete_runtime_hardening_follow_up
 source_identity=validated_product_tree
