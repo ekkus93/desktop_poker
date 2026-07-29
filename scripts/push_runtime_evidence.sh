@@ -59,23 +59,9 @@ if [[ "$publish_decision" != "publish" ]]; then
   exit 0
 fi
 
-extra_paths=()
-if [[ -f .github/runtime-hardening-publisher.trigger ]]; then
-  python3 scripts/runtime_hardening_patch_once.py
-  rm .github/runtime-hardening-publisher.trigger
-  rm scripts/runtime_hardening_patch_once.py
-  extra_paths=(
-    .github/runtime-hardening-publisher.trigger
-    scripts/runtime_hardening_patch_once.py
-    src-tauri/src/networking/runtime/handlers.rs
-    src-tauri/src/networking/runtime/tests/action_outcomes.rs
-  )
-  commit_message="Format remote action hardening implementation"
-fi
-
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git add -- "$@" "${extra_paths[@]}"
+git add -- "$@"
 
 if git diff --cached --quiet; then
   echo "No runtime evidence changes to publish."
@@ -83,9 +69,8 @@ if git diff --cached --quiet; then
 fi
 
 # Evidence-only commits must not recursively start every push workflow. GitHub
-# Actions recognizes the skip directive for push-triggered workflows. Source
-# hardening commits intentionally start a fresh validation run.
-if (( ${#extra_paths[@]} == 0 )) && [[ "$commit_message" != *"[skip ci]"* ]]; then
+# Actions recognizes the skip directive for push-triggered workflows.
+if [[ "$commit_message" != *"[skip ci]"* ]]; then
   commit_message="$commit_message [skip ci]"
 fi
 git commit -m "$commit_message"
