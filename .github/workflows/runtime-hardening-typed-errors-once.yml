@@ -1,0 +1,97 @@
+name: Runtime hardening typed command errors
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/runtime-hardening-typed-errors.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  apply-validate-and-commit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Apply and validate typed errors
+        id: preflight
+        shell: bash
+        run: |
+          set +e
+          log=typed-errors-preflight.log
+          : > "$log"
+          python3 scripts/runtime_hardening_typed_errors_once.py >>"$log" 2>&1
+          apply_status=$?
+          if (( apply_status == 0 )); then
+            cargo fmt --all >>"$log" 2>&1
+            fmt_status=$?
+          else
+            fmt_status=1
+          fi
+          if (( apply_status == 0 && fmt_status == 0 )); then
+            cargo clippy --workspace --all-targets -- -D warnings >>"$log" 2>&1
+            clippy_status=$?
+          else
+            clippy_status=1
+          fi
+          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 )); then
+            cargo test --workspace --all-targets >>"$log" 2>&1
+            test_status=$?
+          else
+            test_status=1
+          fi
+          printf 'apply=%s\nfmt=%s\nclippy=%s\ntest=%s\n' \
+            "$apply_status" "$fmt_status" "$clippy_status" "$test_status" >>"$log"
+          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 && test_status == 0 )); then
+            echo 'result=success' >> "$GITHUB_OUTPUT"
+          else
+            echo 'result=failure' >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+      - name: Commit validated typed errors
+        if: steps.preflight.outputs.result == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/runtime-hardening-typed-errors.trigger
+          rm .github/workflows/runtime-hardening-typed-errors-once.yml
+          rm scripts/runtime_hardening_typed_errors_once.py
+          rm -f docs/runtime-validation/typed-errors-preflight-latest.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src-tauri/src/app_state/mod.rs \
+            src-tauri/src/app_state/app.rs \
+            src-tauri/src/app_state/session.rs \
+            src-tauri/src/commands.rs \
+            src-tauri/src/app_state/tests/sessions.rs \
+            scripts/runtime_hardening_typed_errors_once.py \
+            .github/runtime-hardening-typed-errors.trigger \
+            .github/workflows/runtime-hardening-typed-errors-once.yml \
+            docs/runtime-validation/typed-errors-preflight-latest.log
+          git commit -m "Replace command error string classification with typed provenance"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
+      - name: Publish preflight failure diagnostic
+        if: steps.preflight.outputs.result == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime-validation
+          cp typed-errors-preflight.log docs/runtime-validation/typed-errors-preflight-latest.log
+          git reset --hard HEAD
+          cp typed-errors-preflight.log docs/runtime-validation/typed-errors-preflight-latest.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/runtime-validation/typed-errors-preflight-latest.log
+          git commit -m "docs: record typed-error preflight failure [skip ci]"
+          git fetch --no-tags origin master
+          git rebase origin/master
+          git push origin HEAD:master
