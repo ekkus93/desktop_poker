@@ -1,3 +1,4 @@
-generation=3
+generation=4
 purpose=complete_runtime_hardening_follow_up
 source_identity=validated_product_tree
+failure_log=durable
