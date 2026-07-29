@@ -1,1 +1,1 @@
-validate formatted DTO polling framing warnings and abuse coverage
+validate full-game invite smoke correction and independent hardening
