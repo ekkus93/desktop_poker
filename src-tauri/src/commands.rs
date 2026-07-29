@@ -5,9 +5,10 @@ use tauri::{AppHandle, Emitter, State};
 use crate::{
     app_state::{
         ClaimLobbySeatRequest, ClientSessionStatus, DebugInspectorState, DesktopAppState,
-        DesktopBootstrapState, DesktopTableActionError, DesktopTableActionErrorCode,
-        DesktopTableActionKind, HostSessionStatus, JoinHostSessionRequest, ScreenDescriptor,
-        SetLobbyReadyStateRequest, StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
+        DesktopBootstrapState, DesktopJoinSessionError, DesktopJoinSessionErrorCode,
+        DesktopTableActionError, DesktopTableActionErrorCode, DesktopTableActionKind,
+        HostSessionStatus, JoinHostSessionRequest, ScreenDescriptor, SetLobbyReadyStateRequest,
+        StartHostSessionRequest, TableViewSnapshot, TableViewerMode,
     },
     domain::JoinPayload,
     networking::resolve_connectable_host_ip,
@@ -64,8 +65,18 @@ impl DesktopCommandError {
         }
     }
 
-    fn invalid_join_payload(message: String) -> Self {
-        Self::new(DesktopCommandErrorCode::InvalidJoinPayload, message)
+    fn from_join_session(error: DesktopJoinSessionError) -> Self {
+        let code = match error.code() {
+            DesktopJoinSessionErrorCode::InvalidJoinPayload => {
+                DesktopCommandErrorCode::InvalidJoinPayload
+            }
+            DesktopJoinSessionErrorCode::NetworkTimeout => DesktopCommandErrorCode::NetworkTimeout,
+            DesktopJoinSessionErrorCode::ClientRuntimeDisconnected => {
+                DesktopCommandErrorCode::ClientRuntimeDisconnected
+            }
+            DesktopJoinSessionErrorCode::CommandFailed => DesktopCommandErrorCode::CommandFailed,
+        };
+        Self::new(code, error.into_message())
     }
 
     fn from_table_action(error: DesktopTableActionError) -> Self {
@@ -197,7 +208,7 @@ pub fn join_host_session(
 ) -> Result<ClientSessionStatus, DesktopCommandError> {
     let result = state
         .join_host_session(request)
-        .map_err(DesktopCommandError::invalid_join_payload)?;
+        .map_err(DesktopCommandError::from_join_session)?;
     emit_session_update(&app);
     Ok(result)
 }
@@ -689,6 +700,7 @@ mod tests {
 #[cfg(test)]
 mod command_error_tests {
     use super::{DesktopCommandError, DesktopTableActionError, DesktopTableActionErrorCode};
+    use crate::app_state::{DesktopJoinSessionError, DesktopJoinSessionErrorCode};
 
     #[test]
     fn typed_timeout_code_is_recoverable_independent_of_wording() {
@@ -746,11 +758,41 @@ mod command_error_tests {
     }
 
     #[test]
-    fn invalid_join_payload_code_is_recoverable_independent_of_wording() {
-        for message in ["invite envelope was invalid", "rewritten join failure copy"] {
-            let error = DesktopCommandError::invalid_join_payload(message.to_string());
-            assert_eq!(error.code, "INVALID_JOIN_PAYLOAD");
-            assert!(error.recoverable);
+    fn typed_join_session_codes_are_independent_of_wording() {
+        let cases = [
+            (
+                DesktopJoinSessionErrorCode::InvalidJoinPayload,
+                "invite envelope was invalid",
+                "INVALID_JOIN_PAYLOAD",
+                true,
+            ),
+            (
+                DesktopJoinSessionErrorCode::NetworkTimeout,
+                "host snapshot deadline expired",
+                "NETWORK_TIMEOUT",
+                true,
+            ),
+            (
+                DesktopJoinSessionErrorCode::ClientRuntimeDisconnected,
+                "runtime channel closed",
+                "CLIENT_RUNTIME_DISCONNECTED",
+                false,
+            ),
+            (
+                DesktopJoinSessionErrorCode::CommandFailed,
+                "internal join setup failed",
+                "COMMAND_FAILED",
+                false,
+            ),
+        ];
+
+        for (source_code, message, expected_code, expected_recoverable) in cases {
+            let error = DesktopCommandError::from_join_session(DesktopJoinSessionError::new(
+                source_code,
+                message,
+            ));
+            assert_eq!(error.code, expected_code);
+            assert_eq!(error.recoverable, expected_recoverable);
             assert_eq!(error.message, message);
         }
     }

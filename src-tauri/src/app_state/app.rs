@@ -306,7 +306,7 @@ impl DesktopAppState {
     pub fn join_host_session(
         &self,
         request: JoinHostSessionRequest,
-    ) -> Result<ClientSessionStatus, String> {
+    ) -> Result<ClientSessionStatus, DesktopJoinSessionError> {
         self.join_host_session_with_player_id(
             request,
             format!("player-{}", self.bootstrap.instance_id),
@@ -489,38 +489,64 @@ impl DesktopAppState {
         &self,
         request: JoinHostSessionRequest,
         player_id: String,
-    ) -> Result<ClientSessionStatus, String> {
+    ) -> Result<ClientSessionStatus, DesktopJoinSessionError> {
         let payload = request.join_payload.trim();
         let display_name = request.display_name.trim();
 
         if payload.is_empty() {
-            return Err("joinPayload must be non-blank".to_string());
+            return Err(DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::InvalidJoinPayload,
+                "joinPayload must be non-blank",
+            ));
         }
 
         if display_name.is_empty() {
-            return Err("displayName must be non-blank".to_string());
+            return Err(DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::InvalidJoinPayload,
+                "displayName must be non-blank",
+            ));
         }
 
         if self
             .host_session
             .lock()
-            .map_err(|_| "host session lock poisoned".to_string())?
+            .map_err(|_| {
+                DesktopJoinSessionError::new(
+                    DesktopJoinSessionErrorCode::CommandFailed,
+                    "host session lock poisoned",
+                )
+            })?
             .is_some()
         {
-            return Err("stop the active host session before joining another table".to_string());
+            return Err(DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::CommandFailed,
+                "stop the active host session before joining another table",
+            ));
         }
 
         if self
             .client_session
             .lock()
-            .map_err(|_| "client session lock poisoned".to_string())?
+            .map_err(|_| {
+                DesktopJoinSessionError::new(
+                    DesktopJoinSessionErrorCode::CommandFailed,
+                    "client session lock poisoned",
+                )
+            })?
             .is_some()
         {
-            return Err("leave the active client session before joining another table".to_string());
+            return Err(DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::CommandFailed,
+                "leave the active client session before joining another table",
+            ));
         }
 
-        let join_payload =
-            protocol::decode_join_payload(payload).map_err(|error| error.to_string())?;
+        let join_payload = protocol::decode_join_payload(payload).map_err(|error| {
+            DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::InvalidJoinPayload,
+                error.to_string(),
+            )
+        })?;
         let provider = crypto::DefaultCryptoProvider;
         let runtime = networking::ClientRuntime::connect(networking::ClientRuntimeConfig {
             join_payload: payload.to_string(),
@@ -529,35 +555,46 @@ impl DesktopAppState {
             signing_keys: provider.generate_signing_keypair(),
             encryption_keys: provider.generate_encryption_keypair(),
         })
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| {
+            DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::CommandFailed,
+                error.to_string(),
+            )
+        })?;
 
         let latest_snapshot = match runtime.poll_event(INITIAL_JOIN_SNAPSHOT_TIMEOUT) {
             Ok(networking::ClientRuntimeEvent::Snapshot(snapshot)) => {
                 client_snapshot_state_from_event(&snapshot)
             }
             Ok(other) => {
-                return Err(format!(
-                    "expected an initial snapshot event after join, got {other:?}"
+                return Err(DesktopJoinSessionError::new(
+                    DesktopJoinSessionErrorCode::CommandFailed,
+                    format!("expected an initial snapshot event after join, got {other:?}"),
                 ));
             }
             Err(networking::ClientRuntimePollError::Timeout) => {
-                return Err(format!(
-                    "initial join timed out: host snapshot was not available within {} seconds",
-                    INITIAL_JOIN_SNAPSHOT_TIMEOUT.as_secs()
+                return Err(DesktopJoinSessionError::new(
+                    DesktopJoinSessionErrorCode::NetworkTimeout,
+                    format!(
+                        "initial join timed out: host snapshot was not available within {} seconds",
+                        INITIAL_JOIN_SNAPSHOT_TIMEOUT.as_secs()
+                    ),
                 ));
             }
             Err(networking::ClientRuntimePollError::Disconnected) => {
-                return Err(
-                    "client runtime disconnected before the initial snapshot was available"
-                        .to_string(),
-                );
+                return Err(DesktopJoinSessionError::new(
+                    DesktopJoinSessionErrorCode::ClientRuntimeDisconnected,
+                    "client runtime disconnected before the initial snapshot was available",
+                ));
             }
         };
 
-        let mut client_session = self
-            .client_session
-            .lock()
-            .map_err(|_| "client session lock poisoned".to_string())?;
+        let mut client_session = self.client_session.lock().map_err(|_| {
+            DesktopJoinSessionError::new(
+                DesktopJoinSessionErrorCode::CommandFailed,
+                "client session lock poisoned",
+            )
+        })?;
         *client_session = Some(DesktopClientSession {
             runtime,
             join_payload,

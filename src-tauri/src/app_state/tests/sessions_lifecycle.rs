@@ -1,6 +1,7 @@
 use super::super::{
-    ClaimLobbySeatRequest, DesktopAppState, DesktopTableActionErrorCode, DesktopTableActionKind,
-    SetLobbyReadyStateRequest, TableViewerMode,
+    ClaimLobbySeatRequest, DesktopAppState, DesktopJoinSessionErrorCode,
+    DesktopTableActionErrorCode, DesktopTableActionKind, SetLobbyReadyStateRequest,
+    TableViewerMode,
 };
 use crate::{
     networking::HostRuntimeMode,
@@ -160,6 +161,20 @@ fn join_host_session_returns_the_initial_live_snapshot() {
 }
 
 #[test]
+fn join_host_session_classifies_invalid_payload_without_message_matching() {
+    let state = DesktopAppState::detect();
+    let error = state
+        .join_host_session(sample_join_host_session_request("not-a-valid-invite"))
+        .expect_err("invalid invite should be rejected");
+
+    assert_eq!(
+        error.code(),
+        DesktopJoinSessionErrorCode::InvalidJoinPayload
+    );
+    assert!(!error.message().is_empty());
+}
+
+#[test]
 fn join_host_session_rejects_replacing_an_active_client_session() {
     let first_host_state = DesktopAppState::detect();
     let first_host_status = first_host_state
@@ -185,8 +200,9 @@ fn join_host_session_rejects_replacing_an_active_client_session() {
         .join_host_session(sample_join_host_session_request(&second_host_status.invite))
         .expect_err("second client join should be rejected");
 
+    assert_eq!(error.code(), DesktopJoinSessionErrorCode::CommandFailed);
     assert_eq!(
-        error,
+        error.message(),
         "leave the active client session before joining another table"
     );
 

@@ -164,6 +164,53 @@ impl std::fmt::Display for DesktopTableActionError {
 
 impl std::error::Error for DesktopTableActionError {}
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DesktopJoinSessionErrorCode {
+    InvalidJoinPayload,
+    NetworkTimeout,
+    ClientRuntimeDisconnected,
+    CommandFailed,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DesktopJoinSessionError {
+    code: DesktopJoinSessionErrorCode,
+    message: String,
+}
+
+impl DesktopJoinSessionError {
+    #[must_use]
+    pub fn new(code: DesktopJoinSessionErrorCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn code(&self) -> DesktopJoinSessionErrorCode {
+        self.code
+    }
+
+    #[must_use]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    #[must_use]
+    pub fn into_message(self) -> String {
+        self.message
+    }
+}
+
+impl std::fmt::Display for DesktopJoinSessionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for DesktopJoinSessionError {}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct TableCardView {
