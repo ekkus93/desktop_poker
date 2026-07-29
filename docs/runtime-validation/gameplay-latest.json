@@ -4,8 +4,8 @@
   "fullGame": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "d146e676b75df615986203f27917bb5f8beb06b06e4f8d814e6dff0f016a6b6a",
-    "clientInstanceId": "full-game-client-30434459377",
-    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30434459377",
+    "clientInstanceId": "full-game-client-30434763428",
+    "clientProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-client-30434763428",
     "completedHands": 3,
     "finalHistory": [
       {
@@ -17,38 +17,38 @@
             "tone": "dark"
           },
           {
-            "compactLabel": "4\u2666",
-            "label": "Four of Diamonds",
+            "compactLabel": "7\u2665",
+            "label": "Seven of Hearts",
+            "suitSymbol": "\u2665",
+            "tone": "red"
+          },
+          {
+            "compactLabel": "5\u2666",
+            "label": "Five of Diamonds",
             "suitSymbol": "\u2666",
             "tone": "red"
           },
           {
-            "compactLabel": "8\u2665",
-            "label": "Eight of Hearts",
+            "compactLabel": "A\u2665",
+            "label": "Ace of Hearts",
             "suitSymbol": "\u2665",
             "tone": "red"
           },
           {
-            "compactLabel": "5\u2660",
-            "label": "Five of Spades",
+            "compactLabel": "A\u2660",
+            "label": "Ace of Spades",
             "suitSymbol": "\u2660",
             "tone": "dark"
-          },
-          {
-            "compactLabel": "10\u2665",
-            "label": "Ten of Hearts",
-            "suitSymbol": "\u2665",
-            "tone": "red"
           }
         ],
         "eliminatedPlayers": [
-          "Player full-game-host-30434459377"
+          "Player full-game-host-30434763428"
         ],
         "handNumber": 3,
         "potTotal": 1940,
-        "summary": "Player full-game-client-30434459377 won 1940 chip(s).",
+        "summary": "Player full-game-client-30434763428 won 1940 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30434459377"
+          "Player full-game-client-30434763428"
         ]
       },
       {
@@ -56,9 +56,9 @@
         "eliminatedPlayers": [],
         "handNumber": 2,
         "potTotal": 1030,
-        "summary": "Player full-game-client-30434459377 won 1030 chip(s).",
+        "summary": "Player full-game-client-30434763428 won 1030 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30434459377"
+          "Player full-game-client-30434763428"
         ]
       },
       {
@@ -66,16 +66,16 @@
         "eliminatedPlayers": [],
         "handNumber": 1,
         "potTotal": 30,
-        "summary": "Player full-game-client-30434459377 won 30 chip(s).",
+        "summary": "Player full-game-client-30434763428 won 30 chip(s).",
         "winningPlayers": [
-          "Player full-game-client-30434459377"
+          "Player full-game-client-30434763428"
         ]
       }
     ],
     "finalStandings": [
       {
         "chipCount": 2000,
-        "displayName": "Player full-game-client-30434459377",
+        "displayName": "Player full-game-client-30434763428",
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -83,15 +83,15 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Player full-game-host-30434459377",
+        "displayName": "Player full-game-host-30434763428",
         "isObserver": true,
         "note": null,
         "rank": 2,
         "statusLabel": "Eliminated observer"
       }
     ],
-    "hostInstanceId": "full-game-host-30434459377",
-    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30434459377",
+    "hostInstanceId": "full-game-host-30434763428",
+    "hostProfileDirectory": "/home/runner/.local/share/desktop-poker/profiles/full-game-host-30434763428",
     "result": "PASS",
     "steps": [
       {
@@ -145,9 +145,9 @@
     ]
   },
   "gameplayOutcome": "success",
-  "recordedAtUtc": "2026-07-29T08:14:26.942207+00:00",
+  "recordedAtUtc": "2026-07-29T08:18:47.424672+00:00",
   "result": "PASS",
-  "validatedCommit": "39da117947a4b0539e725eb4a53d0058b3ddcb22",
+  "validatedCommit": "73a60bc0f316991bfe0c75c32c2aac99314787e9",
   "workflowRunAttempt": "1",
-  "workflowRunId": "30434459377"
+  "workflowRunId": "30434763428"
 }
