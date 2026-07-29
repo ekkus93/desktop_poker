@@ -290,7 +290,6 @@ fn remote_committed_action_updates_runtime_and_authoritative_state() {
     );
 }
 
-
 #[test]
 fn remote_stale_window_rejection_does_not_mutate_state() {
     let fixture = started_runtime(now_epoch_ms());
