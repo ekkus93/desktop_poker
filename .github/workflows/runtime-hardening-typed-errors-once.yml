@@ -42,26 +42,32 @@ jobs:
           python3 scripts/runtime_hardening_typed_errors_once.py >>"$log" 2>&1
           apply_status=$?
           if (( apply_status == 0 )); then
+            python3 scripts/runtime_hardening_typed_error_tests_once.py >>"$log" 2>&1
+            test_migration_status=$?
+          else
+            test_migration_status=1
+          fi
+          if (( apply_status == 0 && test_migration_status == 0 )); then
             cargo fmt --all >>"$log" 2>&1
             fmt_status=$?
           else
             fmt_status=1
           fi
-          if (( apply_status == 0 && fmt_status == 0 )); then
+          if (( apply_status == 0 && test_migration_status == 0 && fmt_status == 0 )); then
             cargo clippy --workspace --all-targets -- -D warnings >>"$log" 2>&1
             clippy_status=$?
           else
             clippy_status=1
           fi
-          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 )); then
+          if (( apply_status == 0 && test_migration_status == 0 && fmt_status == 0 && clippy_status == 0 )); then
             cargo test --workspace --all-targets >>"$log" 2>&1
             test_status=$?
           else
             test_status=1
           fi
-          printf 'apply=%s\nfmt=%s\nclippy=%s\ntest=%s\n' \
-            "$apply_status" "$fmt_status" "$clippy_status" "$test_status" >>"$log"
-          if (( apply_status == 0 && fmt_status == 0 && clippy_status == 0 && test_status == 0 )); then
+          printf 'apply=%s\ntest_migration=%s\nfmt=%s\nclippy=%s\ntest=%s\n' \
+            "$apply_status" "$test_migration_status" "$fmt_status" "$clippy_status" "$test_status" >>"$log"
+          if (( apply_status == 0 && test_migration_status == 0 && fmt_status == 0 && clippy_status == 0 && test_status == 0 )); then
             echo 'result=success' >> "$GITHUB_OUTPUT"
           else
             echo 'result=failure' >> "$GITHUB_OUTPUT"
@@ -75,6 +81,7 @@ jobs:
           rm .github/runtime-hardening-typed-errors.trigger
           rm .github/workflows/runtime-hardening-typed-errors-once.yml
           rm scripts/runtime_hardening_typed_errors_once.py
+          rm scripts/runtime_hardening_typed_error_tests_once.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -83,7 +90,9 @@ jobs:
             src-tauri/src/app_state/session.rs \
             src-tauri/src/commands.rs \
             src-tauri/src/app_state/tests/sessions.rs \
+            src-tauri/src/app_state/tests/sessions_lifecycle.rs \
             scripts/runtime_hardening_typed_errors_once.py \
+            scripts/runtime_hardening_typed_error_tests_once.py \
             .github/runtime-hardening-typed-errors.trigger \
             .github/workflows/runtime-hardening-typed-errors-once.yml
           if git ls-files --error-unmatch docs/runtime-validation/typed-errors-preflight-latest.log >/dev/null 2>&1; then
