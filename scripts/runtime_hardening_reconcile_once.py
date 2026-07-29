@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-VALIDATED_COMMIT = "2915ae2214bf8cc7a319af1778caa8228dd6e591"
+VALIDATED_COMMIT = "9b4bb0a5738e609c418b6dfd673dd431dd7cb70e"
 TODO_PATH = Path("docs/DESKTOP_POKER_RUNTIME_HARDENING_FIXES_TODO_2026-07-28.md")
 NOTE_PATH = Path(
     "docs/runtime-validation/runtime-hardening-fixes-reconciliation-2026-07-29.md"
@@ -86,6 +86,7 @@ implementation_commits = [
     ("bd252a2e39363a3ad8e06b95b6ddde6bd0f7ce4b", "final command error and DTO contract coverage"),
     ("e494ca46cc764dc78a90ee3f7200de70a8357726", "Rust HostRuntimeHealth shared fixture assertion"),
     ("adbd7401a666ba94a978b03f9dd868cd3adcc1b6", "nested TypeScript HostRuntimeHealth assertion"),
+    ("df5733421b360d26011faff08663945d53e9aab8", "typed join-session error provenance"),
 ]
 
 lines = [
@@ -101,7 +102,7 @@ lines = [
     "- Timeout-advanced rejected actions commit and publish the advanced state before the rejection is returned.",
     "- Wrong-player, stale-window, and invalid-size remote submissions reject visibly and publish zero transitions.",
     "- Gameplay-state invariants normalize networking-only participant metadata before comparison.",
-    "- Command errors preserve stable typed codes without substring classification.",
+    "- Command and join-session errors preserve stable typed codes without substring classification.",
     "- Host runtime health fields are synchronized across Rust, TypeScript, UI diagnostics, and shared contract fixtures.",
     "- Client event polling preserves timeout-versus-disconnection semantics.",
     "- Inbound and outbound frame-size limits are symmetric and regression-tested.",
