@@ -1,11 +1,11 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **FAIL**
-- Validated commit: `7bf96534d8edadd4998c66b0764aaf06dd25940b`
-- GitHub Actions run: `38823391924`
+- Validated commit: `6f04a27a470b607b84b1913e990a98b0d49fe07b`
+- GitHub Actions run: `38824178480`
 - Build outcome: `success`
 - Gameplay outcome: `failure`
-- Recorded at: `2026-10-15T23:25:47.640122+00:00`
+- Recorded at: `2026-10-15T23:34:35.873731+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Failure
