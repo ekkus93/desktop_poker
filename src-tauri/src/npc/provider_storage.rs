@@ -317,9 +317,11 @@ pub fn load_provider_config(
                     }
                     match store.read_key(provider_str) {
                         Ok(Some(verified)) if verified == key => {}
-                        Ok(_) => return ProviderConfigLoadState::KeyUnreadable {
-                            error: "migration key verification failed".to_string(),
-                        },
+                        Ok(_) => {
+                            return ProviderConfigLoadState::KeyUnreadable {
+                                error: "migration key verification failed".to_string(),
+                            }
+                        }
                         Err(error) => return ProviderConfigLoadState::KeyUnreadable { error },
                     }
                 }
@@ -927,7 +929,8 @@ mod tests {
     fn migration_scrubs_plaintext_when_secure_key_already_exists() {
         let dir = tempfile::tempdir().unwrap();
         let tracking = TrackingSecretStore::new().with_key("anthropic", "sk-ant-newer");
-        let legacy_json = r#"{"provider":"anthropic","apiKey":"sk-ant-stale","endpointUrl":null,"model":null}"#;
+        let legacy_json =
+            r#"{"provider":"anthropic","apiKey":"sk-ant-stale","endpointUrl":null,"model":null}"#;
         fs::write(settings_path(dir.path()), legacy_json).unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path(), &tracking));
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-newer"));

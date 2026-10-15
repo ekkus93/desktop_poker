@@ -346,13 +346,18 @@ fn rollback_admission(
     let mut state = state
         .lock()
         .map_err(|_| NetworkingError::new("authoritative state lock poisoned during rollback"))?;
-    let owns_attempt = state.participants.get(player_id).is_some_and(|participant| {
-        participant.connection_state == ConnectionState::Connected
-            && participant.reconnect_token.as_deref() == Some(admission_token)
-    });
+    let owns_attempt = state
+        .participants
+        .get(player_id)
+        .is_some_and(|participant| {
+            participant.connection_state == ConnectionState::Connected
+                && participant.reconnect_token.as_deref() == Some(admission_token)
+        });
     if owns_attempt {
         if let Some(previous) = previous {
-            state.participants.insert(player_id.to_string(), previous.clone());
+            state
+                .participants
+                .insert(player_id.to_string(), previous.clone());
         } else {
             state.participants.remove(player_id);
         }
@@ -394,12 +399,9 @@ impl PendingAdmissionRollback {
 impl Drop for PendingAdmissionRollback {
     fn drop(&mut self) {
         if self.armed {
-            if let Err(error) = rollback_admission(
-                &self.state,
-                &self.player_id,
-                &self.previous,
-                &self.token,
-            ) {
+            if let Err(error) =
+                rollback_admission(&self.state, &self.player_id, &self.previous, &self.token)
+            {
                 update_health(&self.runtime_health, |health| {
                     health.state_lock_error_count += 1;
                     health.record_error(format!("unregistered admission cleanup failed: {error}"));
