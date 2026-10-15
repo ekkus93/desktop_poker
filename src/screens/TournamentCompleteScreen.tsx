@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { getTableView, type TableViewSnapshot } from "../api/desktop";
-import { mergeDurableHandHistory } from "../app/persistence";
+import { mergeDurableHandHistoryV2 } from "../app/persistence";
 import { useDesktopShell } from "../app/useDesktopShell";
 import { SectionCard } from "../components/shared/SectionCard";
 import { ScreenShell } from "./ScreenShell";
@@ -104,9 +104,9 @@ export function TournamentCompleteScreen() {
 
       try {
         if (latestSnapshot.handHistory.length > 0) {
-          const mergedHistory = await mergeDurableHandHistory(
+          const mergedHistory = await mergeDurableHandHistoryV2(
             bootstrap.storageNamespace,
-            latestSnapshot.handHistory,
+            latestSnapshot,
           );
           if (cancelled) {
             return;

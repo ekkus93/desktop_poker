@@ -169,7 +169,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
       return;
     }
 
-    persistHandHistory(tableView.handHistory);
+    persistHandHistory(tableView);
   }, [persistHandHistory, tableView]);
 
   const boardCards = useMemo(() => {

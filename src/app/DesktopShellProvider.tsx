@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { DesktopBootstrapState } from "../api/desktop";
+import type { DesktopBootstrapState, TableViewSnapshot } from "../api/desktop";
 import {
   createDefaultDisplayName,
   createDefaultHostDraft,
@@ -18,7 +18,7 @@ import {
 } from "./shell";
 import {
   initializeWindowStatePersistence,
-  mergePersistedHandHistory,
+  mergeDurableHandHistoryV2,
   readPersistedHandHistoryWithStatus,
 } from "./persistence";
 
@@ -47,9 +47,7 @@ type DesktopShellContextValue = {
   setJoinPayloadDraft: (value: string) => void;
   rememberJoinPayload: (value: string) => void;
   clearRecentJoinPayloads: () => void;
-  persistHandHistory: (
-    entries: import("../api/desktop").TableHistoryEntryView[],
-  ) => void;
+  persistHandHistory: (snapshot: TableViewSnapshot) => void;
 };
 
 const DesktopShellContext = createContext<DesktopShellContextValue | undefined>(
@@ -273,13 +271,20 @@ export function DesktopShellProvider({
         );
       },
       clearRecentJoinPayloads: () => setRecentJoinPayloads([]),
-      persistHandHistory: (entries) => {
-        const mergedHistory = mergePersistedHandHistory(
+      persistHandHistory: (snapshot) => {
+        void mergeDurableHandHistoryV2(
           bootstrap.storageNamespace,
-          entries,
+          snapshot,
           recordPersistenceFailure,
-        );
-        setPersistedHandHistoryCount(mergedHistory.entries.length);
+        )
+          .then((history) => {
+            setPersistedHandHistoryCount(history.entries.length);
+          })
+          .catch((error: unknown) => {
+            recordPersistenceFailure(
+              error instanceof Error ? error.message : String(error),
+            );
+          });
       },
     }),
     [
