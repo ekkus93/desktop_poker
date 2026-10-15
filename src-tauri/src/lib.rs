@@ -2,6 +2,7 @@ pub mod app_state;
 pub mod commands;
 pub mod crypto;
 pub mod history_storage;
+mod history_storage_v2;
 pub mod interop;
 pub mod networking;
 pub mod npc;
@@ -25,6 +26,7 @@ use commands::{
     start_host_session, stop_host_session, submit_table_action, validate_join_payload_input,
 };
 use history_storage::{merge_persisted_hand_history, read_persisted_hand_history};
+use history_storage_v2::{merge_persisted_hand_history_v2, read_persisted_hand_history_v2};
 use runtime_commands::get_runtime_warnings;
 use tauri::Emitter;
 
@@ -73,7 +75,9 @@ pub fn run() {
             save_npc_profile,
             delete_npc_profile,
             read_persisted_hand_history,
-            merge_persisted_hand_history
+            merge_persisted_hand_history,
+            read_persisted_hand_history_v2,
+            merge_persisted_hand_history_v2
         ])
         .run(tauri::generate_context!())
         .expect("error while running desktop poker application");

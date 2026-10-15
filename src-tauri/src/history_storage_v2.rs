@@ -1,0 +1,383 @@
+//! Tournament-aware, crash-recoverable version 2 hand-history storage.
+//!
+//! The original hand-history.json is read-only legacy evidence. New hands use
+//! the stable (tableId, sessionEpoch, handNumber) identity and are written to
+//! hand-history.v2.json in the same per-profile directory.
+
+use std::{
+    collections::BTreeMap,
+    fs::{self, File, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use rand_core::{OsRng, RngCore};
+use serde::{Deserialize, Serialize};
+use tauri::State;
+
+use crate::{
+    app_state::DesktopAppState,
+    history_storage::{PersistedHandHistory, PersistedHistoryEntry},
+};
+
+const V2_FILE_NAME: &str = "hand-history.v2.json";
+const V1_FILE_NAME: &str = "hand-history.json";
+const V2_SCHEMA_VERSION: u8 = 2;
+const LEGACY_DURABLE_ORIGIN: &str = "durable-v1";
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum HistoryProvenance {
+    Live,
+    ImportedDurableV1,
+    ImportedCacheV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedHistoryEntryV2 {
+    #[serde(flatten)]
+    pub hand: PersistedHistoryEntry,
+    pub provenance: HistoryProvenance,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_epoch: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_origin_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tournament_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_started_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedHandHistoryV2 {
+    pub schema_version: u8,
+    pub updated_at_ms: u64,
+    pub entries: Vec<PersistedHistoryEntryV2>,
+}
+
+fn validate_entry(entry: &PersistedHistoryEntryV2) -> Result<String, String> {
+    if entry.hand.hand_number == 0 {
+        return Err("V2 hand history has a non-positive hand number".to_string());
+    }
+    if entry.hand.summary.len() > 16 * 1024 || entry.hand.board_cards.len() > 7 {
+        return Err("V2 hand history contains oversized fields".to_string());
+    }
+    match entry.provenance {
+        HistoryProvenance::Live => {
+            let table = entry
+                .table_id
+                .as_deref()
+                .filter(|value| !value.trim().is_empty() && value.len() <= 256)
+                .ok_or_else(|| "live V2 hand is missing a valid tableId".to_string())?;
+            let epoch = entry
+                .session_epoch
+                .filter(|value| *value > 0)
+                .ok_or_else(|| "live V2 hand is missing a valid sessionEpoch".to_string())?;
+            if entry.legacy_origin_id.is_some() {
+                return Err("live V2 hand must not carry a legacy origin".to_string());
+            }
+            Ok(format!("live:{table}:{epoch}:{}", entry.hand.hand_number))
+        }
+        HistoryProvenance::ImportedDurableV1 | HistoryProvenance::ImportedCacheV1 => {
+            if entry.table_id.is_some() || entry.session_epoch.is_some() {
+                return Err("legacy V2 hand must not invent table identity".to_string());
+            }
+            let origin = entry
+                .legacy_origin_id
+                .as_deref()
+                .filter(|value| !value.trim().is_empty() && value.len() <= 256)
+                .ok_or_else(|| "legacy V2 hand must have a stable origin".to_string())?;
+            let tag = match entry.provenance {
+                HistoryProvenance::ImportedDurableV1 => "durable",
+                HistoryProvenance::ImportedCacheV1 => "cache",
+                HistoryProvenance::Live => unreachable!(),
+            };
+            Ok(format!("{tag}:{origin}:{}", entry.hand.hand_number))
+        }
+    }
+}
+
+fn normalize_entries(
+    entries: Vec<PersistedHistoryEntryV2>,
+) -> Result<Vec<PersistedHistoryEntryV2>, String> {
+    let mut by_identity = BTreeMap::new();
+    for entry in entries {
+        let key = validate_entry(&entry)?;
+        by_identity.insert(key, entry);
+    }
+    let mut entries: Vec<_> = by_identity.into_values().collect();
+    entries.sort_by(|left, right| {
+        right
+            .session_epoch
+            .unwrap_or_default()
+            .cmp(&left.session_epoch.unwrap_or_default())
+            .then_with(|| right.hand.hand_number.cmp(&left.hand.hand_number))
+            .then_with(|| left.table_id.cmp(&right.table_id))
+            .then_with(|| left.legacy_origin_id.cmp(&right.legacy_origin_id))
+    });
+    Ok(entries)
+}
+
+fn read_v2(path: &Path) -> Result<Option<PersistedHandHistoryV2>, String> {
+    let contents = match fs::read_to_string(path) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("V2 hand history could not be read: {error}")),
+    };
+    let history: PersistedHandHistoryV2 = serde_json::from_str(&contents)
+        .map_err(|error| format!("V2 hand history is invalid: {error}"))?;
+    if history.schema_version != V2_SCHEMA_VERSION {
+        return Err("unsupported V2 hand history schemaVersion".to_string());
+    }
+    Ok(Some(PersistedHandHistoryV2 {
+        entries: normalize_entries(history.entries)?,
+        ..history
+    }))
+}
+
+fn import_legacy_v1(path: &Path) -> Result<Option<PersistedHandHistoryV2>, String> {
+    let contents = match fs::read_to_string(path) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(format!("legacy V1 hand history could not be read: {error}")),
+    };
+    let history: PersistedHandHistory = serde_json::from_str(&contents)
+        .map_err(|error| format!("legacy V1 history is invalid (original preserved): {error}"))?;
+    let entries = history
+        .entries
+        .into_iter()
+        .map(|hand| PersistedHistoryEntryV2 {
+            hand,
+            provenance: HistoryProvenance::ImportedDurableV1,
+            table_id: None,
+            session_epoch: None,
+            legacy_origin_id: Some(LEGACY_DURABLE_ORIGIN.to_string()),
+            tournament_name: None,
+            session_started_at_ms: None,
+        })
+        .collect();
+    Ok(Some(PersistedHandHistoryV2 {
+        schema_version: V2_SCHEMA_VERSION,
+        updated_at_ms: history.updated_at_ms,
+        entries: normalize_entries(entries)?,
+    }))
+}
+
+fn atomic_write_v2(path: &Path, history: &PersistedHandHistoryV2) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "V2 history path has no parent".to_string())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("failed to create V2 history directory: {error}"))?;
+    let mut bytes = serde_json::to_vec_pretty(history)
+        .map_err(|error| format!("failed to encode V2 history: {error}"))?;
+    bytes.push(b'\n');
+    let mut random = OsRng;
+    let temporary = parent.join(format!(".{V2_FILE_NAME}.{:016x}.tmp", random.next_u64()));
+    let write_result = (|| -> Result<(), String> {
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options
+            .open(&temporary)
+            .map_err(|error| format!("failed to create temporary V2 history: {error}"))?;
+        file.write_all(&bytes)
+            .map_err(|error| format!("failed to write V2 history: {error}"))?;
+        file.sync_all()
+            .map_err(|error| format!("failed to sync V2 history: {error}"))?;
+        drop(file);
+        fs::rename(&temporary, path)
+            .map_err(|error| format!("failed to replace V2 history: {error}"))?;
+        #[cfg(unix)]
+        File::open(parent)
+            .and_then(|directory| directory.sync_all())
+            .map_err(|error| format!("failed to sync V2 history directory: {error}"))?;
+        Ok(())
+    })();
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    write_result
+}
+
+fn with_profile_lock<T>(
+    profile_directory: &Path,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    fs::create_dir_all(profile_directory)
+        .map_err(|error| format!("failed to create history directory: {error}"))?;
+    let lock = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(profile_directory.join(".hand-history.lock"))
+        .map_err(|error| format!("failed to open history lock: {error}"))?;
+    lock.lock()
+        .map_err(|error| format!("failed to lock history profile: {error}"))?;
+    operation()
+}
+
+fn read_or_migrate(directory: &Path) -> Result<Option<PersistedHandHistoryV2>, String> {
+    let path = directory.join(V2_FILE_NAME);
+    if let Some(history) = read_v2(&path)? {
+        return Ok(Some(history));
+    }
+    if let Some(history) = import_legacy_v1(&directory.join(V1_FILE_NAME))? {
+        atomic_write_v2(&path, &history)?;
+        return Ok(Some(history));
+    }
+    Ok(None)
+}
+
+fn now_epoch_ms() -> Result<u64, String> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .map_err(|error| format!("system clock is before Unix epoch: {error}"))
+}
+
+fn merge_v2(
+    directory: &Path,
+    incoming: Vec<PersistedHistoryEntryV2>,
+) -> Result<PersistedHandHistoryV2, String> {
+    // Validate external data before acquiring any filesystem locks.
+    for entry in &incoming {
+        validate_entry(entry)?;
+    }
+    with_profile_lock(directory, || {
+        let existing = read_or_migrate(directory)?;
+        let mut entries = existing
+            .as_ref()
+            .map(|history| history.entries.clone())
+            .unwrap_or_default();
+        entries.extend(incoming);
+        let entries = normalize_entries(entries)?;
+        if let Some(ref previous) = existing {
+            if previous.entries == entries {
+                return Ok(previous.clone());
+            }
+        }
+        let history = PersistedHandHistoryV2 {
+            schema_version: V2_SCHEMA_VERSION,
+            updated_at_ms: now_epoch_ms()?,
+            entries,
+        };
+        atomic_write_v2(&directory.join(V2_FILE_NAME), &history)?;
+        Ok(history)
+    })
+}
+
+#[tauri::command]
+pub fn read_persisted_hand_history_v2(
+    state: State<'_, DesktopAppState>,
+) -> Result<Option<PersistedHandHistoryV2>, String> {
+    let directory = PathBuf::from(state.bootstrap().profile_directory);
+    with_profile_lock(&directory, || read_or_migrate(&directory))
+}
+
+#[tauri::command]
+pub fn merge_persisted_hand_history_v2(
+    state: State<'_, DesktopAppState>,
+    entries: Vec<PersistedHistoryEntryV2>,
+) -> Result<PersistedHandHistoryV2, String> {
+    merge_v2(&PathBuf::from(state.bootstrap().profile_directory), entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    fn sample_hand(number: u32, summary: &str) -> PersistedHistoryEntry {
+        PersistedHistoryEntry {
+            hand_number: number,
+            summary: summary.to_string(),
+            pot_total: 40,
+            winning_players: vec!["Alice".to_string()],
+            eliminated_players: vec![],
+            board_cards: vec![],
+        }
+    }
+
+    fn live(table: &str, epoch: u64, hand: u32) -> PersistedHistoryEntryV2 {
+        PersistedHistoryEntryV2 {
+            hand: sample_hand(hand, "Won"),
+            provenance: HistoryProvenance::Live,
+            table_id: Some(table.to_string()),
+            session_epoch: Some(epoch),
+            legacy_origin_id: None,
+            tournament_name: Some("Tournament".to_string()),
+            session_started_at_ms: None,
+        }
+    }
+
+    #[test]
+    fn two_tournaments_can_keep_the_same_hand_number() {
+        let directory = tempdir().unwrap();
+        merge_v2(directory.path(), vec![live("A", 1, 1)]).unwrap();
+        merge_v2(directory.path(), vec![live("B", 2, 1)]).unwrap();
+        let persisted = read_v2(&directory.path().join(V2_FILE_NAME))
+            .unwrap()
+            .unwrap();
+        assert_eq!(persisted.entries.len(), 2);
+        assert_eq!(persisted.entries[0].table_id.as_deref(), Some("B"));
+    }
+
+    #[test]
+    fn migrates_v1_without_modifying_original_and_is_idempotent() {
+        let directory = tempdir().unwrap();
+        let previous = PersistedHandHistory {
+            updated_at_ms: 100,
+            entries: vec![sample_hand(1, "Legacy")],
+        };
+        let bytes = serde_json::to_vec(&previous).unwrap();
+        fs::write(directory.path().join(V1_FILE_NAME), &bytes).unwrap();
+        let first = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
+            .unwrap()
+            .unwrap();
+        let again = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(first, again);
+        assert_eq!(fs::read(directory.path().join(V1_FILE_NAME)).unwrap(), bytes);
+        assert_eq!(again.entries[0].provenance, HistoryProvenance::ImportedDurableV1);
+        assert_eq!(again.entries[0].table_id, None);
+    }
+
+    #[test]
+    fn rejects_ambiguous_or_incomplete_tournament_identity() {
+        let directory = tempdir().unwrap();
+        let invalid = live("A", 0, 1);
+        assert!(merge_v2(directory.path(), vec![invalid]).is_err());
+        assert!(!directory.path().join(V2_FILE_NAME).exists());
+    }
+
+    #[test]
+    fn concurrent_merges_retain_disjoint_sessions() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().to_path_buf();
+        let handles: Vec<_> = (1..=8)
+            .map(|epoch| {
+                let directory = path.clone();
+                std::thread::spawn(move || {
+                    merge_v2(&directory, vec![live("A", epoch, 1)]).unwrap();
+                })
+            })
+            .collect();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        let final_store = read_v2(&path.join(V2_FILE_NAME)).unwrap().unwrap();
+        assert_eq!(final_store.entries.len(), 8);
+    }
+}
