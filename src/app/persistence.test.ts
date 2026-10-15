@@ -5,9 +5,17 @@ import {
 } from "../test/persistenceFixtures";
 import {
   initializeWindowStatePersistence,
+  mergeDurableHandHistory,
   persistHandHistory,
+  readDurableHandHistory,
   readPersistedHandHistory,
 } from "./persistence";
+
+const tauriInvokeMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: tauriInvokeMock,
+}));
 
 const tauriWindowMock = vi.hoisted(() => {
   const state = {
@@ -109,6 +117,7 @@ function enableTauriWindowRuntime() {
 describe("persistence", () => {
   beforeEach(() => {
     localStorage.clear();
+    tauriInvokeMock.mockReset();
     tauriWindowMock.reset();
     delete (window as typeof window & { __TAURI_INTERNALS__?: unknown })
       .__TAURI_INTERNALS__;
@@ -180,6 +189,100 @@ describe("persistence", () => {
       updatedAtMs: 1234,
       entries: [createHistoryEntry({ handNumber: 3, summary: "Valid entry" })],
     });
+  });
+
+  it("never overwrites newer durable records with stale cached versions on read", async () => {
+    enableTauriWindowRuntime();
+    const namespace = "desktop-poker:durable-source";
+    const authoritative = createHistoryEntry({
+      handNumber: 3,
+      summary: "Newer durable summary",
+    });
+    persistHandHistory(namespace, [
+      createHistoryEntry({ handNumber: 3, summary: "Stale cached summary" }),
+    ]);
+    tauriInvokeMock.mockResolvedValueOnce({
+      updatedAtMs: 9999,
+      entries: [authoritative],
+    });
+
+    const loaded = await readDurableHandHistory(namespace);
+    expect(loaded?.entries).toEqual([authoritative]);
+    expect(loaded?.updatedAtMs).toBe(9999);
+    expect(readPersistedHandHistory(namespace)?.entries).toEqual([
+      authoritative,
+    ]);
+    expect(tauriInvokeMock).toHaveBeenCalledTimes(1);
+    expect(tauriInvokeMock).toHaveBeenCalledWith(
+      "read_persisted_hand_history",
+    );
+  });
+
+  it("imports only missing cache hands without replacing durable hands", async () => {
+    enableTauriWindowRuntime();
+    const namespace = "desktop-poker:missing-cache";
+    const authoritative = createHistoryEntry({
+      handNumber: 3,
+      summary: "Authoritative hand three",
+    });
+    const missing = createHistoryEntry({
+      handNumber: 2,
+      summary: "Cached hand two",
+    });
+    persistHandHistory(namespace, [
+      createHistoryEntry({ handNumber: 3, summary: "Stale hand three" }),
+      missing,
+    ]);
+    tauriInvokeMock
+      .mockResolvedValueOnce({
+        updatedAtMs: 12345,
+        entries: [authoritative],
+      })
+      .mockResolvedValueOnce({
+        updatedAtMs: 12346,
+        entries: [authoritative, missing],
+      });
+
+    const loaded = await readDurableHandHistory(namespace);
+    expect(loaded?.entries).toEqual([authoritative, missing]);
+    expect(tauriInvokeMock).toHaveBeenNthCalledWith(
+      2,
+      "merge_persisted_hand_history",
+      { entries: [missing] },
+    );
+  });
+
+  it("submits explicitly updated hands but excludes stale cache conflicts from durable merge", async () => {
+    enableTauriWindowRuntime();
+    const namespace = "desktop-poker:explicit-update";
+    const authoritative = createHistoryEntry({
+      handNumber: 3,
+      summary: "Authoritative hand three",
+    });
+    const updated = createHistoryEntry({
+      handNumber: 4,
+      summary: "New live hand four",
+    });
+    persistHandHistory(namespace, [
+      createHistoryEntry({ handNumber: 3, summary: "Stale hand three" }),
+    ]);
+    tauriInvokeMock
+      .mockResolvedValueOnce({
+        updatedAtMs: 8888,
+        entries: [authoritative],
+      })
+      .mockResolvedValueOnce({
+        updatedAtMs: 8889,
+        entries: [updated, authoritative],
+      });
+
+    const loaded = await mergeDurableHandHistory(namespace, [updated]);
+    expect(loaded.entries).toEqual([updated, authoritative]);
+    expect(tauriInvokeMock).toHaveBeenNthCalledWith(
+      2,
+      "merge_persisted_hand_history",
+      { entries: [updated] },
+    );
   });
 
   it("does nothing when the Tauri window runtime is unavailable", async () => {
