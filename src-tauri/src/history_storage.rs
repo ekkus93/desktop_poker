@@ -93,7 +93,10 @@ fn merge_history_file(
         .parent()
         .ok_or_else(|| format!("hand history path has no parent: {}", path.display()))?;
     fs::create_dir_all(parent).map_err(|error| {
-        format!("failed to create hand history directory ({}): {error}", parent.display())
+        format!(
+            "failed to create hand history directory ({}): {error}",
+            parent.display()
+        )
     })?;
 
     // An OS-owned advisory lock is automatically released if this process
@@ -332,11 +335,9 @@ mod tests {
     fn identical_merge_does_not_rewrite_or_change_timestamp() {
         let directory = tempdir().expect("temporary directory");
         let path = directory.path().join(HISTORY_FILE_NAME);
-        let first = merge_history_file(&path, vec![entry(1, "same")])
-            .expect("first merge");
+        let first = merge_history_file(&path, vec![entry(1, "same")]).expect("first merge");
         let raw_before = fs::read(&path).expect("persisted bytes");
-        let second = merge_history_file(&path, vec![entry(1, "same")])
-            .expect("idempotent merge");
+        let second = merge_history_file(&path, vec![entry(1, "same")]).expect("idempotent merge");
 
         assert_eq!(first, second);
         assert_eq!(fs::read(&path).expect("unchanged bytes"), raw_before);
@@ -361,13 +362,19 @@ mod tests {
             })
             .collect();
         for writer in threads {
-            writer.join().expect("worker did not panic").expect("merge failed");
+            writer
+                .join()
+                .expect("worker did not panic")
+                .expect("merge failed");
         }
         let retained = read_history_file(&path)
             .expect("read")
             .expect("retained history");
         assert_eq!(retained.entries.len(), writers);
-        assert_eq!(retained.entries.first().unwrap().hand_number, writers as u32);
+        assert_eq!(
+            retained.entries.first().unwrap().hand_number,
+            writers as u32
+        );
         assert_eq!(retained.entries.last().unwrap().hand_number, 1);
     }
 
