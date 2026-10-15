@@ -38,6 +38,7 @@ pub(crate) fn build_table_view_snapshot(
             .table_name
             .unwrap_or_else(|| "Main Table".to_string()),
         table_id: public_state.table_id,
+        session_epoch: state.session_epoch,
         tournament_phase: format_phase_value(public_state.phase),
         phase_label: format_phase(public_state.phase),
         street_label: current_hand

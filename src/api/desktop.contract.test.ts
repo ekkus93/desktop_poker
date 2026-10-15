@@ -69,6 +69,7 @@ describe("desktop DTO contract", () => {
       tournamentName: "Friday Night",
       tableName: "Main Table",
       tableId: "table-1",
+      sessionEpoch: 1,
       tournamentPhase: "running",
       phaseLabel: "Running",
       streetLabel: "Flop",

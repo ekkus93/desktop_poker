@@ -60,6 +60,7 @@
     "tournamentName",
     "tableName",
     "tableId",
+    "sessionEpoch",
     "tournamentPhase",
     "phaseLabel",
     "streetLabel",

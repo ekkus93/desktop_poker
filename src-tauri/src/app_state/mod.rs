@@ -295,6 +295,7 @@ pub struct TableViewSnapshot {
     pub tournament_name: String,
     pub table_name: String,
     pub table_id: String,
+    pub session_epoch: u64,
     /// Raw phase token: `"waitingForPlayers"`, `"readyCheck"`, `"running"`,
     /// `"complete"`, or `"cancelled"`. Use this for branching; `phase_label`
     /// is the human-readable equivalent.

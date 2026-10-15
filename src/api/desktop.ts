@@ -323,6 +323,7 @@ export type TableViewSnapshot = {
   tournamentName: string;
   tableName: string;
   tableId: string;
+  sessionEpoch: number;
   /** Raw phase token: "waitingForPlayers" | "readyCheck" | "running" | "complete" | "cancelled" */
   tournamentPhase: string;
   phaseLabel: string;

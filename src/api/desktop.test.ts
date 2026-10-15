@@ -65,6 +65,7 @@ function sampleTableView(): TableViewSnapshot {
     tournamentName: "Friday Night",
     tableName: "Table 1",
     tableId: "table-1",
+    sessionEpoch: 42,
     phaseLabel: "Running",
     streetLabel: "Flop",
     blindLevelLabel: "10 / 20",

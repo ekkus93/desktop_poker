@@ -56,6 +56,7 @@ export function createTableViewSnapshot(
     tournamentName: "Desktop Sit 'n Go",
     tableName: "Main Table",
     tableId: "desktop-shell-table",
+    sessionEpoch: 42,
     phaseLabel: "Running",
     streetLabel: "Flop",
     blindLevelLabel: "Level 1 · 10 / 20",
