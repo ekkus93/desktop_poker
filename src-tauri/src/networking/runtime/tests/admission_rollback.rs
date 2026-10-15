@@ -16,11 +16,8 @@ fn snapshot_construction_failure_rolls_back_new_join() {
     let provider = DefaultCryptoProvider;
     let host_signing = provider.generate_signing_keypair();
     let encryption = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
-    let payload = sample_join_payload_for_tests(
-        "table-failed-join",
-        46,
-        host_signing.public_key_base64(),
-    );
+    let payload =
+        sample_join_payload_for_tests("table-failed-join", 46, host_signing.public_key_base64());
     let state = Arc::new(Mutex::new(sample_tournament_state("table-failed-join", 46)));
     let sequence = Arc::new(AtomicU64::new(0));
     let signing = provider.generate_signing_keypair();
@@ -50,7 +47,11 @@ fn snapshot_construction_failure_rolls_back_new_join() {
         &encryption,
     );
     assert!(result.is_err());
-    assert!(!state.lock().unwrap().participants.contains_key("failed-join"));
+    assert!(!state
+        .lock()
+        .unwrap()
+        .participants
+        .contains_key("failed-join"));
 }
 
 #[test]
@@ -110,7 +111,10 @@ fn failed_reconnect_snapshot_restores_prior_state() {
         &encryption,
     );
     assert!(result.is_err());
-    assert_eq!(state.lock().unwrap().participants["reconnecting-player"], original);
+    assert_eq!(
+        state.lock().unwrap().participants["reconnecting-player"],
+        original
+    );
 }
 
 #[test]
@@ -118,12 +122,12 @@ fn dropping_unregistered_session_reclaims_join_capacity() {
     let provider = DefaultCryptoProvider;
     let host_signing = provider.generate_signing_keypair();
     let encryption = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
-    let payload = sample_join_payload_for_tests(
+    let payload =
+        sample_join_payload_for_tests("table-unregistered", 48, host_signing.public_key_base64());
+    let state = Arc::new(Mutex::new(sample_tournament_state(
         "table-unregistered",
         48,
-        host_signing.public_key_base64(),
-    );
-    let state = Arc::new(Mutex::new(sample_tournament_state("table-unregistered", 48)));
+    )));
     let sequence = Arc::new(AtomicU64::new(0));
     let signing = provider.generate_signing_keypair();
     let keys = provider.generate_encryption_keypair();
@@ -143,9 +147,18 @@ fn dropping_unregistered_session_reclaims_join_capacity() {
         &sequence,
         &host_signing,
         &encryption,
-    ).expect("join admission");
-    assert!(state.lock().unwrap().participants.contains_key("unregistered-player"));
+    )
+    .expect("join admission");
+    assert!(state
+        .lock()
+        .unwrap()
+        .participants
+        .contains_key("unregistered-player"));
     let health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
     drop(PendingAdmissionRollback::new(&state, &accepted, &health));
-    assert!(!state.lock().unwrap().participants.contains_key("unregistered-player"));
+    assert!(!state
+        .lock()
+        .unwrap()
+        .participants
+        .contains_key("unregistered-player"));
 }

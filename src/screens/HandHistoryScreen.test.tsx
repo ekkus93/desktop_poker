@@ -166,6 +166,9 @@ describe("HandHistoryScreen", () => {
     expect(screen.queryByText("Player won hand 105")).toBeNull();
     expect(screen.getByText("Player won hand 106")).toBeTruthy();
     expect(screen.getByText("Player won hand 205")).toBeTruthy();
+    expect(
+      screen.getAllByText(/^Player won hand \d+$/)[0].textContent,
+    ).toBe("Player won hand 205");
 
     fireEvent.click(
       screen.getByRole("button", { name: "Show 100 older hands" }),
@@ -174,6 +177,9 @@ describe("HandHistoryScreen", () => {
     expect(screen.getByText(/showing 200 of 205 settled hands/i)).toBeTruthy();
     expect(screen.queryByText("Player won hand 5")).toBeNull();
     expect(screen.getByText("Player won hand 6")).toBeTruthy();
+    expect(
+      screen.getAllByText(/^Player won hand \d+$/).at(-1)?.textContent,
+    ).toBe("Player won hand 6");
 
     fireEvent.click(screen.getByRole("button", { name: "Show 5 older hands" }));
 

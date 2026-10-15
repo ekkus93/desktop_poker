@@ -22,15 +22,16 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [visibleHistoryCount, setVisibleHistoryCount] =
     useState(HISTORY_PAGE_SIZE);
-  const historyEntries = tableView?.handHistory.length
-    ? tableView.handHistory
-    : (persistedHistory?.entries ?? []);
-  const firstVisibleHistoryIndex = Math.max(
+  const historyEntries = [
+    ...(tableView?.handHistory.length
+      ? tableView.handHistory
+      : (persistedHistory?.entries ?? [])),
+  ].sort((left, right) => right.handNumber - left.handNumber);
+  const visibleHistoryEntries = historyEntries.slice(0, visibleHistoryCount);
+  const hiddenHistoryCount = Math.max(
     0,
     historyEntries.length - visibleHistoryCount,
   );
-  const visibleHistoryEntries = historyEntries.slice(firstVisibleHistoryIndex);
-  const hiddenHistoryCount = firstVisibleHistoryIndex;
   const nextHistoryBatchSize = Math.min(HISTORY_PAGE_SIZE, hiddenHistoryCount);
 
   useEffect(() => {
