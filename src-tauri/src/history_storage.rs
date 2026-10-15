@@ -6,6 +6,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -88,14 +89,43 @@ fn merge_history_file(
     path: &Path,
     incoming_entries: Vec<PersistedHistoryEntry>,
 ) -> Result<PersistedHandHistory, String> {
-    let mut all_entries = read_history_file(path)?
-        .map(|history| history.entries)
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("hand history path has no parent: {}", path.display()))?;
+    fs::create_dir_all(parent).map_err(|error| {
+        format!("failed to create hand history directory ({}): {error}", parent.display())
+    })?;
+
+    // An OS-owned advisory lock is automatically released if this process
+    // crashes. The lock file itself is stable and must not be unlinked between
+    // transactions, otherwise two processes could acquire different inodes.
+    let lock_path = parent.join(".hand-history.lock");
+    let lock_file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|error| format!("failed to open hand history lock: {error}"))?;
+    lock_file
+        .lock()
+        .map_err(|error| format!("failed to acquire hand history lock: {error}"))?;
+
+    let existing = read_history_file(path)?;
+    let mut all_entries = existing
+        .as_ref()
+        .map(|history| history.entries.clone())
         .unwrap_or_default();
     all_entries.extend(incoming_entries);
+    let normalized = normalize_entries(all_entries);
+    if let Some(history) = existing {
+        if history.entries == normalized {
+            return Ok(history);
+        }
+    }
 
     let history = PersistedHandHistory {
         updated_at_ms: now_epoch_ms()?,
-        entries: normalize_entries(all_entries),
+        entries: normalized,
     };
     write_history_file(path, &history)?;
     Ok(history)
@@ -128,10 +158,10 @@ fn write_history_file(path: &Path, history: &PersistedHandHistory) -> Result<(),
         .map_err(|error| format!("failed to serialize hand history: {error}"))?;
     payload.push(b'\n');
 
+    let mut random = OsRng;
     let temporary_path = parent.join(format!(
-        ".{HISTORY_FILE_NAME}.{}.{}.tmp",
-        std::process::id(),
-        history.updated_at_ms
+        ".{HISTORY_FILE_NAME}.{:016x}.tmp",
+        random.next_u64()
     ));
 
     let write_result = (|| -> Result<(), String> {
@@ -296,6 +326,49 @@ mod tests {
                 .entries,
             merged.entries
         );
+    }
+
+    #[test]
+    fn identical_merge_does_not_rewrite_or_change_timestamp() {
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join(HISTORY_FILE_NAME);
+        let first = merge_history_file(&path, vec![entry(1, "same")])
+            .expect("first merge");
+        let raw_before = fs::read(&path).expect("persisted bytes");
+        let second = merge_history_file(&path, vec![entry(1, "same")])
+            .expect("idempotent merge");
+
+        assert_eq!(first, second);
+        assert_eq!(fs::read(&path).expect("unchanged bytes"), raw_before);
+    }
+
+    #[test]
+    fn concurrent_merges_preserve_every_distinct_hand() {
+        use std::sync::{Arc, Barrier};
+
+        let directory = tempdir().expect("temporary directory");
+        let path = directory.path().join(HISTORY_FILE_NAME);
+        let writers = 12;
+        let gate = Arc::new(Barrier::new(writers));
+        let threads: Vec<_> = (1..=writers)
+            .map(|hand| {
+                let path = path.clone();
+                let gate = Arc::clone(&gate);
+                std::thread::spawn(move || {
+                    gate.wait();
+                    merge_history_file(&path, vec![entry(hand as u32, "concurrent")])
+                })
+            })
+            .collect();
+        for writer in threads {
+            writer.join().expect("worker did not panic").expect("merge failed");
+        }
+        let retained = read_history_file(&path)
+            .expect("read")
+            .expect("retained history");
+        assert_eq!(retained.entries.len(), writers);
+        assert_eq!(retained.entries.first().unwrap().hand_number, writers as u32);
+        assert_eq!(retained.entries.last().unwrap().hand_number, 1);
     }
 
     #[test]
