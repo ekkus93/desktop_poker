@@ -1,10 +1,10 @@
 # Latest AppImage Validation
 
 - Overall result: **FAIL**
-- Validated commit: `53ae1c8a8d4f5dd55a03bd4c728056b1301b667c`
-- GitHub Actions run: `38823441339`
+- Validated commit: `b57c9e79f88392cd3bb82c2d75999292249ef28e`
+- GitHub Actions run: `38824573966`
 - Build outcome: `failure`
 - Validation outcome: `skipped`
-- Recorded at: `2026-10-15T23:27:14.526399+00:00`
+- Recorded at: `2026-10-15T23:38:42.585280+00:00`
 - Evidence artifact: `linux-appimage-evidence`
 
