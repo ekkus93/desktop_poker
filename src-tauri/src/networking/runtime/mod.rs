@@ -235,7 +235,7 @@ impl PendingInitialJoinTracker {
     pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<PendingInitialJoinGuard> {
         let acquired = self
             .in_flight
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                 (current < self.maximum).then_some(current + 1)
             })
             .is_ok();
@@ -280,7 +280,7 @@ impl ActiveClientSlotTracker {
     pub(crate) fn try_acquire(self: &Arc<Self>) -> Option<ActiveClientSlotGuard> {
         let acquired = self
             .in_use
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                 (current < self.maximum).then_some(current + 1)
             })
             .is_ok();
