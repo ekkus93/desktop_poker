@@ -222,19 +222,70 @@ fn rewrite_sanitized_provider_settings(
         random.next_u64()
     ));
     let result = (|| -> std::io::Result<()> {
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temporary)?;
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary)?;
         file.write_all(&payload)?;
         file.sync_all()?;
         drop(file);
-        fs::rename(&temporary, path)
+        fs::rename(&temporary, path)?;
+        #[cfg(unix)]
+        if let Some(parent) = path.parent() {
+            fs::File::open(parent)?.sync_all()?;
+        }
+        Ok(())
     })();
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
     result.map_err(|error| format!("atomic settings replacement failed: {error}"))
+}
+
+/// Retire a Phase 2 plaintext Anthropic key only after it is verifiably
+/// recoverable from secure storage and, on first installation, non-secret
+/// provider settings are durably written. Never destroy the only key copy.
+fn retire_legacy_anthropic_key(
+    app_data_dir: &Path,
+    store: &dyn ProviderSecretStore,
+    new_settings: Option<&LlmProviderSettings>,
+) -> Result<Option<String>, String> {
+    let legacy = legacy_key_path(app_data_dir);
+    let raw = match fs::read_to_string(&legacy) {
+        Ok(contents) => contents,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(None);
+        }
+        Err(error) => {
+            return Err(format!("cannot read legacy Anthropic key file: {error}"));
+        }
+    };
+    let original_key = raw.trim();
+    if original_key.is_empty() {
+        return Ok(None);
+    }
+    let retained = match store.read_key("anthropic")? {
+        Some(verified) if !verified.is_empty() => verified,
+        _ => {
+            store
+                .write_key("anthropic", original_key)
+                .map_err(|error| format!("cannot migrate legacy key: {error}"))?;
+            match store.read_key("anthropic")? {
+                Some(verified) if verified == original_key => verified,
+                _ => return Err("legacy key could not be verified after migration".to_string()),
+            }
+        }
+    };
+    if let Some(settings) = new_settings {
+        rewrite_sanitized_provider_settings(&settings_path(app_data_dir), settings)?;
+    }
+    fs::remove_file(&legacy)
+        .map_err(|error| format!("cannot retire legacy key file: {error}"))?;
+    Ok(Some(retained))
 }
 
 /// Load the provider config from disk, returning a rich load state.
@@ -336,29 +387,28 @@ pub fn load_provider_config(
             None
         };
 
+        let api_key = if settings.provider == LlmProviderType::Anthropic {
+            match retire_legacy_anthropic_key(app_data_dir, store, None) {
+                Ok(legacy_key) => api_key.or(legacy_key),
+                Err(error) => {
+                    return ProviderConfigLoadState::LegacyKeyUnreadable { error };
+                }
+            }
+        } else {
+            api_key
+        };
         return ProviderConfigLoadState::Loaded(LlmProviderConfig { settings, api_key });
     }
 
-    // Fall back to the legacy plain-text API key.
-    let legacy = legacy_key_path(app_data_dir);
-    if legacy.exists() {
-        let raw = match fs::read_to_string(&legacy) {
-            Ok(raw) => raw,
-            Err(e) => {
-                // The file exists but cannot be read — this is distinct from
-                // "not configured" and must not silently become Missing.
-                return ProviderConfigLoadState::LegacyKeyUnreadable {
-                    error: format!(
-                        "legacy provider key exists but cannot be read ({}): {e}",
-                        legacy.display()
-                    ),
-                };
-            }
-        };
-        let key = raw.trim().to_string();
-        if !key.is_empty() {
+    // The old plaintext file is a one-time migration source, not a permanent
+    // credential store. Preserve it if keychain or settings persistence fails.
+    let legacy_settings = LlmProviderConfig::from_anthropic_key(String::new()).settings;
+    match retire_legacy_anthropic_key(app_data_dir, store, Some(&legacy_settings)) {
+        Ok(Some(key)) => {
             return ProviderConfigLoadState::Loaded(LlmProviderConfig::from_anthropic_key(key));
         }
+        Ok(None) => {}
+        Err(error) => return ProviderConfigLoadState::LegacyKeyUnreadable { error },
     }
 
     ProviderConfigLoadState::Missing
@@ -845,6 +895,58 @@ mod tests {
         let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
+    }
+
+    #[test]
+    fn legacy_plaintext_is_removed_only_after_secure_write_and_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let tracking = TrackingSecretStore::new();
+        fs::write(legacy_key_path(dir.path()), "sk-ant-legacy").unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &tracking));
+        assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
+        assert!(!legacy_key_path(dir.path()).exists());
+        assert!(settings_path(dir.path()).exists());
+        assert_eq!(
+            tracking.read_key("anthropic").unwrap().as_deref(),
+            Some("sk-ant-legacy")
+        );
+        assert_eq!(
+            unwrap_loaded(load_provider_config(dir.path(), &tracking))
+                .api_key.as_deref(),
+            Some("sk-ant-legacy")
+        );
+    }
+
+    #[test]
+    fn legacy_plaintext_survives_secure_write_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(legacy_key_path(dir.path()), "sk-ant-valuable").unwrap();
+        let result = load_provider_config(dir.path(), &FailingWriteSecretStore);
+        assert!(matches!(
+            result,
+            ProviderConfigLoadState::LegacyKeyUnreadable { .. }
+        ));
+        assert_eq!(
+            fs::read_to_string(legacy_key_path(dir.path())).unwrap(),
+            "sk-ant-valuable"
+        );
+        assert!(!settings_path(dir.path()).exists());
+    }
+
+    #[test]
+    fn existing_secure_key_wins_over_stale_legacy_plaintext() {
+        let dir = tempfile::tempdir().unwrap();
+        let tracking = TrackingSecretStore::new().with_key("anthropic", "sk-ant-newer");
+        fs::write(legacy_key_path(dir.path()), "sk-ant-old").unwrap();
+        let settings = anthropic_config("irrelevant").settings;
+        fs::write(
+            settings_path(dir.path()),
+            serde_json::to_string(&settings).unwrap(),
+        )
+        .unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &tracking));
+        assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-newer"));
+        assert!(!legacy_key_path(dir.path()).exists());
     }
 
     #[test]
