@@ -6,7 +6,7 @@ use std::{
 
 use rand_core::{OsRng, RngCore};
 
-use super::provider::{LlmProviderConfig, LlmProviderSettings};
+use super::provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
 
 /// Non-secret provider settings (provider type, endpoint, model).
 const SETTINGS_FILE_NAME: &str = "llm-provider.json";
