@@ -1,8 +1,8 @@
 # Latest Installed Debian Package Validation
 
 - Overall result: **FAIL**
-- Validated commit: `a5528200e111f653dd45bd29bf177e2e67743a85`
-- GitHub Actions run: `38824286757`
+- Validated commit: `b57c9e79f88392cd3bb82c2d75999292249ef28e`
+- GitHub Actions run: `38824573944`
 - Build outcome: `failure`
 - Validation outcome: `skipped`
 - Evidence artifact: `linux-debian-package-v3-evidence`
