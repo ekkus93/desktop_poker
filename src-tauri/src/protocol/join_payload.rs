@@ -7,6 +7,10 @@ use crate::domain::JoinPayload;
 
 use super::{canonical_json_bytes, ProtocolError, JOIN_PAYLOAD_PREFIX, PROTOCOL_VERSION};
 
+const MAX_COMPACT_ENCODED_BYTES: usize = 16 * 1024;
+const MAX_COMPACT_COMPRESSED_BYTES: usize = 12 * 1024;
+const MAX_JOIN_JSON_BYTES: usize = 64 * 1024;
+
 pub fn validate_join_payload(payload: &JoinPayload) -> Result<(), ProtocolError> {
     if payload.payload_version != PROTOCOL_VERSION {
         return Err(ProtocolError::new("unsupported payloadVersion"));
@@ -66,20 +70,38 @@ pub fn encode_join_payload(payload: &JoinPayload) -> Result<String, ProtocolErro
 
 pub fn decode_join_payload(encoded: &str) -> Result<JoinPayload, ProtocolError> {
     let payload = if let Some(compact_payload) = encoded.strip_prefix(JOIN_PAYLOAD_PREFIX) {
+        if compact_payload.len() > MAX_COMPACT_ENCODED_BYTES {
+            return Err(ProtocolError::new("compact join payload exceeds size limit"));
+        }
         let compressed = URL_SAFE_NO_PAD
             .decode(compact_payload.as_bytes())
             .map_err(|error| {
                 ProtocolError::new(format!("invalid compact join payload: {error}"))
             })?;
-        let mut decoder = GzDecoder::new(compressed.as_slice());
-        let mut json = String::new();
+        if compressed.len() > MAX_COMPACT_COMPRESSED_BYTES {
+            return Err(ProtocolError::new("compressed join payload exceeds size limit"));
+        }
+
+        // Apply the bound *while* decompressing. A length check after
+        // read_to_string would already have allocated the expanded input.
+        let decoder = GzDecoder::new(compressed.as_slice());
+        let mut json_bytes = Vec::new();
         decoder
-            .read_to_string(&mut json)
+            .take((MAX_JOIN_JSON_BYTES + 1) as u64)
+            .read_to_end(&mut json_bytes)
+            .map_err(|error| ProtocolError::new(format!("gzip decode failed: {error}")))?;
+        if json_bytes.len() > MAX_JOIN_JSON_BYTES {
+            return Err(ProtocolError::new("decompressed join payload exceeds size limit"));
+        }
+        let json = String::from_utf8(json_bytes)
             .map_err(|error| ProtocolError::new(format!("gzip decode failed: {error}")))?;
 
         serde_json::from_str::<JoinPayload>(&json)
             .map_err(|error| ProtocolError::new(format!("invalid join payload JSON: {error}")))?
     } else {
+        if encoded.len() > MAX_JOIN_JSON_BYTES {
+            return Err(ProtocolError::new("legacy join payload exceeds size limit"));
+        }
         serde_json::from_str::<JoinPayload>(encoded).map_err(|error| {
             ProtocolError::new(format!("invalid legacy join payload JSON: {error}"))
         })?
@@ -237,6 +259,45 @@ mod tests {
         let error = decode_join_payload(&encoded).expect_err("JSON payload should fail");
 
         assert!(error.to_string().contains("invalid join payload JSON"));
+    }
+
+    #[test]
+    fn oversized_compact_input_is_rejected_before_base64_decode() {
+        let oversized = format!("pkr1_{}", "A".repeat(super::MAX_COMPACT_ENCODED_BYTES + 1));
+        let error = decode_join_payload(&oversized).expect_err("oversized compact input");
+        assert!(error.to_string().contains("size limit"));
+    }
+
+    #[test]
+    fn oversized_compressed_payload_is_rejected_before_decompression() {
+        let compressed = vec![0u8; super::MAX_COMPACT_COMPRESSED_BYTES + 1];
+        let encoded = format!("pkr1_{}", URL_SAFE_NO_PAD.encode(compressed));
+        let error = decode_join_payload(&encoded).expect_err("oversized compressed input");
+        assert!(error.to_string().contains("size limit"));
+    }
+
+    #[test]
+    fn gzip_expansion_bomb_is_bounded_during_decompression() {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder
+            .write_all("x".repeat(super::MAX_JOIN_JSON_BYTES + 1).as_bytes())
+            .expect("write expansion fixture");
+        let encoded = format!(
+            "pkr1_{}",
+            URL_SAFE_NO_PAD.encode(encoder.finish().expect("gzip fixture"))
+        );
+        let error = decode_join_payload(&encoded).expect_err("expanded payload too large");
+        assert!(error.to_string().contains("decompressed join payload exceeds size limit"));
+    }
+
+    #[test]
+    fn oversized_legacy_json_is_rejected_before_parsing() {
+        let oversized = format!(
+            "{{\"untrusted\":\"{}\"}}",
+            "x".repeat(super::MAX_JOIN_JSON_BYTES)
+        );
+        let error = decode_join_payload(&oversized).expect_err("oversized legacy JSON");
+        assert!(error.to_string().contains("legacy join payload exceeds size limit"));
     }
 
     #[test]
