@@ -1,10 +1,37 @@
-import { describe, expect, it } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import type { NavigateFunction } from "react-router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ClientSessionStatus,
   HostSessionParticipantView,
   HostSessionStatus,
 } from "../api/desktop";
-import { buildLiveSeats } from "./useLobbySession";
+import {
+  getClientSessionStatus,
+  getHostSessionStatus,
+  onSessionUpdate,
+} from "../api/desktop";
+import { buildLiveSeats, useLobbySession } from "./useLobbySession";
+
+vi.mock("../api/desktop", async () => {
+  const actual =
+    await vi.importActual<typeof import("../api/desktop")>("../api/desktop");
+  return {
+    ...actual,
+    getClientSessionStatus: vi.fn(),
+    getHostSessionStatus: vi.fn(),
+    onSessionUpdate: vi.fn(),
+  };
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((callback) => {
+    resolve = callback;
+  });
+  return { promise, resolve };
+}
+
 
 const hostParticipant: HostSessionParticipantView = {
   playerId: "local-player",
@@ -134,5 +161,83 @@ describe("buildLiveSeats", () => {
         isLocal: true,
       }),
     );
+  });
+});
+
+describe("useLobbySession refresh ordering", () => {
+  let emitSessionUpdate: () => void;
+
+  beforeEach(() => {
+    vi.mocked(getHostSessionStatus).mockReset();
+    vi.mocked(getHostSessionStatus).mockResolvedValue(null);
+    vi.mocked(getClientSessionStatus).mockReset();
+    vi.mocked(onSessionUpdate).mockReset();
+    vi.mocked(onSessionUpdate).mockImplementation((callback) => {
+      emitSessionUpdate = callback;
+      return Promise.resolve(() => {});
+    });
+  });
+
+  it("discards a slow initial refresh after a later event refresh succeeds", async () => {
+    const old = deferred<ClientSessionStatus | null>();
+    const newer = deferred<ClientSessionStatus | null>();
+    vi.mocked(getClientSessionStatus)
+      .mockImplementationOnce(() => old.promise)
+      .mockImplementationOnce(() => newer.promise);
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    const { result, unmount } = renderHook(() => useLobbySession(navigate));
+
+    act(() => {
+      emitSessionUpdate();
+      newer.resolve({
+        ...clientStatus([hostParticipant, pendingClient], 1, 1),
+        phase: "running",
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.clientSession?.phase).toBe("running");
+    });
+    await act(async () => {
+      old.resolve(clientStatus([hostParticipant, pendingClient], 1, 1));
+      await old.promise;
+    });
+    expect(result.current.clientSession?.phase).toBe("running");
+    unmount();
+  });
+
+  it("preserves terminal status against later nonterminal refresh for the same session", async () => {
+    const terminal = {
+      ...clientStatus([hostParticipant, pendingClient], 1, 1),
+      terminated: true,
+      lastError: "host disconnected",
+    };
+    vi.mocked(getClientSessionStatus)
+      .mockResolvedValueOnce(terminal)
+      .mockResolvedValueOnce({
+        ...terminal,
+        terminated: false,
+        reconnecting: false,
+      })
+      .mockResolvedValueOnce({
+        ...terminal,
+        tableId: "new-tournament",
+        sessionEpoch: 2,
+        terminated: false,
+        lastError: null,
+      });
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    const { result, unmount } = renderHook(() => useLobbySession(navigate));
+    await waitFor(() => expect(result.current.clientTerminated).toBe(true));
+    act(() => emitSessionUpdate());
+    await waitFor(() =>
+      expect(getClientSessionStatus).toHaveBeenCalledTimes(2),
+    );
+    expect(result.current.clientTerminated).toBe(true);
+    act(() => emitSessionUpdate());
+    await waitFor(() =>
+      expect(result.current.clientSession?.tableId).toBe("new-tournament"),
+    );
+    expect(result.current.clientTerminated).toBe(false);
+    unmount();
   });
 });
