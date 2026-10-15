@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { TableCardView, TableHistoryEntryView } from "../api/desktop";
+import type {
+  TableCardView,
+  TableHistoryEntryView,
+  TableViewSnapshot,
+} from "../api/desktop";
 import {
   readStoredValue,
   readStoredValueWithStatus,
@@ -297,6 +301,128 @@ export async function readDurableHandHistory(
     mergedHistory.entries,
     mergedHistory.updatedAtMs,
     onWriteFailure,
+  );
+}
+
+/** Tournament-aware V2 records are separate from the immutable legacy V1 file. */
+export type PersistedHistoryEntryV2 = TableHistoryEntryView & {
+  provenance: "live" | "importedDurableV1" | "importedCacheV1";
+  tableId?: string;
+  sessionEpoch?: number;
+  legacyOriginId?: string;
+  tournamentName?: string;
+  sessionStartedAtMs?: number;
+};
+
+export type PersistedHandHistoryV2 = {
+  schemaVersion: 2;
+  updatedAtMs: number;
+  entries: PersistedHistoryEntryV2[];
+};
+
+function cacheV1Entries(
+  storageNamespace: string,
+): PersistedHistoryEntryV2[] {
+  return (readPersistedHandHistory(storageNamespace)?.entries ?? []).map(
+    (entry) => ({
+      ...entry,
+      provenance: "importedCacheV1",
+      legacyOriginId: `cache-v1:${storageNamespace}`,
+    }),
+  );
+}
+
+function liveV2Entries(
+  snapshot: TableViewSnapshot,
+): PersistedHistoryEntryV2[] {
+  if (
+    !snapshot.tableId.trim() ||
+    !Number.isSafeInteger(snapshot.sessionEpoch) ||
+    snapshot.sessionEpoch <= 0
+  ) {
+    throw new Error("Cannot save live hand history without a valid session identity");
+  }
+  return snapshot.handHistory.map((entry) => ({
+    ...entry,
+    provenance: "live",
+    tableId: snapshot.tableId,
+    sessionEpoch: snapshot.sessionEpoch,
+    tournamentName: snapshot.tournamentName,
+  }));
+}
+
+function missingCacheImports(
+  persisted: PersistedHandHistoryV2 | null,
+  cached: PersistedHistoryEntryV2[],
+): PersistedHistoryEntryV2[] {
+  const existing = new Set(
+    (persisted?.entries ?? [])
+      .filter((entry) => entry.provenance === "importedCacheV1")
+      .map((entry) => `${entry.legacyOriginId}:${entry.handNumber}`),
+  );
+  return cached.filter(
+    (entry) => !existing.has(`${entry.legacyOriginId}:${entry.handNumber}`),
+  );
+}
+
+export async function readDurableHandHistoryV2(
+  storageNamespace: string,
+): Promise<PersistedHandHistoryV2 | null> {
+  const cached = cacheV1Entries(storageNamespace);
+  if (!hasUsableTauriWindowRuntime()) {
+    if (cached.length === 0) {
+      return null;
+    }
+    return {
+      schemaVersion: 2,
+      updatedAtMs: readPersistedHandHistory(storageNamespace)?.updatedAtMs ?? 0,
+      entries: cached,
+    };
+  }
+  const persisted = await invoke<PersistedHandHistoryV2 | null>(
+    "read_persisted_hand_history_v2",
+  );
+  const missing = missingCacheImports(persisted, cached);
+  if (missing.length === 0) {
+    return persisted;
+  }
+  return invoke<PersistedHandHistoryV2>(
+    "merge_persisted_hand_history_v2",
+    { entries: missing },
+  );
+}
+
+export async function mergeDurableHandHistoryV2(
+  storageNamespace: string,
+  snapshot: TableViewSnapshot,
+  onWriteFailure?: PersistenceWriteFailureHandler,
+): Promise<PersistedHandHistoryV2> {
+  const live = liveV2Entries(snapshot);
+  if (!hasUsableTauriWindowRuntime()) {
+    const cachedHistory = mergePersistedHandHistory(
+      storageNamespace,
+      snapshot.handHistory,
+      onWriteFailure,
+    );
+    return {
+      schemaVersion: 2,
+      updatedAtMs: cachedHistory.updatedAtMs,
+      entries: live,
+    };
+  }
+  const existing = await invoke<PersistedHandHistoryV2 | null>(
+    "read_persisted_hand_history_v2",
+  );
+  const cached = missingCacheImports(existing, cacheV1Entries(storageNamespace));
+  if (cached.length === 0 && live.length === 0 && existing) {
+    return existing;
+  }
+  // The V2 Rust store validates every tuple and merges under the profile lock.
+  // Cached legacy entries remain clearly unattributed, never current-session
+  // entries and never preferred over an already durable V2 identity.
+  return invoke<PersistedHandHistoryV2>(
+    "merge_persisted_hand_history_v2",
+    { entries: [...cached, ...live] },
   );
 }
 
