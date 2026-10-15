@@ -219,9 +219,33 @@ export async function mergeDurableHandHistory(
     return cachedHistory;
   }
 
+  const currentDurable = await invoke<PersistedHandHistory | null>(
+    "read_persisted_hand_history",
+  );
+  const currentNumbers = new Set(
+    (currentDurable?.entries ?? []).map((entry) => entry.handNumber),
+  );
+  const incomingNumbers = new Set(entries.map((entry) => entry.handNumber));
+  const migrationEntries = cachedHistory.entries.filter(
+    (entry) =>
+      !currentNumbers.has(entry.handNumber) &&
+      !incomingNumbers.has(entry.handNumber),
+  );
+  const authoritativeEntries = [
+    ...migrationEntries,
+    ...entries,
+  ];
+  if (authoritativeEntries.length === 0 && currentDurable) {
+    return writePersistedHandHistory(
+      storageNamespace,
+      currentDurable.entries,
+      currentDurable.updatedAtMs,
+      onWriteFailure,
+    );
+  }
   const durableHistory = await invoke<PersistedHandHistory>(
     "merge_persisted_hand_history",
-    { entries: cachedHistory.entries },
+    { entries: authoritativeEntries },
   );
   return writePersistedHandHistory(
     storageNamespace,
@@ -243,17 +267,30 @@ export async function readDurableHandHistory(
   const durableHistory = await invoke<PersistedHandHistory | null>(
     "read_persisted_hand_history",
   );
-  const combinedEntries = [
-    ...(durableHistory?.entries ?? []),
-    ...(cachedHistory?.entries ?? []),
-  ];
-  if (combinedEntries.length === 0) {
-    return null;
+  // Durable disk state is authoritative. Cached browser entries are only a
+  // migration source for hand numbers not yet present in the durable store.
+  // In particular, never write stale cache copies back over a newer record.
+  const durableNumbers = new Set(
+    (durableHistory?.entries ?? []).map((entry) => entry.handNumber),
+  );
+  const missingCachedEntries = (cachedHistory?.entries ?? []).filter(
+    (entry) => !durableNumbers.has(entry.handNumber),
+  );
+  if (missingCachedEntries.length === 0) {
+    if (!durableHistory) {
+      return null;
+    }
+    return writePersistedHandHistory(
+      storageNamespace,
+      durableHistory.entries,
+      durableHistory.updatedAtMs,
+      onWriteFailure,
+    );
   }
 
   const mergedHistory = await invoke<PersistedHandHistory>(
     "merge_persisted_hand_history",
-    { entries: combinedEntries },
+    { entries: missingCachedEntries },
   );
   return writePersistedHandHistory(
     storageNamespace,
