@@ -112,11 +112,14 @@ export function useLobbySession(navigate: NavigateFunction): LobbySessionState {
   useEffect(() => {
     let active = true;
     let timeoutId: number | undefined;
+    let requestGeneration = 0;
+    let terminatedSessionId: string | null = null;
 
     const scheduleNext = (delayMs: number) => {
       if (!active) {
         return;
       }
+      window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(refresh, delayMs);
     };
 
@@ -161,34 +164,50 @@ export function useLobbySession(navigate: NavigateFunction): LobbySessionState {
     };
 
     const refresh = () => {
+      // Polling and event-driven refreshes share one monotonic generation.
+      // A stale result may not overwrite a newer request's state.
+      const generation = ++requestGeneration;
       void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
         .then(([nextHostSession, nextClientSession]) => {
-          if (!active) {
+          if (!active || generation !== requestGeneration) {
+            return;
+          }
+
+          const sessionId = nextClientSession
+            ? `${nextClientSession.tableId}:${nextClientSession.sessionEpoch}`
+            : null;
+          if (
+            terminatedSessionId &&
+            !nextHostSession &&
+            (!nextClientSession ||
+              (sessionId === terminatedSessionId &&
+                !nextClientSession.terminated))
+          ) {
+            // Terminal state is sticky until a genuinely different session.
             return;
           }
 
           applySnapshot(nextHostSession, nextClientSession);
-
-          if (nextClientSession?.terminated) {
-            setClientTerminated(true);
-            setClientReconnecting(false);
-            return; // stop polling — session is terminal
-          }
           applyClientConnectionState(nextClientSession);
+          if (nextClientSession?.terminated) {
+            terminatedSessionId = sessionId;
+            return;
+          }
+          if (sessionId && sessionId !== terminatedSessionId) {
+            terminatedSessionId = null;
+          }
           scheduleNext(LOBBY_POLL_NORMAL_MS);
         })
         .catch(() => {
-          if (!active) {
+          if (!active || generation !== requestGeneration) {
             return;
           }
 
           consecutiveErrorsRef.current += 1;
-
           if (consecutiveErrorsRef.current >= LOBBY_ERROR_LIMIT) {
             navigate("/errors", { replace: true });
             return;
           }
-
           setConnectionSlow(
             consecutiveErrorsRef.current >= LOBBY_BACKOFF_THRESHOLD,
           );
@@ -204,20 +223,9 @@ export function useLobbySession(navigate: NavigateFunction): LobbySessionState {
     refresh();
 
     const unlistenPromise = onSessionUpdate(() => {
-      if (!active) {
-        return;
+      if (active) {
+        refresh();
       }
-      void Promise.all([getHostSessionStatus(), getClientSessionStatus()])
-        .then(([nextHostSession, nextClientSession]) => {
-          if (!active) {
-            return;
-          }
-          applySnapshot(nextHostSession, nextClientSession);
-          applyClientConnectionState(nextClientSession);
-        })
-        .catch(() => {
-          // Ignore event-driven refresh errors; the fallback poll handles recovery
-        });
     });
 
     return () => {
