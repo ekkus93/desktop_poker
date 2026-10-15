@@ -177,8 +177,9 @@ describe("HandHistoryScreen", () => {
     expect(screen.getByText(/showing 200 of 205 settled hands/i)).toBeTruthy();
     expect(screen.queryByText("Player won hand 5")).toBeNull();
     expect(screen.getByText("Player won hand 6")).toBeTruthy();
+    const visibleHandSummaries = screen.getAllByText(/^Player won hand \d+$/);
     expect(
-      screen.getAllByText(/^Player won hand \d+$/).at(-1)?.textContent,
+      visibleHandSummaries[visibleHandSummaries.length - 1]?.textContent,
     ).toBe("Player won hand 6");
 
     fireEvent.click(screen.getByRole("button", { name: "Show 5 older hands" }));
