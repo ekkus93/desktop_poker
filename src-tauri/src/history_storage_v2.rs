@@ -349,8 +349,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(first, again);
-        assert_eq!(fs::read(directory.path().join(V1_FILE_NAME)).unwrap(), bytes);
-        assert_eq!(again.entries[0].provenance, HistoryProvenance::ImportedDurableV1);
+        assert_eq!(
+            fs::read(directory.path().join(V1_FILE_NAME)).unwrap(),
+            bytes
+        );
+        assert_eq!(
+            again.entries[0].provenance,
+            HistoryProvenance::ImportedDurableV1
+        );
         assert_eq!(again.entries[0].table_id, None);
     }
 
