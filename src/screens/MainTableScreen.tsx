@@ -52,6 +52,8 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     label: string;
   } | null>(null);
   const consecutiveErrorsRef = useRef(0);
+  const latestRequestRef = useRef(0);
+  const terminatedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,15 +64,39 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         return;
       }
 
+      window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => {
         void poll();
       }, delayMs);
     };
 
+    const isCurrentSnapshot = (
+      snapshot: TableViewSnapshot,
+      generation: number,
+    ) => {
+      if (cancelled || generation !== latestRequestRef.current) {
+        return false;
+      }
+      const sessionId = `${snapshot.tableId}:${snapshot.sessionEpoch}`;
+      if (
+        terminatedSessionRef.current === sessionId &&
+        snapshot.sessionConnection !== "terminated"
+      ) {
+        return false;
+      }
+      if (snapshot.sessionConnection === "terminated") {
+        terminatedSessionRef.current = sessionId;
+      } else if (terminatedSessionRef.current !== sessionId) {
+        terminatedSessionRef.current = null;
+      }
+      return true;
+    };
+
     const poll = async () => {
+      const generation = ++latestRequestRef.current;
       try {
         const snapshot = await getTableView(viewerMode);
-        if (cancelled) {
+        if (!isCurrentSnapshot(snapshot, generation)) {
           return;
         }
 
@@ -80,7 +106,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         setConnectionSlow(false);
         scheduleNext(TABLE_POLL_NORMAL_MS);
       } catch (caughtError: unknown) {
-        if (cancelled) {
+        if (cancelled || generation !== latestRequestRef.current) {
           return;
         }
 
@@ -108,6 +134,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     };
 
     const loadInitial = async () => {
+      const generation = ++latestRequestRef.current;
       setLoading(true);
       setError(null);
       setActionError(null);
@@ -115,19 +142,19 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
       try {
         const snapshot = await getTableView(viewerMode);
-        if (!cancelled) {
+        if (isCurrentSnapshot(snapshot, generation)) {
           consecutiveErrorsRef.current = 0;
           setTableView(snapshot);
           setError(null);
           setConnectionSlow(false);
         }
       } catch (caughtError: unknown) {
-        if (!cancelled) {
+        if (!cancelled && generation === latestRequestRef.current) {
           setError(getErrorMessage(caughtError));
           setTableView(null);
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && generation === latestRequestRef.current) {
           setLoading(false);
           scheduleNext(TABLE_POLL_NORMAL_MS);
         }
@@ -142,14 +169,18 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
       if (cancelled) {
         return;
       }
-
+      const generation = ++latestRequestRef.current;
       void getTableView(viewerMode)
         .then((snapshot) => {
-          if (!cancelled) {
+          if (isCurrentSnapshot(snapshot, generation)) {
             consecutiveErrorsRef.current = 0;
             setTableView(snapshot);
             setError(null);
             setConnectionSlow(false);
+            setLoading(false);
+            if (snapshot.sessionConnection !== "terminated") {
+              scheduleNext(TABLE_POLL_NORMAL_MS);
+            }
           }
         })
         .catch(() => {
@@ -159,6 +190,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
     return () => {
       cancelled = true;
+      latestRequestRef.current += 1;
       window.clearTimeout(timeoutId);
       void unlistenPromise.then((unlisten) => unlisten());
     };
@@ -201,6 +233,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
     actionKind: DesktopTableActionKind,
     nextRaiseAmount?: number,
   ) => {
+    const generation = ++latestRequestRef.current;
     setSubmitting(true);
     setActionError(null);
     try {
@@ -209,8 +242,15 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
         actionKind,
         nextRaiseAmount,
       );
-      setTableView(snapshot);
-      setConfirmation(null);
+      const sessionId = `${snapshot.tableId}:${snapshot.sessionEpoch}`;
+      if (
+        generation === latestRequestRef.current &&
+        (terminatedSessionRef.current !== sessionId ||
+          snapshot.sessionConnection === "terminated")
+      ) {
+        setTableView(snapshot);
+        setConfirmation(null);
+      }
     } catch (caughtError) {
       setActionError(getErrorMessage(caughtError));
     } finally {
