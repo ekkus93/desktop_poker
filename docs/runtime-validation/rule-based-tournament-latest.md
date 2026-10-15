@@ -1,8 +1,8 @@
 # Latest Rule-Based NPC Tournament Validation
 
 - Result: **FAIL**
-- Validated commit: `5fea1d4b00be18f1c75cede616cb4ffbe8b11fdd`
-- GitHub Actions run: `38823159837`
+- Validated commit: `53ae1c8a8d4f5dd55a03bd4c728056b1301b667c`
+- GitHub Actions run: `38823441348`
 - Build outcome: `success`
 - Tournament outcome: `failure`
 - Evidence artifact: `linux-rule-based-npc-tournament-evidence`
