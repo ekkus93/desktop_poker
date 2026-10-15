@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTableViewSnapshot } from "../test/appIntegrationFixtures";
 import {
   createHistoryEntry,
   seedPersistedHandHistory,
@@ -6,8 +7,10 @@ import {
 import {
   initializeWindowStatePersistence,
   mergeDurableHandHistory,
+  mergeDurableHandHistoryV2,
   persistHandHistory,
   readDurableHandHistory,
+  readDurableHandHistoryV2,
   readPersistedHandHistory,
 } from "./persistence";
 
@@ -282,6 +285,95 @@ describe("persistence", () => {
       2,
       "merge_persisted_hand_history",
       { entries: [updated] },
+    );
+  });
+
+  it("keeps hand one from distinct live tournament sessions", async () => {
+    enableTauriWindowRuntime();
+    const hand = createHistoryEntry({ handNumber: 1, summary: "Won hand one" });
+    tauriInvokeMock.mockImplementation(
+      async (command: string, params?: { entries?: unknown[] }) => {
+        if (command === "read_persisted_hand_history_v2") {
+          return null;
+        }
+        if (command === "merge_persisted_hand_history_v2") {
+          return {
+            schemaVersion: 2,
+            updatedAtMs: 100,
+            entries: params?.entries ?? [],
+          };
+        }
+        throw new Error(`Unexpected Tauri command ${command}`);
+      },
+    );
+    await mergeDurableHandHistoryV2(
+      "desktop-poker:two-sessions",
+      createTableViewSnapshot({
+        tableId: "table-A",
+        sessionEpoch: 101,
+        handHistory: [hand],
+      }),
+    );
+    await mergeDurableHandHistoryV2(
+      "desktop-poker:two-sessions",
+      createTableViewSnapshot({
+        tableId: "table-B",
+        sessionEpoch: 202,
+        handHistory: [hand],
+      }),
+    );
+    const merges = tauriInvokeMock.mock.calls.filter(
+      ([command]) => command === "merge_persisted_hand_history_v2",
+    );
+    expect(merges).toHaveLength(2);
+    expect(merges[0][1].entries[0]).toMatchObject({
+      tableId: "table-A",
+      sessionEpoch: 101,
+      handNumber: 1,
+      provenance: "live",
+    });
+    expect(merges[1][1].entries[0]).toMatchObject({
+      tableId: "table-B",
+      sessionEpoch: 202,
+      handNumber: 1,
+      provenance: "live",
+    });
+  });
+
+  it("imports legacy cached records into a distinct origin exactly once", async () => {
+    enableTauriWindowRuntime();
+    const namespace = "desktop-poker:legacy-v2";
+    const hand = createHistoryEntry({
+      handNumber: 1,
+      summary: "Unattributed hand",
+    });
+    persistHandHistory(namespace, [hand]);
+    const imported = {
+      ...hand,
+      provenance: "importedCacheV1",
+      legacyOriginId: `cache-v1:${namespace}`,
+    };
+    tauriInvokeMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        updatedAtMs: 100,
+        entries: [imported],
+      })
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        updatedAtMs: 100,
+        entries: [imported],
+      });
+    const first = await readDurableHandHistoryV2(namespace);
+    const second = await readDurableHandHistoryV2(namespace);
+    expect(first?.entries).toEqual([imported]);
+    expect(second?.entries).toEqual([imported]);
+    expect(tauriInvokeMock).toHaveBeenCalledTimes(3);
+    expect(tauriInvokeMock).toHaveBeenNthCalledWith(
+      2,
+      "merge_persisted_hand_history_v2",
+      { entries: [imported] },
     );
   });
 
