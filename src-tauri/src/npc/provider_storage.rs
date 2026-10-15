@@ -1,7 +1,10 @@
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
+
+use rand_core::{OsRng, RngCore};
 
 use super::provider::{LlmProviderConfig, LlmProviderSettings};
 
@@ -205,6 +208,35 @@ fn write_key_file(path: &Path, key: &str) -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// Replace legacy combined settings only after the sanitized copy has been
+/// fully written and synced. A failed replacement preserves the original.
+fn rewrite_sanitized_provider_settings(
+    path: &Path,
+    settings: &LlmProviderSettings,
+) -> Result<(), String> {
+    let payload = serde_json::to_vec_pretty(settings)
+        .map_err(|error| format!("failed to serialize sanitized settings: {error}"))?;
+    let mut random = OsRng;
+    let temporary = path.with_file_name(format!(
+        ".{SETTINGS_FILE_NAME}.{:016x}.tmp",
+        random.next_u64()
+    ));
+    let result = (|| -> std::io::Result<()> {
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
+        file.write_all(&payload)?;
+        file.sync_all()?;
+        drop(file);
+        fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result.map_err(|error| format!("atomic settings replacement failed: {error}"))
+}
+
 /// Load the provider config from disk, returning a rich load state.
 ///
 /// ## File layout (current)
@@ -263,50 +295,41 @@ pub fn load_provider_config(
         // Secret Service while preserving fail-closed behavior for API providers.
         let api_key = if settings.provider.uses_api_key() {
             let provider_str = settings.provider.as_str();
-            match store.read_key(provider_str) {
-                Err(e) => {
-                    // Key storage exists/attempted but returned an error — surface explicitly.
-                    return ProviderConfigLoadState::KeyUnreadable { error: e };
-                }
-                Ok(Some(key)) => Some(key),
-                Ok(None) => {
-                    // Migration: extract key embedded in old combined format.
-                    let embedded = json_val
-                        .get("apiKey")
-                        .and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string());
+            let stored_key = match store.read_key(provider_str) {
+                Ok(key) => key,
+                Err(error) => return ProviderConfigLoadState::KeyUnreadable { error },
+            };
+            let embedded = json_val
+                .get("apiKey")
+                .and_then(|value| value.as_str())
+                .filter(|key| !key.is_empty())
+                .map(str::to_string);
 
-                    if let Some(ref key) = embedded {
-                        // P0.4: Only rewrite settings file if key storage write succeeded.
-                        // A failed write must not erase the embedded key — that would cause
-                        // silent key loss on next load.
-                        match store.write_key(provider_str, key) {
-                            Ok(()) => {
-                                if let Ok(json) = serde_json::to_string_pretty(&settings) {
-                                    if let Err(e) = fs::write(&sp, json) {
-                                        eprintln!(
-                                            "[provider-storage] migration: failed to rewrite settings \
-                                             file: {e}"
-                                        );
-                                    } else {
-                                        eprintln!(
-                                            "[provider-storage] migrated API key from embedded field"
-                                        );
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                // Migration failed — return a visible error and leave settings intact.
-                                return ProviderConfigLoadState::KeyUnreadable {
-                                    error: format!("migration to secure storage failed: {e}"),
-                                };
-                            }
-                        }
+            if embedded.is_some() {
+                // Always scrub the legacy field. Never overwrite an existing
+                // secure-store credential with a stale embedded value.
+                if stored_key.is_none() {
+                    let key = embedded.as_deref().expect("embedded key exists");
+                    if let Err(error) = store.write_key(provider_str, key) {
+                        return ProviderConfigLoadState::KeyUnreadable {
+                            error: format!("migration to secure storage failed: {error}"),
+                        };
                     }
-                    embedded
+                    match store.read_key(provider_str) {
+                        Ok(Some(verified)) if verified == key => {}
+                        Ok(_) => return ProviderConfigLoadState::KeyUnreadable {
+                            error: "migration key verification failed".to_string(),
+                        },
+                        Err(error) => return ProviderConfigLoadState::KeyUnreadable { error },
+                    }
+                }
+                if let Err(error) = rewrite_sanitized_provider_settings(&sp, &settings) {
+                    return ProviderConfigLoadState::KeyUnreadable {
+                        error: format!("failed to sanitize legacy provider settings: {error}"),
+                    };
                 }
             }
+            stored_key.or(embedded)
         } else {
             None
         };
@@ -898,6 +921,23 @@ mod tests {
         );
         let key_raw = fs::read_to_string(key_path(dir.path())).unwrap();
         assert_eq!(key_raw.trim(), "sk-ant-migrated");
+    }
+
+    #[test]
+    fn migration_scrubs_plaintext_when_secure_key_already_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let tracking = TrackingSecretStore::new().with_key("anthropic", "sk-ant-newer");
+        let legacy_json = r#"{"provider":"anthropic","apiKey":"sk-ant-stale","endpointUrl":null,"model":null}"#;
+        fs::write(settings_path(dir.path()), legacy_json).unwrap();
+        let loaded = unwrap_loaded(load_provider_config(dir.path(), &tracking));
+        assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-newer"));
+        assert_eq!(
+            tracking.read_key("anthropic").unwrap().as_deref(),
+            Some("sk-ant-newer")
+        );
+        let sanitized = fs::read_to_string(settings_path(dir.path())).unwrap();
+        assert!(!sanitized.contains("sk-ant-stale"));
+        assert!(!sanitized.contains("apiKey"));
     }
 
     #[test]
