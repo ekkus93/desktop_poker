@@ -6,14 +6,14 @@
     "result": "FAIL"
   },
   "failurePathOutcome": "skipped",
-  "recordedAtUtc": "2026-10-15T23:21:00.253154+00:00",
+  "recordedAtUtc": "2026-10-15T23:23:46.619519+00:00",
   "result": "FAIL",
   "successPath": {
     "error": "success path result was not produced.",
     "result": "FAIL"
   },
   "successPathOutcome": "skipped",
-  "validatedCommit": "81a55044671d526a882fdf635ec609472f0ced47",
+  "validatedCommit": "5fea1d4b00be18f1c75cede616cb4ffbe8b11fdd",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38822878638"
+  "workflowRunId": "38823159977"
 }
