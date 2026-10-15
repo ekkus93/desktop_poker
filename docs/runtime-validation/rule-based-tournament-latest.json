@@ -1,14 +1,14 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-10-15T23:34:16.975634+00:00",
+  "recordedAtUtc": "2026-10-15T23:41:49.132627+00:00",
   "result": "FAIL",
   "ruleBasedTournament": {
     "error": "Rule-based tournament result was not produced.",
     "result": "FAIL"
   },
   "tournamentOutcome": "failure",
-  "validatedCommit": "6f04a27a470b607b84b1913e990a98b0d49fe07b",
+  "validatedCommit": "44f93f60b9cb42c4e134d8b2a6caef4c5dd1a291",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38824178502"
+  "workflowRunId": "38824903192"
 }
