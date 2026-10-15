@@ -189,11 +189,18 @@ impl HostServer {
                                 };
 
                                 match response {
-                                    Ok(InitialRequestAcceptance {
-                                        player_id,
-                                        snapshot_envelope,
-                                        encryption_public_key,
-                                    }) => {
+                                    Ok(acceptance) => {
+                                        let mut admission_rollback = PendingAdmissionRollback::new(
+                                            &authoritative_state,
+                                            &acceptance,
+                                            &runtime_health_conn2,
+                                        );
+                                        let InitialRequestAcceptance {
+                                            player_id,
+                                            snapshot_envelope,
+                                            encryption_public_key,
+                                            ..
+                                        } = acceptance;
                                         let Some(active_client_slot_guard) = active_client_slot_guard else {
                                             update_health(&runtime_health_conn2, |health| {
                                                 health.state_lock_error_count += 1;
@@ -248,7 +255,9 @@ impl HostServer {
                                                 }
                                             }
 
-                                            spawn_host_client_session(
+                                            let cleanup_player_id = player_id.clone();
+                                            let cleanup_clients = Arc::clone(&clients);
+                                            let session_result = spawn_host_client_session(
                                                 player_id,
                                                 stream,
                                                 authoritative_state,
@@ -263,6 +272,22 @@ impl HostServer {
                                                 Arc::clone(&runtime_health_conn2),
                                                 active_client_slot_guard,
                                             );
+                                            if let Err(error) = session_result {
+                                                if let Ok(mut connected) = cleanup_clients.lock() {
+                                                    connected.remove(&cleanup_player_id);
+                                                }
+                                                update_health(&runtime_health_conn2, |health| {
+                                                    health.record_error(format!(
+                                                        "failed to register client session: {error}"
+                                                    ));
+                                                });
+                                            } else {
+                                                admission_rollback.disarm();
+                                            }
+                                        } else {
+                                            update_health(&runtime_health_conn2, |health| {
+                                                health.record_error("failed to deliver initial snapshot");
+                                            });
                                         }
                                     }
                                     Err(error) => {

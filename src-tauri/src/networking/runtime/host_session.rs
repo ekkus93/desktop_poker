@@ -103,7 +103,7 @@ pub(crate) fn spawn_host_client_session(
     public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
     runtime_health: Arc<Mutex<HostRuntimeHealth>>,
     active_client_slot_guard: ActiveClientSlotGuard,
-) {
+) -> Result<(), NetworkingError> {
     let runtime_health_for_error = Arc::clone(&runtime_health);
     let player_id_for_error = player_id.clone();
     if let Err(error) = thread::Builder::new()
@@ -379,6 +379,11 @@ pub(crate) fn spawn_host_client_session(
                 "failed to spawn host-client-{player_id_for_error} thread: {error}"
             ));
         });
+        Err(NetworkingError::new(format!(
+            "failed to spawn host-client session: {error}"
+        )))
+    } else {
+        Ok(())
     }
 }
 

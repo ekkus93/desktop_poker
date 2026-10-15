@@ -16,7 +16,7 @@ use serde_json::Value;
 
 use crate::{
     crypto::{EncryptionKeyMaterial, SigningKeyMaterial},
-    domain::{JoinPayload, TournamentState},
+    domain::{ConnectionState, JoinPayload, ParticipantRegistryEntry, TournamentState},
     protocol::{PrivateHoleCardsEvent, ProtocolMessageType, SignedEnvelope, SnapshotEvent},
     tournament::TournamentController,
 };
@@ -331,6 +331,82 @@ pub(crate) struct InitialRequestAcceptance {
     player_id: String,
     snapshot_envelope: SignedEnvelope<SnapshotEvent>,
     encryption_public_key: String,
+    previous_participant: Option<ParticipantRegistryEntry>,
+    admission_token: String,
+}
+
+/// Roll back only the still-current unregistered connection attempt. A newer
+/// connection, or one with another reconnect token, must never be removed.
+fn rollback_admission(
+    state: &Arc<Mutex<TournamentState>>,
+    player_id: &str,
+    previous: &Option<ParticipantRegistryEntry>,
+    admission_token: &str,
+) -> Result<(), NetworkingError> {
+    let mut state = state
+        .lock()
+        .map_err(|_| NetworkingError::new("authoritative state lock poisoned during rollback"))?;
+    let owns_attempt = state.participants.get(player_id).is_some_and(|participant| {
+        participant.connection_state == ConnectionState::Connected
+            && participant.reconnect_token.as_deref() == Some(admission_token)
+    });
+    if owns_attempt {
+        if let Some(previous) = previous {
+            state.participants.insert(player_id.to_string(), previous.clone());
+        } else {
+            state.participants.remove(player_id);
+        }
+    }
+    Ok(())
+}
+
+/// Owns cleanup between admission and successful session-thread ownership.
+struct PendingAdmissionRollback {
+    state: Arc<Mutex<TournamentState>>,
+    runtime_health: Arc<Mutex<HostRuntimeHealth>>,
+    player_id: String,
+    previous: Option<ParticipantRegistryEntry>,
+    token: String,
+    armed: bool,
+}
+
+impl PendingAdmissionRollback {
+    fn new(
+        state: &Arc<Mutex<TournamentState>>,
+        acceptance: &InitialRequestAcceptance,
+        runtime_health: &Arc<Mutex<HostRuntimeHealth>>,
+    ) -> Self {
+        Self {
+            state: Arc::clone(state),
+            runtime_health: Arc::clone(runtime_health),
+            player_id: acceptance.player_id.clone(),
+            previous: acceptance.previous_participant.clone(),
+            token: acceptance.admission_token.clone(),
+            armed: true,
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for PendingAdmissionRollback {
+    fn drop(&mut self) {
+        if self.armed {
+            if let Err(error) = rollback_admission(
+                &self.state,
+                &self.player_id,
+                &self.previous,
+                &self.token,
+            ) {
+                update_health(&self.runtime_health, |health| {
+                    health.state_lock_error_count += 1;
+                    health.record_error(format!("unregistered admission cleanup failed: {error}"));
+                });
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
