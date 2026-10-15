@@ -1,20 +1,14 @@
 # Latest Reconnect Protocol and Release Validation
 
-- Result: **PASS**
-- Validated commit: `561c374e31414b3581355d8e83216d8aadee2616`
-- GitHub Actions run: `30436380943`
-- Protocol tests: `success`
-- Release build: `success`
-- Release reconnect matrix: `success`
+- Result: **FAIL**
+- Validated commit: `5cc86a936dd83d0a7f0e752c3172fa6c3890bf35`
+- GitHub Actions run: `38825570440`
+- Protocol tests: `failure`
+- Release build: `failure`
+- Release reconnect matrix: `skipped`
 - Evidence artifact: `reconnect-protocol-and-release-failure-evidence`
 
-## Executed checks
+## Failure
 
-- **PASS** — host release instance launched
-- **PASS** — client release instance launched
-- **PASS** — unreachable-host join failed explicitly without retaining a client session
-- **PASS** — lobby reconnect replaced the TCP tuple and restored a usable client session
-- **PASS** — active-hand reconnect restored the same hand on a new TCP tuple
-- **PASS** — post-reconnect client action succeeded and immediate duplicate was rejected
-- **PASS** — active-hand host loss became terminal and rejected stale table/action access
-- **PASS** — lobby host loss became terminal and rejected stale table/action access
+Release reconnect result was not produced.
+
