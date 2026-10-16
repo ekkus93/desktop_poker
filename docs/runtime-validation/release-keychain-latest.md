@@ -1,8 +1,8 @@
 # Latest Linux Release Keychain Validation
 
 - Result: **PASS**
-- Validated commit: `bda5515a07971c2a8832e96fba7a2c2a54c1efb1`
-- GitHub Actions run: `38843947051`
+- Validated commit: `0da2fda5d5a1720e8f26abe21788cbf41be0024e`
+- GitHub Actions run: `38847478612`
 - Release build: `success`
 - Secret Service persistence path: `success`
 - Unavailable-keychain path: `success`
