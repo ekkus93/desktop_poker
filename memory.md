@@ -1190,3 +1190,11 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - Other workflows still use `| tee` without pipefail and may mask failures; not yet audited. Geometry job could not run locally (no Playwright Chromium); its earlier CI log showed `F`/`x` markers despite a success result, so check it once pipefail is live.
 - Commit hook rejects `Co-Authored-By` trailers in this repo.
 - NOT pushed; no CI run exists for these commits. Next: push (owner approval pending), confirm exact-head CI, then DPCR phase work (NET, HIST, IO, SEC, UI).
+
+## 2026-10-16T06:30:47Z - Claude Opus 5.5 - Fix racy frontend tests, add CI pipefail, DP-REVIEW-001 network admission
+
+- `621419b`: CI run 38855667854 failed one Vitest test. The restart-remount fixture had `currentHandNumber: 9` but only hand 8 in history, so the final-history save never completed, and the assertion passed only by timing. Fixed the fixture and awaited async history in 4 more tests. All 9 workflows green at that SHA.
+- `0be86b7`: added `shell: bash` (pipefail) to 10 `| tee` steps in 7 runtime workflows; "Build release binary" steps could previously report success on a failed build. All 8 triggered workflows green.
+- `2e98e04` (DP-REVIEW-001): new `networking/runtime/admission.rs` (`complete_admission`, `AdmissionFaults` injection, cleanup that closes the transport last) and `client_registry.rs` (registration generations, take-if-current, no registry lock across socket I/O). Reconnect rollback now restores only networking fields. 11 new tests in `tests/admission_completion.rs`. All 9 workflows green; Rust 566 passed / 3 ignored.
+- TODO: DPCR-NET-1.1-1.6, 1.8-1.11 checked with evidence. 1.7 still open: before-ready variant, plus an owner decision on whether lobby `Reconnecting` participants should keep counting toward capacity (current behavior: they do until the host removes them).
+- Follow-ups found: session-thread replies are written without the per-client stream mutex (frame interleaving risk); public events published between a joiner's snapshot build and registration are not delivered to that joiner.
