@@ -12,11 +12,8 @@ export default defineConfig(async () => ({
     setupFiles: "./src/test/setup.ts",
     exclude: [...configDefaults.exclude, "tests/browser/**", "test-results/**"],
     pool: "threads",
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    // Vitest 4 replaced poolOptions.threads.singleThread with these top-level options.
+    fileParallelism: false,
     testTimeout: 10_000,
   },
 
