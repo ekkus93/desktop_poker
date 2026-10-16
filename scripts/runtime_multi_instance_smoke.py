@@ -178,7 +178,9 @@ def verify_private_projection(view: dict[str, Any], label: str) -> None:
         raise AssertionError(f"{label} local player did not receive two hole cards")
     leaked = [seat for seat in remote if seat.get("holeCards")]
     if leaked:
-        raise AssertionError(f"{label} leaked remote private cards: {leaked}")
+        raise AssertionError(
+            f"{label} projection leaked private cards to {len(leaked)} remote seat(s)"
+        )
 
 
 def capture(client: WebDriverClient, directory: Path, name: str) -> None:
@@ -425,8 +427,8 @@ def run(
         )
         record("conflicting host recovered successfully on port 43819")
 
-        capture(host, evidence_dir, "host-main-table")
-        capture(client, evidence_dir, "client-main-table")
+        # Do not publish active-table screenshots or HTML: either contains the
+        # local player's private hole cards even when remote-card isolation passes.
         capture(conflict, evidence_dir, "port-conflict-recovery")
 
         return {
@@ -452,12 +454,8 @@ def run(
             "error": f"{type(error).__name__}: {error}",
             "steps": steps,
         }
-        for name, driver in (("host", host), ("client", client), ("conflict", conflict)):
-            try:
-                if driver.session_id is not None:
-                    capture(driver, evidence_dir, f"failure-{name}")
-            except Exception as evidence_error:  # noqa: BLE001
-                failure[f"{name}EvidenceCaptureError"] = str(evidence_error)
+        # Failure can happen after cards are dealt. Keep diagnostics structured
+        # and secret-free instead of capturing live-table page source/screenshots.
         raise RuntimeError(json.dumps(failure, indent=2)) from error
     finally:
         for driver in (conflict, client, host):

@@ -384,11 +384,12 @@ mod tests {
     }
 
     #[test]
-    fn two_tournaments_can_keep_the_same_hand_number() {
+    fn two_tournaments_keep_the_same_hand_number_across_restart() {
         let directory = tempdir().unwrap();
         merge_v2(directory.path(), vec![live("A", 1, 1)]).unwrap();
         merge_v2(directory.path(), vec![live("B", 2, 1)]).unwrap();
-        let persisted = read_v2(&directory.path().join(V2_FILE_NAME))
+        // A fresh read through the startup path models a process restart.
+        let persisted = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
             .unwrap()
             .unwrap();
         assert_eq!(persisted.entries.len(), 2);
@@ -420,6 +421,44 @@ mod tests {
             HistoryProvenance::ImportedDurableV1
         );
         assert_eq!(again.entries[0].table_id, None);
+    }
+
+    #[test]
+    fn interrupted_v1_import_retries_without_losing_or_rewriting_legacy_bytes() {
+        let directory = tempdir().unwrap();
+        let legacy = PersistedHandHistory {
+            updated_at_ms: 100,
+            entries: vec![sample_hand(1, "Legacy")],
+        };
+        let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
+        let legacy_path = directory.path().join(V1_FILE_NAME);
+        let v2_path = directory.path().join(V2_FILE_NAME);
+        fs::write(&legacy_path, &legacy_bytes).unwrap();
+        let imported = import_legacy_v1(&legacy_path).unwrap().unwrap();
+
+        for stage in [
+            AtomicWriteStage::Create,
+            AtomicWriteStage::Write,
+            AtomicWriteStage::FileSync,
+            AtomicWriteStage::Replace,
+        ] {
+            assert!(atomic_write_v2_with_fault(&v2_path, &imported, Some(stage)).is_err());
+            assert!(
+                !v2_path.exists(),
+                "a partial V2 migration marker must not remain"
+            );
+            assert_eq!(fs::read(&legacy_path).unwrap(), legacy_bytes);
+        }
+
+        let retried = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(retried.entries.len(), 1);
+        assert_eq!(
+            retried.entries[0].provenance,
+            HistoryProvenance::ImportedDurableV1
+        );
+        assert_eq!(fs::read(&legacy_path).unwrap(), legacy_bytes);
     }
 
     #[test]

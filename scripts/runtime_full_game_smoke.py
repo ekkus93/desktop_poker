@@ -575,12 +575,8 @@ def run(
             "error": f"{type(error).__name__}: {error}",
             "steps": steps,
         }
-        for name, driver in (("host", host), ("client", client), ("fresh", fresh)):
-            try:
-                if driver.session_id is not None:
-                    capture(driver, evidence_dir, f"failure-{name}")
-            except Exception as evidence_error:  # noqa: BLE001
-                failure[f"{name}EvidenceCaptureError"] = str(evidence_error)
+        # A failure can occur after cards are dealt. Do not include screenshots
+        # or HTML from active-table pages in public CI artifacts.
         raise RuntimeError(json.dumps(failure, indent=2)) from error
     finally:
         for driver in (fresh, client, host):

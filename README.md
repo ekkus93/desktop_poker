@@ -275,6 +275,8 @@ cargo run --manifest-path src-tauri/Cargo.toml --no-default-features -- --instan
 
 The desktop shell also persists per-instance display name, host draft, recent direct-join payloads, saved hand-history summaries, and Tauri window state so repeated local sessions do not stomp one another.
 
+Durable hand history is stored per profile in `hand-history.v2.json`. Live records use the compound identity `(tableId, sessionEpoch, handNumber)`, so hand 1 from different tournaments remains distinct. Existing `hand-history.json` records are imported into an unattributed legacy group; the V1 file is retained unchanged as a recovery source. Reads and merges use a per-profile operating-system lock and atomic replacement. Browser storage is a cache/import source and does not count as a durable save: the completion screen reports success only after the Tauri history write succeeds. Older app versions see only V1 history and cannot display V2-only records; V2 remains available when upgrading again.
+
 ## Passing a join payload at launch
 
 The app accepts a launch payload from either environment or CLI input so the join flow can open with a shared `pkr1_...` invitation already attached:

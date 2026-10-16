@@ -37,6 +37,14 @@ The frontend may stage user input locally, but all game actions must flow throug
 - **Default host port:** `43818`
 - **Per-instance storage:** instance-scoped profile directory under local app data
 
+## Durable hand history and provider secrets
+
+- Rust stores durable history in the profile-scoped `hand-history.v2.json` file. Each live hand is keyed by `(tableId, sessionEpoch, handNumber)`; legacy V1 entries remain explicitly unattributed.
+- The original `hand-history.json` is retained unchanged for recovery and downgrade compatibility. Older binaries read only V1 and do not display V2-only records; re-upgrading keeps the V2 file.
+- V2 read/merge transactions take a per-profile operating-system file lock. Writes use unique temporary files, sync file contents, atomically replace the destination, and sync the containing directory where supported.
+- Browser history is a migration/cache source, not evidence of a durable write. Completion success is shown only after the Tauri backend confirms persistence.
+- Release provider keys use the operating-system secret store. Provider settings JSON contains non-secret configuration; debug builds use the documented local development store and do not provide release fallback behavior.
+
 ## Android compatibility goal
 
 Desktop targets the current Android runtime semantics rather than stale markdown:
