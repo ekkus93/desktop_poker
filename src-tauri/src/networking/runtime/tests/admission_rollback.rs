@@ -162,3 +162,60 @@ fn dropping_unregistered_session_reclaims_join_capacity() {
         .participants
         .contains_key("unregistered-player"));
 }
+
+#[test]
+fn stale_join_cleanup_does_not_remove_newer_connection() {
+    let provider = DefaultCryptoProvider;
+    let host_signing = provider.generate_signing_keypair();
+    let encryption = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
+    let payload = sample_join_payload_for_tests(
+        "table-replaced-join",
+        49,
+        host_signing.public_key_base64(),
+    );
+    let state = Arc::new(Mutex::new(sample_tournament_state(
+        "table-replaced-join",
+        49,
+    )));
+    let sequence = Arc::new(AtomicU64::new(0));
+    let signing = provider.generate_signing_keypair();
+    let keys = provider.generate_encryption_keypair();
+    let accepted = handle_join_request(
+        &provider,
+        signed_join_envelope(
+            &provider,
+            &signing,
+            &keys,
+            &payload,
+            "replaced-player",
+            "Replaced",
+            &payload.join_token,
+        ),
+        &payload,
+        &state,
+        &sequence,
+        &host_signing,
+        &encryption,
+    )
+    .expect("first admission");
+    let health = Arc::new(Mutex::new(HostRuntimeHealth::default()));
+    let old_attempt = PendingAdmissionRollback::new(&state, &accepted, &health);
+    let newer = {
+        let mut current = state.lock().unwrap();
+        let participant = current
+            .participants
+            .get_mut("replaced-player")
+            .expect("admitted participant");
+        // Model a newer successful admission while an earlier cleanup is pending.
+        participant.reconnect_token = Some("replacement-attempt-token".to_string());
+        participant.clone()
+    };
+
+    drop(old_attempt);
+
+    assert_eq!(
+        state.lock().unwrap().participants.get("replaced-player"),
+        Some(&newer),
+        "an older attempt must not remove or roll back a newer connection"
+    );
+}
