@@ -394,7 +394,7 @@ mod tests {
         let original = b"{invalid-v2";
         fs::write(&path, original).unwrap();
         assert!(merge_v2(directory.path(), vec![live("A", 1, 1)]).is_err());
-        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(fs::read(&path).unwrap(), original.to_vec());
     }
 
     #[test]
@@ -404,7 +404,7 @@ mod tests {
         let original = b"{invalid-v1";
         fs::write(&legacy_path, original).unwrap();
         assert!(with_profile_lock(directory.path(), || read_or_migrate(directory.path())).is_err());
-        assert_eq!(fs::read(&legacy_path).unwrap(), original);
+        assert_eq!(fs::read(&legacy_path).unwrap(), original.to_vec());
         assert!(!directory.path().join(V2_FILE_NAME).exists());
     }
 
