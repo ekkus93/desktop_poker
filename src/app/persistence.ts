@@ -235,10 +235,7 @@ export async function mergeDurableHandHistory(
       !currentNumbers.has(entry.handNumber) &&
       !incomingNumbers.has(entry.handNumber),
   );
-  const authoritativeEntries = [
-    ...migrationEntries,
-    ...entries,
-  ];
+  const authoritativeEntries = [...migrationEntries, ...entries];
   if (authoritativeEntries.length === 0 && currentDurable) {
     return writePersistedHandHistory(
       storageNamespace,
@@ -320,9 +317,7 @@ export type PersistedHandHistoryV2 = {
   entries: PersistedHistoryEntryV2[];
 };
 
-function cacheV1Entries(
-  storageNamespace: string,
-): PersistedHistoryEntryV2[] {
+function cacheV1Entries(storageNamespace: string): PersistedHistoryEntryV2[] {
   return (readPersistedHandHistory(storageNamespace)?.entries ?? []).map(
     (entry) => ({
       ...entry,
@@ -332,15 +327,15 @@ function cacheV1Entries(
   );
 }
 
-function liveV2Entries(
-  snapshot: TableViewSnapshot,
-): PersistedHistoryEntryV2[] {
+function liveV2Entries(snapshot: TableViewSnapshot): PersistedHistoryEntryV2[] {
   if (
     !snapshot.tableId.trim() ||
     !Number.isSafeInteger(snapshot.sessionEpoch) ||
     snapshot.sessionEpoch <= 0
   ) {
-    throw new Error("Cannot save live hand history without a valid session identity");
+    throw new Error(
+      "Cannot save live hand history without a valid session identity",
+    );
   }
   return snapshot.handHistory.map((entry) => ({
     ...entry,
@@ -386,10 +381,9 @@ export async function readDurableHandHistoryV2(
   if (missing.length === 0) {
     return persisted;
   }
-  return invoke<PersistedHandHistoryV2>(
-    "merge_persisted_hand_history_v2",
-    { entries: missing },
-  );
+  return invoke<PersistedHandHistoryV2>("merge_persisted_hand_history_v2", {
+    entries: missing,
+  });
 }
 
 export async function mergeDurableHandHistoryV2(
@@ -413,17 +407,19 @@ export async function mergeDurableHandHistoryV2(
   const existing = await invoke<PersistedHandHistoryV2 | null>(
     "read_persisted_hand_history_v2",
   );
-  const cached = missingCacheImports(existing, cacheV1Entries(storageNamespace));
+  const cached = missingCacheImports(
+    existing,
+    cacheV1Entries(storageNamespace),
+  );
   if (cached.length === 0 && live.length === 0 && existing) {
     return existing;
   }
   // The V2 Rust store validates every tuple and merges under the profile lock.
   // Cached legacy entries remain clearly unattributed, never current-session
   // entries and never preferred over an already durable V2 identity.
-  return invoke<PersistedHandHistoryV2>(
-    "merge_persisted_hand_history_v2",
-    { entries: [...cached, ...live] },
-  );
+  return invoke<PersistedHandHistoryV2>("merge_persisted_hand_history_v2", {
+    entries: [...cached, ...live],
+  });
 }
 
 function hasUsableTauriWindowRuntime(): boolean {

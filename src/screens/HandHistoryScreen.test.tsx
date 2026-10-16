@@ -167,14 +167,20 @@ describe("HandHistoryScreen", () => {
       updatedAtMs: 1234,
       entries: [
         {
-          ...createHistoryEntry({ handNumber: 1, summary: "Older tournament hand one" }),
+          ...createHistoryEntry({
+            handNumber: 1,
+            summary: "Older tournament hand one",
+          }),
           provenance: "live",
           tableId: "table-old",
           sessionEpoch: 100,
           tournamentName: "Older tournament",
         },
         {
-          ...createHistoryEntry({ handNumber: 1, summary: "Newer tournament hand one" }),
+          ...createHistoryEntry({
+            handNumber: 1,
+            summary: "Newer tournament hand one",
+          }),
           provenance: "live",
           tableId: "table-new",
           sessionEpoch: 200,
@@ -202,7 +208,9 @@ describe("HandHistoryScreen", () => {
     });
     expect(screen.getByText("Older tournament hand one")).toBeTruthy();
     expect(screen.queryByText("Newer tournament hand one")).toBeNull();
-    expect(tauriInvokeMock).toHaveBeenCalledWith("read_persisted_hand_history_v2");
+    expect(tauriInvokeMock).toHaveBeenCalledWith(
+      "read_persisted_hand_history_v2",
+    );
   });
 
   it.each([100, 101])(
@@ -226,13 +234,13 @@ describe("HandHistoryScreen", () => {
         ),
       ).toBeTruthy();
       expect(screen.getByText(`Player won hand ${count}`)).toBeTruthy();
-      expect(
-        screen.getByText(`Player won hand ${count - 99}`),
-      ).toBeTruthy();
+      expect(screen.getByText(`Player won hand ${count - 99}`)).toBeTruthy();
       expect(screen.getAllByText(/^Player won hand \d+$/)).toHaveLength(100);
 
       if (count === 100) {
-        expect(screen.queryByRole("button", { name: /older hand/i })).toBeNull();
+        expect(
+          screen.queryByRole("button", { name: /older hand/i }),
+        ).toBeNull();
       } else {
         expect(screen.queryByText("Player won hand 1")).toBeNull();
         fireEvent.click(
@@ -240,7 +248,9 @@ describe("HandHistoryScreen", () => {
         );
         expect(screen.getByText("Player won hand 1")).toBeTruthy();
         expect(screen.getAllByText(/^Player won hand \d+$/)).toHaveLength(101);
-        expect(screen.queryByRole("button", { name: /older hand/i })).toBeNull();
+        expect(
+          screen.queryByRole("button", { name: /older hand/i }),
+        ).toBeNull();
       }
     },
   );
@@ -264,9 +274,9 @@ describe("HandHistoryScreen", () => {
     expect(screen.queryByText("Player won hand 105")).toBeNull();
     expect(screen.getByText("Player won hand 106")).toBeTruthy();
     expect(screen.getByText("Player won hand 205")).toBeTruthy();
-    expect(
-      screen.getAllByText(/^Player won hand \d+$/)[0].textContent,
-    ).toBe("Player won hand 205");
+    expect(screen.getAllByText(/^Player won hand \d+$/)[0].textContent).toBe(
+      "Player won hand 205",
+    );
 
     fireEvent.click(
       screen.getByRole("button", { name: "Show 100 older hands" }),

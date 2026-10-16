@@ -32,7 +32,6 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-
 const hostParticipant: HostSessionParticipantView = {
   playerId: "local-player",
   displayName: "Host",

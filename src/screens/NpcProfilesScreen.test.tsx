@@ -193,16 +193,24 @@ describe("NpcProfilesScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: /bob/i }));
     expect(screen.getByText("Discard unsaved profile changes?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
-    expect((screen.getByRole("textbox", {
-      name: "Profile content",
-    }) as HTMLTextAreaElement).value).toBe("Unsaved Alice edits");
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Profile content",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Unsaved Alice edits");
 
     fireEvent.click(screen.getByRole("button", { name: /bob/i }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(await screen.findByText("Bob")).toBeTruthy();
-    expect((screen.getByRole("textbox", {
-      name: "Profile content",
-    }) as HTMLTextAreaElement).value).not.toBe("Unsaved Alice edits");
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Profile content",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).not.toBe("Unsaved Alice edits");
   });
 
   it("shows corrupt profile file as a warning in the profile list", async () => {

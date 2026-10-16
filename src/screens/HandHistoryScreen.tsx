@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { History, Trophy } from "lucide-react";
 import { Link } from "react-router";
-import {
-  getTableView,
-  type TableViewSnapshot,
-} from "../api/desktop";
+import { getTableView, type TableViewSnapshot } from "../api/desktop";
 import {
   readDurableHandHistoryV2,
   type PersistedHandHistoryV2,

@@ -216,9 +216,7 @@ describe("persistence", () => {
       authoritative,
     ]);
     expect(tauriInvokeMock).toHaveBeenCalledTimes(1);
-    expect(tauriInvokeMock).toHaveBeenCalledWith(
-      "read_persisted_hand_history",
-    );
+    expect(tauriInvokeMock).toHaveBeenCalledWith("read_persisted_hand_history");
   });
 
   it("imports only missing cache hands without replacing durable hands", async () => {
