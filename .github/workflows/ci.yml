@@ -41,6 +41,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Test runtime evidence privacy
+        run: python3 -m unittest discover -s scripts -p 'test_runtime_evidence.py' -v
+
       - name: Record baseline environment
         shell: bash
         run: |
