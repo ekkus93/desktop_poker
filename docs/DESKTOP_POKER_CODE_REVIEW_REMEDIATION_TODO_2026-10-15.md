@@ -143,6 +143,10 @@
 - **New gap-focused commit:** `8062292cf99f0f2c31cf2cea63a5bfe053997c53` adds `stale_join_cleanup_does_not_remove_newer_connection`, exercising N-3's conditional rollback. Its exact-head CI started automatically (`38847304763`); result **PENDING** when this note was written. The reconnect same-token attempt generation / winner-preservation case still requires distinct verification; this new test does not qualify N-3 by itself.
 - **Baseline posture:** CI red and multiple checklist items unverified; software remediation **IN PROGRESS**. Do not mark DP-REVIEW-001..009 PASS without completed exact-head evidence. Physical two-machine LAN, Android mixed-runtime, remote LLM and manual accessibility remain independent unqualified gates; no release publication authorized.
 
+## October 16 evidence-publisher conflict
+
+- Exact executable SHA `a5e6d12512891aa5fe9e3eef701fa0b0849a3385`: Linux runtime build and both smoke scenarios passed, but workflow `38847846526` failed when rebasing a generated latest-result documentation commit over concurrent master updates. This is a publisher failure, not runtime failure; retain the failed CI conclusion until rerun and repair.
+
 ## Required outcome and evidence table
 
 Fill these cells **after** verified implementation; blanks are intentional. Never invent hashes or run IDs.
