@@ -662,6 +662,10 @@ mod ollama_live_tests {
         }
     }
 
+    fn ollama_test_model() -> String {
+        std::env::var("OLLAMA_TEST_MODEL").unwrap_or_else(|_| "llama3.2:3b".to_string())
+    }
+
     fn balanced_profile() -> NpcProfile {
         NpcProfile {
             id: "balanced-sam".to_string(),
@@ -789,16 +793,17 @@ mod ollama_live_tests {
         }
     }
 
-    /// Live integration test against a running Ollama server using the default
-    /// recommended model. Skipped automatically when Ollama is unreachable.
+    /// Live integration test against a running Ollama server. Skipped
+    /// automatically when Ollama is unreachable. Set OLLAMA_TEST_MODEL to use
+    /// a locally available model other than the default recommended model.
     /// Serialized via LIVE_OLLAMA_LOCK so `-- --ignored` runs them one at a time.
     #[test]
     #[ignore]
-    fn ollama_llama32_preflop_returns_legal_poker_action() {
+    fn ollama_preflop_returns_legal_poker_action() {
         let _guard = LIVE_OLLAMA_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let client = LlmClient::new(ollama_cfg("llama3.2:3b")).expect("test client builds");
+        let client = LlmClient::new(ollama_cfg(&ollama_test_model())).expect("test client builds");
         let profile = balanced_profile();
         let snap = preflop_snap();
 
@@ -813,11 +818,11 @@ mod ollama_live_tests {
 
     #[test]
     #[ignore]
-    fn ollama_llama32_postflop_returns_legal_poker_action() {
+    fn ollama_postflop_returns_legal_poker_action() {
         let _guard = LIVE_OLLAMA_LOCK
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let client = LlmClient::new(ollama_cfg("llama3.2:3b")).expect("test client builds");
+        let client = LlmClient::new(ollama_cfg(&ollama_test_model())).expect("test client builds");
         let profile = balanced_profile();
         let snap = postflop_snap();
 

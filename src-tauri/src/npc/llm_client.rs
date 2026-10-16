@@ -73,6 +73,8 @@ struct OpenAiMessage {
 struct OpenAiRequest {
     model: String,
     max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<&'static str>,
     messages: Vec<OpenAiMessage>,
 }
 
@@ -249,6 +251,8 @@ impl LlmClient {
         let body = OpenAiRequest {
             model: self.config.resolved_model().to_string(),
             max_tokens: DEFAULT_MAX_TOKENS,
+            reasoning_effort: (self.config.settings.provider == LlmProviderType::Ollama)
+                .then_some("none"),
             messages: vec![
                 OpenAiMessage {
                     role: "system".to_string(),
@@ -424,7 +428,9 @@ mod tests {
     fn ollama_complete_uses_chat_completions_path() {
         let server = MockServer::start();
         server.mock(|when, then| {
-            when.method(POST).path("/v1/chat/completions");
+            when.method(POST)
+                .path("/v1/chat/completions")
+                .json_body_partial(serde_json::json!({"reasoning_effort": "none"}).to_string());
             then.status(200)
                 .json_body(openai_response(r#"{"action":"check","amount":null}"#));
         });
