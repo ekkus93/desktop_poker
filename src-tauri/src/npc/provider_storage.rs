@@ -298,6 +298,7 @@ fn retire_legacy_anthropic_key(
 ///
 /// ## Migration paths
 /// 1. **Combined old format** — `llm-provider.json` contains both settings and
+
 ///    `apiKey` field (written by an older version). On first load the key is
 ///    moved to the appropriate key storage and the settings file is rewritten
 ///    without it. If the key storage write fails (P0.4), the settings file is
@@ -398,7 +399,6 @@ pub fn load_provider_config(
             api_key
         };
         return ProviderConfigLoadState::Loaded(LlmProviderConfig { settings, api_key });
-
     }
 
     // The old plaintext file is a one-time migration source, not a permanent
@@ -598,6 +598,7 @@ pub fn save_provider_settings_only(
     let sp = settings_path(app_data_dir);
 
     // If the existing settings file is unreadable or corrupt, refuse to
+
     // overwrite it — returning an error surfaces the problem instead of
 
     // silently destroying state.
@@ -898,6 +899,7 @@ mod tests {
         let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
+
     }
 
     #[test]
@@ -1002,7 +1004,6 @@ mod tests {
 
     #[test]
     fn migration_from_combined_old_format_extracts_key_and_rewrites_settings() {
-
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
         // Write old combined format (settings + apiKey in one file).
@@ -1197,6 +1198,7 @@ mod tests {
             "failed migration must not erase the embedded key; settings: {settings_after}"
         );
     }
+
 
     /// P0.5: Clearing provider config must delete all known API-provider secret accounts,
     /// even when settings JSON is corrupt or missing — not just the stored provider's account.
