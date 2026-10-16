@@ -264,6 +264,40 @@ describe("MainTableScreen", () => {
     ).toBeTruthy();
   });
 
+  it("recovers when a failed table event supersedes a still-pending initial fetch", async () => {
+    let onUpdate: (() => void) | undefined;
+    mockedOnTableUpdate.mockImplementation((listener) => {
+      onUpdate = listener;
+      return Promise.resolve(() => {});
+    });
+    mockedGetTableView
+      .mockImplementationOnce(() => new Promise<TableViewSnapshot>(() => {}))
+      .mockRejectedValueOnce(new Error("Transient event refresh failure"))
+      .mockResolvedValue(createTableView({ potTotal: 333 }));
+
+    const bootstrap = createBootstrap();
+    const result = renderWithProviders(
+      <MainTableScreen bootstrap={bootstrap} />,
+      { bootstrap },
+    );
+    await waitFor(() => expect(onUpdate).toBeDefined());
+    vi.useFakeTimers();
+
+    await act(async () => {
+      onUpdate?.();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(mockedGetTableView).toHaveBeenCalledTimes(3);
+    expect(screen.getByText("Pot 333")).toBeTruthy();
+    expect(screen.queryByText("Loading table state")).toBeNull();
+    result.unmount();
+    vi.useRealTimers();
+  });
+
   it("submits raises directly and still confirms all-in actions", async () => {
     const initialView = createTableView();
     mockedGetTableView.mockResolvedValue(initialView);
