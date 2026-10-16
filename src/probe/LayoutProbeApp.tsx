@@ -109,6 +109,7 @@ function createProbeTableView(): TableViewSnapshot {
     tournamentName: "Desktop Sit 'n Go layout-probe",
     tableName: "Main Table",
     tableId: "layout-probe-table",
+    sessionEpoch: 1,
     phaseLabel: "Running",
     streetLabel: "Flop",
     blindLevelLabel: "Level 1 · 10 / 20",
@@ -291,6 +292,7 @@ function createDenseProbeTableView(): TableViewSnapshot {
     tournamentName: "Desktop Sit 'n Go layout-probe",
     tableName: "Main Table",
     tableId: "layout-probe-table-dense",
+    sessionEpoch: 1,
     phaseLabel: "Running",
     streetLabel: "Turn",
     blindLevelLabel: "Level 3 · 50 / 100",
@@ -298,6 +300,7 @@ function createDenseProbeTableView(): TableViewSnapshot {
     boardCards: [
       {
         label: "Ace of hearts",
+
         compactLabel: "A♥",
         suitSymbol: "♥",
         tone: "red",
