@@ -1183,3 +1183,10 @@ Final state: 423 Rust tests pass, 252 frontend tests pass, lint and build clean.
 - Fixed a production React Router advisory, development ESLint/PostCSS advisories, and five stricter React correctness findings without weakening lint rules.
 - Built and inspected `target/release/desktop-poker` (21,908,136 bytes, SHA-256 `9f49324fcf431fcef5202d35dd7c000184992305568f2652b6a6c23896c23211`) and `Desktop Poker_0.1.0_amd64.deb` (6,738,672 bytes, SHA-256 `fc534010dfd8c0468511d9e2a24ad6a34e0375de7a55c030d113d43d06286ac7`).
 - Remaining blockers are manual: graphical launch/install, two-instance and two-machine LAN tournaments, reconnect/failure injection, release keychain behavior, and live rule-based/LLM NPC scenarios. Android/UniFFI should not begin until those gates are resolved or explicitly reclassified.
+## 2026-10-16T05:04:44Z - Claude Sonnet 5.5 - Fix npm dev-dependency audit; uncover masked Vitest failures
+
+- `e9c5112`: vitest ^3.1.3 -> ^5.0.5 plus non-forced `npm audit fix`; `npm audit` and `npm audit --omit=dev` both report 0 vulnerabilities (TESTED LOCALLY, not CI-qualified). Migrated removed `poolOptions.threads.singleThread` to `fileParallelism: false` in `vite.config.ts`. `isolate: false` hangs the suite; do not use it.
+- Handoff correction: CI run 38848772935 "Test frontend" actually had 7 failing tests (6 files) but the step passed because `npm run test | tee` has no pipefail. `924fdd2` sets `defaults.run.shell: bash` in `ci.yml` and fixes all 7 tests (data-router harness, command-aware invoke mock, stale assertions). Local: 40 files / 324 tests pass, prettier and eslint clean, build OK.
+- Other workflows still use `| tee` without pipefail and may mask failures; not yet audited. Geometry job could not run locally (no Playwright Chromium); its earlier CI log showed `F`/`x` markers despite a success result, so check it once pipefail is live.
+- Commit hook rejects `Co-Authored-By` trailers in this repo.
+- NOT pushed; no CI run exists for these commits. Next: push (owner approval pending), confirm exact-head CI, then DPCR phase work (NET, HIST, IO, SEC, UI).
