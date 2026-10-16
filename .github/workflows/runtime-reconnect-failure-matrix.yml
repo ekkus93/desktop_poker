@@ -207,6 +207,7 @@ jobs:
 
       - name: Inventory reconnect evidence
         if: always()
+        shell: bash
         run: |
           find reconnect-failure-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort | tee reconnect-failure-evidence/inventory.txt

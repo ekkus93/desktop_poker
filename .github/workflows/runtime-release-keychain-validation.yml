@@ -263,6 +263,7 @@ jobs:
 
       - name: Inventory release keychain evidence
         if: always()
+        shell: bash
         run: |
           for directory in \
             release-keychain-success-evidence \

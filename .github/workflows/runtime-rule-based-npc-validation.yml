@@ -85,6 +85,7 @@ jobs:
       - name: Build release binary without bundling
         id: build
         continue-on-error: true
+        shell: bash
         run: npm run tauri build -- --no-bundle 2>&1 | tee rule-based-npc-build.log
 
       - name: Run complete rule-based NPC tournament
@@ -186,6 +187,7 @@ jobs:
 
       - name: Inventory rule-based tournament evidence
         if: always()
+        shell: bash
         run: |
           find rule-based-tournament-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort \

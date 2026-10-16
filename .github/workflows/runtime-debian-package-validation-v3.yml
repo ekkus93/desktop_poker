@@ -175,6 +175,7 @@ jobs:
 
       - name: Inventory Debian package evidence
         if: always()
+        shell: bash
         run: |
           find debian-package-v3-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort | tee debian-package-v3-evidence/inventory.txt

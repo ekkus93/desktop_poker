@@ -222,6 +222,7 @@ jobs:
 
       - name: Inventory AppImage evidence
         if: always()
+        shell: bash
         run: |
           find appimage-evidence -maxdepth 2 -type f -printf '%p %s bytes\n' \
             | sort \
