@@ -386,4 +386,56 @@ mod tests {
         let final_store = read_v2(&path.join(V2_FILE_NAME)).unwrap().unwrap();
         assert_eq!(final_store.entries.len(), 8);
     }
+
+    #[test]
+    fn corrupt_v2_is_not_overwritten_by_a_new_merge() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join(V2_FILE_NAME);
+        let original = b"{invalid-v2";
+        fs::write(&path, original).unwrap();
+        assert!(merge_v2(directory.path(), vec![live("A", 1, 1)]).is_err());
+        assert_eq!(fs::read(&path).unwrap(), original);
+    }
+
+    #[test]
+    fn corrupt_legacy_v1_is_preserved_without_creating_v2() {
+        let directory = tempdir().unwrap();
+        let legacy_path = directory.path().join(V1_FILE_NAME);
+        let original = b"{invalid-v1";
+        fs::write(&legacy_path, original).unwrap();
+        assert!(with_profile_lock(directory.path(), || read_or_migrate(directory.path())).is_err());
+        assert_eq!(fs::read(&legacy_path).unwrap(), original);
+        assert!(!directory.path().join(V2_FILE_NAME).exists());
+    }
+
+    #[test]
+    fn repeating_an_identical_merge_does_not_rewrite_the_store() {
+        let directory = tempdir().unwrap();
+        let hand = live("A", 1, 1);
+        let first = merge_v2(directory.path(), vec![hand.clone()]).unwrap();
+        let path = directory.path().join(V2_FILE_NAME);
+        let original_bytes = fs::read(&path).unwrap();
+        let second = merge_v2(directory.path(), vec![hand]).unwrap();
+        assert_eq!(first, second);
+        assert_eq!(fs::read(&path).unwrap(), original_bytes);
+    }
+
+    #[test]
+    fn profile_directories_remain_isolated_across_restarts() {
+        let root = tempdir().unwrap();
+        let alice = root.path().join("alice");
+        let bob = root.path().join("bob");
+        merge_v2(&alice, vec![live("shared-table", 100, 1)]).unwrap();
+        merge_v2(&bob, vec![live("shared-table", 200, 1)]).unwrap();
+        let alice_history = with_profile_lock(&alice, || read_or_migrate(&alice))
+            .unwrap()
+            .unwrap();
+        let bob_history = with_profile_lock(&bob, || read_or_migrate(&bob))
+            .unwrap()
+            .unwrap();
+        assert_eq!(alice_history.entries.len(), 1);
+        assert_eq!(bob_history.entries.len(), 1);
+        assert_eq!(alice_history.entries[0].session_epoch, Some(100));
+        assert_eq!(bob_history.entries[0].session_epoch, Some(200));
+    }
 }
