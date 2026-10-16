@@ -252,6 +252,9 @@ test.describe("layout probe browser geometry", () => {
 
   test("keeps the host setup card inside the desktop viewport", async ({ page }) => {
     await openProbe(page, "host");
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Host Tournament Setup" }),
+    ).toBeVisible();
 
     const metrics = await page.evaluate(() => ({
       viewportHeight: window.innerHeight,
