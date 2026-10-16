@@ -1,15 +1,16 @@
 # Latest Rule-Based NPC Tournament Validation
 
-- Result: **FAIL**
-- Validated commit: `7ea4e0c1fe009a9e4544fb5fd10b96689a70413a`
-- GitHub Actions run: `38883558711`
+- Result: **PASS**
+- Validated commit: `ceaa2cd0be437dff5c1df76fe72ba8633bebadef`
+- GitHub Actions run: `38884204339`
 - Build outcome: `success`
-- Tournament outcome: `failure`
+- Tournament outcome: `success`
 - Evidence artifact: `linux-rule-based-npc-tournament-evidence`
 
-## Failure
+## Result summary
 
-AssertionError: NPC runner emitted an error or fallback diagnostic: [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] npc-seat-2: submit_action rejected (window=aw-22, action=Raise): rejected action mutated controller state; mutation was rolled back | [npc-runner] action window expired for player npc-seat-2 (window=aw-22)
+- Completed hands: `14`
+- Rule-based NPC actions: `23`
 
 ## Executed checks
 
@@ -17,4 +18,7 @@ AssertionError: NPC runner emitted an error or fallback diagnostic: [npc-runner]
 - **PASS** — release binary created a real Tauri/WebKit session
 - **PASS** — two unprofiled rule-based NPCs were seated and ready
 - **PASS** — release table entered hand 1 with the production NPC runner active
-- **FAIL** — rule-based NPC tournament
+- **PASS** — tournament completed across 14 hands with 23 committed rule-based NPC actions
+- **PASS** — both rule-based NPC identities produced live accepted actions
+- **PASS** — production runtime log contained no NPC error or fallback diagnostic
+- **PASS** — final standings contain the human host and both rule-based NPC players
