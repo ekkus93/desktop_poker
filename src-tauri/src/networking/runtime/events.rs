@@ -149,6 +149,16 @@ pub(crate) fn infer_committed_action(
     })
 }
 
+fn action_hand_phase(street: crate::domain::StreetPhase) -> &'static str {
+    match street {
+        crate::domain::StreetPhase::Preflop => "PREFLOP_ACTION",
+        crate::domain::StreetPhase::Flop => "FLOP_ACTION",
+        crate::domain::StreetPhase::Turn => "TURN_ACTION",
+        crate::domain::StreetPhase::River => "RIVER_ACTION",
+        crate::domain::StreetPhase::Showdown => "SHOWDOWN",
+    }
+}
+
 pub(crate) fn infer_new_elimination_events(
     before: &TournamentState,
     after: &TournamentState,
@@ -360,7 +370,7 @@ pub(crate) fn publish_runtime_transition(
                     ProtocolMessageType::ActionWindowOpenedEvent,
                     &ActionWindowOpened {
                         hand_number: after_hand.hand_number,
-                        hand_phase: format!("{:?}", after_hand.cycle_phase),
+                        hand_phase: action_hand_phase(after_hand.street).to_string(),
                         action_window_id: window.action_window_id.clone(),
                         player_id: window.player_id.clone(),
                         seat_index: window.seat_index,

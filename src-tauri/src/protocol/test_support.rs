@@ -59,7 +59,7 @@ pub(crate) fn sample_action_window_opened(
 ) -> ActionWindowOpened {
     ActionWindowOpened {
         hand_number: 7,
-        hand_phase: "AWAITING_ACTION".to_string(),
+        hand_phase: "TURN_ACTION".to_string(),
         action_window_id: "window-7".to_string(),
         player_id: "player-a".to_string(),
         seat_index: 1,
@@ -73,8 +73,7 @@ pub(crate) fn sample_action_window_opened(
 
 pub(crate) fn sample_action_rejected() -> ActionRejectedEvent {
     ActionRejectedEvent {
-        seat_index: 1,
-        action_type: ActionType::Raise,
+        rejected_message_id: "action-1".to_string(),
         reason: "raise too small".to_string(),
     }
 }

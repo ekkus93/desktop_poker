@@ -345,10 +345,9 @@ produce for a known fixture.
 
 **File:** `protocol/models/tests.rs` and `protocol/canonical.rs`
 
-### 11.1 Test: `canonical_bytes_for_join_request_match_known_android_fixture`
-- [x] Marked `#[ignore]` — requires a captured Android CanonicalJson fixture.
-      Added as a placeholder with a TODO comment; will be wired up once the
-      Android fixture is captured.
+### 11.1 Test: `canonical_bytes_for_signed_envelope_match_android_fixture`
+- [x] Captured the Android `CanonicalJson` output for the deterministic signed
+      envelope fixture and enabled the byte-for-byte Rust compatibility test.
 
 ### 11.2 Test: `lexicographic_key_sort_is_applied_at_all_nesting_levels`
 - [x] Build a `serde_json::Value::Object` with 3 nesting levels, keys out of

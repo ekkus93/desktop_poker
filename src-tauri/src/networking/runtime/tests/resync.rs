@@ -183,7 +183,7 @@ fn public_and_private_events_stay_ordered_and_scoped_across_two_clients() {
         ProtocolMessageType::ActionWindowOpenedEvent,
         &ActionWindowOpened {
             hand_number: 1,
-            hand_phase: "AWAITING_ACTION".to_string(),
+            hand_phase: "PREFLOP_ACTION".to_string(),
             action_window_id: "window-1".to_string(),
             player_id: "player-a".to_string(),
             seat_index: 0,

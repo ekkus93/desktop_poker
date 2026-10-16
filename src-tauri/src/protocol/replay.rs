@@ -301,8 +301,7 @@ mod tests {
             message_id: "msg-4".to_string(),
             server_sequence: Some(3),
             payload: serde_json::to_value(ActionRejectedEvent {
-                seat_index: 1,
-                action_type: crate::domain::ActionType::Fold,
+                rejected_message_id: "action-4".to_string(),
                 reason: "stale".to_string(),
             })
             .expect("payload value"),
@@ -319,12 +318,12 @@ mod tests {
 
     #[test]
     fn action_window_opened_fixture_matches_current_desktop_contract() {
-        // The current desktop payload intentionally still includes actionWindowId; the
-        // interop audit tracks that mismatch against Android until live interop closes it.
+        // actionWindowId remains part of the desktop stale-action guard; its
+        // absence from Android's model is tracked as an interop blocker.
         assert_canonical_fixture(
             CanonicalJsonFixture {
                 name: "action-window-opened",
-                expected_json: "{\"actionWindowId\":\"window-7\",\"callAmount\":40,\"deadlineEpochMs\":1700000000000,\"handNumber\":7,\"handPhase\":\"AWAITING_ACTION\",\"legalActions\":[\"FOLD\",\"CALL\",\"RAISE\"],\"playerId\":\"player-a\",\"seatIndex\":1}",
+                expected_json: "{\"actionWindowId\":\"window-7\",\"callAmount\":40,\"deadlineEpochMs\":1700000000000,\"handNumber\":7,\"handPhase\":\"TURN_ACTION\",\"legalActions\":[\"FOLD\",\"CALL\",\"RAISE\"],\"playerId\":\"player-a\",\"seatIndex\":1}",
             },
             &sample_action_window_opened(None, None),
         );
@@ -336,7 +335,7 @@ mod tests {
             CanonicalJsonFixture {
                 name: "action-rejected",
                 expected_json:
-                    "{\"actionType\":\"RAISE\",\"reason\":\"raise too small\",\"seatIndex\":1}",
+                    "{\"reason\":\"raise too small\",\"rejectedMessageId\":\"action-1\"}",
             },
             &sample_action_rejected(),
         );

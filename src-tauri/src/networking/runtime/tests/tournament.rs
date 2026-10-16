@@ -177,6 +177,10 @@ fn host_start_tournament_emits_running_public_and_private_events_to_connected_cl
         let action_window_payload =
             wait_for_public_event(client, ProtocolMessageType::ActionWindowOpenedEvent);
         assert_eq!(action_window_payload.get("handNumber"), Some(&json!(1)));
+        assert_eq!(
+            action_window_payload.get("handPhase"),
+            Some(&json!("PREFLOP_ACTION"))
+        );
     }
 
     let host_state = host.authoritative_state().expect("host state");

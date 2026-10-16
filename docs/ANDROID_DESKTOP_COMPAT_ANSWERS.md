@@ -127,14 +127,21 @@ Desktop should mirror the current Android payload data classes and field names e
 
 - `ActionWindowOpened`
   - `handNumber`
-  - `handPhase`
+  - `handPhase` (`PREFLOP_ACTION`, `FLOP_ACTION`, `TURN_ACTION`, or `RIVER_ACTION` while a player may act)
   - `playerId`
   - `seatIndex`
   - `legalActions`
   - `callAmount`
-  - `minRaiseTo`
-  - `maxRaiseTo`
-  - `deadlineEpochMs`
+  - `minRaiseTo` (optional)
+  - `maxRaiseTo` (optional)
+  - `deadlineEpochMs` (optional in the model; the current coordinator supplies it)
+
+Desktop currently includes an additional `actionWindowId` in this payload to
+bind submissions to the exact active window and reject stale actions. Android
+does not define that field, and its decoder rejects unknown fields. Treat this
+as a deferred interop blocker until both platforms agree on a stale-window
+token contract; Android's `PlayerActionSubmission` currently has no matching
+field.
 
 - `PlayerActionCommitted`
   - `handNumber`
@@ -142,6 +149,10 @@ Desktop should mirror the current Android payload data classes and field names e
   - `playerId`
   - `actionType`
   - `raiseToAmount`
+
+- `ActionRejectedEvent`
+  - `rejectedMessageId`
+  - `reason`
 
 - `StreetRevealed`
   - `handNumber`

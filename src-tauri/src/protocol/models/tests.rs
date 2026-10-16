@@ -188,7 +188,7 @@ fn reconnect_request_serialization_omits_or_keeps_last_known_sequence_as_expecte
 fn action_window_opened_serialization_omits_null_raise_bounds_and_keeps_action_strings() {
     let payload = serde_json::to_value(ActionWindowOpened {
         hand_number: 12,
-        hand_phase: "TURN".to_string(),
+        hand_phase: "TURN_ACTION".to_string(),
         action_window_id: "window-1".to_string(),
         player_id: "player-1".to_string(),
         seat_index: 3,
@@ -238,20 +238,14 @@ fn player_action_committed_serialization_preserves_raise_amount_contract() {
 // Section 11 — canonical JSON round-trip (protocol layer)
 // ---------------------------------------------------------------------------
 
-/// Byte-for-byte Android compatibility test.
-///
-/// TODO: Capture a real fixture by running the Android canonical-JSON test
-/// suite and paste it here as the `expected_bytes` literal.  Until then this
-/// test is `#[ignore]`d so it does not create a false passing signal.
+/// Byte-for-byte Android compatibility fixture captured from Android's
+/// `CanonicalJson` serializer for the same signed-envelope sample.
 #[test]
-#[ignore = "requires captured Android CanonicalJson fixture — see INT_TEST3_TODO.md §11.1"]
-fn canonical_bytes_for_join_request_match_known_android_fixture() {
-    // Construct the envelope exactly as the Android test fixture defines it.
-    // Replace the values below with the real fixture once captured.
+fn canonical_bytes_for_signed_envelope_match_android_fixture() {
     let envelope = sample_signed_envelope();
     let bytes = canonical_json_bytes_without_signature(&envelope).expect("canonical bytes");
 
-    let expected_json: &str = "REPLACE_WITH_ANDROID_FIXTURE";
+    let expected_json: &str = r#"{"counter":7,"messageId":"message-1","messageType":"SNAPSHOT_EVENT","payload":{"value":7},"protocolVersion":1,"senderId":"host","sessionEpoch":4,"tableId":"table-1"}"#;
     assert_eq!(
         String::from_utf8(bytes).expect("utf8"),
         expected_json,

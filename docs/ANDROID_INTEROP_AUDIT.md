@@ -37,11 +37,11 @@ This audit compares the desktop implementation against the current Android sourc
 
 These still need live mixed-runtime verification before Android/Desktop interop can be called proven:
 
-1. `ACTION_WINDOW_OPENED_EVENT` payloads are not shape-identical yet. Desktop currently carries an `actionWindowId` field that is not present in the current Android model.
-2. `ACTION_REJECTED_EVENT` payloads are not shape-identical yet. Android currently models a rejected message id plus reason, while desktop still uses a desktop-specific payload shape.
+1. `ACTION_WINDOW_OPENED_EVENT` still has one intentional deferred shape difference. Android's model has `handNumber`, `handPhase`, `playerId`, `seatIndex`, `legalActions`, `callAmount`, optional raise bounds, and an optional deadline. Desktop now emits Android's street-specific phase enum (`PREFLOP_ACTION`, `FLOP_ACTION`, `TURN_ACTION`, or `RIVER_ACTION`), and the current Android coordinator supplies a deadline. Desktop also sends `actionWindowId`, which Android does not model; Android's wire decoder rejects unknown keys. Desktop uses this identifier to reject stale action submissions, while Android's `PlayerActionSubmission` has no corresponding field. Do not remove the guard or field until both platforms agree on a compatible stale-window token contract.
+2. `ACTION_REJECTED_EVENT` now uses Android's `rejectedMessageId` and `reason` payload shape. Desktop currently has no production emitter for this event, so emission and correlation against an actual rejected request still need implementation and mixed-runtime verification.
 3. The current desktop repo has not run a real Android client against the desktop host, or a real desktop client against the Android host, in this environment.
 
-The desktop repo now has fixture tests that pin the current desktop JSON contracts for the two mismatched payloads above so accidental drift is caught until the interop work intentionally changes them.
+Desktop fixture tests pin the `actionWindowId` blocker and the aligned rejection payload. A runtime integration test also checks that action-window phase values use Android's enum names.
 
 ## What is **not** proven yet
 

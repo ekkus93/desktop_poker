@@ -298,8 +298,7 @@ pub struct PlayerActionSubmission {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionRejectedEvent {
-    pub seat_index: u8,
-    pub action_type: ActionType,
+    pub rejected_message_id: String,
     pub reason: String,
 }
 

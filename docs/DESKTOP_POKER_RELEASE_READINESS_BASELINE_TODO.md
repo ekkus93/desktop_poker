@@ -872,16 +872,16 @@ Use two physical machines on the same LAN.
 
 ### Tasks
 
-- [ ] Obtain the real Android CanonicalJson output referenced by the ignored fixture test.
-- [ ] Run:
+- [x] Obtain the Android CanonicalJson output for the signed-envelope fixture.
+- [x] Run the full ignored-test suite with the available Ollama model:
 
 ```bash
-cargo test --workspace --all-targets --all-features -- --ignored
+OLLAMA_TEST_MODEL=qwen3.5:9b cargo test --workspace --all-targets --all-features -- --ignored
 ```
 
-- [ ] Resolve any canonical-byte mismatch.
-- [ ] Convert the fixture test from ignored to normal once stable.
-- [ ] Verify action-window-opened and action-rejected payload-shape differences are either fixed or documented as explicit deferred blockers.
+- [x] Confirm the captured fixture matches the Rust canonical bytes.
+- [x] Convert the fixture test from ignored to a normal test.
+- [x] Verify action-window-opened and action-rejected payload shapes: align `handPhase` and rejection fields; document the stale-window `actionWindowId` as a deferred interop blocker in `ANDROID_INTEROP_AUDIT.md`.
 
 ### Acceptance
 
