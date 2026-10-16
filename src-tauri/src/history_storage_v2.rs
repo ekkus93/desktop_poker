@@ -12,9 +12,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tempfile::NamedTempFile;
 
 use crate::{
     app_state::DesktopAppState,
@@ -26,7 +26,29 @@ const V1_FILE_NAME: &str = "hand-history.json";
 const V2_SCHEMA_VERSION: u8 = 2;
 const LEGACY_DURABLE_ORIGIN: &str = "durable-v1";
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AtomicWriteStage {
+    Create,
+    Write,
+    FileSync,
+    Replace,
+    #[cfg(unix)]
+    DirectorySync,
+}
+
+fn fail_at(
+    requested: Option<AtomicWriteStage>,
+    stage: AtomicWriteStage,
+    name: &str,
+) -> Result<(), String> {
+    if requested == Some(stage) {
+        Err(format!("injected V2 history {name} failure"))
+    } else {
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 pub enum HistoryProvenance {
     Live,
@@ -60,7 +82,21 @@ pub struct PersistedHandHistoryV2 {
     pub entries: Vec<PersistedHistoryEntryV2>,
 }
 
-fn validate_entry(entry: &PersistedHistoryEntryV2) -> Result<String, String> {
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+enum PersistedHistoryIdentity {
+    Live {
+        table_id: String,
+        session_epoch: u64,
+        hand_number: u32,
+    },
+    Legacy {
+        provenance: HistoryProvenance,
+        origin_id: String,
+        hand_number: u32,
+    },
+}
+
+fn validate_entry(entry: &PersistedHistoryEntryV2) -> Result<PersistedHistoryIdentity, String> {
     if entry.hand.hand_number == 0 {
         return Err("V2 hand history has a non-positive hand number".to_string());
     }
@@ -81,7 +117,11 @@ fn validate_entry(entry: &PersistedHistoryEntryV2) -> Result<String, String> {
             if entry.legacy_origin_id.is_some() {
                 return Err("live V2 hand must not carry a legacy origin".to_string());
             }
-            Ok(format!("live:{table}:{epoch}:{}", entry.hand.hand_number))
+            Ok(PersistedHistoryIdentity::Live {
+                table_id: table.to_string(),
+                session_epoch: epoch,
+                hand_number: entry.hand.hand_number,
+            })
         }
         HistoryProvenance::ImportedDurableV1 | HistoryProvenance::ImportedCacheV1 => {
             if entry.table_id.is_some() || entry.session_epoch.is_some() {
@@ -92,12 +132,11 @@ fn validate_entry(entry: &PersistedHistoryEntryV2) -> Result<String, String> {
                 .as_deref()
                 .filter(|value| !value.trim().is_empty() && value.len() <= 256)
                 .ok_or_else(|| "legacy V2 hand must have a stable origin".to_string())?;
-            let tag = match entry.provenance {
-                HistoryProvenance::ImportedDurableV1 => "durable",
-                HistoryProvenance::ImportedCacheV1 => "cache",
-                HistoryProvenance::Live => unreachable!(),
-            };
-            Ok(format!("{tag}:{origin}:{}", entry.hand.hand_number))
+            Ok(PersistedHistoryIdentity::Legacy {
+                provenance: entry.provenance,
+                origin_id: origin.to_string(),
+                hand_number: entry.hand.hand_number,
+            })
         }
     }
 }
@@ -169,6 +208,14 @@ fn import_legacy_v1(path: &Path) -> Result<Option<PersistedHandHistoryV2>, Strin
 }
 
 fn atomic_write_v2(path: &Path, history: &PersistedHandHistoryV2) -> Result<(), String> {
+    atomic_write_v2_with_fault(path, history, None)
+}
+
+fn atomic_write_v2_with_fault(
+    path: &Path,
+    history: &PersistedHandHistoryV2,
+    injected_failure: Option<AtomicWriteStage>,
+) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or_else(|| "V2 history path has no parent".to_string())?;
@@ -177,36 +224,40 @@ fn atomic_write_v2(path: &Path, history: &PersistedHandHistoryV2) -> Result<(), 
     let mut bytes = serde_json::to_vec_pretty(history)
         .map_err(|error| format!("failed to encode V2 history: {error}"))?;
     bytes.push(b'\n');
-    let mut random = OsRng;
-    let temporary = parent.join(format!(".{V2_FILE_NAME}.{:016x}.tmp", random.next_u64()));
-    let write_result = (|| -> Result<(), String> {
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut file = options
-            .open(&temporary)
-            .map_err(|error| format!("failed to create temporary V2 history: {error}"))?;
-        file.write_all(&bytes)
-            .map_err(|error| format!("failed to write V2 history: {error}"))?;
-        file.sync_all()
-            .map_err(|error| format!("failed to sync V2 history: {error}"))?;
-        drop(file);
-        fs::rename(&temporary, path)
-            .map_err(|error| format!("failed to replace V2 history: {error}"))?;
-        #[cfg(unix)]
-        File::open(parent)
-            .and_then(|directory| directory.sync_all())
-            .map_err(|error| format!("failed to sync V2 history directory: {error}"))?;
-        Ok(())
-    })();
-    if write_result.is_err() {
-        let _ = fs::remove_file(&temporary);
-    }
-    write_result
+    fail_at(injected_failure, AtomicWriteStage::Create, "create")?;
+    let mut temporary = NamedTempFile::new_in(parent)
+        .map_err(|error| format!("failed to create temporary V2 history: {error}"))?;
+    let halfway = bytes.len() / 2;
+    temporary
+        .write_all(&bytes[..halfway])
+        .map_err(|error| format!("failed to write V2 history: {error}"))?;
+    fail_at(injected_failure, AtomicWriteStage::Write, "write")?;
+    temporary
+        .write_all(&bytes[halfway..])
+        .map_err(|error| format!("failed to write V2 history: {error}"))?;
+    fail_at(injected_failure, AtomicWriteStage::FileSync, "file sync")?;
+    temporary
+        .as_file()
+        .sync_all()
+        .map_err(|error| format!("failed to sync V2 history: {error}"))?;
+    // persist() uses a unique create-new temporary and replaces an existing
+    // destination on Windows as well as Unix. The old file remains intact if
+    // the move fails; dropping the PersistError's file cleans the temp.
+    fail_at(injected_failure, AtomicWriteStage::Replace, "replace")?;
+    temporary
+        .persist(path)
+        .map_err(|error| format!("failed to replace V2 history: {}", error.error))?;
+    #[cfg(unix)]
+    fail_at(
+        injected_failure,
+        AtomicWriteStage::DirectorySync,
+        "directory sync",
+    )?;
+    #[cfg(unix)]
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| format!("failed to sync V2 history directory: {error}"))?;
+    Ok(())
 }
 
 fn with_profile_lock<T>(
@@ -260,6 +311,14 @@ fn merge_v2(
             .as_ref()
             .map(|history| history.entries.clone())
             .unwrap_or_default();
+        #[cfg(test)]
+        if let Ok(delay_ms) = std::env::var("DESKTOP_POKER_TEST_HISTORY_LOCK_DELAY_MS") {
+            if let Ok(delay_ms) = delay_ms.parse::<u64>() {
+                // Child-process regression hook: make an unlocked lost update
+                // deterministic while keeping production code unchanged.
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            }
+        }
         entries.extend(incoming);
         let entries = normalize_entries(entries)?;
         if let Some(ref previous) = existing {
@@ -295,6 +354,8 @@ pub fn merge_persisted_hand_history_v2(
 
 #[cfg(test)]
 mod tests {
+    use std::process::Command;
+
     use tempfile::tempdir;
 
     use super::*;
@@ -362,11 +423,103 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_v2_is_preserved_and_fails_closed() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join(V2_FILE_NAME);
+        let original = br#"{"schemaVersion":3,"updatedAtMs":10,"entries":[]}"#;
+        fs::write(&path, original).unwrap();
+
+        assert!(read_v2(&path)
+            .unwrap_err()
+            .contains("unsupported V2 hand history schemaVersion"));
+        assert_eq!(fs::read(path).unwrap(), original);
+    }
+
+    #[test]
+    fn update_within_one_tournament_replaces_only_that_hand() {
+        let directory = tempdir().unwrap();
+        let mut original = live("A", 1, 1);
+        original.hand.summary = "Earlier summary".to_string();
+        merge_v2(directory.path(), vec![original]).unwrap();
+        let mut update = live("A", 1, 1);
+        update.hand.summary = "Authoritative update".to_string();
+        merge_v2(directory.path(), vec![update]).unwrap();
+
+        let history = read_v2(&directory.path().join(V2_FILE_NAME))
+            .unwrap()
+            .unwrap();
+        assert_eq!(history.entries.len(), 1);
+        assert_eq!(history.entries[0].hand.summary, "Authoritative update");
+    }
+
+    #[test]
+    fn v1_reader_can_roll_back_without_deleting_v2_then_reupgrade() {
+        let directory = tempdir().unwrap();
+        let legacy = PersistedHandHistory {
+            updated_at_ms: 100,
+            entries: vec![sample_hand(1, "Legacy")],
+        };
+        let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
+        let legacy_path = directory.path().join(V1_FILE_NAME);
+        fs::write(&legacy_path, &legacy_bytes).unwrap();
+        read_or_migrate(directory.path()).unwrap();
+        merge_v2(directory.path(), vec![live("new-tournament", 2, 1)]).unwrap();
+
+        // An older binary still reads the unchanged V1 file; its view omits
+        // V2-only records, while re-upgrading retains all records in V2.
+        let old_binary_view: PersistedHandHistory =
+            serde_json::from_slice(&fs::read(&legacy_path).unwrap()).unwrap();
+        assert_eq!(old_binary_view.entries, legacy.entries);
+        assert_eq!(fs::read(&legacy_path).unwrap(), legacy_bytes);
+        let upgraded = read_or_migrate(directory.path()).unwrap().unwrap();
+        assert_eq!(upgraded.entries.len(), 2);
+    }
+
+    #[test]
     fn rejects_ambiguous_or_incomplete_tournament_identity() {
         let directory = tempdir().unwrap();
         let invalid = live("A", 0, 1);
         assert!(merge_v2(directory.path(), vec![invalid]).is_err());
         assert!(!directory.path().join(V2_FILE_NAME).exists());
+    }
+
+    #[test]
+    fn serialized_schema_and_identity_validation_are_stable() {
+        let entry = live("table-A", 42, 3);
+        let value = serde_json::to_value(PersistedHandHistoryV2 {
+            schema_version: V2_SCHEMA_VERSION,
+            updated_at_ms: 100,
+            entries: vec![entry.clone()],
+        })
+        .unwrap();
+        assert_eq!(value["schemaVersion"], 2);
+        assert_eq!(value["entries"][0]["tableId"], "table-A");
+        assert_eq!(value["entries"][0]["sessionEpoch"], 42);
+        assert_eq!(value["entries"][0]["provenance"], "live");
+        assert!(value["entries"][0].get("table_id").is_none());
+        assert!(validate_entry(&entry).is_ok());
+
+        let mut invalid = entry.clone();
+        invalid.table_id = Some("  ".to_string());
+        assert!(validate_entry(&invalid).is_err());
+        invalid = entry.clone();
+        invalid.table_id = None;
+        assert!(validate_entry(&invalid).is_err());
+        invalid = entry.clone();
+        invalid.session_epoch = None;
+        assert!(validate_entry(&invalid).is_err());
+        invalid = entry.clone();
+        invalid.legacy_origin_id = Some("cache-v1:x".to_string());
+        assert!(validate_entry(&invalid).is_err());
+
+        invalid.provenance = HistoryProvenance::ImportedDurableV1;
+        invalid.table_id = Some("invented-table".to_string());
+        invalid.session_epoch = None;
+        invalid.legacy_origin_id = Some("durable-v1".to_string());
+        assert!(validate_entry(&invalid).is_err());
+        invalid.table_id = None;
+        invalid.legacy_origin_id = None;
+        assert!(validate_entry(&invalid).is_err());
     }
 
     #[test]
@@ -386,6 +539,47 @@ mod tests {
         }
         let final_store = read_v2(&path.join(V2_FILE_NAME)).unwrap().unwrap();
         assert_eq!(final_store.entries.len(), 8);
+    }
+
+    #[test]
+    fn profile_lock_serializes_disjoint_process_writers() {
+        let directory = tempdir().unwrap();
+        let executable = std::env::current_exe().unwrap();
+        let mut children: Vec<_> = (1..=4)
+            .map(|epoch| {
+                Command::new(&executable)
+                    .args([
+                        "--exact",
+                        "history_storage_v2::tests::interprocess_writer_child",
+                    ])
+                    .env("DESKTOP_POKER_HISTORY_TEST_PROFILE", directory.path())
+                    .env("DESKTOP_POKER_HISTORY_TEST_EPOCH", epoch.to_string())
+                    .env("DESKTOP_POKER_TEST_HISTORY_LOCK_DELAY_MS", "100")
+                    .spawn()
+                    .unwrap()
+            })
+            .collect();
+
+        for child in &mut children {
+            assert!(child.wait().unwrap().success());
+        }
+
+        let history = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(history.entries.len(), 4);
+    }
+
+    #[test]
+    fn interprocess_writer_child() {
+        let Ok(profile) = std::env::var("DESKTOP_POKER_HISTORY_TEST_PROFILE") else {
+            return;
+        };
+        let epoch = std::env::var("DESKTOP_POKER_HISTORY_TEST_EPOCH")
+            .unwrap()
+            .parse()
+            .unwrap();
+        merge_v2(Path::new(&profile), vec![live("shared", epoch, 1)]).unwrap();
     }
 
     #[test]
@@ -419,6 +613,81 @@ mod tests {
         let second = merge_v2(directory.path(), vec![hand]).unwrap();
         assert_eq!(first, second);
         assert_eq!(fs::read(&path).unwrap(), original_bytes);
+    }
+
+    #[test]
+    fn replacement_is_atomic_and_leaves_no_temporary_file() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join(V2_FILE_NAME);
+        merge_v2(directory.path(), vec![live("A", 1, 1)]).unwrap();
+        let old_bytes = fs::read(&path).unwrap();
+
+        merge_v2(directory.path(), vec![live("B", 2, 1)]).unwrap();
+
+        assert_ne!(fs::read(&path).unwrap(), old_bytes);
+        assert_eq!(read_v2(&path).unwrap().unwrap().entries.len(), 2);
+        let files: Vec<_> = fs::read_dir(directory.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert!(files
+            .iter()
+            .all(|name| { name == V2_FILE_NAME || name == ".hand-history.lock" }));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                fs::metadata(path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
+
+    #[test]
+    fn atomic_write_failures_preserve_the_previous_store_until_replace() {
+        let directory = tempdir().unwrap();
+        let path = directory.path().join(V2_FILE_NAME);
+        let first = PersistedHandHistoryV2 {
+            schema_version: V2_SCHEMA_VERSION,
+            updated_at_ms: 10,
+            entries: vec![live("A", 1, 1)],
+        };
+        let replacement = PersistedHandHistoryV2 {
+            schema_version: V2_SCHEMA_VERSION,
+            updated_at_ms: 20,
+            entries: vec![live("B", 2, 1)],
+        };
+        atomic_write_v2(&path, &first).unwrap();
+        let previous_bytes = fs::read(&path).unwrap();
+
+        for stage in [
+            AtomicWriteStage::Create,
+            AtomicWriteStage::Write,
+            AtomicWriteStage::FileSync,
+            AtomicWriteStage::Replace,
+        ] {
+            assert!(atomic_write_v2_with_fault(&path, &replacement, Some(stage)).is_err());
+            assert_eq!(fs::read(&path).unwrap(), previous_bytes);
+            assert!(fs::read_dir(directory.path()).unwrap().all(|entry| {
+                entry
+                    .unwrap()
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| name == V2_FILE_NAME)
+            }));
+        }
+
+        #[cfg(unix)]
+        {
+            assert!(atomic_write_v2_with_fault(
+                &path,
+                &replacement,
+                Some(AtomicWriteStage::DirectorySync)
+            )
+            .is_err());
+            let persisted = read_v2(&path).unwrap().unwrap();
+            assert_eq!(persisted.entries, replacement.entries);
+        }
     }
 
     #[test]
