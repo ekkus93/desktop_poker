@@ -221,13 +221,15 @@ describe("HandHistoryScreen", () => {
       });
 
       expect(
-        await screen.findByText(`Showing 100 of ${count} settled hands, newest first in the selected tournament.`),
+        await screen.findByText(
+          `Showing 100 of ${count} settled hands, newest first in the selected tournament.`,
+        ),
       ).toBeTruthy();
       expect(screen.getByText(`Player won hand ${count}`)).toBeTruthy();
       expect(
         screen.getByText(`Player won hand ${count - 99}`),
       ).toBeTruthy();
-      expect(screen.getAllByText(/^Player won hand \\d+$/)).toHaveLength(100);
+      expect(screen.getAllByText(/^Player won hand \d+$/)).toHaveLength(100);
 
       if (count === 100) {
         expect(screen.queryByRole("button", { name: /older hand/i })).toBeNull();
@@ -237,7 +239,7 @@ describe("HandHistoryScreen", () => {
           screen.getByRole("button", { name: "Show 1 older hand" }),
         );
         expect(screen.getByText("Player won hand 1")).toBeTruthy();
-        expect(screen.getAllByText(/^Player won hand \\d+$/)).toHaveLength(101);
+        expect(screen.getAllByText(/^Player won hand \d+$/)).toHaveLength(101);
         expect(screen.queryByRole("button", { name: /older hand/i })).toBeNull();
       }
     },
