@@ -439,4 +439,35 @@ mod tests {
         assert_eq!(alice_history.entries[0].session_epoch, Some(100));
         assert_eq!(bob_history.entries[0].session_epoch, Some(200));
     }
+
+    #[test]
+    fn history_profile_lock_preserves_existing_lock_file_contents() {
+        let directory = tempdir().unwrap();
+        let lock_path = directory.path().join(".hand-history.lock");
+        let existing = b"synthetic owner metadata";
+        fs::write(&lock_path, existing).unwrap();
+
+        merge_v2(directory.path(), vec![live("A", 1, 1)]).unwrap();
+        let store = with_profile_lock(directory.path(), || read_or_migrate(directory.path()))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(store.entries.len(), 1);
+        assert_eq!(fs::read(&lock_path).unwrap(), existing);
+    }
+
+    #[test]
+    fn failed_history_lock_acquisition_preserves_existing_v2_bytes() {
+        let directory = tempdir().unwrap();
+        merge_v2(directory.path(), vec![live("A", 1, 1)]).unwrap();
+        let history_path = directory.path().join(V2_FILE_NAME);
+        let original = fs::read(&history_path).unwrap();
+
+        let lock_path = directory.path().join(".hand-history.lock");
+        fs::remove_file(&lock_path).unwrap();
+        fs::create_dir(&lock_path).unwrap();
+
+        assert!(merge_v2(directory.path(), vec![live("B", 2, 1)]).is_err());
+        assert_eq!(fs::read(&history_path).unwrap(), original);
+    }
 }
