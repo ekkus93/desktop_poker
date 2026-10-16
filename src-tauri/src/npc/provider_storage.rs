@@ -198,6 +198,7 @@ fn read_key_file(path: &Path) -> Result<Option<String>, String> {
 }
 
 /// Write `key` to `path` and restrict permissions to owner-only on Unix.
+
 fn write_key_file(path: &Path, key: &str) -> Result<(), std::io::Error> {
     fs::write(path, key)?;
     #[cfg(unix)]
@@ -283,8 +284,7 @@ fn retire_legacy_anthropic_key(
     if let Some(settings) = new_settings {
         rewrite_sanitized_provider_settings(&settings_path(app_data_dir), settings)?;
     }
-    fs::remove_file(&legacy)
-        .map_err(|error| format!("cannot retire legacy key file: {error}"))?;
+    fs::remove_file(&legacy).map_err(|error| format!("cannot retire legacy key file: {error}"))?;
     Ok(Some(retained))
 }
 
@@ -398,6 +398,7 @@ pub fn load_provider_config(
             api_key
         };
         return ProviderConfigLoadState::Loaded(LlmProviderConfig { settings, api_key });
+
     }
 
     // The old plaintext file is a one-time migration source, not a permanent
@@ -598,6 +599,7 @@ pub fn save_provider_settings_only(
 
     // If the existing settings file is unreadable or corrupt, refuse to
     // overwrite it — returning an error surfaces the problem instead of
+
     // silently destroying state.
     let current = read_existing_provider_settings_for_update(&sp)?;
 
@@ -798,6 +800,7 @@ mod tests {
     fn keyless_settings_switch_never_accesses_secret_store() {
         let dir = tempfile::tempdir().unwrap();
         save_provider_config(dir.path(), Some(&embedded_config()), &RejectingSecretStore).unwrap();
+
         let ollama = LlmProviderSettings {
             provider: LlmProviderType::Ollama,
             endpoint_url: None,
@@ -912,7 +915,8 @@ mod tests {
         );
         assert_eq!(
             unwrap_loaded(load_provider_config(dir.path(), &tracking))
-                .api_key.as_deref(),
+                .api_key
+                .as_deref(),
             Some("sk-ant-legacy")
         );
     }
@@ -998,6 +1002,7 @@ mod tests {
 
     #[test]
     fn migration_from_combined_old_format_extracts_key_and_rewrites_settings() {
+
         let dir = tempfile::tempdir().unwrap();
         let store = file_store(dir.path());
         // Write old combined format (settings + apiKey in one file).
@@ -1198,6 +1203,7 @@ mod tests {
     #[test]
     fn clear_deletes_all_known_provider_accounts() {
         let dir = tempfile::tempdir().unwrap();
+
         let tracking = TrackingSecretStore::new()
             .with_key("anthropic", "sk-ant-key")
             .with_key("openAi", "sk-openai-key");
