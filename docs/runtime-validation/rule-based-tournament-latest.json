@@ -1,12 +1,12 @@
 {
   "buildOutcome": "success",
   "evidenceArtifact": "linux-rule-based-npc-tournament-evidence",
-  "recordedAtUtc": "2026-10-16T10:05:16.739244+00:00",
+  "recordedAtUtc": "2026-10-16T10:12:04.810117+00:00",
   "result": "PASS",
   "ruleBasedTournament": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "completedHands": 20,
+    "completedHands": 15,
     "finalStandings": [
       {
         "chipCount": 300,
@@ -46,16 +46,13 @@
       "hand 10: allIn",
       "hand 12: allIn",
       "hand 13: allIn",
-      "hand 15: allIn",
-      "hand 16: allIn",
-      "hand 18: allIn",
-      "hand 20: allIn"
+      "hand 15: allIn"
     ],
-    "instanceId": "rule-based-npc-38884571954",
-    "npcActionCount": 30,
+    "instanceId": "rule-based-npc-38885326320",
+    "npcActionCount": 22,
     "npcActionCounts": {
-      "Rule Bot Alpha": 13,
-      "Rule Bot Beta": 17
+      "Rule Bot Alpha": 10,
+      "Rule Bot Beta": 12
     },
     "npcActions": [
       {
@@ -151,7 +148,7 @@
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 9,
-        "message": "Rule Bot Beta All-in to 40.",
+        "message": "Rule Bot Beta Fold.",
         "sequence": 60
       },
       {
@@ -164,83 +161,35 @@
         "displayName": "Rule Bot Beta",
         "handNumber": 10,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 71
+        "sequence": 70
       },
       {
         "displayName": "Rule Bot Alpha",
         "handNumber": 11,
         "message": "Rule Bot Alpha Fold.",
-        "sequence": 76
+        "sequence": 75
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 11,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 78
+        "sequence": 77
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 12,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 82
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 12,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 86
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 13,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 92
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 14,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 97
+        "sequence": 81
       },
       {
         "displayName": "Rule Bot Beta",
         "handNumber": 14,
         "message": "Rule Bot Beta Fold.",
-        "sequence": 99
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 15,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 103
-      },
-      {
-        "displayName": "Rule Bot Alpha",
-        "handNumber": 15,
-        "message": "Rule Bot Alpha Fold.",
-        "sequence": 107
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 16,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 113
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 17,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 119
-      },
-      {
-        "displayName": "Rule Bot Beta",
-        "handNumber": 19,
-        "message": "Rule Bot Beta Fold.",
-        "sequence": 128
+        "sequence": 94
       }
     ],
     "npcDiagnosticCount": 0,
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-38884571954",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/rule-based-npc-38885326320",
     "result": "PASS",
     "steps": [
       {
@@ -260,7 +209,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed across 20 hands with 30 committed rule-based NPC actions",
+        "name": "tournament completed across 15 hands with 22 committed rule-based NPC actions",
         "result": "PASS"
       },
       {
@@ -278,7 +227,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "1cf8f1a5a94afc22111d52ef50749b98ca74d595",
+  "validatedCommit": "3dcf25a61f514bace60046b11e05991683d821d5",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38884571954"
+  "workflowRunId": "38885326320"
 }
