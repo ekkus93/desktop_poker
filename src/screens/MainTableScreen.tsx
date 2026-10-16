@@ -188,9 +188,7 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
           if (cancelled || generation !== latestRequestRef.current) {
             return;
           }
-          // If an event supersedes the initial request and then fails, the
-          // original request cannot schedule its fallback poll. Ensure the
-          // newest generation always schedules recovery without clearing errors.
+          // A failed event may supersede the initial load; keep polling.
           scheduleNext(
             consecutiveErrorsRef.current >= POLL_BACKOFF_THRESHOLD
               ? TABLE_POLL_SLOW_MS
@@ -309,3 +307,393 @@ export function MainTableScreen({ bootstrap }: ScreenProps) {
 
     await submitAction(actionKind);
   };
+
+  return (
+    <ScreenShell
+      title="Main Table"
+      badges={[
+        handStarted
+          ? (tableView?.blindLevelLabel ?? "Loading table")
+          : (tableView?.phaseLabel ?? "Loading table"),
+      ]}
+      className="table-screen-layout"
+    >
+      <div
+        className={`table-screen-shell ${denseSeatMap ? "dense-table-screen-shell" : ""}`}
+      >
+        <div className="table-top-row">
+          <div className="button-row">
+            <button
+              className="secondary-button compact-button"
+              onClick={() => setTableSidePanelOpen(!tableSidePanelOpen)}
+              type="button"
+            >
+              <span className="button-content">
+                <PanelRight className="button-icon" strokeWidth={1.9} />
+                <span>
+                  {tableSidePanelOpen ? "Hide details" : "Table details"}
+                </span>
+              </span>
+            </button>
+          </div>
+          <div className="button-row">
+            <Link className="secondary-button compact-button" to="/history">
+              <span className="button-content">
+                <History className="button-icon" strokeWidth={1.9} />
+                <span>Hand history</span>
+              </span>
+            </Link>
+            {tableView?.tournamentPhase === "complete" ? (
+              <Link className="secondary-button compact-button" to="/complete">
+                <span className="button-content">
+                  <Trophy className="button-icon" strokeWidth={1.9} />
+                  <span>Tournament complete</span>
+                </span>
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
+        {loading ? (
+          <SectionCard title="Loading table state">
+            <span className="field-hint">
+              Requesting the current table state from the host.
+            </span>
+          </SectionCard>
+        ) : null}
+
+        {tableView?.sessionConnection === "reconnecting" ? (
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
+            Reconnecting to host…
+          </div>
+        ) : connectionSlow ? (
+          <div aria-live="polite" className="inline-banner info" role="status">
+            <WifiOff
+              aria-hidden="true"
+              className="button-icon"
+              strokeWidth={1.9}
+            />
+            Connection slow — retrying…
+          </div>
+        ) : null}
+
+        {error ? (
+          <SectionCard title="Table unavailable">
+            <p>{error}</p>
+            <div className="button-row">
+              <Link className="primary-button" to="/lobby">
+                Return to lobby
+              </Link>
+              <Link className="secondary-button" to="/history">
+                Open history
+              </Link>
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {tableView ? (
+          <div
+            className={`desktop-table-layout ${tableSidePanelOpen ? "with-side-panel" : ""}`}
+          >
+            <div
+              className={`table-main-column ${denseSeatMap ? "dense-table-main-column" : ""}`}
+            >
+              <section
+                className={`table-surface enhanced-table-surface ${denseSeatMap ? "dense-table-surface" : ""}`}
+              >
+                <div
+                  aria-atomic="true"
+                  aria-live="polite"
+                  className={`table-headline-card ${tableView.actionTray ? "is-active-turn" : "is-waiting"}`}
+                >
+                  <p className="kicker">
+                    {handStarted
+                      ? tableView.actionTray
+                        ? "Your move"
+                        : "Waiting"
+                      : "Not started"}
+                  </p>
+                  <h3>
+                    {handStarted
+                      ? tableView.actionTray
+                        ? `${tableView.actionTray.ownerLabel} to act`
+                        : tableView.actionOwnerLabel
+                      : "Tournament has not started"}
+                  </h3>
+                </div>
+
+                <header className="table-surface-header">
+                  <div>
+                    <p className="kicker">{tableView.tableName}</p>
+                    <h3>{tableView.tournamentName}</h3>
+                    <p className="field-hint">
+                      Hand {tableView.currentHandNumber ?? "—"} ·{" "}
+                      {tableView.phaseLabel}
+                    </p>
+                  </div>
+                  <div className="badge-row">
+                    <StatusBadge tone="success">
+                      {tableView.streetLabel}
+                    </StatusBadge>
+                    <StatusBadge tone="info">
+                      {tableView.blindLevelLabel}
+                    </StatusBadge>
+                    <StatusBadge tone="accent">
+                      Pot {tableView.potTotal}
+                    </StatusBadge>
+                  </div>
+                </header>
+
+                {tableView.observerBanner ? (
+                  <div
+                    className="inline-banner info observer-banner"
+                    role="status"
+                  >
+                    <strong>Observer mode</strong>
+                    <span>{tableView.observerBanner}</span>
+                    {tableView.currentHandNumber !== null ? (
+                      <span>Watching hand #{tableView.currentHandNumber}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {handStarted ? (
+                  <>
+                    {denseSeatMap ? (
+                      <p className="field-hint dense-table-note">
+                        Action: {tableView.actionOwnerLabel}.{" "}
+                        {tableView.eliminationSummary}
+                      </p>
+                    ) : (
+                      <div className="table-summary-row">
+                        <div className="pot-summary-card">
+                          <span className="surface-label">Pot</span>
+                          <strong>{tableView.potTotal} chips</strong>
+                        </div>
+                        <div className="pot-summary-card action-owner-card">
+                          <span className="surface-label">Action</span>
+                          <strong>{tableView.actionOwnerLabel}</strong>
+                        </div>
+                        <div className="pot-summary-card elimination-card">
+                          <span className="surface-label">Table note</span>
+                          <strong>{tableView.eliminationSummary}</strong>
+                        </div>
+                      </div>
+                    )}
+
+                    <div
+                      className="community-cards centered-community-cards"
+                      aria-label="Community cards"
+                    >
+                      {boardCards.map((card, index) => (
+                        <PlayingCard
+                          key={index}
+                          card={card}
+                          placeholderAriaLabel={`Community card ${index + 1}`}
+                          size="board"
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <SectionCard title="Before the first hand">
+                    <p>
+                      The tournament is live but the first hand has not started
+                      yet. The host will deal once all players are seated and
+                      ready.
+                    </p>
+                  </SectionCard>
+                )}
+
+                <div className="seat-grid enhanced-seat-grid">
+                  {tableView.seats.map((seat) => (
+                    <SeatCard
+                      key={seat.seatIndex}
+                      seat={seat}
+                      displayName={displayName}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {tableView.actionTray ? (
+                <SectionCard
+                  kicker="Action"
+                  title="Play this spot"
+                  className="table-action-card"
+                >
+                  <div className="action-owner-banner">
+                    <strong>{tableView.actionTray.ownerLabel}</strong>
+                  </div>
+                  <div className="button-row action-tray-row">
+                    <button
+                      className="secondary-button"
+                      disabled={submitting}
+                      onClick={() => void handlePrimaryAction("fold")}
+                      type="button"
+                    >
+                      Fold
+                    </button>
+                    <button
+                      className="primary-button"
+                      disabled={submitting}
+                      onClick={() => void handlePrimaryAction("checkOrCall")}
+                      type="button"
+                    >
+                      {tableView.actionTray.checkOrCallLabel}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={
+                        submitting || tableView.actionTray.maxRaiseTo === null
+                      }
+                      onClick={() => void handlePrimaryAction("betOrRaise")}
+                      type="button"
+                    >
+                      {tableView.actionTray.betOrRaiseLabel}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={submitting}
+                      onClick={() => void handlePrimaryAction("allIn")}
+                      type="button"
+                    >
+                      All-in
+                    </button>
+                  </div>
+                  {submitting ? (
+                    <div
+                      aria-live="polite"
+                      className="inline-banner info"
+                      role="status"
+                    >
+                      Sending your action to the host…
+                    </div>
+                  ) : null}
+                  {tableView.actionTray.maxRaiseTo === null ? (
+                    <p className="field-hint">
+                      Raise unavailable until a legal raise size is offered for
+                      this spot.
+                    </p>
+                  ) : (
+                    <div className="raise-controls">
+                      <label className="field" htmlFor="raise-slider">
+                        <span>Raise size</span>
+                        <input
+                          aria-label="Raise amount"
+                          aria-valuemax={tableView.actionTray.maxRaiseTo}
+                          aria-valuemin={
+                            tableView.actionTray.minRaiseTo ??
+                            tableView.actionTray.maxRaiseTo
+                          }
+                          aria-valuenow={
+                            effectiveRaiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)
+                          }
+                          id="raise-slider"
+                          max={tableView.actionTray.maxRaiseTo}
+                          min={
+                            tableView.actionTray.minRaiseTo ??
+                            tableView.actionTray.maxRaiseTo
+                          }
+                          onChange={(event) =>
+                            setRaiseAmount(Number(event.target.value))
+                          }
+                          step={1}
+                          type="range"
+                          value={
+                            effectiveRaiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)
+                          }
+                        />
+                      </label>
+                      <p className="field-hint">
+                        To{" "}
+                        <strong>
+                          {effectiveRaiseAmount ??
+                            defaultRaiseAmount(tableView.actionTray)}
+                        </strong>{" "}
+                        · Call {tableView.actionTray.callAmount} · Pot{" "}
+                        {tableView.actionTray.potTotal}
+                      </p>
+                      <div className="button-row quick-size-row">
+                        {quickSizes.map((option) => (
+                          <button
+                            key={option.label}
+                            className="secondary-button compact-button"
+                            onClick={() => setRaiseAmount(option.amount)}
+                            type="button"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {confirmation ? (
+                    <AccessibleDialog
+                      className="confirmation-card"
+                      description={
+                        confirmation.actionKind === "betOrRaise"
+                          ? `Send a raise to ${effectiveRaiseAmount ?? defaultRaiseAmount(tableView.actionTray)} chips?`
+                          : "Commit the remaining stack as an all-in action?"
+                      }
+                      onCancel={() => setConfirmation(null)}
+                      title={confirmation.label}
+                      titleId="table-action-confirmation-title"
+                    >
+                      <div className="button-row">
+                        <button
+                          className="primary-button"
+                          disabled={submitting}
+                          onClick={() => void confirmQueuedAction()}
+                          type="button"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="secondary-button"
+                          disabled={submitting}
+                          onClick={() => setConfirmation(null)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </AccessibleDialog>
+                  ) : null}
+                  {actionError ? (
+                    <div className="inline-banner error" role="alert">
+                      {actionError}
+                    </div>
+                  ) : null}
+                </SectionCard>
+              ) : (
+                <SectionCard
+                  kicker="Action"
+                  title="Waiting"
+                  className="table-action-card"
+                >
+                  <p>
+                    {handStarted
+                      ? "Waiting for the next action from the host."
+                      : "No hand is running yet."}
+                  </p>
+                </SectionCard>
+              )}
+            </div>
+
+            {tableSidePanelOpen ? (
+              <TableSidePanel tableView={tableView} displayName={displayName} />
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </ScreenShell>
+  );
+}
