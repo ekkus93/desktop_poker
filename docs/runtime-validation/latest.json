@@ -1,21 +1,150 @@
 {
-  "buildOutcome": "failure",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-release-runtime-evidence",
   "multiInstance": {
-    "error": "multi-instance runtime result file was not produced.",
-    "result": "FAIL",
-    "steps": []
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "ab1f1fb58b4589b81099853a4c828f15a2d19612cd50819cf2ab962019d7a037",
+    "clientInstanceId": "runtime-client-38882200725",
+    "clientTableId": "table-runtime-host-38882200725-1792143859848",
+    "conflictInstanceId": "runtime-conflict-38882200725",
+    "hostInstanceId": "runtime-host-38882200725",
+    "hostPort": 43818,
+    "profileDirectories": [
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-38882200725",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-38882200725",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-38882200725"
+    ],
+    "recoveryPort": 43819,
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "client release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "conflict host release instance launched",
+        "result": "PASS"
+      },
+      {
+        "name": "three instance IDs and profile directories are distinct",
+        "result": "PASS"
+      },
+      {
+        "name": "client host draft is independently namespaced before joining",
+        "result": "PASS"
+      },
+      {
+        "name": "host started a real TCP session and produced a pkr1_ invite",
+        "result": "PASS"
+      },
+      {
+        "name": "client joined the live host over real TCP with matching seat indexes",
+        "result": "PASS"
+      },
+      {
+        "name": "host began the lobby in its authoritative occupied seat",
+        "result": "PASS"
+      },
+      {
+        "name": "client claimed the remaining open seat through the release UI",
+        "result": "PASS"
+      },
+      {
+        "name": "host and client agree on distinct authoritative seat assignments",
+        "result": "PASS"
+      },
+      {
+        "name": "ready state propagated to both release instances",
+        "result": "PASS"
+      },
+      {
+        "name": "both instances entered Main Table after authoritative start",
+        "result": "PASS"
+      },
+      {
+        "name": "private cards are isolated and public table state is synchronized",
+        "result": "PASS"
+      },
+      {
+        "name": "same-port host failed explicitly: Unable to start hosting on TCP port 43818. Unable to start hosting.",
+        "result": "PASS"
+      },
+      {
+        "name": "conflicting host recovered successfully on port 43819",
+        "result": "PASS"
+      }
+    ],
+    "tableId": "table-runtime-host-38882200725-1792143859848"
   },
-  "multiInstanceOutcome": "skipped",
-  "recordedAtUtc": "2026-10-16T09:40:29.494771+00:00",
-  "result": "FAIL",
+  "multiInstanceOutcome": "success",
+  "recordedAtUtc": "2026-10-16T09:44:33.707492+00:00",
+  "result": "PASS",
   "singleInstance": {
-    "error": "single-instance runtime result file was not produced.",
-    "result": "FAIL",
-    "steps": []
+    "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
+    "applicationSha256": "ab1f1fb58b4589b81099853a4c828f15a2d19612cd50819cf2ab962019d7a037",
+    "instanceId": "runtime-smoke-38882200725",
+    "result": "PASS",
+    "steps": [
+      {
+        "name": "tauri-driver became ready",
+        "result": "PASS"
+      },
+      {
+        "name": "release binary created a WebDriver session",
+        "result": "PASS"
+      },
+      {
+        "name": "Home rendered through the real Tauri backend",
+        "result": "PASS"
+      },
+      {
+        "name": "browser mocks are unavailable in release mode",
+        "result": "PASS"
+      },
+      {
+        "name": "Host route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "Join route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "invalid invite failed explicitly: The invite could not be checked.",
+        "result": "PASS"
+      },
+      {
+        "name": "/settings route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "/rules route rendered",
+        "result": "PASS"
+      },
+      {
+        "name": "session guard redirected /lobby without a live session",
+        "result": "PASS"
+      },
+      {
+        "name": "session guard redirected /table without a live session",
+        "result": "PASS"
+      },
+      {
+        "name": "release /debug route is not reachable",
+        "result": "PASS"
+      },
+      {
+        "name": "runtime screenshot and final page source captured",
+        "result": "PASS"
+      }
+    ]
   },
-  "singleInstanceOutcome": "skipped",
-  "validatedCommit": "e34ab7a0e2a286a7e7fabc866d97991f13980bfe",
+  "singleInstanceOutcome": "success",
+  "validatedCommit": "f030f13c0352ff940d0a5c357ccd2e87424a5f8e",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38881916831"
+  "workflowRunId": "38882200725"
 }
