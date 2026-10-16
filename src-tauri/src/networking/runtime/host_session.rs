@@ -64,9 +64,22 @@ fn record_state_lock_error(
     });
 }
 
+/// Serialize every session-originated frame with broadcasts and snapshot sync
+/// for this connection. The read loop owns a separate socket clone and never
+/// holds this writer lock while waiting for input.
+fn write_client_frame<T: serde::Serialize>(
+    writer: &Arc<Mutex<TcpStream>>,
+    payload: &T,
+) -> Result<(), NetworkingError> {
+    let mut stream = writer
+        .lock()
+        .map_err(|_| NetworkingError::new("client stream lock poisoned"))?;
+    write_json_frame(&mut stream, payload)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn send_action_rejection_best_effort(
-    stream: &mut TcpStream,
+    writer: &Arc<Mutex<TcpStream>>,
     crypto_provider: &DefaultCryptoProvider,
     join_payload: &JoinPayload,
     server_sequence: &Arc<AtomicU64>,
@@ -85,7 +98,7 @@ fn send_action_rejection_best_effort(
     ) {
         // Best-effort rejection reply. Authoritative state and transition
         // publication have already been handled before this helper is called.
-        let _ = write_json_frame(stream, &envelope);
+        let _ = write_client_frame(writer, &envelope);
     }
 }
 
@@ -96,6 +109,7 @@ pub(crate) fn spawn_host_client_session(
     player_id: String,
     generation: u64,
     mut stream: TcpStream,
+    writer: Arc<Mutex<TcpStream>>,
     context: HostSessionContext,
     active_client_slot_guard: ActiveClientSlotGuard,
 ) -> Result<(), NetworkingError> {
@@ -178,7 +192,7 @@ pub(crate) fn spawn_host_client_session(
                                 ) {
                                     // Best-effort rejection reply; if the write fails the
                                     // client will time out and reconnect.
-                                    let _ = write_json_frame(&mut stream, &envelope);
+                                    let _ = write_client_frame(&writer, &envelope);
                                 }
                             }
                         }
@@ -225,7 +239,7 @@ pub(crate) fn spawn_host_client_session(
                                 ) {
                                     // Best-effort rejection reply; if the write fails the
                                     // client will time out and reconnect.
-                                    let _ = write_json_frame(&mut stream, &envelope);
+                                    let _ = write_client_frame(&writer, &envelope);
                                 }
                             }
                         }
@@ -305,7 +319,7 @@ pub(crate) fn spawn_host_client_session(
                                     break;
                                 }
                                 send_action_rejection_best_effort(
-                                    &mut stream,
+                                    &writer,
                                     &crypto_provider,
                                     &join_payload,
                                     &server_sequence,
@@ -317,7 +331,7 @@ pub(crate) fn spawn_host_client_session(
                             Ok(RemoteActionSubmissionOutcome::RejectedNoStateChange { error })
                             | Err(error) => {
                                 send_action_rejection_best_effort(
-                                    &mut stream,
+                                    &writer,
                                     &crypto_provider,
                                     &join_payload,
                                     &server_sequence,
@@ -342,7 +356,7 @@ pub(crate) fn spawn_host_client_session(
 
                         match response {
                             Ok(snapshot_envelope) => {
-                                if write_json_frame(&mut stream, &snapshot_envelope).is_err() {
+                                if write_client_frame(&writer, &snapshot_envelope).is_err() {
                                     disconnect_client(
                                         &clients,
                                         &authoritative_state,
@@ -365,7 +379,7 @@ pub(crate) fn spawn_host_client_session(
                                 ) {
                                     // Best-effort rejection reply; if the write fails the
                                     // client will time out and reconnect.
-                                    let _ = write_json_frame(&mut stream, &envelope);
+                                    let _ = write_client_frame(&writer, &envelope);
                                 }
                             }
                         }
@@ -380,7 +394,7 @@ pub(crate) fn spawn_host_client_session(
                             "host runtime only supports RESYNC_REQUEST after connect".to_string(),
                             Some(request_envelope.message_id),
                         ) {
-                            let _ = write_json_frame(&mut stream, &envelope);
+                            let _ = write_client_frame(&writer, &envelope);
                         }
                     }
                 }
@@ -403,6 +417,7 @@ pub(crate) fn spawn_host_client_session(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{collections::HashSet, net::TcpListener};
 
     #[test]
     fn record_state_lock_error_increments_counter_and_sets_last_error() {
@@ -413,5 +428,34 @@ mod tests {
         let h = health.lock().unwrap();
         assert_eq!(h.state_lock_error_count, 1);
         assert_eq!(h.last_error.as_deref(), Some("test state lock failure"));
+    }
+
+    #[test]
+    fn concurrent_session_writes_remain_individual_frames() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let sender = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (mut receiver, _) = listener.accept().unwrap();
+        let writer = Arc::new(Mutex::new(sender));
+        let mut writers = Vec::new();
+
+        for thread_id in 0..8_u32 {
+            let writer = Arc::clone(&writer);
+            writers.push(thread::spawn(move || {
+                for index in 0..16_u32 {
+                    write_client_frame(&writer, &(thread_id * 16 + index)).unwrap();
+                }
+            }));
+        }
+
+        for writer_thread in writers {
+            writer_thread.join().unwrap();
+        }
+
+        let received: HashSet<u32> = (0..128)
+            .map(|_| read_json_frame(&mut receiver).unwrap())
+            .collect();
+        assert_eq!(received.len(), 128);
+        assert!(received.contains(&0));
+        assert!(received.contains(&127));
     }
 }

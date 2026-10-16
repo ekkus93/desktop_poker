@@ -190,23 +190,27 @@ fn deliver_and_register(
             &context.clients,
             &player_id,
             ConnectedClient {
-                stream: stream_handle,
+                stream: Arc::clone(&stream_handle),
                 encryption_public_key,
                 generation,
             },
         )
-        .map_err(at(Register))
+        .map_err(at(Register))?;
+        Ok::<_, AdmissionFailure>(stream_handle)
     })();
 
-    if let Err(failure) = registered_stream {
-        rollback.rollback_now();
-        drop(active_client_slot_guard);
-        // Best-effort close: the peer may already be gone.
-        let _ = stream.shutdown(Shutdown::Both);
-        return Err(failure);
-    }
-
     let clients = Arc::clone(&context.clients);
+    let writer = match registered_stream {
+        Ok(writer) => writer,
+        Err(failure) => {
+            rollback.rollback_now();
+            drop(active_client_slot_guard);
+            // Best-effort close: the peer may already be gone.
+            let _ = stream.shutdown(Shutdown::Both);
+            return Err(failure);
+        }
+    };
+
     let spawned = faults
         .check(AdmissionStage::SessionSpawn)
         .and_then(|()| {
@@ -214,6 +218,7 @@ fn deliver_and_register(
                 player_id.clone(),
                 generation,
                 stream,
+                writer,
                 context,
                 active_client_slot_guard,
             )
