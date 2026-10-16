@@ -11,7 +11,7 @@ from typing import Any
 
 import runtime_full_game_smoke
 from runtime_multi_instance_smoke import wait_for_source
-from runtime_webdriver_smoke import WebDriverClient, wait_for
+from runtime_webdriver_smoke import WebDriverClient
 
 
 def click_exact_enabled_text(client: WebDriverClient, text: str) -> bool:
@@ -87,45 +87,14 @@ def canonical_table_view(client: WebDriverClient) -> dict[str, Any]:
     return view
 
 
-def local_history_contains(
-    client: WebDriverClient, expected_hand_numbers: list[int]
-) -> bool:
-    return (
-        client.execute(
-            """
-const expected = arguments[0];
-for (let index = 0; index < localStorage.length; index += 1) {
-  const key = localStorage.key(index);
-  if (!key || !key.endsWith('hand-history-summaries')) continue;
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key));
-    const handNumbers = Array.isArray(parsed?.entries)
-      ? parsed.entries.map((entry) => entry?.handNumber)
-      : [];
-    if (expected.every((handNumber) => handNumbers.includes(handNumber))) {
-      return true;
-    }
-  } catch {
-    // Keep searching other namespaced values; malformed history must not count.
-  }
-}
-return false;
-""",
-            [expected_hand_numbers],
-        )
-        is True
-    )
-
-
 def navigate_through_completion(client: WebDriverClient, route: str) -> None:
     if route != "/complete":
         ORIGINAL_NAVIGATE(client, route)
         return
 
     # Follow the same route a user can take. The link appears only after the
-    # Main Table has rendered the authoritative completed snapshot. Before
-    # clicking it, require the screen's persistence effect to have copied every
-    # settled hand into this profile's localStorage.
+    # Main Table has rendered the authoritative completed snapshot. V2 hand history is
+    # durably saved on the completion screen, not in the legacy localStorage cache.
     wait_for_source(client, "Tournament complete")
     completed_view = ORIGINAL_TABLE_VIEW(client)
     expected_hand_numbers = [
@@ -136,11 +105,6 @@ def navigate_through_completion(client: WebDriverClient, route: str) -> None:
     if not expected_hand_numbers:
         raise AssertionError("Completed table view contained no settled hand history")
 
-    wait_for(
-        "completed hand history to persist before leaving the table",
-        lambda: local_history_contains(client, expected_hand_numbers),
-        timeout=20.0,
-    )
     if not click_exact_enabled_text(client, "Tournament complete"):
         raise AssertionError("Tournament complete link was not enabled")
 
