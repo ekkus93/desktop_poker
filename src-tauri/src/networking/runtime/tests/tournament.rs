@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 16522)
-Total output lines: 1803
-
 use std::{
     collections::BTreeMap,
     net::{Shutdown, TcpListener, TcpStream},
@@ -830,7 +827,167 @@ fn npc_runner_records_provider_missing_fallback_when_profile_is_set_but_no_provi
     host.start_tournament().expect("tournament starts");
 
     // NPC has a profile but no provider config is supplied.
-    let profile = c…1522 tokens truncated…window.as_ref())
+    let profile = crate::npc::NpcProfile {
+        id: "sharp-pat".to_string(),
+        name: "Sharp Pat".to_string(),
+        style: "balanced".to_string(),
+        skill: "intermediate".to_string(),
+        description: "Test profile.".to_string(),
+        opponent_tendencies: None,
+        tilt_behaviour: None,
+    };
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Profiled NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: Some(profile),
+        allow_rule_based_llm_fallback: false,
+    }];
+
+    // Advance to the NPC's action window. If the human has the first window,
+    // submit a human action to let the NPC's turn open. Never return early —
+    // the test must exercise the NPC branch to be meaningful.
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
+                .cloned();
+            if let Some(ref w) = window {
+                if w.player_id == npc_id {
+                    break state;
+                }
+                // Human has the window — submit to advance.
+                if last_human_window.as_deref() != Some(w.action_window_id.as_str()) {
+                    let action = w.legal_actions.first().copied().unwrap_or(ActionType::Call);
+                    let _ =
+                        host.submit_action(&w.player_id, w.action_window_id.clone(), action, None);
+                    last_human_window = Some(w.action_window_id.clone());
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "NPC action window never opened within the deadline; cannot test provider-missing branch"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    };
+
+    let stop = Arc::new(AtomicBool::new(false));
+    // No provider config: the NPC should fall back to rule-based and record the reason.
+    let api_key_holder: Arc<Mutex<Option<crate::npc::LlmProviderConfig>>> =
+        Arc::new(Mutex::new(None));
+    let tilt = Arc::new(Mutex::new(BTreeMap::new()));
+    let fallback: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let action_error: Arc<Mutex<Option<crate::app_state::NpcActionErrorDebug>>> =
+        Arc::new(Mutex::new(None));
+    let mut runner_state = crate::npc::runner::RunnerState::new(
+        &npc_configs,
+        Arc::clone(&tilt),
+        Arc::clone(&fallback),
+        Arc::clone(&action_error),
+    );
+
+    let outcome = try_npc_action(
+        &host,
+        &state,
+        &npc_configs,
+        &stop,
+        &api_key_holder,
+        &mut runner_state,
+    );
+    // With allow_rule_based_llm_fallback = false (default), a profile-backed NPC
+    // with no provider must not silently use rule-based play. The outcome must
+    // not be Success, and the error must be recorded.
+    assert!(
+        !outcome.acted(),
+        "profile-backed NPC with no provider and fallback=false must not submit an action; got {outcome:?}"
+    );
+
+    let recorded = fallback.lock().expect("fallback lock").clone();
+    assert!(
+        recorded.is_some(),
+        "shared_fallback must be set when NPC has a profile but no provider is configured"
+    );
+    let msg = recorded.unwrap();
+    assert!(
+        msg.contains(&npc_id),
+        "fallback message should include player_id; got: {msg}"
+    );
+
+    let err = action_error
+        .lock()
+        .expect("action_error lock")
+        .clone()
+        .expect("action_error must be set when provider is missing and fallback is disabled");
+    assert!(
+        !err.submitted,
+        "error must have submitted=false when no action was sent"
+    );
+    assert_eq!(
+        err.player_id.as_deref(),
+        Some(npc_id.as_str()),
+        "error must record the NPC player_id"
+    );
+}
+
+#[test]
+fn npc_runner_with_allow_rule_based_fallback_falls_back_when_no_provider_configured() {
+    use crate::npc::runner::try_npc_action;
+    use std::sync::atomic::AtomicBool;
+
+    let provider = DefaultCryptoProvider;
+    let host = Arc::new(bind_test_host(
+        &provider,
+        "table-npc-provider-missing-fallback",
+        95,
+    ));
+
+    let human_id = "player-human";
+    host.register_npc_participant(human_id, "Human")
+        .expect("human registers");
+    host.claim_seat(human_id, 0).expect("human claims seat 0");
+    host.set_ready_state(human_id, true).expect("human ready");
+
+    let npc_seat: u8 = 1;
+    let npc_id = crate::npc::NpcConfig::player_id(npc_seat);
+    host.register_npc_participant(&npc_id, "Profiled NPC")
+        .expect("npc registers");
+    host.claim_seat(&npc_id, npc_seat).expect("npc claims seat");
+    host.set_ready_state(&npc_id, true).expect("npc ready");
+    host.start_tournament().expect("tournament starts");
+
+    let profile = crate::npc::NpcProfile {
+        id: "sharp-pat".to_string(),
+        name: "Sharp Pat".to_string(),
+        style: "balanced".to_string(),
+        skill: "intermediate".to_string(),
+        description: "Test profile.".to_string(),
+        opponent_tendencies: None,
+        tilt_behaviour: None,
+    };
+    // allow_rule_based_llm_fallback = true: provider-missing should use rule-based fallback.
+    let npc_configs = vec![crate::npc::NpcConfig {
+        player_id: npc_id.clone(),
+        display_name: "Profiled NPC".to_string(),
+        style: crate::npc::NpcStyle::Conservative,
+        profile: Some(profile),
+        allow_rule_based_llm_fallback: true,
+    }];
+
+    let state = {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut last_human_window: Option<String> = None;
+        loop {
+            let state = host.authoritative_state().expect("state");
+            let window = state
+                .current_hand
+                .as_ref()
+                .and_then(|h| h.action_window.as_ref())
                 .cloned();
             if let Some(ref w) = window {
                 if w.player_id == npc_id {
