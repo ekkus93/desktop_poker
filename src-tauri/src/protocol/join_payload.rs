@@ -70,7 +70,7 @@ pub fn encode_join_payload(payload: &JoinPayload) -> Result<String, ProtocolErro
 
 pub fn decode_join_payload(encoded: &str) -> Result<JoinPayload, ProtocolError> {
     let payload = if let Some(compact_payload) = encoded.strip_prefix(JOIN_PAYLOAD_PREFIX) {
-        if compact_payload.len() > MAX_COMPACT_ENCODED_BYTES {
+        if encoded.len() > MAX_COMPACT_ENCODED_BYTES {
             return Err(ProtocolError::new(
                 "compact join payload exceeds size limit",
             ));
@@ -271,6 +271,18 @@ mod tests {
     fn oversized_compact_input_is_rejected_before_base64_decode() {
         let oversized = format!("pkr1_{}", "A".repeat(super::MAX_COMPACT_ENCODED_BYTES + 1));
         let error = decode_join_payload(&oversized).expect_err("oversized compact input");
+        assert!(error.to_string().contains("size limit"));
+    }
+
+    #[test]
+    fn compact_prefix_counts_toward_the_total_encoded_size_limit() {
+        // The prefix is part of the untrusted invitation and its byte budget.
+        let oversized = format!(
+            "pkr1_{}",
+            "A".repeat(super::MAX_COMPACT_ENCODED_BYTES - "pkr1_".len() + 1)
+        );
+        assert_eq!(oversized.len(), super::MAX_COMPACT_ENCODED_BYTES + 1);
+        let error = decode_join_payload(&oversized).expect_err("oversized invitation");
         assert!(error.to_string().contains("size limit"));
     }
 
