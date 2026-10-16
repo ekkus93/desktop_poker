@@ -26,10 +26,12 @@ vi.mock("../api/desktop", async () => {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((callback) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((callback, rejectPromise) => {
     resolve = callback;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 const hostParticipant: HostSessionParticipantView = {
@@ -201,6 +203,36 @@ describe("useLobbySession refresh ordering", () => {
       await old.promise;
     });
     expect(result.current.clientSession?.phase).toBe("running");
+    unmount();
+  });
+
+  it("discards a stale initial failure after a later event refresh succeeds", async () => {
+    const old = deferred<ClientSessionStatus | null>();
+    const newer = deferred<ClientSessionStatus | null>();
+    vi.mocked(getClientSessionStatus)
+      .mockImplementationOnce(() => old.promise)
+      .mockImplementationOnce(() => newer.promise);
+    const navigate = vi.fn() as unknown as NavigateFunction;
+    const { result, unmount } = renderHook(() => useLobbySession(navigate));
+
+    act(() => {
+      emitSessionUpdate();
+      newer.resolve({
+        ...clientStatus([hostParticipant, pendingClient], 1, 1),
+        phase: "running",
+      });
+    });
+    await waitFor(() => {
+      expect(result.current.clientSession?.phase).toBe("running");
+    });
+    await act(async () => {
+      old.reject(new Error("stale request failed"));
+      await old.promise.catch(() => {});
+    });
+
+    expect(result.current.clientSession?.phase).toBe("running");
+    expect(result.current.connectionSlow).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
     unmount();
   });
 

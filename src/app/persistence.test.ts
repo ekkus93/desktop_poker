@@ -375,6 +375,48 @@ describe("persistence", () => {
     );
   });
 
+  it("keeps durable live history authoritative over a stale same-number cache entry", async () => {
+    enableTauriWindowRuntime();
+    const namespace = "desktop-poker:stale-v2-cache";
+    const staleCache = createHistoryEntry({
+      handNumber: 1,
+      summary: "Older cached version",
+    });
+    persistHandHistory(namespace, [staleCache]);
+    const durableLive = {
+      ...createHistoryEntry({ handNumber: 1, summary: "Durable version" }),
+      provenance: "live" as const,
+      tableId: "table-current",
+      sessionEpoch: 91,
+    };
+    const importedCache = {
+      ...staleCache,
+      provenance: "importedCacheV1" as const,
+      legacyOriginId: `cache-v1:${namespace}`,
+    };
+    tauriInvokeMock
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        updatedAtMs: 200,
+        entries: [durableLive],
+      })
+      .mockResolvedValueOnce({
+        schemaVersion: 2,
+        updatedAtMs: 201,
+        entries: [durableLive, importedCache],
+      });
+
+    const history = await readDurableHandHistoryV2(namespace);
+
+    expect(history?.entries).toEqual([durableLive, importedCache]);
+    expect(tauriInvokeMock).toHaveBeenNthCalledWith(
+      2,
+      "merge_persisted_hand_history_v2",
+      { entries: [importedCache] },
+    );
+    expect(readPersistedHandHistory(namespace)?.entries).toEqual([staleCache]);
+  });
+
   it("does nothing when the Tauri window runtime is unavailable", async () => {
     const cleanup = initializeWindowStatePersistence("desktop-poker:test");
 

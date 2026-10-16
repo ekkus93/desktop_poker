@@ -298,6 +298,40 @@ describe("MainTableScreen", () => {
     vi.useRealTimers();
   });
 
+  it("ignores a stale initial failure after a newer event refresh succeeds", async () => {
+    let onUpdate: (() => void) | undefined;
+    let rejectInitial!: (error: Error) => void;
+    const initial = new Promise<TableViewSnapshot>((_resolve, reject) => {
+      rejectInitial = reject;
+    });
+    mockedOnTableUpdate.mockImplementation((listener) => {
+      onUpdate = listener;
+      return Promise.resolve(() => {});
+    });
+    mockedGetTableView
+      .mockImplementationOnce(() => initial)
+      .mockResolvedValueOnce(createTableView({ potTotal: 333 }));
+
+    const bootstrap = createBootstrap();
+    const result = renderWithProviders(
+      <MainTableScreen bootstrap={bootstrap} />,
+      { bootstrap },
+    );
+    await waitFor(() => expect(onUpdate).toBeDefined());
+    act(() => onUpdate?.());
+    expect(await screen.findByText("Pot 333")).toBeTruthy();
+
+    await act(async () => {
+      rejectInitial(new Error("stale initial request failed"));
+      await initial.catch(() => {});
+    });
+
+    expect(screen.getByText("Pot 333")).toBeTruthy();
+    expect(screen.queryByText(/connection is slow/i)).toBeNull();
+    expect(screen.queryByText("Loading table state")).toBeNull();
+    result.unmount();
+  });
+
   it("submits raises directly and still confirms all-in actions", async () => {
     const initialView = createTableView();
     mockedGetTableView.mockResolvedValue(initialView);
