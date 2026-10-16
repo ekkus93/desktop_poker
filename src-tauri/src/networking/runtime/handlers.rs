@@ -79,7 +79,7 @@ pub(crate) fn handle_join_request(
 
     let player_id = request_envelope.sender_id.clone();
     let reconnect_token = issue_reconnect_token();
-    let previous_participant = {
+    let replaced = {
         let mut state = authoritative_state
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
@@ -123,6 +123,7 @@ pub(crate) fn handle_join_request(
             },
         )
     };
+    let admission = AdmissionKind::NewJoin { replaced };
 
     let snapshot_envelope = match build_snapshot_envelope(
         crypto_provider,
@@ -138,7 +139,7 @@ pub(crate) fn handle_join_request(
             rollback_admission(
                 authoritative_state,
                 &player_id,
-                &previous_participant,
+                &admission,
                 &reconnect_token,
             )?;
             return Err(error);
@@ -149,8 +150,9 @@ pub(crate) fn handle_join_request(
         player_id,
         snapshot_envelope,
         encryption_public_key: request.encryption_public_key,
-        previous_participant,
+        admission,
         admission_token: reconnect_token,
+        generation: next_client_generation(),
     })
 }
 
@@ -202,7 +204,7 @@ pub(crate) fn handle_reconnect_request(
     }
 
     let player_id = request.player_id.clone();
-    let (previous_participant, admission_token) = {
+    let (admission, encryption_public_key, admission_token) = {
         let mut state = authoritative_state
             .lock()
             .map_err(|_| NetworkingError::new("authoritative state lock poisoned"))?;
@@ -250,18 +252,14 @@ pub(crate) fn handle_reconnect_request(
             ));
         }
 
-        let previous = participant.clone();
-        participant.connection_state = ConnectionState::Connected;
+        let before = participant.clone();
         restore_participant_after_reconnect(participant, tournament_phase);
-        (Some(previous), request.reconnect_token.clone())
+        (
+            AdmissionKind::Reconnect(ReconnectPrior::capture(&before, participant)),
+            participant.identity.encryption_public_key.clone(),
+            request.reconnect_token.clone(),
+        )
     };
-
-    let encryption_public_key = previous_participant
-        .as_ref()
-        .expect("reconnect participant has previous state")
-        .identity
-        .encryption_public_key
-        .clone();
 
     let snapshot_envelope = match build_snapshot_envelope(
         crypto_provider,
@@ -277,7 +275,7 @@ pub(crate) fn handle_reconnect_request(
             rollback_admission(
                 authoritative_state,
                 &player_id,
-                &previous_participant,
+                &admission,
                 &admission_token,
             )?;
             return Err(error);
@@ -288,8 +286,9 @@ pub(crate) fn handle_reconnect_request(
         player_id,
         snapshot_envelope,
         encryption_public_key,
-        previous_participant,
+        admission,
         admission_token,
+        generation: next_client_generation(),
     })
 }
 

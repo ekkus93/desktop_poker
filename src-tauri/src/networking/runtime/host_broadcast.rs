@@ -1,10 +1,9 @@
-use std::sync::{atomic::Ordering, Arc};
+use std::sync::atomic::Ordering;
 
 use base64::Engine as _;
 
 use crate::{
     crypto::{DefaultCryptoProvider, ProtocolCryptoProvider},
-    networking::write_json_frame,
     protocol::{
         EncryptedPrivateEnvelope, PrivateEnvelopeMetadata, PrivateHoleCardsEvent,
         ProtocolMessageType, SignedEnvelope, PROTOCOL_VERSION,
@@ -49,44 +48,13 @@ impl HostServer {
             },
         )?;
 
-        let failed_clients = {
-            let connected_clients = self
-                .clients
-                .lock()
-                .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-            let mut failed_clients = Vec::new();
-
-            for (player_id, client) in connected_clients.iter() {
-                let write_result = client
-                    .stream
-                    .lock()
-                    .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-                    .try_clone()
-                    .map_err(|error| {
-                        NetworkingError::new(format!("failed to clone client stream: {error}"))
-                    })
-                    .and_then(|mut stream| write_json_frame(&mut stream, &envelope));
-
-                if write_result.is_err() {
-                    failed_clients.push(player_id.clone());
-                }
-            }
-
-            failed_clients
-        };
-
-        if !failed_clients.is_empty() {
-            let mut connected_clients = self
-                .clients
-                .lock()
-                .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-            for player_id in failed_clients {
-                connected_clients.remove(&player_id);
-                mark_participant_reconnect_eligible(&self.authoritative_state, &player_id)?;
-            }
-        }
-
-        Ok(())
+        let failed_clients = client_handles(&self.clients)?
+            .into_iter()
+            .filter(|handle| write_to_client(handle, &envelope).is_err())
+            .collect::<Vec<_>>();
+        retire_failed_clients(&self.clients, &failed_clients, |player_id| {
+            mark_participant_reconnect_eligible(&self.authoritative_state, player_id)
+        })
     }
 
     pub fn send_private_hole_cards(
@@ -96,20 +64,9 @@ impl HostServer {
     ) -> Result<(), NetworkingError> {
         let crypto_provider = DefaultCryptoProvider;
 
-        let (client_stream, recipient_encryption_public_key) = {
-            let connected_clients = self
-                .clients
-                .lock()
-                .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-            let client = connected_clients
-                .get(recipient_id)
-                .ok_or_else(|| NetworkingError::new("unknown recipient"))?;
-
-            (
-                Arc::clone(&client.stream),
-                client.encryption_public_key.clone(),
-            )
-        };
+        let recipient = client_handle(&self.clients, recipient_id)?
+            .ok_or_else(|| NetworkingError::new("unknown recipient"))?;
+        let recipient_encryption_public_key = recipient.encryption_public_key.clone();
 
         let server_sequence = self.server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
         let payload_bytes = serde_json::to_vec(hole_cards_event).map_err(|error| {
@@ -171,33 +128,35 @@ impl HostServer {
             .sign(&crypto_provider, &self.host_signing_keys)
             .map_err(|error| NetworkingError::new(error.to_string()))?;
 
-        let mut stream = client_stream
-            .lock()
-            .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-            .try_clone()
-            .map_err(|error| {
-                NetworkingError::new(format!("failed to clone client stream: {error}"))
-            })?;
-
-        match write_json_frame(&mut stream, &envelope) {
+        match write_to_client(&recipient, &envelope) {
             Ok(()) => Ok(()),
             Err(error) => {
-                match self.clients.lock() {
-                    Ok(mut connected_clients) => {
-                        connected_clients.remove(recipient_id);
-                    }
-                    Err(_) => {
-                        update_health(&self.runtime_health, |h| {
-                            h.record_client_registry_error();
-                        });
-                    }
-                }
+                // Demote only if this exact registration is still current; on a
+                // poisoned registry fail toward reconnect-eligible.
+                let retired =
+                    match take_client_if_current(&self.clients, recipient_id, recipient.generation)
+                    {
+                        Ok(Some(client)) => Some(Some(client)),
+                        Ok(None) => None,
+                        Err(_) => {
+                            update_health(&self.runtime_health, |h| {
+                                h.record_client_registry_error();
+                            });
+                            Some(None)
+                        }
+                    };
+                let Some(retired_client) = retired else {
+                    return Err(error);
+                };
                 if let Err(mark_error) =
                     mark_participant_reconnect_eligible(&self.authoritative_state, recipient_id)
                 {
                     update_health(&self.runtime_health, |h| {
                         h.record_reconnect_mark_error(recipient_id, &mark_error);
                     });
+                }
+                if let Some(client) = retired_client {
+                    close_client(&client);
                 }
                 Err(error)
             }

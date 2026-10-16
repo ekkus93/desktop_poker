@@ -13,7 +13,6 @@ use crate::{
         DefaultCryptoProvider, EncryptionKeyMaterial, ProtocolCryptoProvider, SigningKeyMaterial,
     },
     domain::{JoinPayload, TournamentPhase, TournamentState},
-    networking::write_json_frame,
     protocol::{
         ActionWindowOpened, EliminationEvent, EncryptedPrivateEnvelope, HandResultCommitted,
         HandStartingEvent, PlayerActionCommitted, PrivateEnvelopeMetadata, PrivateHoleCardsEvent,
@@ -79,46 +78,11 @@ pub(crate) fn broadcast_public_event_to_clients<TPayload: serde::Serialize>(
         },
     )?;
 
-    let player_ids = clients
-        .lock()
-        .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-        .keys()
-        .cloned()
+    let failed_clients = client_handles(clients)?
+        .into_iter()
+        .filter(|handle| write_to_client(handle, &envelope).is_err())
         .collect::<Vec<_>>();
-    let mut failed_clients = Vec::new();
-
-    for player_id in player_ids {
-        let write_result = clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-            .get(&player_id)
-            .map(|client| {
-                client
-                    .stream
-                    .lock()
-                    .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-                    .try_clone()
-                    .map_err(|error| {
-                        NetworkingError::new(format!("failed to clone client stream: {error}"))
-                    })
-                    .and_then(|mut stream| write_json_frame(&mut stream, &envelope))
-            })
-            .unwrap_or_else(|| Err(NetworkingError::new("unknown connected client")));
-
-        if write_result.is_err() {
-            failed_clients.push(player_id);
-        }
-    }
-
-    if !failed_clients.is_empty() {
-        let mut connected_clients = clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-        for player_id in failed_clients {
-            connected_clients.remove(&player_id);
-            on_failed_client(&player_id)?;
-        }
-    }
+    retire_failed_clients(clients, &failed_clients, on_failed_client)?;
 
     Ok(next_server_sequence)
 }
@@ -424,15 +388,8 @@ pub(crate) fn sync_host_client_snapshots(
     host_signing_keys: &Arc<SigningKeyMaterial>,
     host_encryption_keys: &Arc<Mutex<EncryptionKeyMaterial>>,
 ) -> Result<(), NetworkingError> {
-    let player_ids = clients
-        .lock()
-        .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-        .keys()
-        .cloned()
-        .collect::<Vec<_>>();
     let mut failed_clients = Vec::new();
-
-    for player_id in player_ids {
+    for handle in client_handles(clients)? {
         let snapshot_envelope = build_snapshot_envelope(
             &DefaultCryptoProvider,
             join_payload,
@@ -440,39 +397,15 @@ pub(crate) fn sync_host_client_snapshots(
             server_sequence,
             host_signing_keys,
             host_encryption_keys,
-            &player_id,
+            &handle.player_id,
         )?;
-        let write_result = clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-            .get(&player_id)
-            .map(|client| {
-                client
-                    .stream
-                    .lock()
-                    .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-                    .try_clone()
-                    .map_err(|error| {
-                        NetworkingError::new(format!("failed to clone client stream: {error}"))
-                    })
-                    .and_then(|mut stream| write_json_frame(&mut stream, &snapshot_envelope))
-            })
-            .unwrap_or_else(|| Err(NetworkingError::new("unknown connected client")));
-
-        if write_result.is_err() {
-            failed_clients.push(player_id);
+        if write_to_client(&handle, &snapshot_envelope).is_err() {
+            failed_clients.push(handle);
         }
     }
-
-    if !failed_clients.is_empty() {
-        let mut connected_clients = clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-        for player_id in failed_clients {
-            connected_clients.remove(&player_id);
-            mark_participant_reconnect_eligible(authoritative_state, &player_id)?;
-        }
-    }
+    retire_failed_clients(clients, &failed_clients, |player_id| {
+        mark_participant_reconnect_eligible(authoritative_state, player_id)
+    })?;
 
     Ok(())
 }
@@ -490,19 +423,9 @@ pub(crate) fn send_private_hole_cards_to_recipient(
 ) -> Result<u64, NetworkingError> {
     let crypto_provider = DefaultCryptoProvider;
 
-    let (client_stream, recipient_encryption_public_key) = {
-        let connected_clients = clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-        let client = connected_clients
-            .get(recipient_id)
-            .ok_or_else(|| NetworkingError::new("unknown recipient"))?;
-
-        (
-            Arc::clone(&client.stream),
-            client.encryption_public_key.clone(),
-        )
-    };
+    let recipient = client_handle(clients, recipient_id)?
+        .ok_or_else(|| NetworkingError::new("unknown recipient"))?;
+    let recipient_encryption_public_key = recipient.encryption_public_key.clone();
 
     let next_server_sequence = server_sequence.fetch_add(1, Ordering::SeqCst) + 1;
     let payload_bytes = serde_json::to_vec(hole_cards_event).map_err(|error| {
@@ -563,19 +486,10 @@ pub(crate) fn send_private_hole_cards_to_recipient(
         .sign(&crypto_provider, host_signing_keys)
         .map_err(|error| NetworkingError::new(error.to_string()))?;
 
-    let mut stream = client_stream
-        .lock()
-        .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-        .try_clone()
-        .map_err(|error| NetworkingError::new(format!("failed to clone client stream: {error}")))?;
-
-    match write_json_frame(&mut stream, &envelope) {
+    match write_to_client(&recipient, &envelope) {
         Ok(()) => Ok(next_server_sequence),
         Err(error) => {
-            if let Ok(mut connected_clients) = clients.lock() {
-                connected_clients.remove(recipient_id);
-            }
-            on_failed_client(recipient_id)?;
+            retire_failed_clients(clients, &[recipient], on_failed_client)?;
             Err(error)
         }
     }

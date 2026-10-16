@@ -49,6 +49,7 @@ fn lobby_snapshot_write_failure_is_nonfatal_visible_and_recoverable() {
         ConnectedClient {
             stream: Arc::new(Mutex::new(server_stream)),
             encryption_public_key,
+            generation: super::super::next_client_generation(),
         },
     );
 

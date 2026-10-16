@@ -150,7 +150,7 @@ impl HostServer {
                                 let initial_request =
                                     read_json_frame::<JsonSignedEnvelope>(&mut stream);
 
-                                let (response, active_client_slot_guard) = match initial_request {
+                                let response = match initial_request {
                                     Ok(request_envelope) => {
                                         let Some(active_client_slot_guard) = active_client_slots.try_acquire() else {
                                             update_health(&runtime_health_conn2, |health| {
@@ -172,94 +172,26 @@ impl HostServer {
                                             }
                                             return;
                                         };
-                                        (
-                                            handle_initial_client_request(
-                                                &crypto_provider,
-                                                request_envelope,
-                                                &join_payload,
-                                                &authoritative_state,
-                                                &server_sequence,
-                                                &host_signing_keys,
-                                                &host_encryption_keys,
-                                            ),
-                                            Some(active_client_slot_guard),
+                                        handle_initial_client_request(
+                                            &crypto_provider,
+                                            request_envelope,
+                                            &join_payload,
+                                            &authoritative_state,
+                                            &server_sequence,
+                                            &host_signing_keys,
+                                            &host_encryption_keys,
                                         )
+                                        .map(|acceptance| (acceptance, active_client_slot_guard))
                                     }
-                                    Err(error) => (Err(error), None),
+                                    Err(error) => Err(error),
                                 };
 
                                 match response {
-                                    Ok(acceptance) => {
-                                        let mut admission_rollback = PendingAdmissionRollback::new(
-                                            &authoritative_state,
-                                            &acceptance,
-                                            &runtime_health_conn2,
-                                        );
-                                        let InitialRequestAcceptance {
-                                            player_id,
-                                            snapshot_envelope,
-                                            encryption_public_key,
-                                            ..
-                                        } = acceptance;
-                                        let Some(active_client_slot_guard) = active_client_slot_guard else {
-                                            update_health(&runtime_health_conn2, |health| {
-                                                health.state_lock_error_count += 1;
-                                                health.record_error("successful initial request lost its reserved client slot");
-                                            });
-                                            return;
-                                        };
-
-                                        if write_json_frame(&mut stream, &snapshot_envelope).is_ok()
-                                        {
-                                            if let Err(error) = clear_established_read_timeout(
-                                                &stream,
-                                                "established host client",
-                                            ) {
-                                                update_health(&runtime_health_conn2, |health| {
-                                                    health.stream_timeout_error_count += 1;
-                                                    health.record_error(error.to_string());
-                                                });
-                                                return;
-                                            }
-                                            let stream_handle =
-                                                match stream.try_clone().map(|cloned_stream| {
-                                                    Arc::new(Mutex::new(cloned_stream))
-                                                }) {
-                                                    Ok(handle) => handle,
-                                                    Err(e) => {
-                                                        update_health(&runtime_health_conn2, |h| {
-                                                            h.record_stream_clone_error(e);
-                                                        });
-                                                        return;
-                                                    }
-                                                };
-
-                                            match clients.lock() {
-                                                Ok(mut connected_clients) => {
-                                                    connected_clients.insert(
-                                                        player_id.clone(),
-                                                        ConnectedClient {
-                                                            stream: Arc::clone(&stream_handle),
-                                                            encryption_public_key,
-                                                        },
-                                                    );
-                                                }
-                                                Err(_) => {
-                                                    update_health(&runtime_health_conn2, |h| {
-                                                        h.record_client_registry_error();
-                                                    });
-                                                    // The client cannot be registered; return so
-                                                    // we do not spawn a session for an untracked
-                                                    // stream.
-                                                    return;
-                                                }
-                                            }
-
-                                            let cleanup_player_id = player_id.clone();
-                                            let cleanup_clients = Arc::clone(&clients);
-                                            let session_result = spawn_host_client_session(
-                                                player_id,
-                                                stream,
+                                    Ok((acceptance, active_client_slot_guard)) => {
+                                        // Failures are rolled back and recorded in health
+                                        // inside `complete_admission`.
+                                        let _ = complete_admission(
+                                            HostSessionContext {
                                                 authoritative_state,
                                                 tournament_runtime,
                                                 transition_lock,
@@ -269,26 +201,13 @@ impl HostServer {
                                                 host_signing_keys,
                                                 host_encryption_keys,
                                                 public_events,
-                                                Arc::clone(&runtime_health_conn2),
-                                                active_client_slot_guard,
-                                            );
-                                            if let Err(error) = session_result {
-                                                if let Ok(mut connected) = cleanup_clients.lock() {
-                                                    connected.remove(&cleanup_player_id);
-                                                }
-                                                update_health(&runtime_health_conn2, |health| {
-                                                    health.record_error(format!(
-                                                        "failed to register client session: {error}"
-                                                    ));
-                                                });
-                                            } else {
-                                                admission_rollback.disarm();
-                                            }
-                                        } else {
-                                            update_health(&runtime_health_conn2, |health| {
-                                                health.record_error("failed to deliver initial snapshot");
-                                            });
-                                        }
+                                                runtime_health: Arc::clone(&runtime_health_conn2),
+                                            },
+                                            stream,
+                                            acceptance,
+                                            active_client_slot_guard,
+                                            AdmissionFaults::none(),
+                                        );
                                     }
                                     Err(error) => {
                                         if let Ok(envelope) = build_protocol_error_envelope(
@@ -913,16 +832,8 @@ impl HostServer {
     }
 
     pub fn sync_snapshots_to_clients(&self) -> Result<(), NetworkingError> {
-        let player_ids = self
-            .clients
-            .lock()
-            .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
         let mut failed_clients = Vec::new();
-
-        for player_id in player_ids {
+        for handle in client_handles(&self.clients)? {
             let snapshot_envelope = build_snapshot_envelope(
                 &DefaultCryptoProvider,
                 &self.join_payload,
@@ -930,29 +841,11 @@ impl HostServer {
                 &self.server_sequence,
                 &self.host_signing_keys,
                 &self.host_encryption_keys,
-                &player_id,
+                &handle.player_id,
             )?;
 
-            let write_result = self
-                .clients
-                .lock()
-                .map_err(|_| NetworkingError::new("client registry lock poisoned"))?
-                .get(&player_id)
-                .map(|client| {
-                    client
-                        .stream
-                        .lock()
-                        .map_err(|_| NetworkingError::new("client stream lock poisoned"))?
-                        .try_clone()
-                        .map_err(|error| {
-                            NetworkingError::new(format!("failed to clone client stream: {error}",))
-                        })
-                        .and_then(|mut stream| write_json_frame(&mut stream, &snapshot_envelope))
-                })
-                .unwrap_or_else(|| Err(NetworkingError::new("unknown connected client")));
-
-            if let Err(error) = write_result {
-                failed_clients.push((player_id, error.to_string()));
+            if let Err(error) = write_to_client(&handle, &snapshot_envelope) {
+                failed_clients.push((handle, error.to_string()));
             }
         }
 
@@ -960,28 +853,25 @@ impl HostServer {
             return Ok(());
         }
 
-        {
-            let mut connected_clients = self
-                .clients
-                .lock()
-                .map_err(|_| NetworkingError::new("client registry lock poisoned"))?;
-            for (player_id, _) in &failed_clients {
-                connected_clients.remove(player_id);
-            }
-        }
-
+        // Only registrations still current are demoted; a newer connection for
+        // the same player is left alone.
+        let failed_handles = failed_clients
+            .iter()
+            .map(|(handle, _)| handle.clone())
+            .collect::<Vec<_>>();
         let mut recovery_errors = Vec::new();
-        for (player_id, _) in &failed_clients {
+        retire_failed_clients(&self.clients, &failed_handles, |player_id| {
             if let Err(error) =
                 mark_participant_reconnect_eligible(&self.authoritative_state, player_id)
             {
                 recovery_errors.push(format!("{player_id}: {error}"));
             }
-        }
+            Ok(())
+        })?;
 
         let failed_summary = failed_clients
             .iter()
-            .map(|(player_id, error)| format!("{player_id}: {error}"))
+            .map(|(handle, error)| format!("{}: {error}", handle.player_id))
             .collect::<Vec<_>>()
             .join("; ");
         let recovery_suffix = if recovery_errors.is_empty() {

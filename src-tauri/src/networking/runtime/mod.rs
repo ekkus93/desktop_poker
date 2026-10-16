@@ -16,13 +16,17 @@ use serde_json::Value;
 
 use crate::{
     crypto::{EncryptionKeyMaterial, SigningKeyMaterial},
-    domain::{ConnectionState, JoinPayload, ParticipantRegistryEntry, TournamentState},
+    domain::{
+        ConnectionState, JoinPayload, ParticipantRegistryEntry, ParticipantState, TournamentState,
+    },
     protocol::{PrivateHoleCardsEvent, ProtocolMessageType, SignedEnvelope, SnapshotEvent},
     tournament::TournamentController,
 };
 
+mod admission;
 mod client;
 mod client_connect;
+mod client_registry;
 mod events;
 mod handlers;
 mod host;
@@ -35,7 +39,9 @@ mod snapshot;
 
 // Re-export the moved free functions so the rest of the `runtime` module (and
 // its tests) keeps the original flat namespace.
+pub(crate) use admission::*;
 pub(crate) use client_connect::*;
+pub(crate) use client_registry::*;
 pub(crate) use events::*;
 pub(crate) use handlers::*;
 pub(crate) use host_session::*;
@@ -121,6 +127,8 @@ pub struct HostRuntimeConfig {
 pub(crate) struct ConnectedClient {
     stream: Arc<Mutex<TcpStream>>,
     encryption_public_key: String,
+    /// Unique per admission; see `client_registry`.
+    generation: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -331,16 +339,62 @@ pub(crate) struct InitialRequestAcceptance {
     player_id: String,
     snapshot_envelope: SignedEnvelope<SnapshotEvent>,
     encryption_public_key: String,
-    previous_participant: Option<ParticipantRegistryEntry>,
+    admission: AdmissionKind,
     admission_token: String,
+    generation: u64,
 }
 
-/// Roll back only the still-current unregistered connection attempt. A newer
-/// connection, or one with another reconnect token, must never be removed.
+/// What an accepted initial request changed, so a failed attempt can undo
+/// exactly that and nothing else.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum AdmissionKind {
+    /// A participant entry was inserted for this attempt, possibly replacing
+    /// a `Removed` tombstone that rollback puts back.
+    NewJoin {
+        replaced: Option<ParticipantRegistryEntry>,
+    },
+    /// An existing reconnect-eligible participant was marked connected.
+    Reconnect(ReconnectPrior),
+}
+
+/// The networking fields a reconnect admission overwrote.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ReconnectPrior {
+    connection_state: ConnectionState,
+    reconnect_expiry_ms: Option<u64>,
+    state: ParticipantState,
+    /// The participant state the admission wrote; restored only if unchanged.
+    admitted_state: ParticipantState,
+}
+
+impl ReconnectPrior {
+    pub(crate) fn capture(
+        before: &ParticipantRegistryEntry,
+        after: &ParticipantRegistryEntry,
+    ) -> Self {
+        Self {
+            connection_state: before.connection_state,
+            reconnect_expiry_ms: before.reconnect_expiry_ms,
+            state: before.state,
+            admitted_state: after.state,
+        }
+    }
+}
+
+/// Roll back only the still-current unregistered connection attempt.
+///
+/// Ownership is `Connected` plus this attempt's admission token. That is
+/// sufficient: while an attempt is pending the participant is `Connected`, so
+/// every other join/reconnect for the same player is rejected, and only a
+/// registered session whose generation still matches can demote it (see
+/// `client_registry`). A new join always carries a fresh token.
+///
+/// Reconnect rollback restores only the fields the admission wrote. Gameplay
+/// commits made meanwhile (for example an elimination) are kept.
 fn rollback_admission(
     state: &Arc<Mutex<TournamentState>>,
     player_id: &str,
-    previous: &Option<ParticipantRegistryEntry>,
+    admission: &AdmissionKind,
     admission_token: &str,
 ) -> Result<(), NetworkingError> {
     let mut state = state
@@ -353,13 +407,28 @@ fn rollback_admission(
             participant.connection_state == ConnectionState::Connected
                 && participant.reconnect_token.as_deref() == Some(admission_token)
         });
-    if owns_attempt {
-        if let Some(previous) = previous {
-            state
-                .participants
-                .insert(player_id.to_string(), previous.clone());
-        } else {
-            state.participants.remove(player_id);
+    if !owns_attempt {
+        return Ok(());
+    }
+    match admission {
+        AdmissionKind::NewJoin { replaced } => match replaced {
+            Some(replaced) => {
+                state
+                    .participants
+                    .insert(player_id.to_string(), replaced.clone());
+            }
+            None => {
+                state.participants.remove(player_id);
+            }
+        },
+        AdmissionKind::Reconnect(prior) => {
+            if let Some(participant) = state.participants.get_mut(player_id) {
+                participant.connection_state = prior.connection_state;
+                participant.reconnect_expiry_ms = prior.reconnect_expiry_ms;
+                if participant.state == prior.admitted_state {
+                    participant.state = prior.state;
+                }
+            }
         }
     }
     Ok(())
@@ -370,7 +439,7 @@ struct PendingAdmissionRollback {
     state: Arc<Mutex<TournamentState>>,
     runtime_health: Arc<Mutex<HostRuntimeHealth>>,
     player_id: String,
-    previous: Option<ParticipantRegistryEntry>,
+    admission: AdmissionKind,
     token: String,
     armed: bool,
 }
@@ -385,7 +454,7 @@ impl PendingAdmissionRollback {
             state: Arc::clone(state),
             runtime_health: Arc::clone(runtime_health),
             player_id: acceptance.player_id.clone(),
-            previous: acceptance.previous_participant.clone(),
+            admission: acceptance.admission.clone(),
             token: acceptance.admission_token.clone(),
             armed: true,
         }
@@ -394,20 +463,27 @@ impl PendingAdmissionRollback {
     fn disarm(&mut self) {
         self.armed = false;
     }
+
+    /// Roll back now (at most once), e.g. before closing the transport so a
+    /// peer that observes the close retries against settled state.
+    fn rollback_now(&mut self) {
+        if !std::mem::replace(&mut self.armed, false) {
+            return;
+        }
+        if let Err(error) =
+            rollback_admission(&self.state, &self.player_id, &self.admission, &self.token)
+        {
+            update_health(&self.runtime_health, |health| {
+                health.state_lock_error_count += 1;
+                health.record_error(format!("unregistered admission cleanup failed: {error}"));
+            });
+        }
+    }
 }
 
 impl Drop for PendingAdmissionRollback {
     fn drop(&mut self) {
-        if self.armed {
-            if let Err(error) =
-                rollback_admission(&self.state, &self.player_id, &self.previous, &self.token)
-            {
-                update_health(&self.runtime_health, |health| {
-                    health.state_lock_error_count += 1;
-                    health.record_error(format!("unregistered admission cleanup failed: {error}"));
-                });
-            }
-        }
+        self.rollback_now();
     }
 }
 

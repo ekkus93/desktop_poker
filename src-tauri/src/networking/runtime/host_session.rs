@@ -6,29 +6,13 @@ use std::{
 };
 
 use crate::{
-    crypto::{DefaultCryptoProvider, EncryptionKeyMaterial, SigningKeyMaterial},
+    crypto::{DefaultCryptoProvider, SigningKeyMaterial},
     domain::{JoinPayload, TournamentState},
     networking::{read_json_frame, write_json_frame},
     protocol::{JsonSignedEnvelope, ProtocolMessageType},
-    tournament::TournamentController,
 };
 
 use super::*;
-
-fn remove_client_or_record_health(
-    clients: &Arc<Mutex<HashMap<String, ConnectedClient>>>,
-    runtime_health: &Arc<Mutex<HostRuntimeHealth>>,
-    player_id: &str,
-) {
-    match clients.lock() {
-        Ok(mut connected_clients) => {
-            connected_clients.remove(player_id);
-        }
-        Err(_) => update_health(runtime_health, |h| {
-            h.record_client_registry_error();
-        }),
-    }
-}
 
 fn mark_reconnect_or_record_health(
     authoritative_state: &Arc<Mutex<TournamentState>>,
@@ -42,14 +26,31 @@ fn mark_reconnect_or_record_health(
     }
 }
 
+/// Session-exit cleanup. A session whose registration was already retired or
+/// replaced must not demote a newer connection for the same player (N-3).
 fn disconnect_client(
     clients: &Arc<Mutex<HashMap<String, ConnectedClient>>>,
     authoritative_state: &Arc<Mutex<TournamentState>>,
     runtime_health: &Arc<Mutex<HostRuntimeHealth>>,
     player_id: &str,
+    generation: u64,
 ) {
-    remove_client_or_record_health(clients, runtime_health, player_id);
-    mark_reconnect_or_record_health(authoritative_state, runtime_health, player_id);
+    match take_client_if_current(clients, player_id, generation) {
+        Ok(Some(client)) => {
+            mark_reconnect_or_record_health(authoritative_state, runtime_health, player_id);
+            close_client(&client);
+        }
+        // Already retired by a failed writer, or replaced by a newer connection.
+        Ok(None) => {}
+        Err(_) => {
+            // Ownership cannot be checked; fail toward reconnect-eligible rather
+            // than leaving a `Connected` participant without a session.
+            update_health(runtime_health, |h| {
+                h.record_client_registry_error();
+            });
+            mark_reconnect_or_record_health(authoritative_state, runtime_health, player_id);
+        }
+    }
 }
 
 fn record_state_lock_error(
@@ -88,22 +89,28 @@ fn send_action_rejection_best_effort(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Start the session thread for a registered client. On spawn failure the
+/// stream and slot guard are dropped and the error is returned so the caller
+/// can retire the registration.
 pub(crate) fn spawn_host_client_session(
     player_id: String,
+    generation: u64,
     mut stream: TcpStream,
-    authoritative_state: Arc<Mutex<TournamentState>>,
-    tournament_runtime: Arc<Mutex<Option<TournamentController>>>,
-    transition_lock: Arc<Mutex<()>>,
-    clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
-    join_payload: JoinPayload,
-    server_sequence: Arc<AtomicU64>,
-    host_signing_keys: Arc<SigningKeyMaterial>,
-    host_encryption_keys: Arc<Mutex<EncryptionKeyMaterial>>,
-    public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
-    runtime_health: Arc<Mutex<HostRuntimeHealth>>,
+    context: HostSessionContext,
     active_client_slot_guard: ActiveClientSlotGuard,
 ) -> Result<(), NetworkingError> {
+    let HostSessionContext {
+        authoritative_state,
+        tournament_runtime,
+        transition_lock,
+        clients,
+        join_payload,
+        server_sequence,
+        host_signing_keys,
+        host_encryption_keys,
+        public_events,
+        runtime_health,
+    } = context;
     let runtime_health_for_error = Arc::clone(&runtime_health);
     let player_id_for_error = player_id.clone();
     if let Err(error) = thread::Builder::new()
@@ -122,6 +129,7 @@ pub(crate) fn spawn_host_client_session(
                             &authoritative_state,
                             &runtime_health,
                             &player_id,
+                            generation,
                         );
                         break;
                     }
@@ -153,6 +161,7 @@ pub(crate) fn spawn_host_client_session(
                                         &authoritative_state,
                                         &runtime_health,
                                         &player_id,
+                                        generation,
                                     );
                                     break;
                                 }
@@ -199,6 +208,7 @@ pub(crate) fn spawn_host_client_session(
                                         &authoritative_state,
                                         &runtime_health,
                                         &player_id,
+                                        generation,
                                     );
                                     break;
                                 }
@@ -262,6 +272,7 @@ pub(crate) fn spawn_host_client_session(
                                         &authoritative_state,
                                         &runtime_health,
                                         &player_id,
+                                        generation,
                                     );
                                     break;
                                 }
@@ -289,6 +300,7 @@ pub(crate) fn spawn_host_client_session(
                                         &authoritative_state,
                                         &runtime_health,
                                         &player_id,
+                                        generation,
                                     );
                                     break;
                                 }
@@ -336,6 +348,7 @@ pub(crate) fn spawn_host_client_session(
                                         &authoritative_state,
                                         &runtime_health,
                                         &player_id,
+                                        generation,
                                     );
                                     break;
                                 }
