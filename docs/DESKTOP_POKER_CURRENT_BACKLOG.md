@@ -23,6 +23,28 @@ Current evidence is recorded in:
 - `docs/runtime-validation/embedded-model-latest.json`
 - `docs/runtime-validation/embedded-tournament-latest.json`
 
+## Active October 15 code-review remediation (not yet qualified)
+
+The source-of-truth remediation specification and itemized checklist are
+`docs/DESKTOP_POKER_CODE_REVIEW_REMEDIATION_SPEC_2026-10-15.md` and
+`docs/DESKTOP_POKER_CODE_REVIEW_REMEDIATION_TODO_2026-10-15.md`.
+The nine reviewed findings remain **OPEN pending complete exact-head regression
+evidence**; older release-readiness success is not evidence that new code
+changes passed all gates. This audit is separate from deferred physical LAN,
+Android/Desktop interoperability, and live external-provider acceptance.
+
+- **DP-REVIEW-001 — network admission rollback:** `src-tauri/src/networking/runtime/{handlers,host}.rs` has rollback guards; fault-injection and real TCP failure matrix remain unqualified.
+- **DP-REVIEW-002/003 — V2 history identity, migration and source precedence:** `src-tauri/src/history_storage_v2.rs`, `src/app/persistence.ts`, and `src/screens/HandHistoryScreen.tsx` implement versioned session-aware records; final restart/failure qualification is open.
+- **DP-REVIEW-004 — history paging:** newest-first grouped pagination and 205-hand regression exist; 100/101 boundary tests added in `73ad0a2` and corrected in `d5d2bf9`, not yet CI-qualified.
+- **DP-REVIEW-005 — invite size/decompression limits:** bounded parsing exists in `src-tauri/src/protocol/join_payload.rs`; complete security-negative and exact-head CI qualification remains open.
+- **DP-REVIEW-006 — API-key migration:** `src-tauri/src/npc/provider_storage.rs` has migration and non-destructive error tests; release keychain and migration verification need aggregation at one qualified head.
+- **DP-REVIEW-007 — history transactional persistence:** profile lock, unique temporary file and concurrency tests exist; `4a25044` explicitly preserves lock-file bytes and needs CI qualification.
+- **DP-REVIEW-008 — monotonic UI refresh:** request generations in lobby/table code require event/poll inversion and terminated-session evidence on current source.
+- **DP-REVIEW-009 — backlog alignment:** the three `DP-UX` items below need focused tests and reconciliation. Pending tests include `2270950` for profile slug/unsaved transitions and `dd58f2a` for truthful ready-state failure handling.
+
+Do not mark this review closed until the checklist records tests, passing
+execution-head CI, and limitations for all nine findings.
+
 ## Current release position
 
 The project is an advanced MVP with a strong automated baseline. The direct Linux release binary launches successfully, production-only route behavior is proven, and complete real-TCP two-player release tournaments are proven through legal/rejected actions, multiple settled hands, elimination, matching standings, fresh-profile isolation, and host/client history restoration after release-process restart. The Linux AppImage builds and passes the production WebDriver smoke. The Debian package builds, installs through `apt`, passes the production WebDriver smoke, launches through its desktop entry with an X11 window, owns valid icon files, and purges without leaving its executable, desktop entry, or icon files.
@@ -205,7 +227,7 @@ Open release blockers:
 
 - **Current behavior:** Lobby still displays an optimistic local ready override before authoritative confirmation.
 - **Required behavior:** Show an in-flight state and render only confirmed server state; restore prior state on failure.
-- **Status:** Open. Runtime ready propagation and reconnect pass under automated network interruption, but latency/failure presentation honesty still needs a focused UI audit.
+- **Status:** Implementation now presents a pending ready transition without changing confirmed seat state; added rejection-path test in `dd58f2a`, with exact-head CI still pending.
 
 ### DP-UX-P1-002 — Settings confirmation mutual exclusion
 
@@ -215,7 +237,7 @@ Open release blockers:
 ### DP-UX-P1-003 — NPC profile unsaved-change protection and slug validation
 
 - Track dirty state, confirm before navigation/window close, validate IDs against `[a-z0-9-]{1,64}`.
-- **Status:** Needs current source/test verification.
+- **Status:** Implemented in current source (dirty-state, route blocker, beforeunload guard and slug validation); focused tests added in `2270950` and awaiting CI before closure.
 
 ### DP-UX-P1-004 — Accessibility interaction pass
 
@@ -225,7 +247,7 @@ Open release blockers:
 ### DP-UX-P2-001 — Long hand-history rendering strategy
 
 - Limit or virtualize large histories while preserving access to all hands.
-- **Status:** Needs source verification.
+- **Status:** Newest-first grouped 100-hand paging implemented, including 100/101/205 regression cases; exact-head CI and full restart evidence still pending.
 
 ### DP-UX-P2-002 — Improve stale invite and error recovery messaging
 
