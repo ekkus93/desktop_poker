@@ -1,8 +1,8 @@
 # Latest Linux Release Keychain Validation
 
 - Result: **PASS**
-- Validated commit: `3dcf25a61f514bace60046b11e05991683d821d5`
-- GitHub Actions run: `38885326304`
+- Validated commit: `2584caa591d9eb5e584e020e0626d0becd04d5a2`
+- GitHub Actions run: `38888221672`
 - Release build: `success`
 - Secret Service persistence path: `success`
 - Unavailable-keychain path: `success`
@@ -19,7 +19,6 @@
 
 ## Failure behavior
 
-could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory
 - **PASS** — unavailable keychain produced an explicit release error
 - **PASS** — failed keychain write created no provider state or plaintext fallback
 

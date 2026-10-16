@@ -5,10 +5,10 @@
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "error": "could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory",
-    "instanceId": "release-keychain-failure-38885326304",
+    "errorCategory": "keychain-unavailable",
+    "instanceId": "release-keychain-failure-38888221672",
     "mode": "failure",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38885326304",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38888221672",
     "result": "PASS",
     "steps": [
       {
@@ -22,15 +22,15 @@
     ]
   },
   "failurePathOutcome": "success",
-  "recordedAtUtc": "2026-10-16T10:11:28.566455+00:00",
+  "recordedAtUtc": "2026-10-16T10:37:40.882921+00:00",
   "result": "PASS",
   "successPath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "instanceId": "release-keychain-success-38885326304",
+    "instanceId": "release-keychain-success-38888221672",
     "mode": "success",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38885326304",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38888221672",
     "provider": "anthropic",
     "result": "PASS",
     "secretLength": 36,
@@ -62,7 +62,7 @@
     ]
   },
   "successPathOutcome": "success",
-  "validatedCommit": "3dcf25a61f514bace60046b11e05991683d821d5",
+  "validatedCommit": "2584caa591d9eb5e584e020e0626d0becd04d5a2",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38885326304"
+  "workflowRunId": "38888221672"
 }
