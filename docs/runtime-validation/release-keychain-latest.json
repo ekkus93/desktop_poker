@@ -6,9 +6,9 @@
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "051a1070d6fd48d70f0057a0a7db954f0f9b440b80d6f1e28faefacb02abb55e",
     "error": "could not write provider key for anthropic: keychain write failed: Platform secure storage failure: DBus error: Failed to connect to socket /home/runner/work/_temp/desktop-poker-missing-secret-service-bus: No such file or directory",
-    "instanceId": "release-keychain-failure-38842528030",
+    "instanceId": "release-keychain-failure-38843947051",
     "mode": "failure",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38842528030",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38843947051",
     "result": "PASS",
     "steps": [
       {
@@ -22,15 +22,15 @@
     ]
   },
   "failurePathOutcome": "success",
-  "recordedAtUtc": "2026-10-16T02:53:20.258662+00:00",
+  "recordedAtUtc": "2026-10-16T03:10:18.751454+00:00",
   "result": "PASS",
   "successPath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "051a1070d6fd48d70f0057a0a7db954f0f9b440b80d6f1e28faefacb02abb55e",
-    "instanceId": "release-keychain-success-38842528030",
+    "instanceId": "release-keychain-success-38843947051",
     "mode": "success",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38842528030",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38843947051",
     "provider": "anthropic",
     "result": "PASS",
     "secretLength": 36,
@@ -62,7 +62,7 @@
     ]
   },
   "successPathOutcome": "success",
-  "validatedCommit": "6d78bbac587e5bdb986a6c376f5e7deec8104582",
+  "validatedCommit": "bda5515a07971c2a8832e96fba7a2c2a54c1efb1",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38842528030"
+  "workflowRunId": "38843947051"
 }
