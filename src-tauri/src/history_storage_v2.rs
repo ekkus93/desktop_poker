@@ -219,6 +219,7 @@ fn with_profile_lock<T>(
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(profile_directory.join(".hand-history.lock"))
         .map_err(|error| format!("failed to open history lock: {error}"))?;
     lock.lock()
