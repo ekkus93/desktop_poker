@@ -258,7 +258,9 @@ def run(application: Path, driver_url: str, evidence_dir: Path) -> dict[str, Any
         wait_for_route(client, "/", "Choose a table")
         client.click(client.find_xpath(xpath_clickable_text("Join Tournament")))
         wait_for_route(client, "/join", "Join Tournament")
-        assert_source_contains(client, "Check invite", "Continue to lobby")
+        # Continuing to the lobby is only available after a valid invite has
+        # been checked; a fresh Join screen should expose the validation action.
+        assert_source_contains(client, "Check invite")
         record("Join route rendered")
 
         invite = client.find_css("textarea")
