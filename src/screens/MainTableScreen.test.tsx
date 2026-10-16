@@ -43,6 +43,16 @@ vi.mock("react-router", async () => {
 
 const createTableView = createTableViewSnapshot;
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 describe("MainTableScreen", () => {
   beforeEach(() => {
     mockedGetTableView.mockReset();
@@ -329,6 +339,41 @@ describe("MainTableScreen", () => {
     expect(screen.getByText("Pot 333")).toBeTruthy();
     expect(screen.queryByText(/connection is slow/i)).toBeNull();
     expect(screen.queryByText("Loading table state")).toBeNull();
+    result.unmount();
+  });
+
+  it("ignores an older successful table snapshot after a newer event snapshot", async () => {
+    let onUpdate: (() => void) | undefined;
+    const initial = deferred<TableViewSnapshot>();
+    const event = deferred<TableViewSnapshot>();
+    mockedOnTableUpdate.mockImplementation((listener) => {
+      onUpdate = listener;
+      return Promise.resolve(() => {});
+    });
+    mockedGetTableView
+      .mockImplementationOnce(() => initial.promise)
+      .mockImplementationOnce(() => event.promise);
+
+    const bootstrap = createBootstrap();
+    const result = renderWithProviders(
+      <MainTableScreen bootstrap={bootstrap} />,
+      { bootstrap },
+    );
+    await waitFor(() => expect(onUpdate).toBeDefined());
+
+    act(() => onUpdate?.());
+    await act(async () => {
+      event.resolve(createTableView({ potTotal: 333 }));
+      await event.promise;
+    });
+    expect(await screen.findByText("Pot 333")).toBeTruthy();
+
+    await act(async () => {
+      initial.resolve(createTableView({ potTotal: 111 }));
+      await initial.promise;
+    });
+    expect(screen.getByText("Pot 333")).toBeTruthy();
+    expect(screen.queryByText("Pot 111")).toBeNull();
     result.unmount();
   });
 
