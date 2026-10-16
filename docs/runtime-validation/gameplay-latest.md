@@ -1,18 +1,18 @@
 # Latest Linux Release Full-Game Validation
 
 - Result: **PASS**
-- Validated commit: `f030f13c0352ff940d0a5c357ccd2e87424a5f8e`
-- GitHub Actions run: `38882201020`
+- Validated commit: `230aa76dad2595f02a4d44cdc2c51b520aa4dfcb`
+- GitHub Actions run: `38882836086`
 - Build outcome: `success`
 - Gameplay outcome: `success`
-- Recorded at: `2026-10-16T09:46:12.799894+00:00`
+- Recorded at: `2026-10-16T09:50:32.826095+00:00`
 - Evidence artifact: `linux-release-full-game-evidence`
 
 ## Result summary
 
 - Completed hands: `3`
-- Host instance: `full-game-host-38882201020`
-- Client instance: `full-game-client-38882201020`
+- Host instance: `full-game-host-38882836086`
+- Client instance: `full-game-client-38882836086`
 
 ## Executed checks
 
