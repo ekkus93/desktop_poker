@@ -23,27 +23,31 @@ Current evidence is recorded in:
 - `docs/runtime-validation/embedded-model-latest.json`
 - `docs/runtime-validation/embedded-tournament-latest.json`
 
-## Active October 15 code-review remediation (not yet qualified)
+## October 15 code-review remediation (software qualification in progress)
 
 The source-of-truth remediation specification and itemized checklist are
 `docs/DESKTOP_POKER_CODE_REVIEW_REMEDIATION_SPEC_2026-10-15.md` and
 `docs/DESKTOP_POKER_CODE_REVIEW_REMEDIATION_TODO_2026-10-15.md`.
-The nine reviewed findings remain **OPEN pending complete exact-head regression
-evidence**; older release-readiness success is not evidence that new code
-changes passed all gates. This audit is separate from deferred physical LAN,
-Android/Desktop interoperability, and live external-provider acceptance.
+The current executable implementation at `88489f26252c9a32e41e9611695d8b7cdb4a46d1`
+has passed exact-head automated CI and all eight release/runtime workflows.
+DP-REVIEW-002 through 008 are implemented and verified; DP-REVIEW-001 and 009
+remain partial pending the lobby-capacity decision, source-review attachment,
+and removal of historical runtime artifacts. This audit remains separate from
+deferred physical LAN, Android/Desktop interoperability, remote-provider, and
+manual accessibility acceptance.
 
-- **DP-REVIEW-001 — network admission rollback:** `src-tauri/src/networking/runtime/{handlers,host}.rs` has rollback guards; fault-injection and real TCP failure matrix remain unqualified.
-- **DP-REVIEW-002/003 — V2 history identity, migration and source precedence:** `src-tauri/src/history_storage_v2.rs`, `src/app/persistence.ts`, and `src/screens/HandHistoryScreen.tsx` implement versioned session-aware records; final restart/failure qualification is open.
-- **DP-REVIEW-004 — history paging:** newest-first grouped pagination and 205-hand regression exist; 100/101 boundary tests added in `73ad0a2` and corrected in `d5d2bf9`, not yet CI-qualified.
-- **DP-REVIEW-005 — invite size/decompression limits:** bounded parsing exists in `src-tauri/src/protocol/join_payload.rs`; complete security-negative and exact-head CI qualification remains open.
-- **DP-REVIEW-006 — API-key migration:** `src-tauri/src/npc/provider_storage.rs` has migration and non-destructive error tests; release keychain and migration verification need aggregation at one qualified head.
-- **DP-REVIEW-007 — history transactional persistence:** profile lock, unique temporary file and concurrency tests exist; `4a25044` explicitly preserves lock-file bytes and needs CI qualification.
-- **DP-REVIEW-008 — monotonic UI refresh:** request generations in lobby/table code require event/poll inversion and terminated-session evidence on current source.
-- **DP-REVIEW-009 — backlog alignment:** the three `DP-UX` items below need focused tests and reconciliation. Pending tests include `2270950` for profile slug/unsaved transitions and `dd58f2a` for truthful ready-state failure handling.
+- **DP-REVIEW-001 — network admission rollback:** `admission.rs` now catches public transitions between initial snapshot and client registration; deterministic rollback, real TCP pre-snapshot disconnect/retry, snapshot-gap, and frame-order regressions pass at `88489f2`. Reconnect-eligible lobby capacity policy remains for owner decision.
+- **DP-REVIEW-002/003 — V2 history identity, migration and source precedence:** session-aware storage, durable precedence and restart/failure regressions pass exact-head CI and full-game validation at `88489f2`.
+- **DP-REVIEW-004 — history paging:** newest-first grouped pagination and 100/101/205/multi-session regressions pass exact-head CI at `88489f2`.
+- **DP-REVIEW-005 — invite size/decompression limits:** bounded compact/legacy parsing and security-negative tests pass exact-head CI at `88489f2`.
+- **DP-REVIEW-006 — API-key migration:** atomic migration, redaction and non-destructive failure cases pass CI and release keychain validation `38890639554`.
+- **DP-REVIEW-007 — history transactional persistence:** profile lock, atomic replacement, fault recovery and process-level concurrent writer tests pass exact-head CI at `88489f2`.
+- **DP-REVIEW-008 — monotonic UI refresh:** request-order and terminal-session regressions pass exact-head CI at `88489f2`.
+- **DP-REVIEW-009 — backlog alignment/privacy:** backlog and architecture reflect verified implementation; original source review is absent and historical privacy-sensitive workflow artifacts still require owner removal.
 
-Do not mark this review closed until the checklist records tests, passing
-execution-head CI, and limitations for all nine findings.
+Do not mark this review closed until the original review is reconciled, the
+capacity policy is decided, and the historical artifacts are removed. Physical
+LAN, Android, remote-provider and manual accessibility gates remain separate.
 
 ## Current release position
 
@@ -227,7 +231,7 @@ Open release blockers:
 
 - **Current behavior:** Lobby keeps the server-confirmed seat state visible while a ready mutation is pending.
 - **Required behavior:** Show an in-flight state and render only confirmed server state; restore prior state on failure.
-- **Status:** Implemented and covered by `TournamentLobbyAuthoritativeReady.test.tsx` (`keeps waiting state...`, `restores the authoritative waiting state...`, and pending undo). Included in executable head `568da27669b1fd046683542dbe0112f0da027e27`; exact-head CI passed in run `38886195947`.
+- **Status:** Implemented and covered by `TournamentLobbyAuthoritativeReady.test.tsx` (`keeps waiting state...`, `restores the authoritative waiting state...`, and pending undo). Included in executable head `88489f26252c9a32e41e9611695d8b7cdb4a46d1`; exact-head CI passed in run `38890639601`.
 
 ### DP-UX-P1-002 — Settings confirmation mutual exclusion
 
@@ -237,7 +241,7 @@ Open release blockers:
 ### DP-UX-P1-003 — NPC profile unsaved-change protection and slug validation
 
 - Track dirty state, confirm before navigation/window close, validate IDs against `[a-z0-9-]{1,64}`.
-- **Status:** Implemented in current source (dirty-state, route blocker, beforeunload guard and slug validation); `NpcProfilesScreen.test.tsx` covers invalid slugs and unsaved-edit confirmation. Included in executable head `568da27669b1fd046683542dbe0112f0da027e27`; exact-head CI passed in run `38886195947`.
+- **Status:** Implemented in current source (dirty-state, route blocker, beforeunload guard and slug validation); `NpcProfilesScreen.test.tsx` covers invalid slugs and unsaved-edit confirmation. Included in executable head `88489f26252c9a32e41e9611695d8b7cdb4a46d1`; exact-head CI passed in run `38890639601`.
 
 ### DP-UX-P1-004 — Accessibility interaction pass
 
@@ -247,25 +251,25 @@ Open release blockers:
 ### DP-UX-P2-001 — Long hand-history rendering strategy
 
 - Limit or virtualize large histories while preserving access to all hands.
-- **Status:** Newest-first grouped 100-hand paging implemented, including empty/100/101/205 and multiple-tournament cases in `HandHistoryScreen.test.tsx`; Rust restart/migration fixtures cover persistence across process restart. Included in executable head `568da27669b1fd046683542dbe0112f0da027e27`; exact-head CI passed in run `38886195947`.
+- **Status:** Newest-first grouped 100-hand paging implemented, including empty/100/101/205 and multiple-tournament cases in `HandHistoryScreen.test.tsx`; Rust restart/migration fixtures cover persistence across process restart. Included in executable head `88489f26252c9a32e41e9611695d8b7cdb4a46d1`; exact-head CI passed in run `38890639601`.
 
 ## October 16 code-review remediation evidence
 
-The current executable head is `568da27669b1fd046683542dbe0112f0da027e27`. Its applicable exact-head CI and runtime workflows passed. The original source review `DESKTOP_POKER_CODE_REVIEW_2026-10-15.md` is not present in the checkout or tracked docs, so direct comparison to that file remains pending.
+The current executable head is `88489f26252c9a32e41e9611695d8b7cdb4a46d1`. All nine exact-head workflows passed. The original source review `DESKTOP_POKER_CODE_REVIEW_2026-10-15.md` is not present in the checkout or tracked docs, so direct comparison to that file remains pending.
 
 | Review item | Current implementation and focused evidence | Status |
 |---|---|---|
-| DP-REVIEW-001 | Transactional join/reconnect rollback and stage fault injection in `admission_rollback.rs` / `admission_completion.rs`; TCP retry test and concurrent writer frame test. Before-snapshot delivery and lobby capacity policy remain open. | PARTIAL |
-| DP-REVIEW-002 | V2 compound session identity in `history_storage_v2.rs`; `two_tournaments_keep_the_same_hand_number_across_restart`; full-game restart workflow passed at `568da27`. | IMPLEMENTED |
+| DP-REVIEW-001 | Transactional rollback, stage fault injection, before-snapshot disconnect/retry, public-event catch-up snapshot, and concurrent frame tests in `admission_completion.rs`; exact-head CI/reconnect pass. Capacity policy awaits owner decision. | PARTIAL |
+| DP-REVIEW-002 | V2 compound session identity in `history_storage_v2.rs`; `two_tournaments_keep_the_same_hand_number_across_restart`; full-game restart workflow passed at `88489f2`. | IMPLEMENTED |
 | DP-REVIEW-003 | Durable V2 precedence and cache-only non-durable acknowledgment in `persistence.test.ts` and `TournamentCompleteScreen.test.tsx`; exact-head CI/full-game passed. | IMPLEMENTED |
 | DP-REVIEW-004 | Newest-first grouped history with bounded 100-hand pages and 100/101/205/multi-session tests in `HandHistoryScreen.test.tsx`; exact-head CI passed. | IMPLEMENTED |
 | DP-REVIEW-005 | Bounded compact/legacy decoding and exact-boundary/invalid UTF-8 fixtures in `join_payload.rs`; exact-head CI passed. | IMPLEMENTED |
-| DP-REVIEW-006 | Secure-store migration, atomic scrubbing, failure recovery and synthetic secret redaction tests in `provider_storage.rs`; keychain workflow `38885326304` passed. | IMPLEMENTED |
+| DP-REVIEW-006 | Secure-store migration, atomic scrubbing, failure recovery and synthetic secret redaction tests in `provider_storage.rs`; keychain workflow `38890639554` passed. | IMPLEMENTED |
 | DP-REVIEW-007 | Profile OS lock, unique atomic replacement, fault recovery and child-process writer union tests in `history_storage_v2.rs`; exact-head CI passed. | IMPLEMENTED |
 | DP-REVIEW-008 | Monotonic refresh guards and deferred inversion/terminal-state coverage in `useLobbySession.test.ts` and `MainTableScreen.test.tsx`; exact-head CI passed. | IMPLEMENTED |
-| DP-REVIEW-009 | Backlog, README/architecture and release-gate reconciliation updated. Runtime evidence now omits private table fields and active-hand screenshots. Pre-fix GitHub Actions artifacts still need deletion. | PARTIAL |
+| DP-REVIEW-009 | Backlog, README/architecture and release-gate reconciliation updated. Runtime evidence omits private table fields and active-hand screenshots. Original review attachment and pre-fix GitHub Actions artifact removal remain outstanding. | PARTIAL |
 
-**Exact-head workflow evidence:** CI `38886195947`; runtime `38886196138`; full game `38886196031`; reconnect `38886195939`; rule-based NPC `38886195965`; embedded NPC/tournament `38886195921` (all success). The immediately preceding executable head `3dcf25a61f514bace60046b11e05991683d821d5` also passed keychain `38885326304`, Debian package `38885326193`, and AppImage `38885326255`.
+**Exact-head workflow evidence at `88489f2`:** main CI `38890639601` (583 Rust tests passed, 2 ignored; 131 poker-core passed; frontend tests/lint/format/build and audits passed); runtime `38890639587`; full game `38890639467`; reconnect `38890639602`; keychain `38890639554`; Debian package `38890639497`; AppImage `38890639588`; rule-based NPC `38890639505`; embedded NPC/tournament `38890639563` (all success). Runtime evidence artifacts: CI `12041298525`, full game `12042480265`, reconnect `12042390858`. Local formatting, Clippy with warnings denied, full Rust workspace tests, and `git diff --check` passed.
 
 **Runtime artifact privacy:** `scripts/runtime_evidence.py` recursively removes local/private card and action-state fields; runtime tournament/reconnect harnesses no longer capture active-hand screenshots. Unit tests pass, and tracked runtime JSON contains no private projection fields. Pre-fix reconnect/NPC workflow artifacts remain available until 2026-11-15 and require owner removal through GitHub Actions artifact controls. Physical two-machine LAN, Android mixed-runtime, remote provider, and manual screen-reader gates remain separate and unqualified.
 
