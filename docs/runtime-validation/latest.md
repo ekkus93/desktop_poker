@@ -1,12 +1,12 @@
 # Latest Linux Release Runtime Validation
 
-- Overall result: **PASS**
-- Validated commit: `f030f13c0352ff940d0a5c357ccd2e87424a5f8e`
-- GitHub Actions run: `38882200725`
+- Overall result: **FAIL**
+- Validated commit: `230aa76dad2595f02a4d44cdc2c51b520aa4dfcb`
+- GitHub Actions run: `38882836213`
 - Build outcome: `success`
 - Single-instance outcome: `success`
-- Multi-instance outcome: `success`
-- Recorded at: `2026-10-16T09:44:33.707492+00:00`
+- Multi-instance outcome: `failure`
+- Recorded at: `2026-10-16T09:50:15.809747+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
@@ -29,20 +29,13 @@ Result: **PASS**
 
 ## Live multi-instance release smoke
 
-Result: **PASS**
+Result: **FAIL**
+
+Failure: AssertionError: Timed out waiting for Tauri command get_host_session_status; last error: None
 
 - **PASS** — host release instance launched
 - **PASS** — client release instance launched
 - **PASS** — conflict host release instance launched
 - **PASS** — three instance IDs and profile directories are distinct
 - **PASS** — client host draft is independently namespaced before joining
-- **PASS** — host started a real TCP session and produced a pkr1_ invite
-- **PASS** — client joined the live host over real TCP with matching seat indexes
-- **PASS** — host began the lobby in its authoritative occupied seat
-- **PASS** — client claimed the remaining open seat through the release UI
-- **PASS** — host and client agree on distinct authoritative seat assignments
-- **PASS** — ready state propagated to both release instances
-- **PASS** — both instances entered Main Table after authoritative start
-- **PASS** — private cards are isolated and public table state is synchronized
-- **PASS** — same-port host failed explicitly: Unable to start hosting on TCP port 43818. Unable to start hosting.
-- **PASS** — conflicting host recovered successfully on port 43819
+- **FAIL** — multi-instance runtime smoke
