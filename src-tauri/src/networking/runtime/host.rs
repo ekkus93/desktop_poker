@@ -172,16 +172,27 @@ impl HostServer {
                                             }
                                             return;
                                         };
-                                        handle_initial_client_request(
-                                            &crypto_provider,
-                                            request_envelope,
-                                            &join_payload,
-                                            &authoritative_state,
-                                            &server_sequence,
-                                            &host_signing_keys,
-                                            &host_encryption_keys,
-                                        )
-                                        .map(|acceptance| (acceptance, active_client_slot_guard))
+                                        let admission = transition_lock
+                                            .lock()
+                                            .map_err(|_| {
+                                                NetworkingError::new(
+                                                    "host transition lock poisoned",
+                                                )
+                                            })
+                                            .and_then(|_transition_guard| {
+                                                handle_initial_client_request(
+                                                    &crypto_provider,
+                                                    request_envelope,
+                                                    &join_payload,
+                                                    &authoritative_state,
+                                                    &server_sequence,
+                                                    &host_signing_keys,
+                                                    &host_encryption_keys,
+                                                )
+                                            });
+                                        admission.map(|acceptance| {
+                                            (acceptance, active_client_slot_guard)
+                                        })
                                     }
                                     Err(error) => Err(error),
                                 };

@@ -6,7 +6,10 @@ use std::{
     collections::HashMap,
     io::Read,
     net::{Shutdown, TcpListener, TcpStream},
-    sync::{atomic::AtomicU64, mpsc, Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc, Arc, Mutex,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -22,8 +25,8 @@ use crate::{
     crypto::{
         DefaultCryptoProvider, EncryptionKeyMaterial, ProtocolCryptoProvider, SigningKeyMaterial,
     },
-    domain::{ConnectionState, JoinPayload, ParticipantState, TournamentState},
-    networking::{read_json_frame, write_json_frame},
+    domain::{ConnectionState, JoinPayload, ParticipantState, TournamentPhase, TournamentState},
+    networking::{read_json_frame, write_json_frame, PublicEventLogEntry},
     protocol::{
         test_support::sample_reconnect_request, JsonSignedEnvelope, ProtocolMessageType,
         ReconnectTournamentRequest,
@@ -42,6 +45,8 @@ struct Fixture {
     clients: Arc<Mutex<HashMap<String, ConnectedClient>>>,
     health: Arc<Mutex<HostRuntimeHealth>>,
     slots: Arc<ActiveClientSlotTracker>,
+    transition_lock: Arc<Mutex<()>>,
+    public_events: Arc<Mutex<Vec<PublicEventLogEntry>>>,
 }
 
 impl Fixture {
@@ -59,6 +64,8 @@ impl Fixture {
             clients: Arc::new(Mutex::new(HashMap::new())),
             health: Arc::new(Mutex::new(HostRuntimeHealth::default())),
             slots: Arc::new(ActiveClientSlotTracker::new(4)),
+            transition_lock: Arc::new(Mutex::new(())),
+            public_events: Arc::new(Mutex::new(Vec::new())),
             provider,
         }
     }
@@ -67,13 +74,13 @@ impl Fixture {
         HostSessionContext {
             authoritative_state: Arc::clone(&self.state),
             tournament_runtime: Arc::new(Mutex::new(None)),
-            transition_lock: Arc::new(Mutex::new(())),
+            transition_lock: Arc::clone(&self.transition_lock),
             clients: Arc::clone(&self.clients),
             join_payload: self.payload.clone(),
             server_sequence: Arc::clone(&self.sequence),
             host_signing_keys: Arc::clone(&self.host_signing),
             host_encryption_keys: Arc::clone(&self.host_encryption),
-            public_events: Arc::new(Mutex::new(Vec::new())),
+            public_events: Arc::clone(&self.public_events),
             runtime_health: Arc::clone(&self.health),
         }
     }
@@ -196,10 +203,11 @@ fn wait_until(what: &str, condition: impl Fn() -> bool) {
     }
 }
 
-const ALL_STAGES: [AdmissionStage; 5] = [
+const ALL_STAGES: [AdmissionStage; 6] = [
     AdmissionStage::SnapshotWrite,
     AdmissionStage::ClearReadTimeout,
     AdmissionStage::StreamClone,
+    AdmissionStage::CatchUpSnapshotBuild,
     AdmissionStage::Register,
     AdmissionStage::SessionSpawn,
 ];
@@ -245,6 +253,39 @@ fn failed_new_join_at_every_stage_releases_seat_slot_and_transport() {
         // The same identity can retry immediately after the failed attempt.
         fixture.join("faulty-joiner");
     }
+}
+
+#[test]
+fn peer_disconnected_before_initial_snapshot_can_retry_without_phantom_or_slot_leak() {
+    let fixture = Fixture::new("table-disconnected-before-snapshot", 72);
+
+    for attempt in 0..4 {
+        let acceptance = fixture.join("disconnected-before-snapshot");
+        let slot = fixture.slots.try_acquire().expect("active slot");
+        let (host_side, peer) = tcp_pair();
+        peer.shutdown(Shutdown::Both)
+            .expect("close peer before snapshot");
+        drop(peer);
+
+        let failure = complete_admission(
+            fixture.context(),
+            host_side,
+            acceptance,
+            slot,
+            AdmissionFaults::none(),
+        )
+        .expect_err("closed peer must fail initial snapshot delivery");
+
+        assert_eq!(failure.stage, AdmissionStage::SnapshotWrite);
+        assert!(fixture
+            .participant("disconnected-before-snapshot")
+            .is_none());
+        assert_eq!(fixture.slots.in_use(), 0, "attempt {attempt}: slot leaked");
+        assert!(fixture.clients.lock().unwrap().is_empty());
+    }
+
+    let retry = fixture.join("disconnected-before-snapshot");
+    assert_eq!(retry.player_id, "disconnected-before-snapshot");
 }
 
 #[test]
@@ -403,6 +444,71 @@ fn successful_admission_registers_then_session_exit_demotes_once() {
             .connection_state,
         ConnectionState::Reconnecting
     );
+}
+
+#[test]
+fn admission_snapshot_sync_covers_public_event_before_registration() {
+    let fixture = Fixture::new("table-admission-snapshot-gap", 71);
+    let acceptance = fixture.join("snapshot-gap-client");
+    let initial_sequence = acceptance
+        .snapshot_envelope
+        .server_sequence
+        .expect("initial snapshot sequence");
+    let initial_name = acceptance
+        .snapshot_envelope
+        .payload
+        .state
+        .config
+        .tournament_name
+        .clone();
+    let changed_name = "Changed while snapshot was in flight";
+
+    {
+        let mut state = fixture.state.lock().unwrap();
+        state.phase = TournamentPhase::ReadyCheck;
+        state.config.tournament_name = changed_name.to_string();
+    }
+    let event_sequence = initial_sequence + 1;
+    fixture.sequence.store(event_sequence, Ordering::SeqCst);
+    fixture
+        .public_events
+        .lock()
+        .unwrap()
+        .push(PublicEventLogEntry {
+            sequence: event_sequence,
+            message_type: ProtocolMessageType::TournamentStartedEvent,
+            payload: serde_json::json!({"tournamentName": changed_name}),
+        });
+
+    let (host_side, mut peer) = tcp_pair();
+    complete_admission(
+        fixture.context(),
+        host_side,
+        acceptance,
+        fixture.slots.try_acquire().unwrap(),
+        AdmissionFaults::none(),
+    )
+    .expect("admission with a catch-up snapshot completes");
+
+    peer.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    let initial: JsonSignedEnvelope = read_json_frame(&mut peer).expect("initial snapshot");
+    let catch_up: JsonSignedEnvelope = read_json_frame(&mut peer).expect("catch-up snapshot");
+    assert_eq!(initial.message_type, ProtocolMessageType::SnapshotEvent);
+    assert_eq!(catch_up.message_type, ProtocolMessageType::SnapshotEvent);
+    assert_eq!(
+        initial.payload["state"]["config"]["tournamentName"].as_str(),
+        Some(initial_name.as_str())
+    );
+    assert_eq!(
+        catch_up.payload["state"]["config"]["tournamentName"].as_str(),
+        Some(changed_name)
+    );
+    assert!(
+        catch_up.server_sequence.expect("catch-up sequence")
+            > initial.server_sequence.expect("initial sequence")
+    );
+
+    peer.shutdown(Shutdown::Both).unwrap();
 }
 
 #[test]
