@@ -20,7 +20,7 @@
 ## Phase 0 — Reconnaissance, baseline and reproductions (must precede coding)
 
 - [ ] **DPCR-000.1** Read full remediation spec and review. Confirm HEAD SHA and compare the nine findings to **current** `master` (do not assume October 15 snapshot is latest).
-- [ ] **DPCR-000.2** Inspect open branches/PRs, active Ralph sessions/CI, completed and running workflow runs, recent work and consolidated current backlog; reconcile prior/duplicate fixes before proceeding.
+- [x] **DPCR-000.2** Inspect open branches/PRs, active Ralph sessions/CI, completed and running workflow runs, recent work and consolidated current backlog; reconcile prior/duplicate fixes before proceeding.
 - [ ] **DPCR-000.3** Confirm `cargo`, Rust stable/rustfmt/clippy, Node 24, npm, Tauri Linux dependencies and test runner availability; record baseline versions.
 - [ ] **DPCR-000.4** Run baseline Rust tests, Clippy, formatting, frontend tests/lint/format/build and existing CI-parity commands; note ignored/flaky tests and link exact SHA.
 - [ ] **DPCR-000.5** Add focused *failing* repro for failed post-admission snapshot send or injectable post-accept failure; verify phantom/cleanup invariant.
@@ -28,7 +28,7 @@
 - [ ] **DPCR-000.7** Add failing fixture with durable newer hand and stale cache older same hand; show incorrect overwrite precedence.
 - [ ] **DPCR-000.8** Confirm existing 205-hand UI test asserts reverse history paging; document test-oracle correction needed.
 - [ ] **DPCR-000.9** Add bounded decode/legacy-secret/concurrent-writer/out-of-order-request reproducers where deterministic; label static risks not runtime-proven until reproduced.
-- [ ] **DPCR-000.10** Record baseline in TODO/evidence without raw secrets, join tokens, hole cards or private settings.
+- [x] **DPCR-000.10** Record baseline in TODO/evidence without raw secrets, join tokens, hole cards or private settings.
 
 **Phase 0 exit:** Baseline SHA and executable regression plan recorded; no duplicate fixes started.
 
@@ -133,6 +133,15 @@
 - [ ] **DPCR-QA-7.8** Record passing run URLs, actual SHA, proof artifacts, limitations, and excluded hardware/manual gates for every fixed finding.
 - [ ] **DPCR-QA-7.9** Reconcile each checklist item and nine review statuses with independently supported evidence; do not tick an untested branch or block entire software remediation on unrelated future Android work.
 - [ ] **DPCR-QA-7.10** Update final backlog and sign off the remediation as software-qualified only if all required code, migration, tests and exact-head CI pass; do not publish a GitHub Release without separately satisfying the intended release acceptance.
+
+## October 15 Ralph Bridge execution evidence (rolling; not sign-off)
+
+- **Baseline examined:** `master` `41022ed8b495ead8dcb909730d1fb5a374efa557` (documentation-only successor to tested executable `bda5515a07971c2a8832e96fba7a2c2a54c1efb1`). Ralph Bridge 0.6.2, build `0acea4b23362e2ccecab8f6c9db4418b162426cf`, authenticated through GitHub App.
+- **Reconciliation / DPCR-000.2:** Ralph Bridge branch inventory at baseline had `master`, `agent/release-readiness-baseline`, `agent/runtime-hardening-code-review`, and `chatgpt/fix-durable-hand-history`; no open PRs attached to any listed branch. The authoritative TODO was unchanged and entirely unchecked at inspection. No per-task branch or PR was created.
+- **Prior executable qualification:** all eight non-main runtime workflows at `bda5515a07971c2a8832e96fba7a2c2a54c1efb1` passed (full game `38843947115`, runtime `38843947132`, reconnect `38843947108`, keychain `38843947051`, AppImage `38843947152`, Debian package `38843947189`, rule-based NPC `38843947097`, embedded-model `38843947133`). Main CI `38843947106` **FAILED** frontend formatting: `src/app/persistence{,.test}.ts`, `src/screens/HandHistoryScreen{,.test}.tsx`, `src/screens/NpcProfilesScreen.test.tsx`, and `src/screens/useLobbySession.test.ts`. Rust tests in that run: 552 passed, 3 ignored, and 131 poker-core tests passed. These prior runs are **not** an exact-head pass for later commits.
+- **Verified source/test inventory (not equivalent to test execution at this head):** `networking/runtime/tests/admission_rollback.rs` already exercises initial-join snapshot construction failure, reconnect snapshot failure, and unregistered-session cleanup. `history_storage_v2.rs` contains tournament collision, legacy migration, concurrent merge, corrupt data preservation, idempotence and profile isolation tests. `join_payload.rs` contains compact input, compressed data and gzip expansion bounds. `HandHistoryScreen.test.tsx` contains 100/101/205 pagination and two-session cases.
+- **New gap-focused commit:** `8062292cf99f0f2c31cf2cea63a5bfe053997c53` adds `stale_join_cleanup_does_not_remove_newer_connection`, exercising N-3's conditional rollback. Its exact-head CI started automatically (`38847304763`); result **PENDING** when this note was written. The reconnect same-token attempt generation / winner-preservation case still requires distinct verification; this new test does not qualify N-3 by itself.
+- **Baseline posture:** CI red and multiple checklist items unverified; software remediation **IN PROGRESS**. Do not mark DP-REVIEW-001..009 PASS without completed exact-head evidence. Physical two-machine LAN, Android mixed-runtime, remote LLM and manual accessibility remain independent unqualified gates; no release publication authorized.
 
 ## Required outcome and evidence table
 
