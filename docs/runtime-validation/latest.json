@@ -7,7 +7,7 @@
     "steps": []
   },
   "multiInstanceOutcome": "skipped",
-  "recordedAtUtc": "2026-10-16T09:37:26.135467+00:00",
+  "recordedAtUtc": "2026-10-16T09:40:29.494771+00:00",
   "result": "FAIL",
   "singleInstance": {
     "error": "single-instance runtime result file was not produced.",
@@ -15,7 +15,7 @@
     "steps": []
   },
   "singleInstanceOutcome": "skipped",
-  "validatedCommit": "cd260af074cdd9a89e945dc5f575ed2bb67eaecb",
+  "validatedCommit": "e34ab7a0e2a286a7e7fabc866d97991f13980bfe",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38881478297"
+  "workflowRunId": "38881916831"
 }
