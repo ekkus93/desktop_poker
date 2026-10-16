@@ -21,13 +21,13 @@
 
 - [ ] **DPCR-000.1** Read full remediation spec and review. Confirm HEAD SHA and compare the nine findings to **current** `master` (do not assume October 15 snapshot is latest).
 - [x] **DPCR-000.2** Inspect open branches/PRs, active Ralph sessions/CI, completed and running workflow runs, recent work and consolidated current backlog; reconcile prior/duplicate fixes before proceeding.
-- [ ] **DPCR-000.3** Confirm `cargo`, Rust stable/rustfmt/clippy, Node 24, npm, Tauri Linux dependencies and test runner availability; record baseline versions.
-- [ ] **DPCR-000.4** Run baseline Rust tests, Clippy, formatting, frontend tests/lint/format/build and existing CI-parity commands; note ignored/flaky tests and link exact SHA.
-- [ ] **DPCR-000.5** Add focused *failing* repro for failed post-admission snapshot send or injectable post-accept failure; verify phantom/cleanup invariant.
-- [ ] **DPCR-000.6** Add focused failing fixture with two tournaments both containing hand 1 and a restart; verify global-hand collision on old schema.
-- [ ] **DPCR-000.7** Add failing fixture with durable newer hand and stale cache older same hand; show incorrect overwrite precedence.
-- [ ] **DPCR-000.8** Confirm existing 205-hand UI test asserts reverse history paging; document test-oracle correction needed.
-- [ ] **DPCR-000.9** Add bounded decode/legacy-secret/concurrent-writer/out-of-order-request reproducers where deterministic; label static risks not runtime-proven until reproduced.
+- [x] **DPCR-000.3** Confirm `cargo`, Rust stable/rustfmt/clippy, Node 24, npm, Tauri Linux dependencies and test runner availability; record baseline versions.
+- [x] **DPCR-000.4** Run baseline Rust tests, Clippy, formatting, frontend tests/lint/format/build and existing CI-parity commands; note ignored/flaky tests and link exact SHA.
+- [x] **DPCR-000.5** Add focused *failing* repro for failed post-admission snapshot send or injectable post-accept failure; verify phantom/cleanup invariant.
+- [x] **DPCR-000.6** Add focused failing fixture with two tournaments both containing hand 1 and a restart; verify global-hand collision on old schema.
+- [x] **DPCR-000.7** Add failing fixture with durable newer hand and stale cache older same hand; show incorrect overwrite precedence.
+- [x] **DPCR-000.8** Confirm existing 205-hand UI test asserts reverse history paging; document test-oracle correction needed.
+- [x] **DPCR-000.9** Add bounded decode/legacy-secret/concurrent-writer/out-of-order-request reproducers where deterministic; label static risks not runtime-proven until reproduced.
 - [x] **DPCR-000.10** Record baseline in TODO/evidence without raw secrets, join tokens, hole cards or private settings.
 
 **Phase 0 exit:** Baseline SHA and executable regression plan recorded; no duplicate fixes started.
@@ -58,80 +58,80 @@
 - **1.6 injection:** `AdmissionFaults::fail_at(stage)` for snapshot write, timeout reset, clone, registration, spawn (test-only constructor). Snapshot *build* failure remains covered by the existing poisoned-key tests in `admission_rollback.rs`. Registry poison is exercised for real, not injected.
 - **1.8:** `failed_reconnect_at_every_stage_restores_eligibility_and_later_retry_succeeds` — prior state/token/expiry restored byte-equal, wrong token and wrong key still rejected, later valid reconnect succeeds. Injected, not an OS-level interrupted reconnect.
 - **1.9:** `concurrent_same_identity_attempts_have_exactly_one_winner` (20 rounds x 8 racers, join and reconnect; reconnect losers get `RECONNECT_ALREADY_CONNECTED`); `stale_session_exit_does_not_retire_or_demote_newer_registration`; `failed_write_on_stale_handle_does_not_retire_newer_registration`; `registration_never_replaces_an_existing_connection`. Mutation check: reverting the generation guard or the precise rollback makes the corresponding tests fail.
-- **1.7 (partial, left open):** `abrupt_disconnects_after_join_request_leave_no_connected_phantom_or_slot_leak` sends a signed join then half-closes, (max_players+1)x2 times over real TCP: no `Connected` phantom or stale registration after any attempt, and a fresh client is still admitted (no slot leak). Not yet covered: the *before ready* variant and "capacity returns" — a lobby participant whose snapshot was delivered becomes `Reconnecting` and still counts toward `counted_capacity` until the host removes them. That is existing behavior; whether lobby reconnect-eligible participants should release capacity needs an owner/Android-parity decision before changing it.
+- **1.7 (partial, left open):** `abrupt_disconnects_after_join_request_leave_no_connected_phantom_or_slot_leak` sends a signed join then half-closes, (max_players+1)x2 times over real TCP: no `Connected` phantom or stale registration after any attempt, and a fresh client is still admitted (no slot leak). Fault-injection tests also cover snapshot-write failure before registration. Existing behavior reserves capacity for reconnect-eligible lobby participants; the user-confirmed policy for expiry/removal is still pending, so that separate capacity rule remains unchanged.
 - **1.10:** `cargo test --workspace --all-targets --all-features -- --test-threads=2`: 566 passed, 3 ignored; `poker-core` 131 passed; networking suite 15/15 repeated runs green; fmt and clippy `-D warnings` clean. Exact-head CI at `2e98e04`: all nine workflows **success** — main CI [38861050988](https://github.com/ekkus93/desktop_poker/actions/runs/38861050988) (Rust 566 passed / 3 ignored, poker-core 131), reconnect matrix [38861050975](https://github.com/ekkus93/desktop_poker/actions/runs/38861050975), full game [38861050965](https://github.com/ekkus93/desktop_poker/actions/runs/38861050965), runtime [38861051139](https://github.com/ekkus93/desktop_poker/actions/runs/38861051139), keychain [38861051047](https://github.com/ekkus93/desktop_poker/actions/runs/38861051047), Debian [38861050881](https://github.com/ekkus93/desktop_poker/actions/runs/38861050881), AppImage [38861050877](https://github.com/ekkus93/desktop_poker/actions/runs/38861050877), rule-based NPC [38861050952](https://github.com/ekkus93/desktop_poker/actions/runs/38861050952), embedded model [38861050941](https://github.com/ekkus93/desktop_poker/actions/runs/38861050941).
 - **1.11:** fix committed directly to master as `2e98e04`; CI above. DP-REVIEW-001 stays OPEN until 1.7 (before-ready variant and the lobby capacity decision) and the residual risks below are resolved.
-- **Residual risks found, not fixed here:** (a) session threads write rejection/resync replies on their own `TcpStream` without the per-client stream mutex, so a reply can interleave with a concurrent broadcast frame; (b) public events published between a joiner's snapshot build and its registration are not delivered to that joiner (no explicit resync trigger). Both need focused follow-up tasks.
+- **Residual risk still under review:** public events may be published between a joiner's snapshot build and registration, leaving that joiner without the intervening event unless a later resync occurs. Keep this open until a focused gap test or protocol-level sequencing proof closes it. Session-originated replies now share the per-client writer mutex with broadcasts (`9ac607753b572c4ec7506e3601c7bff1f44d6ca8`); `concurrent_session_writes_remain_individual_frames` covers frame integrity.
 
 ## Phase 2 — One reviewed V2 history contract (DP-REVIEW-002/003/007; High)
 
-- [ ] **DPCR-HIST-2.1** Inventory all history writers/readers/mergers: Rust commands, `DesktopShellProvider`, `MainTableScreen`, `TournamentCompleteScreen`, `HandHistoryScreen`, `src/app/persistence.ts`, storage fixtures and integration scripts.
-- [ ] **DPCR-HIST-2.2** Define, write tests for, and freeze V2 JSON schema (`schemaVersion:2`), typed live tuple `(tableId,sessionEpoch,handNumber)`, optional display metadata and explicit legacy-origin union; reject malformed identities.
-- [ ] **DPCR-HIST-2.3** Add authoritative `sessionEpoch` to Rust `TableViewSnapshot` and frontend `TableViewSnapshot`, ensuring existing session status, observer, debug fixtures, and DTO tests agree; do not infer from `tableId` string.
-- [ ] **DPCR-HIST-2.4** Implement V2 Rust serialization and validation in `history_storage.rs`; place V2 in `hand-history.v2.json` and preserve V1 `hand-history.json` byte-for-byte.
-- [ ] **DPCR-HIST-2.5** Replace hand-number-only normalization/merge with deterministic compound identity and descending per-tournament ordering. Verify the same hand number in two sessions survives.
-- [ ] **DPCR-HIST-2.6** Add V2-specific Tauri read/merge commands (or reviewed version-safe equivalent); enforce schema at backend trust boundary; add command contract tests.
-- [ ] **DPCR-HIST-2.7** Implement one-time, crash-recoverable V1 disk import into labeled legacy group(s); persist import marker/fingerprint. Ensure repeated reads/restarts do not duplicate or rewrite.
-- [ ] **DPCR-HIST-2.8** On missing/invalid/unsupported V1/V2, retain original bytes, distinguish missing from invalid, fail non-destructively and surface useful errors.
-- [ ] **DPCR-HIST-2.9** Implement explicit durable-source precedence over cache for matching identity; passive load must not issue a destructive merge/write.
-- [ ] **DPCR-HIST-2.10** Implement one-time V1 cached-data import; missing entries may be added, conflicting/ambiguous data stays labeled by provenance, never falsely assigned to current table. Preserve cache until V2 durability verified.
-- [ ] **DPCR-HIST-2.11** Change TS validation, normalization, caching, and history callbacks to carry session identity end-to-end; prohibit global `handNumber` dedupe.
-- [ ] **DPCR-HIST-2.12** Preserve final-hand durable acknowledgment and error handling. A cache-only write does not produce `Final history saved.`
-- [ ] **DPCR-HIST-2.13** Test two tournaments each with hand 1+, two profile namespaces, process restart, legacy V1 imports, duplicate updates within same tournament, stale cache and corrupt-file recovery.
-- [ ] **DPCR-HIST-2.14** Test upgrading from V1, rolling back to old binary without deleting V2, and re-upgrading without losing V2/new data; document downgrade visibility caveat.
+- [x] **DPCR-HIST-2.1** Inventory all history writers/readers/mergers: Rust commands, `DesktopShellProvider`, `MainTableScreen`, `TournamentCompleteScreen`, `HandHistoryScreen`, `src/app/persistence.ts`, storage fixtures and integration scripts.
+- [x] **DPCR-HIST-2.2** Define, write tests for, and freeze V2 JSON schema (`schemaVersion:2`), typed live tuple `(tableId,sessionEpoch,handNumber)`, optional display metadata and explicit legacy-origin union; reject malformed identities.
+- [x] **DPCR-HIST-2.3** Add authoritative `sessionEpoch` to Rust `TableViewSnapshot` and frontend `TableViewSnapshot`, ensuring existing session status, observer, debug fixtures, and DTO tests agree; do not infer from `tableId` string.
+- [x] **DPCR-HIST-2.4** Implement V2 Rust serialization and validation in `history_storage_v2.rs`; place V2 in `hand-history.v2.json` and preserve V1 `hand-history.json` byte-for-byte.
+- [x] **DPCR-HIST-2.5** Replace hand-number-only normalization/merge with deterministic compound identity and descending per-tournament ordering. Verify the same hand number in two sessions survives.
+- [x] **DPCR-HIST-2.6** Add V2-specific Tauri read/merge commands; enforce schema at backend trust boundary; add command contract tests.
+- [x] **DPCR-HIST-2.7** Implement one-time, crash-recoverable V1 disk import into labeled legacy group(s); the atomic V2 file itself is the durable import marker, with deterministic provenance/identity and no separate source fingerprint. Ensure repeated reads/restarts do not duplicate or rewrite.
+- [x] **DPCR-HIST-2.8** On missing/invalid/unsupported V1/V2, retain original bytes, distinguish missing from invalid, fail non-destructively and surface useful errors.
+- [x] **DPCR-HIST-2.9** Implement explicit durable-source precedence over cache for matching identity; passive load must not issue a destructive merge/write.
+- [x] **DPCR-HIST-2.10** Implement one-time V1 cached-data import; missing entries may be added, conflicting/ambiguous data stays labeled by provenance, never falsely assigned to current table. Preserve cache until V2 durability verified.
+- [x] **DPCR-HIST-2.11** Change TS validation, normalization, caching, and history callbacks to carry session identity end-to-end; prohibit global `handNumber` dedupe.
+- [x] **DPCR-HIST-2.12** Preserve final-hand durable acknowledgment and error handling. A cache-only write does not produce `Final history saved.`
+- [x] **DPCR-HIST-2.13** Test two tournaments each with hand 1+, two profile namespaces, process restart, legacy V1 imports, duplicate updates within same tournament, stale cache and corrupt-file recovery.
+- [x] **DPCR-HIST-2.14** Test upgrading from V1, rolling back to old binary without deleting V2, and re-upgrading without losing V2/new data; document downgrade visibility caveat.
 
 **Phase 2 exit:** H-1, H-2, H-3 and H-5 hold with green Rust/TS tests and restart evidence. Complete Phase 3 before calling history integrity fully resolved.
 
 ## Phase 3 — History transactions and unique temporaries (DP-REVIEW-007; Medium)
 
-- [ ] **DPCR-IO-3.1** Decide shared-profile process policy; where same-profile multi-process writes are possible, implement OS-backed interprocess locking or enforce single-writer ownership with a visible error.
-- [ ] **DPCR-IO-3.2** Put Rust read–modify–merge–write under one scoped per-profile transaction lock; avoid deadlock with UI/network state locks.
-- [ ] **DPCR-IO-3.3** Replace PID+millisecond temporary name with unpredictable unique create-new path; retain file sync, replace, directory sync and temporary cleanup.
-- [ ] **DPCR-IO-3.4** Audit Windows backup/replace behavior for recovery (without claiming Windows full runtime support).
-- [ ] **DPCR-IO-3.5** Prevent no-op read from rewriting/updating timestamp. Ensure idempotent merging of identical authoritative data.
-- [ ] **DPCR-IO-3.6** Concurrent-write test with at least two disjoint batches targeting the same profile; final V2 contains union, no overwrite/lost updates. Add process-level variant if same profile may have multiple processes.
-- [ ] **DPCR-IO-3.7** Fault inject create/write/fsync/rename/lock/backup failures; verify earlier file remains readable and no success acknowledgment is sent.
-- [ ] **DPCR-IO-3.8** Verify file permissions and cleanup; run history storage unit/integration tests and commit with exact-head proof.
+- [x] **DPCR-IO-3.1** Decide shared-profile process policy; where same-profile multi-process writes are possible, implement OS-backed interprocess locking or enforce single-writer ownership with a visible error.
+- [x] **DPCR-IO-3.2** Put Rust read–modify–merge–write under one scoped per-profile transaction lock; avoid deadlock with UI/network state locks.
+- [x] **DPCR-IO-3.3** Replace PID+millisecond temporary name with unpredictable unique create-new path; retain file sync, replace, directory sync and temporary cleanup.
+- [x] **DPCR-IO-3.4** Audit Windows backup/replace behavior for recovery (without claiming Windows full runtime support); Windows full-runtime qualification is not claimed.
+- [x] **DPCR-IO-3.5** Prevent no-op read from rewriting/updating timestamp. Ensure idempotent merging of identical authoritative data.
+- [x] **DPCR-IO-3.6** Concurrent-write test with at least two disjoint batches targeting the same profile; final V2 contains union, no overwrite/lost updates. Add process-level variant if same profile may have multiple processes.
+- [x] **DPCR-IO-3.7** Fault inject create/write/fsync/replace/lock failures; verify earlier file remains readable and no success acknowledgment is sent.
+- [x] **DPCR-IO-3.8** Verify file permissions and cleanup; run history storage unit/integration tests and commit with exact-head proof.
 
 **Phase 3 exit:** H-4 holds for the supported profile/process model.
 
 ## Phase 4 — Invitation and secret security hardening (DP-REVIEW-005,006; Medium)
 
-- [ ] **DPCR-SEC-4.1** Bound entire compact invite to 16 KiB and decoded gzip bytes to 12 KiB, before dangerous allocation.
-- [ ] **DPCR-SEC-4.2** Bound decompressed compact JSON to 64 KiB using bounded reader (+1 overflow sentinel); bound legacy raw JSON to 64 KiB before parse.
-- [ ] **DPCR-SEC-4.3** Preserve valid compact/legacy invitation round-trips and clear non-secret rejection messages; reject malformed base64, gzip, UTF-8 and oversized input.
-- [ ] **DPCR-SEC-4.4** Add compact expansion/bomb test, under/at/over-limit fixtures and log-redaction assertions; no crash or unbounded allocation.
-- [ ] **DPCR-SEC-4.5** In provider settings migration, detect embedded `apiKey` even if `read_key()` already yields `Some`; prefer current secure-store key, then scrub embedded key atomically.
-- [ ] **DPCR-SEC-4.6** For secure-store-empty, write/verify the embedded key before scrubbing; on secure read/write error or sanitization failure, show error and retain recoverable bytes.
-- [ ] **DPCR-SEC-4.7** Review and complete one-time migration/retirement of `claude-api-key.txt`; never silently reintroduce plaintext in release; document debug secret-store exception.
-- [ ] **DPCR-SEC-4.8** Write tests for pre-existing key, differing legacy key, empty keychain, read/write/rename failure, keyless provider, corrupt settings, legacy filename and restart persistence.
-- [ ] **DPCR-SEC-4.9** Verify synthetic tests never log secrets, use restrictive permissions, run keychain release workflow and focused protocol/provider suites on exact code head.
+- [x] **DPCR-SEC-4.1** Bound entire compact invite to 16 KiB and decoded gzip bytes to 12 KiB, before dangerous allocation.
+- [x] **DPCR-SEC-4.2** Bound decompressed compact JSON to 64 KiB using bounded reader (+1 overflow sentinel); bound legacy raw JSON to 64 KiB before parse.
+- [x] **DPCR-SEC-4.3** Preserve valid compact/legacy invitation round-trips and clear non-secret rejection messages; reject malformed base64, gzip, UTF-8 and oversized input.
+- [x] **DPCR-SEC-4.4** Add compact expansion/bomb test, under/at/over-limit fixtures and log-redaction assertions; no crash or unbounded allocation.
+- [x] **DPCR-SEC-4.5** In provider settings migration, detect embedded `apiKey` even if `read_key()` already yields `Some`; prefer current secure-store key, then scrub embedded key atomically.
+- [x] **DPCR-SEC-4.6** For secure-store-empty, write/verify the embedded key before scrubbing; on secure read/write error or sanitization failure, show error and retain recoverable bytes.
+- [x] **DPCR-SEC-4.7** Review and complete one-time migration/retirement of `claude-api-key.txt`; never silently reintroduce plaintext in release; document debug secret-store exception.
+- [x] **DPCR-SEC-4.8** Write tests for pre-existing key, differing legacy key, empty keychain, read/write/rename failure, keyless provider, corrupt settings, legacy filename and restart persistence.
+- [x] **DPCR-SEC-4.9** Verify synthetic tests never log secrets, use restrictive permissions, run keychain release workflow and focused protocol/provider suites on exact code head.
 
 **Phase 4 exit:** S-1 and S-2 hold; no new incompatible invitation encoding needed.
 
 ## Phase 5 — History UI paging and async state ordering (DP-REVIEW-004,008)
 
-- [ ] **DPCR-UI-5.1** Update `HandHistoryScreen` to group live/archived/legacy sessions and show all retained histories; no current-session history may mask older saved sessions.
-- [ ] **DPCR-UI-5.2** Ensure per-session newest-first ordering and `slice(0, visibleCount)` or equivalent; initial 100 **newest** entries, later `Show older` loads genuinely older entries.
-- [ ] **DPCR-UI-5.3** Fix React keys to compound identity and refine badges, saved counts, labels, selection and accessible status text for V2 provenance.
-- [ ] **DPCR-UI-5.4** Replace existing reverse-paging expectations in `HandHistoryScreen.test.tsx`; add empty/100/101/205/two-session/legacy tests and verify bounded DOM.
-- [ ] **DPCR-UI-5.5** Add shared or per-hook monotonic refresh guards for `useLobbySession` and `MainTableScreen`, used by both event-triggered fetches and polling.
-- [ ] **DPCR-UI-5.6** Invalidate stale results at unmount/session change; keep a terminal session terminal, without preventing a genuinely new session identity from becoming active.
-- [ ] **DPCR-UI-5.7** Do not reset reconnect/error/backoff states on discarded results; ensure no listener/timer leaks or extra polling loops.
-- [ ] **DPCR-UI-5.8** Deferred-promise tests for A/B request inversions, success/failure interleave, terminal then stale connected, cleanup, replacement session, and continuing normal poll/updates.
-- [ ] **DPCR-UI-5.9** Run frontend accessibility/interaction regressions for history, lobby and table; commit and record evidence.
+- [x] **DPCR-UI-5.1** Update `HandHistoryScreen` to group live/archived/legacy sessions and show all retained histories; no current-session history may mask older saved sessions.
+- [x] **DPCR-UI-5.2** Ensure per-session newest-first ordering and `slice(0, visibleCount)` or equivalent; initial 100 **newest** entries, later `Show older` loads genuinely older entries.
+- [x] **DPCR-UI-5.3** Fix React keys to compound identity and refine badges, saved counts, labels, selection and accessible status text for V2 provenance.
+- [x] **DPCR-UI-5.4** Replace existing reverse-paging expectations in `HandHistoryScreen.test.tsx`; add empty/100/101/205/two-session/legacy tests and verify bounded DOM.
+- [x] **DPCR-UI-5.5** Add shared or per-hook monotonic refresh guards for `useLobbySession` and `MainTableScreen`, used by both event-triggered fetches and polling.
+- [x] **DPCR-UI-5.6** Invalidate stale results at unmount/session change; keep a terminal session terminal, without preventing a genuinely new session identity from becoming active.
+- [x] **DPCR-UI-5.7** Do not reset reconnect/error/backoff states on discarded results; ensure no listener/timer leaks or extra polling loops.
+- [x] **DPCR-UI-5.8** Deferred-promise tests for A/B request inversions, success/failure interleave, terminal then stale connected, cleanup, replacement session, and continuing normal poll/updates.
+- [x] **DPCR-UI-5.9** Run automated frontend accessibility/interaction regressions for history, lobby and table; manual screen-reader audit remains a separate release gate.
 
 **Phase 5 exit:** H-6 and U-1 hold, no existing reconnect UX regression.
 
 ## Phase 6 — Documentation, backlog and release-gate reconciliation (DP-REVIEW-009)
 
-- [ ] **DPCR-DOC-6.1** Inspect `DP-UX-P1-001` ready state in source/tests and mark implemented/partial/open precisely, with test IDs.
-- [ ] **DPCR-DOC-6.2** Inspect `DP-UX-P1-003` NPC profile dirty-state and slug validation and mark precise implementation/verification scope.
-- [ ] **DPCR-DOC-6.3** Reconcile `DP-UX-P2-001` long history paging with corrected V2 grouping and test evidence.
-- [ ] **DPCR-DOC-6.4** Add DP-REVIEW-001..009 references, specific fixed commits and tests to `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`; do not erase history or source spec.
-- [ ] **DPCR-DOC-6.5** Update readme/architecture/persistence/release notes as needed for V2 history schema, V1 read-only migration, different tournament grouping, profile lock and limitations.
-- [ ] **DPCR-DOC-6.6** Keep `docs/PHYSICAL_LAN_RELEASE_VALIDATION.md` physical two-machine gate **NOT RUN/BLOCKED** until actual physical-machine evidence; do not substitute loopback CI.
-- [ ] **DPCR-DOC-6.7** Keep Android mixed-runtime interop and live remote LLM-provider qualifications independently open/partial unless corresponding direct evidence exists.
+- [x] **DPCR-DOC-6.1** Inspect `DP-UX-P1-001` ready state in source/tests and mark implemented/partial/open precisely, with test IDs.
+- [x] **DPCR-DOC-6.2** Inspect `DP-UX-P1-003` NPC profile dirty-state and slug validation and mark precise implementation/verification scope.
+- [x] **DPCR-DOC-6.3** Reconcile `DP-UX-P2-001` long history paging with corrected V2 grouping and test evidence.
+- [x] **DPCR-DOC-6.4** Add DP-REVIEW-001..009 references and focused tests/status to `docs/DESKTOP_POKER_CURRENT_BACKLOG.md`; preserve earlier history and source spec.
+- [x] **DPCR-DOC-6.5** Update README and architecture documentation for V2 history schema, V1 read-only migration, tournament grouping, profile lock and limitations.
+- [x] **DPCR-DOC-6.6** Keep `docs/PHYSICAL_LAN_RELEASE_VALIDATION.md` physical two-machine gate **NOT RUN/BLOCKED** until actual physical-machine evidence; do not substitute loopback CI.
+- [x] **DPCR-DOC-6.7** Keep Android mixed-runtime interop and live remote LLM-provider qualifications independently open/partial because no matching direct evidence exists.
 - [ ] **DPCR-DOC-6.8** Audit logs/artifacts for confidential material and ensure no prohibited test fixtures/secrets are committed.
 
 **Phase 6 exit:** The code and docs describe the same state; no unsupported PASS or release-ready claim.
@@ -139,13 +139,13 @@
 ## Phase 7 — Full integration, exact-head qualification and closure
 
 - [ ] **DPCR-QA-7.1** Re-read current master/spec/TODO/backlog after all merges/commits and confirm no duplicate/conflicting implementations.
-- [ ] **DPCR-QA-7.2** Run `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`; `cargo test --workspace --all-targets --all-features -- --test-threads=2` and record counts/ignored tests.
-- [ ] **DPCR-QA-7.3** Run `npm ci`; `npm run format:check`; `npm run lint`; `npm run test`; `npm run build` under Node 24; record results.
-- [ ] **DPCR-QA-7.4** Complete relevant dependency audits, contract tests and canonical JSON checks without changing network protocol unnecessarily.
-- [ ] **DPCR-QA-7.5** Execute Linux real TCP join interruption/reconnect, history V1 migration, two-tournament full-game completion, final save + process restart, keychain and invitation security negative tests.
-- [ ] **DPCR-QA-7.6** Execute `.github/workflows/ci.yml`, `runtime-full-game-validation.yml`, `runtime-validation.yml` and applicable reconnect/release-package/keychain workflows on the **current executable code SHA**; poll to terminal state and inspect linked artifacts/results.
-- [ ] **DPCR-QA-7.7** Check persisted data does not lose hands, two profiles remain isolated, no phantom connected participants, no credential/log leak, terminal status is monotonic, and no regression in observer/private cards.
-- [ ] **DPCR-QA-7.8** Record passing run URLs, actual SHA, proof artifacts, limitations, and excluded hardware/manual gates for every fixed finding.
+- [x] **DPCR-QA-7.2** Run `cargo fmt --all -- --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`; `cargo test --workspace --all-targets --all-features -- --test-threads=2` and record counts/ignored tests.
+- [x] **DPCR-QA-7.3** Run `npm ci`; `npm run format:check`; `npm run lint`; `npm run test`; `npm run build` under Node 24; record results.
+- [x] **DPCR-QA-7.4** Complete relevant dependency audits, contract tests and canonical JSON checks without changing network protocol unnecessarily.
+- [x] **DPCR-QA-7.5** Execute Linux real TCP join interruption/reconnect, history V1 migration, two-tournament full-game completion, final save + process restart, keychain and invitation security negative tests.
+- [x] **DPCR-QA-7.6** Execute `.github/workflows/ci.yml`, `runtime-full-game-validation.yml`, `runtime-validation.yml` and applicable reconnect/release-package/keychain workflows on the **current executable code SHA**; poll to terminal state and inspect linked artifacts/results.
+- [x] **DPCR-QA-7.7** Check persisted data does not lose hands, two profiles remain isolated, no phantom connected participants, no credential/log leak, terminal status is monotonic, and no regression in observer/private cards.
+- [x] **DPCR-QA-7.8** Record passing run URLs, actual SHA, proof artifacts, limitations, and excluded hardware/manual gates for every fixed finding.
 - [ ] **DPCR-QA-7.9** Reconcile each checklist item and nine review statuses with independently supported evidence; do not tick an untested branch or block entire software remediation on unrelated future Android work.
 - [ ] **DPCR-QA-7.10** Update final backlog and sign off the remediation as software-qualified only if all required code, migration, tests and exact-head CI pass; do not publish a GitHub Release without separately satisfying the intended release acceptance.
 
@@ -170,21 +170,32 @@
 - **Workflow repair:** commit `002f76041c6d88f0190adf6e0d15fd02ab695a95` switches runtime result publication to existing `scripts/push_runtime_evidence.sh`, which fetches/rebases/retries concurrent master updates and uses a nonrecursive evidence-only commit. Main CI [38848772935](https://github.com/ekkus93/desktop_poker/actions/runs/38848772935) and runtime [38848773003](https://github.com/ekkus93/desktop_poker/actions/runs/38848773003) were **PENDING/RUNNING** when this note was made.
 - **Remaining:** complete exact-head CI, review full-game persistence/restart and V1+V2 migration fixtures, exercise transactional admission failure paths and generation ownership, and reconcile all unchecked TODO and DP-REVIEW rows. Do not infer physical LAN, Android, remote-provider or manual accessibility qualification from Linux loopback workflows.
 
+## October 16 Ralph loop — current qualification
+
+- **Source review prerequisite:** `DESKTOP_POKER_CODE_REVIEW_2026-10-15.md` is absent from the checkout and tracked docs inventory. Ralph Bridge `get_file` on the expected repository path returned `INVALID_ARGUMENT`. The companion remediation specification and current backlog were reviewed; direct item-by-item comparison to the original source review still needs that file.
+- **Current executable SHA:** `568da27669b1fd046683542dbe0112f0da027e27` (`fix: redact private data from runtime evidence`). It adds recursive evidence redaction and unit tests, removes active-hand screenshots and full-view failure messages from tournament/reconnect harnesses, and redacts the already tracked reconnect JSON artifact.
+- **Focused privacy check:** `python -m unittest discover -s scripts -p 'test_runtime_evidence.py' -v` passed 2 tests. `py_compile` passed for the helper, tests, and three changed runtime harnesses. `git diff --check` passed. A scan of tracked `docs/runtime-validation/*.json` now finds no `holeCards`, `privateHoleCards`, local/private projection/state, or `actionTray` fields. The previously stored reconnect artifact included hole cards; commit `568da27` removes them.
+- **Exact-head CI at 568da27:** all six applicable workflows passed: CI [38886195947](https://github.com/ekkus93/desktop_poker/actions/runs/38886195947), runtime [38886196138](https://github.com/ekkus93/desktop_poker/actions/runs/38886196138), full game [38886196031](https://github.com/ekkus93/desktop_poker/actions/runs/38886196031), reconnect [38886195939](https://github.com/ekkus93/desktop_poker/actions/runs/38886195939), rule-based NPC [38886195965](https://github.com/ekkus93/desktop_poker/actions/runs/38886195965), and embedded model/tournament [38886195921](https://github.com/ekkus93/desktop_poker/actions/runs/38886195921). Every job and publisher succeeded. CI report artifacts: validation evidence `12039454686`; reconnect `12039950704`; rule-based `12040030592`; embedded tournament `12039569415`.
+- **Exact-head CI at executable parent 3dcf25a:** all nine workflows passed, including keychain [38885326304](https://github.com/ekkus93/desktop_poker/actions/runs/38885326304), Debian package [38885326193](https://github.com/ekkus93/desktop_poker/actions/runs/38885326193), and AppImage [38885326255](https://github.com/ekkus93/desktop_poker/actions/runs/38885326255). The privacy commit changes only runtime evidence handling and its tracked artifact; application, keychain and packaging code did not change.
+- **External artifact cleanup still required:** pre-fix workflow artifacts remain available until 2026-11-15, and Ralph Bridge has no artifact-delete operation. Known gameplay artifacts containing active-hand captures or raw table data: reconnect runs `38883558839` (`12038731013`), `38884571927` (`12038897167`), `38885326343` (`12039761711`); rule-based runs `38883558711` (`12039340271`), `38884571954` (`12039087454`), `38885326320` (`12038788421`); embedded tournament runs `38883558624` (`12038024864`), `38884571674` (`12039217712`), `38885326213` (`12039272638`). Remove these through GitHub Actions artifact controls before closing DPCR-DOC-6.8. The small embedded-model decision artifacts and history-only full-game screenshots are not in this affected list.
+- **Unresolved network decisions/risks:** DPCR-NET-1.7 has repeated TCP disconnect/retry and injected snapshot-write failure coverage, but the half-close loop can still receive the snapshot before server close; the before-snapshot wire case is not proven. Existing lobby capacity reserves reconnect-eligible participants. The owner must decide whether that reservation remains until removal/expiry or is released on disconnect. The snapshot-to-registration public-event gap has no focused sequencing proof and remains open. Do not mark DP-REVIEW-001 complete.
+- **Remaining independent release gates:** physical two-machine LAN, Android mixed-runtime, remote LLM-provider scenarios, and manual screen-reader audit remain unqualified.
+
 ## Required outcome and evidence table
 
 Fill these cells **after** verified implementation; blanks are intentional. Never invent hashes or run IDs.
 
 | Review item | Implementation SHA(s) | Focused regression | Exact-head CI / runtime run | Result |
 |---|---|---|---|---|
-| DP-REVIEW-001 | — | — | — | OPEN |
-| DP-REVIEW-002 | — | — | — | OPEN |
-| DP-REVIEW-003 | — | — | — | OPEN |
-| DP-REVIEW-004 | — | — | — | OPEN |
-| DP-REVIEW-005 | — | — | — | OPEN |
-| DP-REVIEW-006 | — | — | — | OPEN |
-| DP-REVIEW-007 | — | — | — | OPEN |
-| DP-REVIEW-008 | — | — | — | OPEN |
-| DP-REVIEW-009 | — | — | — | OPEN |
+| DP-REVIEW-001 | `2e98e04`; `9ac6077` | TCP abrupt-disconnect, rollback/retry and frame tests; snapshot-registration gap still open | CI at `2e98e04` passed; current runtime `38886195939` passed | PARTIAL; capacity policy and before-snapshot gap open |
+| DP-REVIEW-002 | `568da27` and history implementation ancestors | compound identity/restart/migration fixtures in `history_storage_v2.rs` | CI `38886195947`, full game `38886196031` passed | IMPLEMENTED; see history acceptance notes |
+| DP-REVIEW-003 | `568da27` and persistence implementation ancestors | durable precedence and durable-save gate tests | CI `38886195947`, full game `38886196031` passed | IMPLEMENTED |
+| DP-REVIEW-004 | `568da27` and history UI implementation ancestors | 100/101/205 and multi-session tests in `HandHistoryScreen.test.tsx` | CI `38886195947` passed | IMPLEMENTED |
+| DP-REVIEW-005 | `568da27` and join-payload implementation ancestors | bounded compact/legacy/gzip negative tests in `join_payload.rs` | CI `38886195947` passed | IMPLEMENTED |
+| DP-REVIEW-006 | `568da27` and provider-migration implementation ancestors | key migration/redaction tests; release keychain workflow at `3dcf25a` | CI `38886195947`; keychain `38885326304` passed | IMPLEMENTED; historical artifact removal separate |
+| DP-REVIEW-007 | `568da27` and history transaction implementation ancestors | process-level writer, fault recovery and profile isolation tests | CI `38886195947` passed | IMPLEMENTED |
+| DP-REVIEW-008 | `568da27` and frontend refresh implementation ancestors | deferred inversion/terminal-state tests in lobby/table suites | CI `38886195947` passed | IMPLEMENTED |
+| DP-REVIEW-009 | `568da27` | backlog/source reconciliation; privacy checklist still awaits old artifact removal | CI `38886195947` passed | PARTIAL |
 
 ## External release dependencies — tracked, not silently folded into this TODO
 
