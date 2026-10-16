@@ -4,16 +4,16 @@
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-10-16T09:13:27.387232+00:00",
+  "recordedAtUtc": "2026-10-16T09:46:20.373475+00:00",
   "result": "PASS",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "04848b31f72267046e8ddbd6f143c5d0edd5b2b1c86490a886eaa30ad3152895",
-    "completedHands": 2,
+    "applicationSha256": "ab1f1fb58b4589b81099853a4c828f15a2d19612cd50819cf2ab962019d7a037",
+    "completedHands": 4,
     "finalStandings": [
       {
         "chipCount": 300,
-        "displayName": "Bot Alpha",
+        "displayName": "Bot Beta",
         "isLocal": false,
         "isObserver": false,
         "note": "Dealer",
@@ -22,7 +22,7 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Bot Beta",
+        "displayName": "Bot Alpha",
         "isLocal": false,
         "isObserver": true,
         "note": null,
@@ -41,15 +41,17 @@
     ],
     "hostActions": [
       "hand 1: fold",
-      "hand 2: allIn"
+      "hand 2: allIn",
+      "hand 3: allIn",
+      "hand 4: allIn"
     ],
-    "instanceId": "embedded-npc-tournament-38878498179",
+    "instanceId": "embedded-npc-tournament-38882200802",
     "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
     "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-    "npcActionCount": 12,
+    "npcActionCount": 13,
     "npcActionCounts": {
-      "Bot Alpha": 7,
-      "Bot Beta": 5
+      "Bot Alpha": 5,
+      "Bot Beta": 8
     },
     "npcActions": [
       {
@@ -116,28 +118,35 @@
         "sequence": 25
       },
       {
-        "displayName": "Bot Alpha",
+        "displayName": "Bot Beta",
         "handNumber": 2,
-        "message": "Bot Alpha Call.",
-        "profileId": "aggressive-alice",
-        "sequence": 29
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 30
       },
       {
         "displayName": "Bot Beta",
         "handNumber": 2,
         "message": "Bot Beta Call.",
         "profileId": "balanced-sam",
-        "sequence": 31
+        "sequence": 34
       },
       {
-        "displayName": "Bot Alpha",
-        "handNumber": 2,
-        "message": "Bot Alpha All-in to 100.",
-        "profileId": "aggressive-alice",
-        "sequence": 35
+        "displayName": "Bot Beta",
+        "handNumber": 3,
+        "message": "Bot Beta All-in to 100.",
+        "profileId": "balanced-sam",
+        "sequence": 41
+      },
+      {
+        "displayName": "Bot Beta",
+        "handNumber": 4,
+        "message": "Bot Beta Call.",
+        "profileId": "balanced-sam",
+        "sequence": 46
       }
     ],
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-38878498179",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-38882200802",
     "result": "PASS",
     "steps": [
       {
@@ -157,7 +166,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed across 2 hands with 12 committed embedded NPC actions",
+        "name": "tournament completed across 4 hands with 13 committed embedded NPC actions",
         "result": "PASS"
       },
       {
@@ -171,7 +180,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "55f5f4eb9511c463563776ed3b00684c836dde80",
+  "validatedCommit": "f030f13c0352ff940d0a5c357ccd2e87424a5f8e",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38878498179"
+  "workflowRunId": "38882200802"
 }
