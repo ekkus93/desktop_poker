@@ -537,7 +537,9 @@ describe("HostTournamentSetupScreen", () => {
     });
     await screen.findByRole("button", { name: /start hosting/i });
     expect(screen.queryByLabelText("AI profile")).toBeNull();
-    expect(screen.getByText(/add a claude api key/i)).toBeTruthy();
+    expect(
+      screen.getByText(/configure an llm provider in settings/i),
+    ).toBeTruthy();
   });
 
   it("shows profile select when llmApiKeyConfigured is true and npcCount > 0", async () => {

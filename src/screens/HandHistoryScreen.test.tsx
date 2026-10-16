@@ -162,7 +162,7 @@ describe("HandHistoryScreen", () => {
       configurable: true,
       value: {},
     });
-    tauriInvokeMock.mockResolvedValue({
+    const persistedHistory = {
       schemaVersion: 2,
       updatedAtMs: 1234,
       entries: [
@@ -187,7 +187,10 @@ describe("HandHistoryScreen", () => {
           tournamentName: "Newer tournament",
         },
       ],
-    });
+    };
+    tauriInvokeMock.mockImplementation(async (command: string) =>
+      command === "get_runtime_warnings" ? [] : persistedHistory,
+    );
     mockedGetTableView.mockResolvedValue(
       createHistorySnapshot({
         tableId: "table-new",

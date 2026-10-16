@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { vi } from "vitest";
 import {
   addNpcPlayers,
@@ -223,13 +223,21 @@ function renderAppShell(
     };
   });
 
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <DesktopBootstrapProvider>
-        <AppShell />
-      </DesktopBootstrapProvider>
-    </MemoryRouter>,
+  // Mirror production (App.tsx): a data router, so useBlocker-based screens work.
+  const router = createMemoryRouter(
+    [
+      {
+        path: "*",
+        element: (
+          <DesktopBootstrapProvider>
+            <AppShell />
+          </DesktopBootstrapProvider>
+        ),
+      },
+    ],
+    { initialEntries: [initialEntry] },
   );
+  return render(<RouterProvider router={router} />);
 }
 
 function setupAppShellMocks() {

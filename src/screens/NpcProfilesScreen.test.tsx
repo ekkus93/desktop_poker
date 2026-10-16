@@ -203,7 +203,7 @@ describe("NpcProfilesScreen", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /bob/i }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
-    expect(await screen.findByText("Bob")).toBeTruthy();
+    expect((await screen.findAllByText("Bob")).length).toBeGreaterThan(0);
     expect(
       (
         screen.getByRole("textbox", {

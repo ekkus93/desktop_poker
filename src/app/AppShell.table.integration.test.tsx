@@ -527,60 +527,64 @@ describe("AppShell integration (table and debug)", () => {
 
   it("transitions an eliminated player into observer-only state after a live table action", async () => {
     h.mockedGetTableView.mockResolvedValue(createTableViewSnapshot());
-    h.mockedSubmitTableAction.mockResolvedValueOnce(
-      createTableViewSnapshot({
-        actionOwnerLabel: "Maya",
-        observerBanner:
-          "You have been eliminated and now remain connected as a public-only observer.",
-        eliminationSummary:
-          "You busted on hand 9 and now remain at the table as a public-only observer.",
-        seats: [
-          createTableViewSnapshot().seats[0],
-          {
-            ...createTableViewSnapshot().seats[1],
-            statusLabel: "Eliminated observer",
-            markerLabel: "Observer",
-            chipCount: 0,
-            contribution: 0,
-            isActing: false,
-            isObserver: true,
-            isEliminated: true,
-            cardsHidden: true,
-            holeCards: [],
-            detailLines: ["Busted on hand 9 after finishing 3rd."],
-          },
-          {
-            ...createTableViewSnapshot().seats[2],
-            isActing: true,
-          },
-          createTableViewSnapshot().seats[3],
-        ],
-        standings: [
-          {
-            ...createTableViewSnapshot().standings[0],
-            chipCount: 0,
-            statusLabel: "Eliminated observer",
-            note: "Busted on hand 9",
-            isObserver: true,
-          },
-          createTableViewSnapshot().standings[1],
-          createTableViewSnapshot().standings[2],
-          createTableViewSnapshot().standings[3],
-        ],
-        handHistory: [
-          {
-            handNumber: 9,
-            summary: "Maya won 240 chip(s).",
-            potTotal: 240,
-            winningPlayers: ["Maya"],
-            eliminatedPlayers: ["You"],
-            boardCards: [],
-          },
-          ...createTableViewSnapshot().handHistory,
-        ],
-        actionTray: null,
-      }),
-    );
+    const eliminatedSnapshot = createTableViewSnapshot({
+      actionOwnerLabel: "Maya",
+      observerBanner:
+        "You have been eliminated and now remain connected as a public-only observer.",
+      eliminationSummary:
+        "You busted on hand 9 and now remain at the table as a public-only observer.",
+      seats: [
+        createTableViewSnapshot().seats[0],
+        {
+          ...createTableViewSnapshot().seats[1],
+          statusLabel: "Eliminated observer",
+          markerLabel: "Observer",
+          chipCount: 0,
+          contribution: 0,
+          isActing: false,
+          isObserver: true,
+          isEliminated: true,
+          cardsHidden: true,
+          holeCards: [],
+          detailLines: ["Busted on hand 9 after finishing 3rd."],
+        },
+        {
+          ...createTableViewSnapshot().seats[2],
+          isActing: true,
+        },
+        createTableViewSnapshot().seats[3],
+      ],
+      standings: [
+        {
+          ...createTableViewSnapshot().standings[0],
+          chipCount: 0,
+          statusLabel: "Eliminated observer",
+          note: "Busted on hand 9",
+          isObserver: true,
+        },
+        createTableViewSnapshot().standings[1],
+        createTableViewSnapshot().standings[2],
+        createTableViewSnapshot().standings[3],
+      ],
+      handHistory: [
+        {
+          handNumber: 9,
+          summary: "Maya won 240 chip(s).",
+          potTotal: 240,
+          winningPlayers: ["Maya"],
+          eliminatedPlayers: ["You"],
+          boardCards: [],
+        },
+        ...createTableViewSnapshot().handHistory,
+      ],
+      actionTray: null,
+    });
+    // The hand-history screen refetches the table view, so it must reflect the
+    // post-action state once the action has been submitted.
+    h.mockedSubmitTableAction.mockImplementationOnce(async () => {
+      h.mockedGetTableView.mockResolvedValue(eliminatedSnapshot);
+      return eliminatedSnapshot;
+    });
 
     h.renderAppShell("/table", createAppBootstrap(), {
       allowImplicitTableSession: true,

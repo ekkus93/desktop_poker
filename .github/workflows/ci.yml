@@ -15,6 +15,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# bash => `-eo pipefail`; without it `cmd | tee log` masks failing test/build steps.
+defaults:
+  run:
+    shell: bash
+
 permissions:
   contents: read
 

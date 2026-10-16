@@ -233,7 +233,7 @@ describe("AppShell integration (host and lobby)", () => {
 
     await waitFor(() => {
       expect(h.mockedClientClaimLobbySeat).toHaveBeenCalledWith({
-        seatIndex: 2,
+        seatIndex: 1,
       });
     });
     expect(

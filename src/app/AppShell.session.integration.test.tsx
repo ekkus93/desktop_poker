@@ -151,7 +151,10 @@ describe("AppShell integration (client and routing)", () => {
       await screen.findByRole("heading", { level: 2, name: "Lobby" }),
     ).toBeTruthy();
 
-    expect(await screen.findByText(/awaiting seat/i)).toBeTruthy();
+    // Unseated players see open seats they can take (4338ded).
+    expect(
+      (await screen.findAllByRole("button", { name: "Take seat" })).length,
+    ).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Leave table" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Leave table" })[1]);
