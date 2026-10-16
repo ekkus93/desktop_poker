@@ -4,17 +4,17 @@
   "evidenceArtifact": "embedded-npc-tournament-evidence",
   "model": "SmolLM2-135M-Instruct-Q3_K_M.gguf",
   "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-  "recordedAtUtc": "2026-10-16T05:55:35.700746+00:00",
+  "recordedAtUtc": "2026-10-16T06:29:38.902742+00:00",
   "result": "PASS",
   "runtime": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "7cbb72dad90f17262be1fc87548ff7ac07f476618a9503a606f415ec7ce8441b",
-    "completedHands": 2,
+    "applicationSha256": "a8ab239944488477e137fd50ebc1275dca87d8abd35bd7c018e1865835e6065c",
+    "completedHands": 3,
     "finalStandings": [
       {
         "chipCount": 300,
-        "displayName": "Bot Alpha",
-        "isLocal": false,
+        "displayName": "CI Human Host",
+        "isLocal": true,
         "isObserver": false,
         "note": "Dealer",
         "rank": 1,
@@ -22,7 +22,7 @@
       },
       {
         "chipCount": 0,
-        "displayName": "Bot Beta",
+        "displayName": "Bot Alpha",
         "isLocal": false,
         "isObserver": true,
         "note": null,
@@ -31,8 +31,8 @@
       },
       {
         "chipCount": 0,
-        "displayName": "CI Human Host",
-        "isLocal": true,
+        "displayName": "Bot Beta",
+        "isLocal": false,
         "isObserver": true,
         "note": null,
         "rank": 3,
@@ -41,14 +41,15 @@
     ],
     "hostActions": [
       "hand 1: fold",
-      "hand 2: allIn"
+      "hand 2: allIn",
+      "hand 3: allIn"
     ],
-    "instanceId": "embedded-npc-tournament-38857993962",
+    "instanceId": "embedded-npc-tournament-38861050941",
     "model": "/home/runner/work/desktop_poker/desktop_poker/.cache/embedded-models/SmolLM2-135M-Instruct-Q3_K_M.gguf",
     "modelSha256": "3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95",
-    "npcActionCount": 10,
+    "npcActionCount": 11,
     "npcActionCounts": {
-      "Bot Alpha": 6,
+      "Bot Alpha": 7,
       "Bot Beta": 4
     },
     "npcActions": [
@@ -121,9 +122,16 @@
         "message": "Bot Alpha Call.",
         "profileId": "aggressive-alice",
         "sequence": 30
+      },
+      {
+        "displayName": "Bot Alpha",
+        "handNumber": 2,
+        "message": "Bot Alpha Call.",
+        "profileId": "aggressive-alice",
+        "sequence": 34
       }
     ],
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-38857993962",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/embedded-npc-tournament-38861050941",
     "result": "PASS",
     "steps": [
       {
@@ -143,7 +151,7 @@
         "result": "PASS"
       },
       {
-        "name": "tournament completed across 2 hands with 10 committed embedded NPC actions",
+        "name": "tournament completed across 3 hands with 11 committed embedded NPC actions",
         "result": "PASS"
       },
       {
@@ -157,7 +165,7 @@
     ]
   },
   "tournamentOutcome": "success",
-  "validatedCommit": "621419b346055b96f615cb5da78160b2257269bd",
+  "validatedCommit": "2e98e0491166e5be3cee216749e9a0d24e3df07b",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38857993962"
+  "workflowRunId": "38861050941"
 }
