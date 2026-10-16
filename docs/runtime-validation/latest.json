@@ -4,15 +4,15 @@
   "multiInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "clientInstanceId": "runtime-client-38884204317",
-    "clientTableId": "table-runtime-host-38884204317-1792144886200",
-    "conflictInstanceId": "runtime-conflict-38884204317",
-    "hostInstanceId": "runtime-host-38884204317",
+    "clientInstanceId": "runtime-client-38884571826",
+    "clientTableId": "table-runtime-host-38884571826-1792145102934",
+    "conflictInstanceId": "runtime-conflict-38884571826",
+    "hostInstanceId": "runtime-host-38884571826",
     "hostPort": 43818,
     "profileDirectories": [
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-38884204317",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-38884204317",
-      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-38884204317"
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-host-38884571826",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-client-38884571826",
+      "/home/runner/.local/share/desktop-poker/profiles/runtime-conflict-38884571826"
     ],
     "recoveryPort": 43819,
     "result": "PASS",
@@ -78,16 +78,17 @@
         "result": "PASS"
       }
     ],
-    "tableId": "table-runtime-host-38884204317-1792144886200"
+    "tableId": "table-runtime-host-38884571826-1792145102934"
   },
   "multiInstanceOutcome": "success",
-  "recordedAtUtc": "2026-10-16T10:01:39.568608+00:00",
-  "result": "PASS",
+  "recordedAtUtc": "2026-10-16T10:05:16.367821+00:00",
+  "result": "FAIL",
   "singleInstance": {
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
     "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "instanceId": "runtime-smoke-38884204317",
-    "result": "PASS",
+    "error": "AssertionError: Page source missing expected text: ['Check invite', 'Continue to lobby']",
+    "instanceId": "runtime-smoke-38884571826",
+    "result": "FAIL",
     "steps": [
       {
         "name": "tauri-driver became ready",
@@ -110,41 +111,13 @@
         "result": "PASS"
       },
       {
-        "name": "Join route rendered",
-        "result": "PASS"
-      },
-      {
-        "name": "invalid invite failed explicitly: The invite could not be checked.",
-        "result": "PASS"
-      },
-      {
-        "name": "/settings route rendered",
-        "result": "PASS"
-      },
-      {
-        "name": "/rules route rendered",
-        "result": "PASS"
-      },
-      {
-        "name": "session guard redirected /lobby without a live session",
-        "result": "PASS"
-      },
-      {
-        "name": "session guard redirected /table without a live session",
-        "result": "PASS"
-      },
-      {
-        "name": "release /debug route is not reachable",
-        "result": "PASS"
-      },
-      {
-        "name": "runtime screenshot and final page source captured",
-        "result": "PASS"
+        "name": "runtime smoke",
+        "result": "FAIL"
       }
     ]
   },
-  "singleInstanceOutcome": "success",
-  "validatedCommit": "ceaa2cd0be437dff5c1df76fe72ba8633bebadef",
+  "singleInstanceOutcome": "failure",
+  "validatedCommit": "1cf8f1a5a94afc22111d52ef50749b98ca74d595",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38884204317"
+  "workflowRunId": "38884571826"
 }

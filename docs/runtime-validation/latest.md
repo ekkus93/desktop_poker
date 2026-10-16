@@ -1,31 +1,26 @@
 # Latest Linux Release Runtime Validation
 
-- Overall result: **PASS**
-- Validated commit: `ceaa2cd0be437dff5c1df76fe72ba8633bebadef`
-- GitHub Actions run: `38884204317`
+- Overall result: **FAIL**
+- Validated commit: `1cf8f1a5a94afc22111d52ef50749b98ca74d595`
+- GitHub Actions run: `38884571826`
 - Build outcome: `success`
-- Single-instance outcome: `success`
+- Single-instance outcome: `failure`
 - Multi-instance outcome: `success`
-- Recorded at: `2026-10-16T10:01:39.568608+00:00`
+- Recorded at: `2026-10-16T10:05:16.367821+00:00`
 - Evidence artifact: `linux-release-runtime-evidence`
 
 ## Single-instance release smoke
 
-Result: **PASS**
+Result: **FAIL**
+
+Failure: AssertionError: Page source missing expected text: ['Check invite', 'Continue to lobby']
 
 - **PASS** — tauri-driver became ready
 - **PASS** — release binary created a WebDriver session
 - **PASS** — Home rendered through the real Tauri backend
 - **PASS** — browser mocks are unavailable in release mode
 - **PASS** — Host route rendered
-- **PASS** — Join route rendered
-- **PASS** — invalid invite failed explicitly: The invite could not be checked.
-- **PASS** — /settings route rendered
-- **PASS** — /rules route rendered
-- **PASS** — session guard redirected /lobby without a live session
-- **PASS** — session guard redirected /table without a live session
-- **PASS** — release /debug route is not reachable
-- **PASS** — runtime screenshot and final page source captured
+- **FAIL** — runtime smoke
 
 ## Live multi-instance release smoke
 
