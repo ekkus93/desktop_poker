@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use rand_core::{OsRng, RngCore};
+use tempfile::NamedTempFile;
 
 use super::provider::{LlmProviderConfig, LlmProviderSettings, LlmProviderType};
 
@@ -214,36 +214,39 @@ fn rewrite_sanitized_provider_settings(
     path: &Path,
     settings: &LlmProviderSettings,
 ) -> Result<(), String> {
+    rewrite_sanitized_provider_settings_with_failure(path, settings, false)
+}
+
+fn rewrite_sanitized_provider_settings_with_failure(
+    path: &Path,
+    settings: &LlmProviderSettings,
+    fail_replace: bool,
+) -> Result<(), String> {
     let payload = serde_json::to_vec_pretty(settings)
         .map_err(|error| format!("failed to serialize sanitized settings: {error}"))?;
-    let mut random = OsRng;
-    let temporary = path.with_file_name(format!(
-        ".{SETTINGS_FILE_NAME}.{:016x}.tmp",
-        random.next_u64()
-    ));
-    let result = (|| -> std::io::Result<()> {
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let mut file = options.open(&temporary)?;
-        file.write_all(&payload)?;
-        file.sync_all()?;
-        drop(file);
-        fs::rename(&temporary, path)?;
-        #[cfg(unix)]
-        if let Some(parent) = path.parent() {
-            fs::File::open(parent)?.sync_all()?;
-        }
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&temporary);
+    let parent = path
+        .parent()
+        .ok_or_else(|| "atomic settings path has no parent".to_string())?;
+    let mut temporary = NamedTempFile::new_in(parent)
+        .map_err(|error| format!("atomic settings temp creation failed: {error}"))?;
+    temporary
+        .write_all(&payload)
+        .map_err(|error| format!("atomic settings temp write failed: {error}"))?;
+    temporary
+        .as_file()
+        .sync_all()
+        .map_err(|error| format!("atomic settings temp sync failed: {error}"))?;
+    if fail_replace {
+        return Err("injected atomic settings replacement failure".to_string());
     }
-    result.map_err(|error| format!("atomic settings replacement failed: {error}"))
+    temporary
+        .persist(path)
+        .map_err(|error| format!("atomic settings replacement failed: {}", error.error))?;
+    #[cfg(unix)]
+    fs::File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| format!("atomic settings directory sync failed: {error}"))?;
+    Ok(())
 }
 
 /// Retire a Phase 2 plaintext Anthropic key only after it is verifiably
@@ -1043,6 +1046,27 @@ mod tests {
         let sanitized = fs::read_to_string(settings_path(dir.path())).unwrap();
         assert!(!sanitized.contains("sk-ant-stale"));
         assert!(!sanitized.contains("apiKey"));
+    }
+
+    #[test]
+    fn failed_sanitized_settings_replace_preserves_recoverable_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = settings_path(dir.path());
+        let original =
+            br#"{"provider":"anthropic","apiKey":"synthetic-legacy-key","endpointUrl":null,"model":null}"#;
+        fs::write(&path, original).unwrap();
+
+        let error = rewrite_sanitized_provider_settings_with_failure(
+            &path,
+            &anthropic_config("synthetic-legacy-key").settings,
+            true,
+        )
+        .unwrap_err();
+
+        assert!(error.contains("replacement failure"));
+        assert!(!error.contains("synthetic-legacy-key"));
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
     }
 
     #[test]
