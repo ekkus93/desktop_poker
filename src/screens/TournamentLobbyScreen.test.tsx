@@ -223,6 +223,36 @@ describe("TournamentLobbyScreen", () => {
     ).toBeTruthy();
   });
 
+  it("does not claim ready before server confirmation or after a rejected request", async () => {
+    let rejectReady: ((reason: Error) => void) | undefined;
+    mockedHostSetLobbyReadyState.mockImplementation(
+      () =>
+        new Promise<HostSessionStatus>((_resolve, reject) => {
+          rejectReady = reject;
+        }),
+    );
+    const bootstrap = createBootstrap({ debugToolsEnabled: false });
+    renderWithProviders(<TournamentLobbyScreen bootstrap={bootstrap} />, {
+      bootstrap,
+      initialEntries: ["/lobby"],
+    });
+    expect(await screen.findByText("You: Waiting")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "I'm ready" }));
+    expect(screen.getByText("You: Marking ready…")).toBeTruthy();
+    expect(screen.queryByText("You: Ready")).toBeNull();
+    expect(mockedHostSetLobbyReadyState).toHaveBeenCalledWith({
+      isReady: true,
+    });
+
+    await act(async () => {
+      rejectReady?.(new Error("Ready request rejected"));
+    });
+    expect(screen.getByText("You: Waiting")).toBeTruthy();
+    expect(await screen.findByText("Ready request rejected")).toBeTruthy();
+    expect(screen.queryByText("You: Ready")).toBeNull();
+  });
+
   it("shows recovery actions when host stops before the table goes live (B5)", async () => {
     // Capture the session-update callback so we can fire it manually
     let capturedSessionUpdateCallback: (() => void) | undefined;
