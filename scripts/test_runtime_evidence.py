@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from runtime_evidence import public_evidence
+from runtime_evidence import public_evidence, redact_secret_text
 
 
 class PublicEvidenceTests(unittest.TestCase):
@@ -38,6 +38,12 @@ class PublicEvidenceTests(unittest.TestCase):
         self.assertEqual(projected, {"nested": [{"phase": "running"}]})
         self.assertIsNot(projected, source)
         self.assertEqual(source["nested"][0]["holeCards"], ["hidden"])
+
+    def test_redacts_secret_before_persisting_diagnostic_text(self) -> None:
+        self.assertEqual(
+            redact_secret_text("log contains TEST-SECRET", "TEST-SECRET"),
+            "log contains [REDACTED]",
+        )
 
 
 if __name__ == "__main__":

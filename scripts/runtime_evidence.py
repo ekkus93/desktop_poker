@@ -30,3 +30,8 @@ def public_evidence(value: Any) -> Any:
     if isinstance(value, tuple):
         return [public_evidence(child) for child in value]
     return value
+
+
+def redact_secret_text(value: str, secret: str) -> str:
+    """Remove a synthetic or real secret before text enters an artifact."""
+    return value.replace(secret, "[REDACTED]") if secret else value

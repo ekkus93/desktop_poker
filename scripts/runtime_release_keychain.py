@@ -10,7 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from runtime_multi_instance_smoke import WebDriverClient, capture, invoke
+from runtime_multi_instance_smoke import WebDriverClient, invoke
+from runtime_evidence import redact_secret_text
 from runtime_webdriver_smoke import wait_for_route
 
 FORBIDDEN_KEY_FILES = {"llm-provider-key.dat", "claude-api-key.txt"}
@@ -41,7 +42,7 @@ window.__TAURI_INTERNALS__.invoke(command, payload)
         },
     )
     if not isinstance(result, dict) or not isinstance(result.get("ok"), bool):
-        raise AssertionError(f"Malformed Tauri result for {command!r}: {result!r}")
+        raise AssertionError(f"Malformed Tauri result for {command!r}: {type(result).__name__}")
     return result
 
 
@@ -61,12 +62,12 @@ def expect_error(
 
 def assert_non_secret_config(config: Any) -> dict[str, Any]:
     if not isinstance(config, dict):
-        raise AssertionError(f"provider config is not an object: {config!r}")
+        raise AssertionError(f"provider config is not an object: {type(config).__name__}")
     serialized = json.dumps(config, sort_keys=True)
     if "apiKey" in serialized or "api_key" in serialized:
         raise AssertionError("get_llm_provider_config exposed an API-key field")
     if config.get("provider") != "anthropic":
-        raise AssertionError(f"unexpected provider settings: {config!r}")
+        raise AssertionError(f"unexpected provider: {config.get('provider')!r}")
     return config
 
 
@@ -119,7 +120,10 @@ def assert_log_redacted(runtime_log: Path, secret: str) -> None:
         raise AssertionError(f"runtime log is missing: {runtime_log}")
     text = runtime_log.read_text(encoding="utf-8", errors="replace")
     if secret in text:
-        raise AssertionError("release credential leaked into tauri-driver/application log")
+        runtime_log.write_text(redact_secret_text(text, secret), encoding="utf-8")
+        raise AssertionError(
+            "release credential leaked into tauri-driver/application log; artifact log redacted"
+        )
 
 
 def start_release(client: WebDriverClient, application: Path) -> dict[str, Any]:
@@ -127,7 +131,7 @@ def start_release(client: WebDriverClient, application: Path) -> dict[str, Any]:
     wait_for_route(client, "/", "Choose a table")
     bootstrap = invoke(client, "get_bootstrap_state")
     if not isinstance(bootstrap, dict):
-        raise AssertionError(f"get_bootstrap_state returned {bootstrap!r}")
+        raise AssertionError(f"get_bootstrap_state returned {type(bootstrap).__name__}")
     return bootstrap
 
 
@@ -162,7 +166,6 @@ def run_success(
         inventory_after_set = scan_app_data(app_data_dir, secret, require_exists=True)
         assert_settings_file(inventory_after_set, True)
         assert_log_redacted(runtime_log, secret)
-        capture(client, evidence_dir, "keychain-configured")
         record("release credential was accepted while public config remained non-secret")
         record("global app-data files and runtime log contain no credential or plaintext key file")
 
@@ -205,7 +208,6 @@ def run_success(
         final_inventory = scan_app_data(app_data_dir, secret, require_exists=True)
         assert_settings_file(final_inventory, False)
         assert_log_redacted(runtime_log, secret)
-        capture(client, evidence_dir, "keychain-cleared-after-restart")
         record("second release restart confirmed durable keychain deletion")
 
         (evidence_dir / "app-data-inventory-after-set.json").write_text(
@@ -231,14 +233,9 @@ def run_success(
         failure = {
             "result": "FAIL",
             "mode": "success",
-            "error": f"{type(error).__name__}: {error}",
+            "error": type(error).__name__,
             "steps": steps,
         }
-        try:
-            if client.session_id is not None:
-                capture(client, evidence_dir, "keychain-success-failure")
-        except Exception as evidence_error:  # noqa: BLE001
-            failure["evidenceCaptureError"] = str(evidence_error)
         raise RuntimeError(json.dumps(failure, indent=2)) from error
     finally:
         client.close()
@@ -266,7 +263,7 @@ def run_failure(
         error = expect_error(client, "set_llm_api_key", {"key": secret})
         lowered = error.lower()
         if "keychain" not in lowered and "secret service" not in lowered and "dbus" not in lowered:
-            raise AssertionError(f"keychain failure was not explicit: {error!r}")
+            raise AssertionError("keychain failure was not explicit")
         after = invoke(client, "get_bootstrap_state")
         if after.get("llmApiKeyConfigured") is True:
             raise AssertionError("failed keychain write still marked provider configured")
@@ -275,7 +272,6 @@ def run_failure(
         inventory = scan_app_data(app_data_dir, secret, require_exists=False)
         assert_settings_file(inventory, False)
         assert_log_redacted(runtime_log, secret)
-        capture(client, evidence_dir, "keychain-unavailable")
         record("unavailable keychain produced an explicit release error")
         record("failed keychain write created no provider state or plaintext fallback")
         (evidence_dir / "app-data-inventory.json").write_text(
@@ -289,7 +285,7 @@ def run_failure(
             "instanceId": bootstrap.get("instanceId"),
             "profileDirectory": str(profile_dir),
             "appDataDirectory": str(app_data_dir),
-            "error": error,
+            "errorCategory": "keychain-unavailable",
             "steps": steps,
         }
     except Exception as error:  # noqa: BLE001
@@ -297,14 +293,9 @@ def run_failure(
         failure = {
             "result": "FAIL",
             "mode": "failure",
-            "error": f"{type(error).__name__}: {error}",
+            "error": type(error).__name__,
             "steps": steps,
         }
-        try:
-            if client.session_id is not None:
-                capture(client, evidence_dir, "keychain-failure-path-failure")
-        except Exception as evidence_error:  # noqa: BLE001
-            failure["evidenceCaptureError"] = str(evidence_error)
         raise RuntimeError(json.dumps(failure, indent=2)) from error
     finally:
         client.close()

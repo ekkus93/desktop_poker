@@ -82,7 +82,7 @@ def expect_command_error(
 def table_view(client: WebDriverClient) -> dict[str, Any]:
     value = invoke(client, "get_table_view", VIEW_PAYLOAD)
     if not isinstance(value, dict):
-        raise AssertionError(f"get_table_view returned {value!r}")
+        raise AssertionError(f"get_table_view returned {type(value).__name__}")
     return value
 
 
