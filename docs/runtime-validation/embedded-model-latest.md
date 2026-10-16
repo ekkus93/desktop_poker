@@ -1,8 +1,8 @@
 # Embedded tiny-model NPC validation
 
 - Result: **PASS**
-- Validated commit: `568da27669b1fd046683542dbe0112f0da027e27`
-- Workflow run: `38886195921`
+- Validated commit: `88489f26252c9a32e41e9611695d8b7cdb4a46d1`
+- Workflow run: `38890639563`
 - Model: `SmolLM2-135M-Instruct-Q3_K_M.gguf`
 - SHA-256: `3e8e1ce198396779d5a8e60e20c469ad5e064624f4e99790af40de57b46fec95`
 - Checksum: `success`
