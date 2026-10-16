@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from runtime_embedded_npc_tournament import submit_host_action
-from runtime_multi_instance_smoke import WebDriverClient, capture, invoke
+from runtime_multi_instance_smoke import WebDriverClient, invoke
+from runtime_evidence import public_evidence
 from runtime_webdriver_smoke import wait_for, wait_for_route
 
 VIEW_PAYLOAD = {"viewerMode": "local"}
@@ -30,7 +31,7 @@ BOT_CONFIGS = (
 def table_view(client: WebDriverClient) -> dict[str, Any]:
     value = invoke(client, "get_table_view", VIEW_PAYLOAD)
     if not isinstance(value, dict):
-        raise AssertionError(f"get_table_view returned {value!r}")
+        raise AssertionError(f"get_table_view returned {type(value).__name__}")
     return value
 
 
@@ -219,9 +220,8 @@ def run(
             timeout=45.0,
         )
         collect_bot_actions(initial_view, seen_sequences, bot_actions)
-        capture(client, evidence_dir, "rule-based-tournament-start")
         (evidence_dir / "initial-table-view.json").write_text(
-            json.dumps(initial_view, indent=2) + "\n", encoding="utf-8"
+            json.dumps(public_evidence(initial_view), indent=2) + "\n", encoding="utf-8"
         )
         record("release table entered hand 1 with the production NPC runner active")
 
@@ -248,7 +248,15 @@ def run(
             elif time.monotonic() - last_progress_at > 35.0:
                 raise AssertionError(
                     "rule-based tournament made no observable progress for 35 seconds: "
-                    + json.dumps(view, sort_keys=True)
+                    + json.dumps(
+                        {
+                            "phase": view.get("tournamentPhase"),
+                            "handNumber": view.get("currentHandNumber"),
+                            "historyCount": len(view.get("handHistory") or []),
+                            "eventSequence": max(seen_sequences, default=0),
+                        },
+                        sort_keys=True,
+                    )
                 )
 
             if view.get("tournamentPhase") == "complete":
@@ -291,9 +299,8 @@ def run(
             )
 
         assert_no_npc_diagnostics(runtime_log)
-        capture(client, evidence_dir, "rule-based-tournament-complete")
         (evidence_dir / "final-table-view.json").write_text(
-            json.dumps(final_view, indent=2) + "\n", encoding="utf-8"
+            json.dumps(public_evidence(final_view), indent=2) + "\n", encoding="utf-8"
         )
         (evidence_dir / "rule-based-npc-actions.json").write_text(
             json.dumps(bot_actions, indent=2) + "\n", encoding="utf-8"
@@ -327,15 +334,14 @@ def run(
             "result": "FAIL",
             "application": str(application),
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
-            "error": f"{type(error).__name__}: {error}",
+            "error": type(error).__name__,
             "npcActions": bot_actions,
             "hostActions": host_actions,
             "steps": steps,
         }
         try:
             if client.session_id is not None:
-                capture(client, evidence_dir, "rule-based-tournament-failure")
-                failure["lastTableView"] = table_view(client)
+                failure["lastTableView"] = public_evidence(table_view(client))
         except Exception as evidence_error:  # noqa: BLE001
             failure["evidenceCaptureError"] = str(evidence_error)
         raise RuntimeError(json.dumps(failure, indent=2)) from error

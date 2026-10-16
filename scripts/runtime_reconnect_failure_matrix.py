@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from runtime_embedded_npc_tournament import submit_host_action
+from runtime_evidence import public_evidence
 from runtime_multi_instance_smoke import (
     WebDriverClient,
     capture,
@@ -479,10 +480,9 @@ def run(
             timeout=20.0,
         )
         post_reconnect_action = submit_client_action_after_reconnect(host, client)
-        active_reconnect["tableAfterReconnect"] = active_after_view
+        active_reconnect["tableAfterReconnect"] = public_evidence(active_after_view)
         active_reconnect["postReconnectAction"] = post_reconnect_action
         scenarios["activeHandReconnect"] = active_reconnect
-        capture(client, evidence_dir, "active-hand-reconnected")
         record("active-hand reconnect restored the same hand on a new TCP tuple")
         record("post-reconnect client action succeeded and immediate duplicate was rejected")
 
@@ -494,7 +494,6 @@ def run(
             "status": hand_terminal,
             **hand_errors,
         }
-        capture(client, evidence_dir, "active-hand-host-loss")
         record("active-hand host loss became terminal and rejected stale table/action access")
         invoke(client, "leave_client_session")
 
@@ -517,7 +516,7 @@ def run(
             "result": "PASS",
             "application": str(application),
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
-            "scenarios": scenarios,
+            "scenarios": public_evidence(scenarios),
             "steps": steps,
         }
     except Exception as error:  # noqa: BLE001 - preserve full runtime evidence
@@ -526,16 +525,10 @@ def run(
             "result": "FAIL",
             "application": str(application),
             "applicationSha256": os.environ.get("DESKTOP_POKER_BINARY_SHA256"),
-            "error": f"{type(error).__name__}: {error}",
-            "scenarios": scenarios,
+            "error": type(error).__name__,
+            "scenarios": public_evidence(scenarios),
             "steps": steps,
         }
-        for name, driver in (("host", host), ("client", client)):
-            try:
-                if driver.session_id is not None:
-                    capture(driver, evidence_dir, f"failure-{name}")
-            except Exception as evidence_error:  # noqa: BLE001
-                failure[f"{name}EvidenceCaptureError"] = str(evidence_error)
         raise RuntimeError(json.dumps(failure, indent=2)) from error
     finally:
         client.close()
