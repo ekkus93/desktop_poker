@@ -4,11 +4,11 @@
   "failurePath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
+    "applicationSha256": "9c1c14d554efeecd9d07ce6331abb173e3e98c5152a96f381a5e8bfaf2e2f75f",
     "errorCategory": "keychain-unavailable",
-    "instanceId": "release-keychain-failure-38888221672",
+    "instanceId": "release-keychain-failure-38890639554",
     "mode": "failure",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38888221672",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-failure-38890639554",
     "result": "PASS",
     "steps": [
       {
@@ -22,15 +22,15 @@
     ]
   },
   "failurePathOutcome": "success",
-  "recordedAtUtc": "2026-10-16T10:37:40.882921+00:00",
+  "recordedAtUtc": "2026-10-16T11:00:03.710101+00:00",
   "result": "PASS",
   "successPath": {
     "appDataDirectory": "/home/runner/.local/share/desktop-poker",
     "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/desktop-poker",
-    "applicationSha256": "3eaeb40661d0c756c43a3964ace1b26137774d3714b0566f968fb6a2bc93ec1e",
-    "instanceId": "release-keychain-success-38888221672",
+    "applicationSha256": "9c1c14d554efeecd9d07ce6331abb173e3e98c5152a96f381a5e8bfaf2e2f75f",
+    "instanceId": "release-keychain-success-38890639554",
     "mode": "success",
-    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38888221672",
+    "profileDirectory": "/home/runner/.local/share/desktop-poker/profiles/release-keychain-success-38890639554",
     "provider": "anthropic",
     "result": "PASS",
     "secretLength": 36,
@@ -62,7 +62,7 @@
     ]
   },
   "successPathOutcome": "success",
-  "validatedCommit": "2584caa591d9eb5e584e020e0626d0becd04d5a2",
+  "validatedCommit": "88489f26252c9a32e41e9611695d8b7cdb4a46d1",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38888221672"
+  "workflowRunId": "38890639554"
 }
