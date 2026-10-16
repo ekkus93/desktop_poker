@@ -26,6 +26,7 @@ dist
 .vite
 coverage
 test-results
+.cache/embedded-models/
 src-tauri/target
 run_copilot.sh
 
