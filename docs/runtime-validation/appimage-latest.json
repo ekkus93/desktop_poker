@@ -1,22 +1,90 @@
 {
   "appImageValidation": {
-    "appImage": {},
-    "buildOutcome": "failure",
-    "result": "FAIL",
-    "runtime": {
-      "error": "AppImage runtime result was not produced.",
-      "result": "FAIL",
-      "steps": []
+    "appImage": {
+      "appImage": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
+      "appImageSha256": "efec697ae30e6412c24965c475c46da0b657cf34868c695f40162eb2d0a8ee0d",
+      "appImageSizeBytes": "83900920"
     },
-    "steps": [],
-    "validationOutcome": "skipped"
+    "buildOutcome": "success",
+    "result": "PASS",
+    "runtime": {
+      "application": "/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage",
+      "applicationSha256": "efec697ae30e6412c24965c475c46da0b657cf34868c695f40162eb2d0a8ee0d",
+      "instanceId": "appimage-webdriver-38882836200",
+      "result": "PASS",
+      "steps": [
+        {
+          "name": "tauri-driver became ready",
+          "result": "PASS"
+        },
+        {
+          "name": "release binary created a WebDriver session",
+          "result": "PASS"
+        },
+        {
+          "name": "Home rendered through the real Tauri backend",
+          "result": "PASS"
+        },
+        {
+          "name": "browser mocks are unavailable in release mode",
+          "result": "PASS"
+        },
+        {
+          "name": "Host route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "Join route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "invalid invite failed explicitly: The invite could not be checked.",
+          "result": "PASS"
+        },
+        {
+          "name": "/settings route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "/rules route rendered",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /lobby without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "session guard redirected /table without a live session",
+          "result": "PASS"
+        },
+        {
+          "name": "release /debug route is not reachable",
+          "result": "PASS"
+        },
+        {
+          "name": "runtime screenshot and final page source captured",
+          "result": "PASS"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "name": "AppImage was produced and is executable",
+        "result": "PASS"
+      },
+      {
+        "name": "AppImage passed the production WebDriver smoke",
+        "result": "PASS"
+      }
+    ],
+    "validationOutcome": "success"
   },
-  "buildOutcome": "failure",
+  "buildOutcome": "success",
   "evidenceArtifact": "linux-appimage-evidence",
-  "recordedAtUtc": "2026-10-16T09:40:19.292435+00:00",
-  "result": "FAIL",
-  "validatedCommit": "e34ab7a0e2a286a7e7fabc866d97991f13980bfe",
-  "validationOutcome": "skipped",
+  "recordedAtUtc": "2026-10-16T09:50:59.244791+00:00",
+  "result": "PASS",
+  "validatedCommit": "230aa76dad2595f02a4d44cdc2c51b520aa4dfcb",
+  "validationOutcome": "success",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38881916819"
+  "workflowRunId": "38882836200"
 }
