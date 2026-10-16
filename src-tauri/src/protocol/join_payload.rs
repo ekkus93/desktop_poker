@@ -311,6 +311,44 @@ mod tests {
     }
 
     #[test]
+    fn decompressed_json_accepts_the_exact_limit_and_rejects_invalid_utf8() {
+        let mut json = serde_json::to_vec(&sample_payload()).expect("payload JSON");
+        json.resize(super::MAX_JOIN_JSON_BYTES, b' ');
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&json).expect("write exact-limit fixture");
+        let encoded = format!(
+            "pkr1_{}",
+            URL_SAFE_NO_PAD.encode(encoder.finish().expect("finish gzip"))
+        );
+        assert_eq!(decode_join_payload(&encoded).unwrap(), sample_payload());
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder
+            .write_all(&[0xff, 0xfe])
+            .expect("write invalid UTF-8 fixture");
+        let invalid_utf8 = format!(
+            "pkr1_{}",
+            URL_SAFE_NO_PAD.encode(encoder.finish().expect("finish gzip"))
+        );
+        let error = decode_join_payload(&invalid_utf8).expect_err("invalid UTF-8");
+        assert!(error.to_string().contains("gzip decode failed"));
+    }
+
+    #[test]
+    fn legacy_json_accepts_the_exact_limit_and_rejects_one_byte_over() {
+        let mut json = serde_json::to_string(&sample_payload()).expect("payload JSON");
+        json.push_str(&" ".repeat(super::MAX_JOIN_JSON_BYTES - json.len()));
+        assert_eq!(json.len(), super::MAX_JOIN_JSON_BYTES);
+        assert_eq!(decode_join_payload(&json).unwrap(), sample_payload());
+
+        json.push(' ');
+        let error = decode_join_payload(&json).expect_err("legacy input one byte over");
+        assert!(error
+            .to_string()
+            .contains("legacy join payload exceeds size limit"));
+    }
+
+    #[test]
     fn oversized_legacy_json_is_rejected_before_parsing() {
         let oversized = format!(
             "{{\"untrusted\":\"{}\"}}",
