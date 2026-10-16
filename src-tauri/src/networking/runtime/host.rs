@@ -731,6 +731,14 @@ impl HostServer {
                 .ok_or_else(|| NetworkingError::new("live tournament runtime is unavailable"))?;
             let rollback_controller = controller.clone();
 
+            let mut normalized_controller_state = controller.state().clone();
+            merge_networking_state(&before_state, &mut normalized_controller_state);
+            if normalized_controller_state != before_state {
+                return Err(NetworkingError::new(
+                    "tournament runtime diverged from authoritative gameplay state before host action",
+                ));
+            }
+
             let action_outcome = match controller.submit_action_with_outcome(
                 ActionRequest {
                     player_id: player_id.to_string(),
@@ -746,7 +754,12 @@ impl HostServer {
                     return Err(NetworkingError::new(error.to_string()));
                 }
             };
-            let next_state = controller.state().clone();
+            let mut next_state = controller.state().clone();
+            // The controller owns gameplay state, while the authoritative store
+            // also carries reconnect tokens and transport status. Compare and
+            // commit the same normalized view so those network-only fields do
+            // not make a rejected action look like a gameplay mutation.
+            merge_networking_state(&before_state, &mut next_state);
 
             if matches!(
                 action_outcome,
