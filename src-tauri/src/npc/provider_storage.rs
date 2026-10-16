@@ -198,7 +198,6 @@ fn read_key_file(path: &Path) -> Result<Option<String>, String> {
 }
 
 /// Write `key` to `path` and restrict permissions to owner-only on Unix.
-
 fn write_key_file(path: &Path, key: &str) -> Result<(), std::io::Error> {
     fs::write(path, key)?;
     #[cfg(unix)]
@@ -298,8 +297,6 @@ fn retire_legacy_anthropic_key(
 ///
 /// ## Migration paths
 /// 1. **Combined old format** — `llm-provider.json` contains both settings and
-
-
 ///    `apiKey` field (written by an older version). On first load the key is
 ///    moved to the appropriate key storage and the settings file is rewritten
 ///    without it. If the key storage write fails (P0.4), the settings file is
@@ -599,10 +596,7 @@ pub fn save_provider_settings_only(
     let sp = settings_path(app_data_dir);
 
     // If the existing settings file is unreadable or corrupt, refuse to
-
-
     // overwrite it — returning an error surfaces the problem instead of
-
     // silently destroying state.
     let current = read_existing_provider_settings_for_update(&sp)?;
 
@@ -803,7 +797,6 @@ mod tests {
     fn keyless_settings_switch_never_accesses_secret_store() {
         let dir = tempfile::tempdir().unwrap();
         save_provider_config(dir.path(), Some(&embedded_config()), &RejectingSecretStore).unwrap();
-
         let ollama = LlmProviderSettings {
             provider: LlmProviderType::Ollama,
             endpoint_url: None,
@@ -900,7 +893,6 @@ mod tests {
         fs::write(dir.path().join(LEGACY_KEY_FILE_NAME), "sk-ant-legacy").unwrap();
         let loaded = unwrap_loaded(load_provider_config(dir.path(), &store));
         assert_eq!(loaded.settings.provider, LlmProviderType::Anthropic);
-
         assert_eq!(loaded.api_key.as_deref(), Some("sk-ant-legacy"));
     }
 
@@ -1206,7 +1198,6 @@ mod tests {
     #[test]
     fn clear_deletes_all_known_provider_accounts() {
         let dir = tempfile::tempdir().unwrap();
-
         let tracking = TrackingSecretStore::new()
             .with_key("anthropic", "sk-ant-key")
             .with_key("openAi", "sk-openai-key");
