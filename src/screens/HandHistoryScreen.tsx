@@ -182,7 +182,7 @@ export function HandHistoryScreen({ bootstrap }: ScreenProps) {
             {visibleHistoryEntries.length ? (
               visibleHistoryEntries.map((entry) => (
                 <article
-                  key={entry.handNumber}
+                  key={`${activeGroup?.id}:${entry.handNumber}`}
                   className="list-panel history-row"
                 >
                   <div>

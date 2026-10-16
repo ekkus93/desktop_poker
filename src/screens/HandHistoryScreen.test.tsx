@@ -19,6 +19,11 @@ vi.mock("../api/desktop", async () => {
 });
 
 const mockedGetTableView = vi.mocked(getTableView);
+const tauriInvokeMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: tauriInvokeMock,
+}));
 
 function createHistorySnapshot(
   overrides: Partial<TableViewSnapshot> = {},
@@ -30,6 +35,7 @@ function createHistorySnapshot(
     tournamentName: "Desktop Sit 'n Go",
     tableName: "Main Table",
     tableId: "desktop-shell-table",
+    sessionEpoch: 42,
     phaseLabel: "Running",
     streetLabel: "River",
     blindLevelLabel: "Level 1 · 10 / 20",
@@ -69,6 +75,9 @@ function createLongHistory(count: number) {
 describe("HandHistoryScreen", () => {
   beforeEach(() => {
     mockedGetTableView.mockReset();
+    tauriInvokeMock.mockReset();
+    delete (window as typeof window & { __TAURI_INTERNALS__?: unknown })
+      .__TAURI_INTERNALS__;
   });
 
   it("shows saved hand-history summaries when the live fetch fails", async () => {
@@ -145,6 +154,55 @@ describe("HandHistoryScreen", () => {
 
     expect(await screen.findByText("offline")).toBeTruthy();
     expect(screen.getByText(/no settled hands yet\./i)).toBeTruthy();
+  });
+
+  it("keeps equal hand numbers from distinct saved tournaments selectable", async () => {
+    const bootstrap = createBootstrap();
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      configurable: true,
+      value: {},
+    });
+    tauriInvokeMock.mockResolvedValue({
+      schemaVersion: 2,
+      updatedAtMs: 1234,
+      entries: [
+        {
+          ...createHistoryEntry({ handNumber: 1, summary: "Older tournament hand one" }),
+          provenance: "live",
+          tableId: "table-old",
+          sessionEpoch: 100,
+          tournamentName: "Older tournament",
+        },
+        {
+          ...createHistoryEntry({ handNumber: 1, summary: "Newer tournament hand one" }),
+          provenance: "live",
+          tableId: "table-new",
+          sessionEpoch: 200,
+          tournamentName: "Newer tournament",
+        },
+      ],
+    });
+    mockedGetTableView.mockResolvedValue(
+      createHistorySnapshot({
+        tableId: "table-new",
+        sessionEpoch: 200,
+        tournamentName: "Newer tournament",
+        handHistory: [],
+      }),
+    );
+
+    renderWithProviders(<HandHistoryScreen bootstrap={bootstrap} />, {
+      bootstrap,
+    });
+
+    expect(await screen.findByText("Newer tournament hand one")).toBeTruthy();
+    expect(screen.queryByText("Older tournament hand one")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Tournament"), {
+      target: { value: "live:table-old:100" },
+    });
+    expect(screen.getByText("Older tournament hand one")).toBeTruthy();
+    expect(screen.queryByText("Newer tournament hand one")).toBeNull();
+    expect(tauriInvokeMock).toHaveBeenCalledWith("read_persisted_hand_history_v2");
   });
 
   it("bounds the initial render and exposes every older hand incrementally", async () => {
