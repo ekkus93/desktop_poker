@@ -317,6 +317,11 @@ export type PersistedHandHistoryV2 = {
   entries: PersistedHistoryEntryV2[];
 };
 
+export type HandHistoryV2WriteResult = {
+  history: PersistedHandHistoryV2;
+  durable: boolean;
+};
+
 function cacheV1Entries(storageNamespace: string): PersistedHistoryEntryV2[] {
   return (readPersistedHandHistory(storageNamespace)?.entries ?? []).map(
     (entry) => ({
@@ -390,7 +395,7 @@ export async function mergeDurableHandHistoryV2(
   storageNamespace: string,
   snapshot: TableViewSnapshot,
   onWriteFailure?: PersistenceWriteFailureHandler,
-): Promise<PersistedHandHistoryV2> {
+): Promise<HandHistoryV2WriteResult> {
   const live = liveV2Entries(snapshot);
   if (!hasUsableTauriWindowRuntime()) {
     const cachedHistory = mergePersistedHandHistory(
@@ -399,9 +404,12 @@ export async function mergeDurableHandHistoryV2(
       onWriteFailure,
     );
     return {
-      schemaVersion: 2,
-      updatedAtMs: cachedHistory.updatedAtMs,
-      entries: live,
+      history: {
+        schemaVersion: 2,
+        updatedAtMs: cachedHistory.updatedAtMs,
+        entries: live,
+      },
+      durable: false,
     };
   }
   const existing = await invoke<PersistedHandHistoryV2 | null>(
@@ -412,14 +420,16 @@ export async function mergeDurableHandHistoryV2(
     cacheV1Entries(storageNamespace),
   );
   if (cached.length === 0 && live.length === 0 && existing) {
-    return existing;
+    return { history: existing, durable: true };
   }
   // The V2 Rust store validates every tuple and merges under the profile lock.
   // Cached legacy entries remain clearly unattributed, never current-session
   // entries and never preferred over an already durable V2 identity.
-  return invoke<PersistedHandHistoryV2>("merge_persisted_hand_history_v2", {
-    entries: [...cached, ...live],
-  });
+  const history = await invoke<PersistedHandHistoryV2>(
+    "merge_persisted_hand_history_v2",
+    { entries: [...cached, ...live] },
+  );
+  return { history, durable: true };
 }
 
 function hasUsableTauriWindowRuntime(): boolean {

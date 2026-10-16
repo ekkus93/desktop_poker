@@ -278,7 +278,13 @@ export function DesktopShellProvider({
           recordPersistenceFailure,
         )
           .then((history) => {
-            setPersistedHandHistoryCount(history.entries.length);
+            if (history.durable) {
+              setPersistedHandHistoryCount(history.history.entries.length);
+            } else {
+              recordPersistenceFailure(
+                "Hand history is only in browser storage and is not durably saved.",
+              );
+            }
           })
           .catch((error: unknown) => {
             recordPersistenceFailure(

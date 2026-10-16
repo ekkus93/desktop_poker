@@ -308,10 +308,14 @@ describe("AppShell integration (client and routing)", () => {
         name: "Tournament Complete",
       }),
     ).toBeTruthy();
-    // The saved count updates only after the async durable V2 merge resolves.
-    expect(await screen.findByText("Final history saved.")).toBeTruthy();
-    // 1 = the fixture's single final hand (hand 8) after the merge.
-    expect(screen.getByText(/1 hand summaries saved/i)).toBeTruthy();
+    // Browser cache receives the hand, but cache-only writes do not claim
+    // durable success.
+    expect(
+      await screen.findByText("Final history was not durably saved."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Final history saved.")).toBeNull();
+    // Cache-only history is not counted as durably saved.
+    expect(screen.getByText(/0 hand summaries saved/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) =>
         key.toLowerCase().includes("reconnect"),

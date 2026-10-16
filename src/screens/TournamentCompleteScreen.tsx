@@ -36,6 +36,7 @@ export function TournamentCompleteScreen() {
     persistedHandHistoryCount,
   );
   const [historySyncComplete, setHistorySyncComplete] = useState(false);
+  const [historySyncFailed, setHistorySyncFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -111,11 +112,17 @@ export function TournamentCompleteScreen() {
           if (cancelled) {
             return;
           }
-          setSavedHandHistoryCount(mergedHistory.entries.length);
+          if (!mergedHistory.durable) {
+            throw new Error(
+              "Hand history is only in browser storage and is not durably saved.",
+            );
+          }
+          setSavedHandHistoryCount(mergedHistory.history.entries.length);
         }
         setHistorySyncComplete(true);
       } catch (saveError: unknown) {
         if (!cancelled) {
+          setHistorySyncFailed(true);
           setError(
             `Final standings loaded, but hand history could not be saved durably: ${errorMessage(saveError)}`,
           );
@@ -191,7 +198,9 @@ export function TournamentCompleteScreen() {
             <p className="field-hint" role="status">
               {historySyncComplete
                 ? "Final history saved."
-                : "Saving final history…"}
+                : historySyncFailed
+                  ? "Final history was not durably saved."
+                  : "Saving final history…"}
             </p>
             {historySyncComplete ? (
               <div className="button-row">

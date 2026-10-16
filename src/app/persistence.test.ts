@@ -304,7 +304,7 @@ describe("persistence", () => {
         throw new Error(`Unexpected Tauri command ${command}`);
       },
     );
-    await mergeDurableHandHistoryV2(
+    const firstResult = await mergeDurableHandHistoryV2(
       "desktop-poker:two-sessions",
       createTableViewSnapshot({
         tableId: "table-A",
@@ -312,7 +312,7 @@ describe("persistence", () => {
         handHistory: [hand],
       }),
     );
-    await mergeDurableHandHistoryV2(
+    const secondResult = await mergeDurableHandHistoryV2(
       "desktop-poker:two-sessions",
       createTableViewSnapshot({
         tableId: "table-B",
@@ -320,6 +320,8 @@ describe("persistence", () => {
         handHistory: [hand],
       }),
     );
+    expect(firstResult.durable).toBe(true);
+    expect(secondResult.durable).toBe(true);
     const merges = tauriInvokeMock.mock.calls.filter(
       ([command]) => command === "merge_persisted_hand_history_v2",
     );
@@ -334,6 +336,24 @@ describe("persistence", () => {
       tableId: "table-B",
       sessionEpoch: 202,
       handNumber: 1,
+      provenance: "live",
+    });
+  });
+
+  it("reports cache-only V2 writes as non-durable", async () => {
+    const result = await mergeDurableHandHistoryV2(
+      "desktop-poker:cache-only-v2",
+      createTableViewSnapshot({
+        tableId: "table-cache-only",
+        sessionEpoch: 303,
+        handHistory: [createHistoryEntry({ handNumber: 1 })],
+      }),
+    );
+
+    expect(result.durable).toBe(false);
+    expect(result.history.entries[0]).toMatchObject({
+      tableId: "table-cache-only",
+      sessionEpoch: 303,
       provenance: "live",
     });
   });

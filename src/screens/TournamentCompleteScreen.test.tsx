@@ -199,13 +199,16 @@ describe("TournamentCompleteScreen", () => {
     renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
 
     expect(await screen.findByText(handHistory[0].summary)).toBeTruthy();
-    expect(await screen.findByText("Final history saved.")).toBeTruthy();
+    expect(
+      await screen.findByText("Final history was not durably saved."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Final history saved.")).toBeNull();
     await waitFor(() => {
       expect(
         readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
       ).toEqual(handHistory);
     });
-    expect(screen.getByText("1 hand summaries saved.")).toBeTruthy();
+    expect(screen.getByText("0 hand summaries saved.")).toBeTruthy();
   });
 
   it("retries a stale completion snapshot until the current hand arrives", async () => {
@@ -281,11 +284,14 @@ describe("TournamentCompleteScreen", () => {
     renderWithProviders(<TournamentCompleteScreen />, { bootstrap });
 
     expect(await screen.findByText(finalHand.summary)).toBeTruthy();
-    expect(await screen.findByText("Final history saved.")).toBeTruthy();
+    expect(
+      await screen.findByText("Final history was not durably saved."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Final history saved.")).toBeNull();
     expect(mockedGetTableView.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(
       readPersistedHandHistory(bootstrap.storageNamespace)?.entries,
     ).toEqual([finalHand, ...firstThreeHands]);
-    expect(screen.getByText("4 hand summaries saved.")).toBeTruthy();
+    expect(screen.getByText("0 hand summaries saved.")).toBeTruthy();
   });
 });
