@@ -162,6 +162,49 @@ describe("NpcProfilesScreen", () => {
     expect(screen.getByText("Profile format help")).toBeTruthy();
   });
 
+  it("rejects invalid profile slugs before attempting persistence", async () => {
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+    fireEvent.click(screen.getByRole("button", { name: "New profile" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Profile ID/i }), {
+      target: { value: "Invalid Profile" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByText(/Invalid profile ID/)).toBeTruthy();
+    expect(mockedSaveNpcProfile).not.toHaveBeenCalled();
+  });
+
+  it("asks before discarding unsaved edits when changing profiles", async () => {
+    mockedListNpcProfiles.mockResolvedValue(
+      profileList([
+        createProfile({ id: "alice", name: "Alice" }),
+        createProfile({ id: "bob", name: "Bob" }),
+      ]),
+    );
+    const bootstrap = createBootstrap({ llmApiKeyConfigured: true });
+    renderWithProviders(<NpcProfilesScreen />, { bootstrap });
+
+    await screen.findByText("Alice");
+    fireEvent.click(screen.getByRole("button", { name: /alice/i }));
+    const editor = screen.getByRole("textbox", { name: "Profile content" });
+    fireEvent.change(editor, { target: { value: "Unsaved Alice edits" } });
+    expect(screen.getByText("Unsaved profile changes.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /bob/i }));
+    expect(screen.getByText("Discard unsaved profile changes?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect((screen.getByRole("textbox", {
+      name: "Profile content",
+    }) as HTMLTextAreaElement).value).toBe("Unsaved Alice edits");
+
+    fireEvent.click(screen.getByRole("button", { name: /bob/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(await screen.findByText("Bob")).toBeTruthy();
+    expect((screen.getByRole("textbox", {
+      name: "Profile content",
+    }) as HTMLTextAreaElement).value).not.toBe("Unsaved Alice edits");
+  });
+
   it("shows corrupt profile file as a warning in the profile list", async () => {
     mockedListNpcProfiles.mockResolvedValue({
       profiles: [],
