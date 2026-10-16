@@ -1,11 +1,11 @@
 # Latest AppImage Validation
 
 - Overall result: **PASS**
-- Validated commit: `ceaa2cd0be437dff5c1df76fe72ba8633bebadef`
-- GitHub Actions run: `38884204219`
+- Validated commit: `3dcf25a61f514bace60046b11e05991683d821d5`
+- GitHub Actions run: `38885326255`
 - Build outcome: `success`
 - Validation outcome: `success`
-- Recorded at: `2026-10-16T10:02:53.327214+00:00`
+- Recorded at: `2026-10-16T10:12:35.352108+00:00`
 - Evidence artifact: `linux-appimage-evidence`
 
 - **PASS** — AppImage was produced and is executable
@@ -14,5 +14,5 @@
 ## AppImage
 
 - Path: `/home/runner/work/desktop_poker/desktop_poker/target/release/bundle/appimage/Desktop Poker_0.1.0_amd64.AppImage`
-- SHA-256: `68b5342e278612782fea4b2cadb0bd5d36aa4b35bd880d4e82da99a5bcc0ddbe`
+- SHA-256: `c3dd110680a53e6ee89483a04ab2514155ae524cdc1acfb879cb9f16efd8ff40`
 - Size in bytes: `83892728`
