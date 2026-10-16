@@ -1,8 +1,8 @@
 # Latest Reconnect Protocol and Release Validation
 
 - Result: **FAIL**
-- Validated commit: `5cc86a936dd83d0a7f0e752c3172fa6c3890bf35`
-- GitHub Actions run: `38825570440`
+- Validated commit: `0acaf023f455a992c09bbf2d0f19b618ffcceb80`
+- GitHub Actions run: `38827903100`
 - Protocol tests: `failure`
 - Release build: `failure`
 - Release reconnect matrix: `skipped`
