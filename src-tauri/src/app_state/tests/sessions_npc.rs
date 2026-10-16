@@ -369,6 +369,12 @@ fn bootstrap_provider_config_error_clears_after_saving_valid_config() {
         "startup with corrupt provider config must surface a provider_config_error"
     );
 
+    // Corrupt settings are preserved until the user explicitly clears them.
+    // Exercise the supported recovery path before saving a valid config.
+    state2
+        .clear_llm_provider_config()
+        .expect("explicit recovery from corrupt settings must succeed");
+
     // Save valid config — error must clear immediately without restart.
     state2
         .set_llm_provider_config(LlmProviderConfig {
