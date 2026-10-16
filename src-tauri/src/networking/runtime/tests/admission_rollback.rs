@@ -168,11 +168,8 @@ fn stale_join_cleanup_does_not_remove_newer_connection() {
     let provider = DefaultCryptoProvider;
     let host_signing = provider.generate_signing_keypair();
     let encryption = Arc::new(Mutex::new(provider.generate_encryption_keypair()));
-    let payload = sample_join_payload_for_tests(
-        "table-replaced-join",
-        49,
-        host_signing.public_key_base64(),
-    );
+    let payload =
+        sample_join_payload_for_tests("table-replaced-join", 49, host_signing.public_key_base64());
     let state = Arc::new(Mutex::new(sample_tournament_state(
         "table-replaced-join",
         49,
