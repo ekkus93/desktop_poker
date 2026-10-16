@@ -13,10 +13,10 @@
   },
   "buildOutcome": "failure",
   "evidenceArtifact": "linux-appimage-evidence",
-  "recordedAtUtc": "2026-10-16T02:14:23.594154+00:00",
+  "recordedAtUtc": "2026-10-16T02:17:26.787759+00:00",
   "result": "FAIL",
-  "validatedCommit": "4309458d29cc73daa6251d6020fc7ab678008140",
+  "validatedCommit": "19b398d79866df58eceedb2b17179f79f54ec25c",
   "validationOutcome": "skipped",
   "workflowRunAttempt": "1",
-  "workflowRunId": "38839268347"
+  "workflowRunId": "38839553202"
 }
