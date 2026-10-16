@@ -93,8 +93,8 @@ describe("HandHistoryScreen", () => {
     });
 
     expect(await screen.findByText("offline")).toBeTruthy();
+    expect(await screen.findByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
     expect(screen.getByText(/saved on this device/i)).toBeTruthy();
-    expect(screen.getByText(/maya won 240 chip\(s\)/i)).toBeTruthy();
   });
 
   it("replaces cached hand history with live data when the fetch succeeds", async () => {

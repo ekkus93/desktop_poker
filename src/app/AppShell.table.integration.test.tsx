@@ -266,8 +266,10 @@ describe("AppShell integration (table and debug)", () => {
       await screen.findByRole("heading", { level: 2, name: "Hand History" }),
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
+    expect(
+      await screen.findByText(/reconnect b won 300 chip\(s\)\./i),
+    ).toBeTruthy();
     expect(screen.getByText(/saved on this device/i)).toBeTruthy();
-    expect(screen.getByText(/reconnect b won 300 chip\(s\)\./i)).toBeTruthy();
     expect(screen.queryByText(/reconnecting to the table/i)).toBeNull();
     expect(localStorage.getItem(firstBootstrap.reconnectNamespace)).toContain(
       "first-token",
@@ -476,7 +478,10 @@ describe("AppShell integration (table and debug)", () => {
     expect(
       await screen.findByRole("heading", { level: 2, name: "Hand History" }),
     ).toBeTruthy();
-    expect(screen.getByText(/launch child won 440 chip\(s\)\./i)).toBeTruthy();
+    // Saved entries arrive via the async durable history read.
+    expect(
+      await screen.findByText(/launch child won 440 chip\(s\)\./i),
+    ).toBeTruthy();
     expect(screen.queryByText(/parent room/i)).toBeNull();
   });
 

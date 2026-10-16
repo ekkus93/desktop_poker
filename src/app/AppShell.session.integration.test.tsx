@@ -259,6 +259,9 @@ describe("AppShell integration (client and routing)", () => {
         streetLabel: "Showdown",
         actionOwnerLabel: "Tournament complete",
         actionTray: null,
+        // The final hand must be present in handHistory, otherwise the
+        // complete screen correctly refuses to finish the final history save.
+        currentHandNumber: 8,
       }),
     );
 
@@ -305,6 +308,9 @@ describe("AppShell integration (client and routing)", () => {
         name: "Tournament Complete",
       }),
     ).toBeTruthy();
+    // The saved count updates only after the async durable V2 merge resolves.
+    expect(await screen.findByText("Final history saved.")).toBeTruthy();
+    // 1 = the fixture's single final hand (hand 8) after the merge.
     expect(screen.getByText(/1 hand summaries saved/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) =>
@@ -321,10 +327,10 @@ describe("AppShell integration (client and routing)", () => {
       await screen.findByRole("heading", { level: 2, name: "Hand History" }),
     ).toBeTruthy();
     expect(await screen.findByText("offline")).toBeTruthy();
-    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
     expect(
-      screen.getAllByText(/host won 210 chip\(s\)\./i).length,
+      (await screen.findAllByText(/host won 210 chip\(s\)\./i)).length,
     ).toBeGreaterThan(0);
+    expect(screen.getByText(/saved on this device/i)).toBeTruthy();
     expect(
       Object.keys(localStorage).some((key) =>
         key.toLowerCase().includes("reconnect"),
