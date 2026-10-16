@@ -30,13 +30,13 @@ The source-of-truth remediation specification and itemized checklist are
 `docs/DESKTOP_POKER_CODE_REVIEW_REMEDIATION_TODO_2026-10-15.md`.
 The current executable implementation at `88489f26252c9a32e41e9611695d8b7cdb4a46d1`
 has passed exact-head automated CI and all eight release/runtime workflows.
-DP-REVIEW-002 through 008 are implemented and verified; DP-REVIEW-001 and 009
-remain partial pending the lobby-capacity decision, source-review attachment,
-and removal of historical runtime artifacts. This audit remains separate from
+DP-REVIEW-001 through 008 are implemented and verified; DP-REVIEW-009 remains
+partial pending the source-review attachment and removal of historical runtime
+artifacts. This audit remains separate from
 deferred physical LAN, Android/Desktop interoperability, remote-provider, and
 manual accessibility acceptance.
 
-- **DP-REVIEW-001 — network admission rollback:** `admission.rs` now catches public transitions between initial snapshot and client registration; deterministic rollback, real TCP pre-snapshot disconnect/retry, snapshot-gap, and frame-order regressions pass at `88489f2`. Reconnect-eligible lobby capacity policy remains for owner decision.
+- **DP-REVIEW-001 — network admission rollback:** `admission.rs` catches public transitions between initial snapshot and client registration; deterministic rollback, real TCP pre-snapshot disconnect/retry, snapshot-gap, frame-order, and reconnect-capacity regressions pass at `88489f2`. The existing contract reserves capacity for reconnect-eligible participants until explicit removal, including after reconnect-token expiry; this remediation preserves that behavior.
 - **DP-REVIEW-002/003 — V2 history identity, migration and source precedence:** session-aware storage, durable precedence and restart/failure regressions pass exact-head CI and full-game validation at `88489f2`.
 - **DP-REVIEW-004 — history paging:** newest-first grouped pagination and 100/101/205/multi-session regressions pass exact-head CI at `88489f2`.
 - **DP-REVIEW-005 — invite size/decompression limits:** bounded compact/legacy parsing and security-negative tests pass exact-head CI at `88489f2`.
@@ -45,8 +45,8 @@ manual accessibility acceptance.
 - **DP-REVIEW-008 — monotonic UI refresh:** request-order and terminal-session regressions pass exact-head CI at `88489f2`.
 - **DP-REVIEW-009 — backlog alignment/privacy:** backlog and architecture reflect verified implementation; original source review is absent and historical privacy-sensitive workflow artifacts still require owner removal.
 
-Do not mark this review closed until the original review is reconciled, the
-capacity policy is decided, and the historical artifacts are removed. Physical
+Do not mark this review closed until the original review is reconciled and the
+historical artifacts are removed. Physical
 LAN, Android, remote-provider and manual accessibility gates remain separate.
 
 ## Current release position
@@ -259,7 +259,7 @@ The current executable head is `88489f26252c9a32e41e9611695d8b7cdb4a46d1`. All n
 
 | Review item | Current implementation and focused evidence | Status |
 |---|---|---|
-| DP-REVIEW-001 | Transactional rollback, stage fault injection, before-snapshot disconnect/retry, public-event catch-up snapshot, and concurrent frame tests in `admission_completion.rs`; exact-head CI/reconnect pass. Capacity policy awaits owner decision. | PARTIAL |
+| DP-REVIEW-001 | Transactional rollback, stage fault injection, before-snapshot disconnect/retry, public-event catch-up snapshot, concurrent frame tests, and retained reconnect-capacity contract; exact-head CI/reconnect pass. | IMPLEMENTED |
 | DP-REVIEW-002 | V2 compound session identity in `history_storage_v2.rs`; `two_tournaments_keep_the_same_hand_number_across_restart`; full-game restart workflow passed at `88489f2`. | IMPLEMENTED |
 | DP-REVIEW-003 | Durable V2 precedence and cache-only non-durable acknowledgment in `persistence.test.ts` and `TournamentCompleteScreen.test.tsx`; exact-head CI/full-game passed. | IMPLEMENTED |
 | DP-REVIEW-004 | Newest-first grouped history with bounded 100-hand pages and 100/101/205/multi-session tests in `HandHistoryScreen.test.tsx`; exact-head CI passed. | IMPLEMENTED |
