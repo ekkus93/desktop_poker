@@ -139,6 +139,7 @@ fn rust_serialization_matches_desktop_contract_fixture() {
             tournament_name: "Friday Night".to_string(),
             table_name: "Main Table".to_string(),
             table_id: "table-1".to_string(),
+            session_epoch: 1,
             tournament_phase: "running".to_string(),
             phase_label: "Running".to_string(),
             street_label: "Flop".to_string(),
