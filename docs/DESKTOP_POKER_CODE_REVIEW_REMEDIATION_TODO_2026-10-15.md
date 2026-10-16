@@ -148,7 +148,7 @@
 - [x] **DPCR-QA-7.6** Execute `.github/workflows/ci.yml`, `runtime-full-game-validation.yml`, `runtime-validation.yml` and applicable reconnect/release-package/keychain workflows on the **current executable code SHA**; poll to terminal state and inspect linked artifacts/results.
 - [x] **DPCR-QA-7.7** Check persisted data does not lose hands, two profiles remain isolated, no phantom connected participants, no credential/log leak, terminal status is monotonic, and no regression in observer/private cards.
 - [x] **DPCR-QA-7.8** Record passing run URLs, actual SHA, proof artifacts, limitations, and excluded hardware/manual gates for every fixed finding.
-- [ ] **DPCR-QA-7.9** Reconcile each checklist item and nine review statuses with independently supported evidence; do not tick an untested branch or block entire software remediation on unrelated future Android work.
+- [x] **DPCR-QA-7.9** Reconciled checklist items and all nine review statuses against the remediation spec, current source/tests, and exact-head CI. DP-REVIEW-001 and 009 remain explicitly partial with their evidence and dependencies recorded; the missing original-review comparison remains open under DPCR-000.1.
 - [ ] **DPCR-QA-7.10** Update final backlog and sign off the remediation as software-qualified only if all required code, migration, tests and exact-head CI pass; do not publish a GitHub Release without separately satisfying the intended release acceptance.
 
 ## October 15 Ralph Bridge execution evidence (rolling; not sign-off)
